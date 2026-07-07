@@ -22,8 +22,8 @@
 #include "DNA_workspace_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 
 #include "ED_screen.hh"
 #include "UI_interface_c.hh"

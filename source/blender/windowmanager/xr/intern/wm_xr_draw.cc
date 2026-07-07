@@ -19,15 +19,15 @@
 #include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_wrapper.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_time.h"
+#include "BLI_math_geom.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_time.hh"
 
 #include "BKE_global.hh"
 #include "BKE_context.hh"
@@ -62,12 +62,7 @@ namespace blender {
   
 extern CLG_LogRef LOG;
 
-#define XR_PANELS_TRACE(...) \
-  do { \
-    std::fprintf(stderr, __VA_ARGS__); \
-    std::fputc('\n', stderr); \
-    std::fflush(stderr); \
-  } while (0)
+#define XR_PANELS_TRACE(...) ((void)0)
 
 struct wmXrPanelHostContextOverride {
   bContext *C;
@@ -1510,7 +1505,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
                   wm_xr_region_panel_instance_count(xr_region));
 
   bContext *mutable_C = const_cast<bContext *>(C);
-  short prev_alignment = xr_region->alignment;
+  blender::eRegion_Alignment prev_alignment = xr_region->alignment;
   ARegion *prev_region = CTX_wm_region(mutable_C);
   const bool prev_visible = xr_region->runtime->visible;
   rcti panel_rect = panel->panel_rect;
@@ -2189,22 +2184,15 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   wm_xr_draw_viewport_buffers_to_active_framebuffer(xr_data->runtime, surface_data, draw_view);
 
-  float overlay_viewmat[4][4];
-  copy_m4_m4(overlay_viewmat, viewmat);
-  /* XR overlays require an inverted y-axis to match the swapchain framebuffer convention. */
-  for (uint i = 0; i < 4; ++i) {
-    overlay_viewmat[i][1] *= -1.0f;
-  }
-
   if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-    wm_xr_draw_cached_panel_overlay(overlay_viewmat, winmat, surface_data);
-    wm_xr_panel_cursor_draw_overlay(overlay_viewmat, winmat, surface_data);
+    wm_xr_draw_cached_panel_overlay(viewmat, winmat, surface_data);
+    wm_xr_panel_cursor_draw_overlay(viewmat, winmat, surface_data);
   }
 
   GPU_matrix_push_projection();
   GPU_matrix_projection_set(winmat);
   GPU_matrix_push();
-  GPU_matrix_set(overlay_viewmat);
+  GPU_matrix_set(viewmat);
   wm_xr_draw_controllers(nullptr, nullptr, xr_data);
   GPU_matrix_pop();
   GPU_matrix_pop_projection();
@@ -2424,8 +2412,6 @@ static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSes
 
 void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *customdata)
 {
-  CLOG_ERROR(&LOG, "begin wm_xr_draw_controllers");
-
   wmXrData *xr = static_cast<wmXrData *>(customdata);
   const XrSessionSettings *settings = &xr->session_settings;
   GHOST_IXrContext *xr_context = xr->runtime->ghost_context;
@@ -2434,9 +2420,6 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   wm_xr_controller_model_draw(settings, xr_context, state);
   wm_xr_controller_aim_draw(settings, state);
   wm_xr_viewfinder_draw(C, settings, state);
-  wm_xr_panel_cursor_draw(WM_xr_surface_data_get());
-
-  CLOG_ERROR(&LOG, "end wm_xr_draw_controllers");
 }
 
 static CLG_LogRef LOG = {"xr"};
@@ -2444,7 +2427,6 @@ static CLG_LogRef LOG = {"xr"};
 void wm_xr_draw_panels_world_space(const bContext *C, ARegion * /*region*/, void *customdata)
 {
   if (C == nullptr) {
-    CLOG_ERROR(&LOG, "panels_ws: skipped, null context");
     return;
   }
   BLI_assert(customdata != nullptr);
@@ -2452,7 +2434,6 @@ void wm_xr_draw_panels_world_space(const bContext *C, ARegion * /*region*/, void
   wmXrData *xr = static_cast<wmXrData *>(customdata);
   const XrSessionSettings *settings = &xr->session_settings;
   if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) == 0) {
-    CLOG_ERROR(&LOG, "panels_ws: custom overlays disabled");
     return;
   }
 

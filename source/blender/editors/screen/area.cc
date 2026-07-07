@@ -14,10 +14,10 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
-#include "BLI_math_vector.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_rand.hh"
 #include "BLI_string.hh"
 #include "BLI_string_utf8.hh"
@@ -4597,7 +4597,7 @@ void ED_region_panels_draw_to_world_quad(const RegionView3D *rv3d,
 void ED_region_panels_world_layout_begin(bContext *C,
                                          ARegion *region,
                                          rcti *r_panel_rect,
-                                         short *r_prev_alignment,
+                                         blender::eRegion_Alignment *r_prev_alignment,
                                          ARegion **r_prev_region)
 {
   ARegion *prev_region = CTX_wm_region(C);
@@ -4606,7 +4606,7 @@ void ED_region_panels_world_layout_begin(bContext *C,
   }
   CTX_wm_region_set(C, region);
 
-  short prev_alignment = region->alignment;
+  blender::eRegion_Alignment prev_alignment = region->alignment;
   if (r_prev_alignment) {
     *r_prev_alignment = prev_alignment;
   }
@@ -4620,7 +4620,7 @@ void ED_region_panels_world_layout_begin(bContext *C,
 
 void ED_region_panels_world_layout_end(bContext *C,
                                        ARegion *region,
-                                       short prev_alignment,
+                                       blender::eRegion_Alignment prev_alignment,
                                        ARegion *prev_region)
 {
   region->alignment = prev_alignment;
@@ -4637,7 +4637,7 @@ void ED_region_panels_draw_world_space(bContext *C,
     return;
   }
 
-  short prev_alignment;
+  blender::eRegion_Alignment prev_alignment;
   ARegion *prev_region = nullptr;
   rcti panel_rect;
   ED_region_panels_world_layout_begin(C, region, &panel_rect, &prev_alignment, &prev_region);

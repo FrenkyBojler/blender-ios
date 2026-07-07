@@ -159,12 +159,12 @@ void ED_region_panels_draw_to_world_quad(const RegionView3D *rv3d,
 void ED_region_panels_world_layout_begin(bContext *C,
                                          ARegion *region,
                                          rcti *r_panel_rect,
-                                         short *r_prev_alignment,
+                                         blender::eRegion_Alignment *r_prev_alignment,
                                          ARegion **r_prev_region);
 
 void ED_region_panels_world_layout_end(bContext *C,
                                        ARegion *region,
-                                       short prev_alignment,
+                                       blender::eRegion_Alignment prev_alignment,
                                        ARegion *prev_region);
 
 void ED_region_header_init(ARegion *region);
