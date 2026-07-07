@@ -1,1 +1,2 @@
 Referenced by commit 586b6f9b1a9490071843af8c99809544ff3f1610, Fix #160535: Crash transforming a mesh with geometry nodes & cage deform
+Referenced by issue #160749, Transformation values in viewport do not update if scene is used in VSE
