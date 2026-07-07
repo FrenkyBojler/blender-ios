@@ -6,8 +6,10 @@
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_fullscreen_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 #include "workbench_common.bsl.hh"
 #include "workbench_shader_shared.hh"
+
 
 namespace workbench::shadow::rt {
 
@@ -61,7 +63,7 @@ struct Resources {
                         P,
                         0.0f,
                         -srt.pass_data.light_direction_ws,
-                        1000.0f);
+                        FLT_MAX);
   rayQueryProceedEXT(query);
 
   const bool is_light_occluded = rayQueryGetIntersectionTypeEXT(query, true) !=
