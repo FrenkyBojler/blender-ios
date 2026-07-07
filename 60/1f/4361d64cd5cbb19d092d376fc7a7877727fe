@@ -1,1 +1,2 @@
 Referenced by issue #160397, Shadows no longer render properly with Cycles Metal GPU rendering on macOS 14
+Referenced by pull request #161167, Fix #159833: Assert from duplicate vertex group and attribute names
