@@ -61,11 +61,13 @@
 
 #include <cerrno>
 #include <climits>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <iomanip>
+#include <mutex>
 #include <sstream>
 #include <xxhash.h>
 
@@ -232,10 +234,8 @@ class ZstdWriteWrap : public WriteWrap {
 
   TaskPool *pool = nullptr;
 
-  int num_pending = 0;
-
-  ThreadMutex mutex = {};
-  ThreadCondition condition = {};
+  std::mutex mutex;
+  std::condition_variable condition;
   int next_frame = 0;
   int num_frames = 0;
 
@@ -274,10 +274,8 @@ void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
       out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
   MEM_delete_void(task->data);
 
-  BLI_mutex_lock(&ww->mutex);
-  while (ww->next_frame != task->frame_number) {
-    BLI_condition_wait(&ww->condition, &ww->mutex);
-  }
+  std::unique_lock lock{ww->mutex};
+  ww->condition.wait(lock, [&] { return ww->next_frame == task->frame_number; });
   if (ZSTD_isError(out_size)) {
     ww->write_error = true;
   }
@@ -291,11 +289,9 @@ void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
     ww->write_error = true;
   }
   ww->next_frame++;
-  ww->num_pending--;
   MEM_delete(task);
   MEM_delete_void(out_buf);
-  BLI_condition_notify_all(&ww->condition);
-  BLI_mutex_unlock(&ww->mutex);
+  ww->condition.notify_all();
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -304,8 +300,6 @@ bool ZstdWriteWrap::open(const char *filepath)
     return false;
   }
 
-  BLI_mutex_init(&mutex);
-  BLI_condition_init(&condition);
   pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_HIGH);
 
   return true;
@@ -358,9 +352,6 @@ bool ZstdWriteWrap::close()
   BLI_task_pool_free(pool);
   pool = nullptr;
 
-  BLI_mutex_end(&mutex);
-  BLI_condition_end(&condition);
-
   write_seekable_frames();
   frames.free_no_destruct();
 
@@ -379,13 +370,6 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
   task->frame_number = num_frames++;
-
-  BLI_mutex_lock(&mutex);
-  while (num_pending >= BLI_task_scheduler_num_threads()) {
-    BLI_condition_wait(&condition, &mutex);
-  }
-  num_pending++;
-  BLI_mutex_unlock(&mutex);
 
   BLI_task_pool_push(pool, compress_task_run, task, false, nullptr);
   return true;
