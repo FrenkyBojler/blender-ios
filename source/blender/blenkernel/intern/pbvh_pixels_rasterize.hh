@@ -15,6 +15,7 @@ namespace blender::bke::pbvh {
  * Uses canonical edge ordering to make it watertight.
  */
 struct TriRasterizer {
+ private:
   struct Edge {
     /* Edge function coefficients, so that:
      *
@@ -22,11 +23,13 @@ struct TriRasterizer {
      * coefficients.x * x + coefficients.y * y + coefficients.z
      */
     float3 coefficients;
-    /* Use >= or > for edge test? */
-    bool inclusive;
+    /* Are we inside when the edge function is positive? */
+    bool positive_side;
   };
 
   Edge edges[3];
+
+ public:
   float3 dx_step;
   float3 dy_step;
 
@@ -45,7 +48,7 @@ struct TriRasterizer {
       const float2 d = b - a;
       edges[i].coefficients = {-d.y, d.x, math::cross(a, d)};
       /* Check which side the c vertex is on. */
-      edges[i].inclusive = (math::cross(d, c - a) > 0.0f);
+      edges[i].positive_side = (math::cross(d, c - a) > 0.0f);
     }
 
     dx_step = {edges[0].coefficients.x, edges[1].coefficients.x, edges[2].coefficients.x};
@@ -55,18 +58,19 @@ struct TriRasterizer {
   /* Edge function values at pixel center. */
   float3 edge_values(const int x, const int y) const
   {
-    const float3 hom = {float(x) + 0.5f, float(y) + 0.5f, 1.0f};
-    return {math::dot(edges[0].coefficients, hom),
-            math::dot(edges[1].coefficients, hom),
-            math::dot(edges[2].coefficients, hom)};
+    const float3 xyz = {float(x) + 0.5f, float(y) + 0.5f, 1.0f};
+    return {math::dot(edges[0].coefficients, xyz),
+            math::dot(edges[1].coefficients, xyz),
+            math::dot(edges[2].coefficients, xyz)};
   }
 
   /* True if the point with edge values e is inside. */
   bool inside(const float3 e) const
   {
-    return (edges[0].inclusive ? e.x >= 0.0f : e.x < 0.0f) &&
-           (edges[1].inclusive ? e.y >= 0.0f : e.y < 0.0f) &&
-           (edges[2].inclusive ? e.z >= 0.0f : e.z < 0.0f);
+    /* Note the positive side uses >= and negative uses < to make it watertight. */
+    return (edges[0].positive_side ? e.x >= 0.0f : e.x < 0.0f) &&
+           (edges[1].positive_side ? e.y >= 0.0f : e.y < 0.0f) &&
+           (edges[2].positive_side ? e.z >= 0.0f : e.z < 0.0f);
   }
 };
 

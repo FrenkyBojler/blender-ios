@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -93,14 +95,14 @@ static void extract_barycentric_pixels(UDIMTilePixels &tile_data,
     int x;
 
     const float fy = float(y) + 0.5f;
-    const int mask_y = clamp_i(int(fy * mask_scale_y), 0, mask_resolution_y - 1);
+    const int mask_y = std::clamp(int(fy * mask_scale_y), 0, mask_resolution_y - 1);
 
     float3 edge_vals = row_edge_vals;
     for (x = minx; x < maxx; x++) {
       const float fx = float(x) + 0.5f;
 
       /* The mask UV is always in range, since loop pixels are inside the clamped bounding box. */
-      const int mask_x = clamp_i(int(fx * mask_scale_x), 0, mask_resolution_x - 1);
+      const int mask_x = std::clamp(int(fx * mask_scale_x), 0, mask_resolution_x - 1);
       const bool is_masked = mask_tile.is_masked(uv_island_index, mask_x, mask_y);
       const bool is_inside = rasterizer.inside(edge_vals);
 
@@ -468,10 +470,10 @@ static bool update_pixels(const Depsgraph &depsgraph,
         }
       }
     }
-    printf("Encoded %lld pixels in %lld bytes (%f bytes per pixel)\n",
-           (long long)num_pixels,
-           (long long)rows_bytes,
-           double(rows_bytes) / double(num_pixels));
+    fmt::print("Encoded {} pixels in {} bytes ({} bytes per pixel)\n",
+               num_pixels,
+               rows_bytes,
+               double(rows_bytes) / double(num_pixels));
   }
 #endif
 
