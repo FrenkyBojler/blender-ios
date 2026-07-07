@@ -269,8 +269,8 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 #  include "DNA_meshdata_types.h"
 #  include "DNA_pointcloud_types.h"
 
-#  include "BLI_math_color.h"
-#  include "BLI_string.h"
+#  include "BLI_math_color_c.hh"
+#  include "BLI_string.hh"
 
 #  include "BKE_anonymous_attribute_id.hh"
 #  include "BKE_attribute_legacy_convert.hh"
@@ -340,7 +340,7 @@ static AttributeOwner owner_from_pointer_rna(const PointerRNA *ptr)
 
 static std::optional<std::string> rna_Attribute_path(const PointerRNA *ptr)
 {
-  return fmt::format("attributes[\"{}\"]", BLI_str_escape(rna_Attribute_name_get(*ptr).c_str()));
+  return fmt::format("attributes[\"{}\"]", BLI_str_escape(rna_Attribute_name_get(*ptr)));
 }
 
 static StructRNA *srna_by_custom_data_layer_type(const eCustomDataType type)
@@ -874,7 +874,7 @@ static PointerRNA rna_AttributeGroupID_new(
   bke::AttributeStorage &attributes = *owner.get_storage();
   const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(eCustomDataType(type));
   bke::Attribute &attr = attributes.add(
-      attributes.unique_name_calc(name),
+      BKE_attribute_calc_unique_name(owner, name),
       AttrDomain(domain),
       *bke::custom_data_type_to_attr_type(eCustomDataType(type)),
       bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));

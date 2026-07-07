@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -9284,10 +9284,6 @@ msgid "sin(x) / x"
 msgstr "sin(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Phasenmultiplikator"
-
-
 msgid "Phase Offset"
 msgstr "Phasen Versatz"
 
@@ -9966,6 +9962,10 @@ msgstr "Rückwärts sortieren"
 
 msgid "Asset Select Parameters"
 msgstr "Asset Auswahl-Parameter"
+
+
+msgid "Unassigned"
+msgstr "Unbestimmt"
 
 
 msgid "Float2 Attribute Value"
@@ -11156,6 +11156,10 @@ msgstr "Fußzeile"
 
 msgid "XR"
 msgstr "XR"
+
+
+msgid "Scrubbing"
+msgstr "Schruppen"
 
 
 msgid "Gizmos"
@@ -18683,6 +18687,10 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
+msgid "Add Image"
+msgstr "Bild hinzufügen"
+
+
 msgid "Relations"
 msgstr "Beziehungen"
 
@@ -18759,24 +18767,24 @@ msgid "Sample"
 msgstr "Beispiel"
 
 
-msgid "Toggle Bone Options"
-msgstr "Knochen-Optionen umschalten"
-
-
 msgid "Write"
 msgstr "Schreiben"
+
+
+msgid "Toggle Bone Options"
+msgstr "Knochen-Optionen umschalten"
 
 
 msgid "Enable Bone Options"
 msgstr "Knochen-Optionen einschalten"
 
 
-msgid "Disable Bone Options"
-msgstr "Knochen-Optionen ausschalten"
-
-
 msgid "Primitives"
 msgstr "Grundkörper"
+
+
+msgid "Disable Bone Options"
+msgstr "Knochen-Optionen ausschalten"
 
 
 msgid "Mesh Select Mode"
@@ -18843,20 +18851,20 @@ msgid "Viewpoint"
 msgstr "Ansicht"
 
 
-msgid "Navigation"
-msgstr "Navigation"
-
-
 msgid "Linked"
 msgstr "Verknüpft"
 
 
-msgid "Align View"
-msgstr "Ansicht ausrichten"
+msgid "Navigation"
+msgstr "Navigation"
 
 
 msgid "Layout"
 msgstr "Layout"
+
+
+msgid "Align View"
+msgstr "Ansicht ausrichten"
 
 
 msgid "Align View to Active"
@@ -18905,10 +18913,6 @@ msgstr "Licht"
 
 msgid "Light Probe"
 msgstr "Lichtsonde"
-
-
-msgid "Add Image"
-msgstr "Bild hinzufügen"
 
 
 msgid "Assets"
@@ -39573,11 +39577,6 @@ msgstr "Rollen"
 
 
 msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Knochengröße"
-
-
-msgctxt "Operator"
 msgid "Bone Envelope"
 msgstr "Knochen umhüllen"
 
@@ -51475,10 +51474,6 @@ msgid "Duplicate Marker to Scene"
 msgstr "Marker der Szene duplizieren"
 
 
-msgid "Scrubbing"
-msgstr "Schruppen"
-
-
 msgid "Limit to Frame Range"
 msgstr "Limit für Einzelbildbereich"
 
@@ -54816,10 +54811,6 @@ msgid "No mesh data to join"
 msgstr "Keine Maschendaten zum verknüpfen"
 
 
-msgid "Unassigned"
-msgstr "Unbestimmt"
-
-
 msgid "SoundTrack"
 msgstr "Soundtrack"
 
@@ -57336,6 +57327,10 @@ msgid "Strings"
 msgstr "Strings"
 
 
+msgid "Top Right"
+msgstr "Oben rechts"
+
+
 msgid "Text Box Width"
 msgstr "Textboxbreite"
 
@@ -57354,10 +57349,6 @@ msgstr "Rest"
 
 msgid "Edge Crease"
 msgstr "Kantenfalte"
-
-
-msgid "Top Right"
-msgstr "Oben rechts"
 
 
 msgid "No named attributes used"

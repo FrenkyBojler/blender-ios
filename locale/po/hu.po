@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
