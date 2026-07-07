@@ -1734,6 +1734,14 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
     test_bpy_types.unregister_referenced_type
+    test_drag_interactions.view3d_object_drag
+    test_drag_interactions.viewport_navigation_drags
+    test_drag_interactions.node_single_drag
+    test_drag_interactions.node_multiple_drag
+    test_drag_interactions.dopesheet_keyframe_drag
+    test_drag_interactions.graph_editor_drag
+    test_drag_interactions.uv_editor_drag
+    test_drag_interactions.image_editor_pan
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
