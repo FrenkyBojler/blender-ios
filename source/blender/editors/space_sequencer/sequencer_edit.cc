@@ -940,7 +940,7 @@ static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent
     }
     /* If any strips do not have enough underlying content to
      * fill their bounds, show a warning. */
-    if (strip->length() < strip->right_handle(scene) - strip->left_handle()) {
+    if (strip->content_length() < strip->right_handle(scene) - strip->left_handle()) {
       data->clamp_warning = true;
     }
     /* Strip exists with enough content, we can clamp. */
@@ -1069,7 +1069,7 @@ static float slip_apply_clamp(const Scene *scene, const SlipData *data, float *r
 
       /* Clamp hold offsets if the option is currently enabled
        * and if there are enough frames to fill the strip. */
-      if (data->clamp && strip->length() >= right_handle - left_handle) {
+      if (data->clamp && strip->content_length() >= right_handle - left_handle) {
         if (unclamped_start > left_handle) {
           diff = left_handle - unclamped_start;
         }
@@ -2824,7 +2824,9 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
   seq::prefetch_stop(scene);
 
   while (strip) {
-    if ((strip->flag & SEQ_SELECT) && (strip->type == STRIP_TYPE_IMAGE) && (strip->length() > 1)) {
+    if ((strip->flag & SEQ_SELECT) && (strip->type == STRIP_TYPE_IMAGE) &&
+        (strip->content_length() > 1))
+    {
       Strip *strip_next;
 
       /* TODO: remove f-curve and assign to split image strips.
@@ -2842,7 +2844,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
 
         strip_new->start = start_ofs;
         strip_new->type = STRIP_TYPE_IMAGE;
-        strip_new->length_set(1);
+        strip_new->content_length_set(1);
         strip_new->flag |= SEQ_SINGLE_FRAME_CONTENT;
         strip_new->endoffset_set(1 - step);
 
@@ -3027,7 +3029,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   BLI_strncpy_utf8(strip_meta->name + 2, DATA_("MetaStrip"), sizeof(strip_meta->name) - 2);
   seq::strip_unique_name_set(scene, &ed->seqbase, strip_meta);
   strip_meta->start = meta_start_frame;
-  strip_meta->length_set(meta_end_frame - meta_start_frame);
+  strip_meta->content_length_set(meta_end_frame - meta_start_frame);
   seq::select_active_set(scene, strip_meta);
   if (seq::transform_test_overlap(scene, active_seqbase, strip_meta)) {
     seq::transform_seqbase_shuffle(active_seqbase, strip_meta, scene);

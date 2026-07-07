@@ -449,7 +449,7 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene,
         else {
           v->speed_control_type = SEQ_SPEED_MULTIPLY;
           v->speed_fader = globalSpeed_legacy *
-                           (float(strip.input1->length()) /
+                           (float(strip.input1->content_length()) /
                             max_ff(float(strip.input1->right_handle(scene) - strip.input1->start),
                                    1.0f));
         }
@@ -1765,7 +1765,7 @@ static bool version_merge_still_offsets(Strip *strip, void * /*user_data*/)
 
 static bool version_set_seq_single_frame_content(Strip *strip, void * /*user_data*/)
 {
-  if ((strip->length() == 1) &&
+  if ((strip->content_length() == 1) &&
       (strip->type == STRIP_TYPE_IMAGE || !strip->is_effect_with_inputs()))
   {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;

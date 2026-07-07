@@ -132,7 +132,7 @@ Strip *add_scene_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_d
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_SCENE);
   strip->scene = load_data->scene;
   strip->scene_view_layer_name = BLI_strdup(BKE_view_layer_default_render(strip->scene)->name);
-  strip->length_set(load_data->scene->r.efra - load_data->scene->r.sfra + 1);
+  strip->content_length_set(load_data->scene->r.efra - load_data->scene->r.sfra + 1);
   id_us_ensure_real(id_cast<ID *>(load_data->scene));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
@@ -144,7 +144,7 @@ Strip *add_movieclip_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *lo
   Strip *strip = strip_alloc(
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_MOVIECLIP);
   strip->clip = load_data->clip;
-  strip->length_set(BKE_movieclip_get_duration(load_data->clip));
+  strip->content_length_set(BKE_movieclip_get_duration(load_data->clip));
   id_us_ensure_real(id_cast<ID *>(load_data->clip));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
@@ -155,7 +155,7 @@ Strip *add_mask_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_da
 {
   Strip *strip = strip_alloc(seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_MASK);
   strip->mask = load_data->mask;
-  strip->length_set(BKE_mask_get_duration(load_data->mask));
+  strip->content_length_set(BKE_mask_get_duration(load_data->mask));
   id_us_ensure_real(id_cast<ID *>(load_data->mask));
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
@@ -182,7 +182,7 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
   }
 
   if (strip->input1 == nullptr) {
-    strip->length_set(1); /* Effect is generator, set non zero length. */
+    strip->content_length_set(1); /* Effect is generator, set non zero length. */
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
     strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
@@ -238,11 +238,11 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
 {
   Strip *strip = strip_alloc(
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE);
-  strip->length_set(load_data->image.count);
+  strip->content_length_set(load_data->image.count);
   StripData *data = strip->data;
   data->stripdata = MEM_new_array<StripElem>(load_data->image.count, "stripelem");
 
-  if (strip->length() == 1) {
+  if (strip->content_length() == 1) {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
   }
 
@@ -319,7 +319,7 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
    * nearest frame as the audio track usually overshoots or undershoots the
    * end frame of the video by a little bit.
    * See #47135 for under shoot example. */
-  strip->length_set(
+  strip->content_length_set(
       std::max(1, int(round((info.length - sound->offset_time) * scene->frames_per_second()))));
 
   StripData *data = strip->data;
@@ -374,7 +374,7 @@ Strip *add_meta_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_da
 
   /* Set frames start and length. */
   strip_meta->start = load_data->start_frame;
-  strip_meta->length_set(1);
+  strip_meta->content_length_set(1);
 
   strip_add_generic_update(scene, strip_meta);
 
@@ -480,7 +480,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   });
 
   if (anim_arr[0] != nullptr) {
-    strip->length_set(MOV_get_duration_frames(anim_arr[0]));
+    strip->content_length_set(MOV_get_duration_frames(anim_arr[0]));
 
     MOV_load_metadata(anim_arr[0]);
 
@@ -496,7 +496,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
     }
   }
 
-  strip->length_set(std::max(1, strip->length()));
+  strip->content_length_set(std::max(1, strip->content_length()));
   if (load_data->adjust_playback_rate) {
     strip->flag |= SEQ_AUTO_PLAYBACK_RATE;
   }
@@ -551,7 +551,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       olen -= strip->anim_startofs;
       olen -= strip->anim_endofs;
       olen = std::max(olen, 0);
-      strip->length_set(olen);
+      strip->content_length_set(olen);
       break;
     }
     case STRIP_TYPE_MOVIE: {
@@ -624,7 +624,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       new_len -= strip->anim_startofs;
       new_len -= strip->anim_endofs;
       new_len = std::max(new_len, 0);
-      strip->length_set(new_len);
+      strip->content_length_set(new_len);
       break;
     }
     case STRIP_TYPE_MOVIECLIP: {
@@ -637,7 +637,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       new_len -= strip->anim_startofs;
       new_len -= strip->anim_endofs;
       new_len = std::max(new_len, 0);
-      strip->length_set(new_len);
+      strip->content_length_set(new_len);
       break;
     }
     case STRIP_TYPE_MASK: {
@@ -648,7 +648,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       new_len -= strip->anim_startofs;
       new_len -= strip->anim_endofs;
       new_len = std::max(new_len, 0);
-      strip->length_set(new_len);
+      strip->content_length_set(new_len);
       break;
     }
     case STRIP_TYPE_SOUND: {
@@ -661,7 +661,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       new_len -= strip->anim_startofs;
       new_len -= strip->anim_endofs;
       new_len = std::max(new_len, 0);
-      strip->length_set(new_len);
+      strip->content_length_set(new_len);
 #else
       UNUSED_VARS(bmain);
       return;
@@ -673,7 +673,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       new_len -= strip->anim_startofs;
       new_len -= strip->anim_endofs;
       new_len = std::max(new_len, 0);
-      strip->length_set(new_len);
+      strip->content_length_set(new_len);
       break;
     }
     default:
