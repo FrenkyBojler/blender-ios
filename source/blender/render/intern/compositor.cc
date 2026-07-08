@@ -6,7 +6,6 @@
 #include <string>
 
 #include "BLI_listbase.hh"
-#include "BLI_math_euler.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_threads.hh"
@@ -43,8 +42,8 @@
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_render_context.hh"
 #include "COM_result.hh"
+#include "COM_scene_compositor_modifiers_operation.hh"
 #include "COM_scheduler.hh"
-#include "COM_utilities.hh"
 
 #include "NOD_dependencies.hh"
 #include "NOD_eval_log.hh"
@@ -721,133 +720,6 @@ class Context : public compositor::Context {
     return true;
   }
 
-  compositor::Result *get_input_from_rna(PointerRNA &input_ptr,
-                                         const bNodeTreeInterfaceSocket &input_socket)
-  {
-    compositor::Result *result = new compositor::Result(
-        this->create_result(compositor::get_node_interface_socket_result_type(input_socket)));
-    result->allocate_single_value();
-    switch (input_socket.socket_typeinfo()->type) {
-      case SOCK_FLOAT: {
-        const float value = RNA_float_get(&input_ptr, "value");
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_VECTOR: {
-        switch (static_cast<bNodeSocketValueVector *>(input_socket.socket_data)->dimensions) {
-          case 2: {
-            float2 value;
-            RNA_float_get_array(&input_ptr, "value", value);
-            result->set_single_value(value);
-            break;
-          }
-          case 3: {
-            float3 value;
-            RNA_float_get_array(&input_ptr, "value", value);
-            result->set_single_value(value);
-            break;
-          }
-          case 4: {
-            float4 value;
-            RNA_float_get_array(&input_ptr, "value", value);
-            result->set_single_value(value);
-            break;
-          }
-          default:
-            BLI_assert_unreachable();
-        }
-        break;
-      }
-      case SOCK_RGBA: {
-        ColorGeometry4f value;
-        RNA_float_get_array(&input_ptr, "value", value);
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_BOOLEAN: {
-        const bool value = RNA_boolean_get(&input_ptr, "value");
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_INT: {
-        const int value = RNA_int_get(&input_ptr, "value");
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_ROTATION: {
-        float3 value_euler;
-        RNA_float_get_array(&input_ptr, "value", value_euler);
-        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
-        result->set_single_value(value_rotation);
-        break;
-      }
-      case SOCK_MENU: {
-        const nodes::MenuValue value = nodes::MenuValue(RNA_enum_get(&input_ptr, "value"));
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_STRING: {
-        const std::string value = RNA_string_get(&input_ptr, "value");
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_INT_VECTOR: {
-        switch (static_cast<bNodeSocketValueIntVector *>(input_socket.socket_data)->dimensions) {
-          case 2: {
-            int2 value;
-            RNA_int_get_array(&input_ptr, "value", value);
-            result->set_single_value(value);
-            break;
-          }
-          case 3: {
-            int3 value;
-            RNA_int_get_array(&input_ptr, "value", value);
-            result->set_single_value(value);
-            break;
-          }
-          default:
-            BLI_assert_unreachable();
-        }
-        break;
-      }
-      case SOCK_OBJECT: {
-        Object *value = RNA_pointer_get(&input_ptr, "value").data_as<Object>();
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_FONT: {
-        VFont *value = RNA_pointer_get(&input_ptr, "value").data_as<VFont>();
-        result->set_single_value(value);
-        break;
-      }
-      case SOCK_IMAGE:
-      case SOCK_COLLECTION:
-      case SOCK_TEXTURE:
-      case SOCK_MATERIAL:
-      case SOCK_SCENE:
-      case SOCK_TEXT_ID:
-      case SOCK_MASK:
-      case SOCK_SOUND:
-      case SOCK_GEOMETRY:
-      case SOCK_MATRIX:
-      case SOCK_BUNDLE:
-      case SOCK_CLOSURE:
-      case SOCK_SHADER:
-      case SOCK_CUSTOM:
-        break;
-    }
-
-    return result;
-  }
-
-  bke::compositor::ExecutionMode get_execution_mode()
-  {
-    if (this->render_context()) {
-      return bke::compositor::ExecutionMode::Render;
-    }
-    return bke::compositor::ExecutionMode::Preview;
-  }
-
   void evaluate()
   {
     if (this->write_frame_cache()) {
@@ -858,108 +730,25 @@ class Context : public compositor::Context {
     this->get_scene().runtime->compositor.nodes_evaluation_log =
         std::make_unique<nodes::eval_log::NodesEvalLog>();
 
-    using namespace compositor;
-    const NodeGroupOutputTypes needed_outputs = this->needed_outputs();
-    const bool needs_viewer_output = flag_is_set(needed_outputs, NodeGroupOutputTypes::ViewerNode);
-    const bke::DataBlockComputeContext scene_compute_context(nullptr, this->get_scene().id);
+    const compositor::NodeGroupOutputTypes needed_outputs = this->needed_outputs();
+    compositor::SceneCompositorModifiersOperation operation =
+        compositor::SceneCompositorModifiersOperation(*this, needed_outputs);
+    compositor::Result combined_pass = this->get_pass(&this->get_scene(), 0, RE_PASSNAME_COMBINED);
+    operation.map_input_to_result(&combined_pass);
+    operation.evaluate();
 
-    std::unique_ptr<NodeGroupOperation> last_operation;
-    const bke::compositor::ExecutionMode execution_mode = get_execution_mode();
-    bool has_viewer_output = false;
-    for (const SceneCompositorModifier &modifier : input_data_.scene.compositor_modifiers) {
-      if (!bke::compositor::is_modifier_enabled(modifier, execution_mode)) {
-        continue;
-      }
-
-      const bke::SceneCompositorModifierComputeContext modifier_compute_context(
-          &scene_compute_context, modifier);
-
-      const bNodeTree &node_group = *modifier.node_group;
-      NodeGroupOperation *modifier_operation = new NodeGroupOperation(
-          *this, node_group, needed_outputs, modifier_compute_context);
-
-      /* If the node group has no viewer node in the active context, and the context requires a
-       * viewer output, we use the group output as a viewer. */
-      if (needs_viewer_output && has_viewer_node(node_group,
-                                                 modifier_compute_context,
-                                                 this->get_active_compute_context_hash()))
-      {
-        has_viewer_output = true;
-      }
-
-      /* We need the output of the modifier if we are rendering or do not have a viewer, in which
-       * case, the viewer will be in a later modifier which needs the output of this one, or the
-       * viewer result will be the last operation. */
-      const bool is_modifier_output_needed = this->render_context() || !has_viewer_output;
-
-      /* Set the reference count for the outputs, only the first color output is actually needed,
-       * while the rest are ignored. */
-      node_group.ensure_interface_cache();
-      for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-        const bool is_first_output = output_socket == node_group.interface_outputs().first();
-        Result &output_result = modifier_operation->get_result(output_socket->identifier);
-        const bool is_color = output_result.type() == ResultType::Color;
-        const bool is_needed = is_modifier_output_needed && is_first_output && is_color;
-        output_result.set_reference_count(is_needed ? 1 : 0);
-      }
-
-      PointerRNA modifier_ptr = RNA_pointer_create_discrete(
-          const_cast<ID *>(&this->get_scene().id),
-          RNA_SceneCompositorModifier,
-          const_cast<SceneCompositorModifier *>(&modifier));
-      PointerRNA modifier_properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
-      PointerRNA modifier_inputs_ptr = RNA_pointer_get(&modifier_properties_ptr, "inputs");
-
-      /* Map the inputs to the operation. */
-      Vector<std::unique_ptr<Result>> temporary_inputs;
-      for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
-        if (input_socket != node_group.interface_inputs().first()) {
-          PointerRNA input_ptr = RNA_pointer_get(&modifier_inputs_ptr, input_socket->identifier);
-          Result *input_result = this->get_input_from_rna(input_ptr, *input_socket);
-          modifier_operation->map_input_to_result(input_socket->identifier, input_result);
-          temporary_inputs.append(std::unique_ptr<Result>(input_result));
-          continue;
-        }
-
-        /* If a last operation exists, link its output. */
-        if (last_operation) {
-          const bNodeTreeInterfaceSocket *last_operation_output =
-              last_operation->node_group().interface_outputs().first();
-          Result &output_result = last_operation->get_result(last_operation_output->identifier);
-          modifier_operation->map_input_to_result(input_socket->identifier, &output_result);
-          continue;
-        }
-
-        /* Otherwise, we link the combined pass. */
-        Result *combined_pass = new Result(this->get_pass(&this->get_scene(), 0, "Image"));
-        modifier_operation->map_input_to_result(input_socket->identifier, combined_pass);
-        temporary_inputs.append(std::unique_ptr<Result>(combined_pass));
-      }
-
-      modifier_operation->evaluate();
-
-      last_operation.reset(modifier_operation);
-
-      if (!is_modifier_output_needed) {
-        break;
-      }
-    }
-
-    if (!last_operation->node_group().interface_outputs().is_empty()) {
+    if (!operation.has_output()) {
+      operation.free_results();
       return;
     }
 
-    /* Write the output of the last operation. */
-    const bNodeTreeInterfaceSocket *last_operation_output =
-        last_operation->node_group().interface_outputs()[0];
-    Result &output_result = last_operation->get_result(last_operation_output->identifier);
+    compositor::Result &output_result = operation.get_result();
 
-    if (this->is_canceled() && output_result.should_compute()) {
-      output_result.release();
-      return;
-    }
-
-    if (needs_viewer_output && !has_viewer_output) {
+    /* If the operation does not have a viewer output but one is needed, write the output as a
+     * viewer. */
+    const bool needs_viewer_output = flag_is_set(needed_outputs,
+                                                 compositor::NodeGroupOutputTypes::ViewerNode);
+    if (!operation.has_viewer_output() && needs_viewer_output) {
       this->write_viewer(output_result);
     }
 

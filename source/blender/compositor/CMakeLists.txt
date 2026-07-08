@@ -13,6 +13,9 @@ set(INC
   ../makesrna
   ../render/intern
   ../imbuf/opencolorio/intern/libocio
+
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -38,6 +41,7 @@ set(SRC
   COM_realize_on_domain_operation.hh
   COM_render_context.hh
   COM_result.hh
+  COM_scene_compositor_modifiers_operation.hh
   COM_scheduler.hh
   COM_shader_node.hh
   COM_shader_operation.hh
@@ -64,6 +68,7 @@ set(SRC
   intern/realize_on_domain_operation.cc
   intern/render_context.cc
   intern/result.cc
+  intern/scene_compositor_modifiers_operation.cc
   intern/scheduler.cc
   intern/shader_node.cc
   intern/shader_operation.cc
@@ -456,3 +461,6 @@ blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 if(CXX_WARN_NO_SUGGEST_OVERRIDE)
   target_compile_options(bf_compositor PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>)
 endif()
+
+# RNA_prototypes.hh
+add_dependencies(bf_compositor bf_rna)
