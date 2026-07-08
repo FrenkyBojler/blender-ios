@@ -6,5 +6,5 @@ Referenced by issue #156381, Crash when Axes to Rotation node has equal axes inp
 Referenced by issue #157333, Stroke mode set to both, with transpaerent fill, strokes draw on closed
 Referenced by issue #157340, Compositor: variable size blur difference between CPU & GPU at some specific values
 Referenced by issue #157704, Blender crashes when attempting to edit a mesh that has a Geometry Nodes modifier.
-Referenced by issue #141871, Blender LTS: Maintenance Task 5.2
+Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by pull request #156003, Benchmark: Bisecting performance regressions
