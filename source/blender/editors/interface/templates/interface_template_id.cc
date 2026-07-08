@@ -1121,6 +1121,17 @@ static void template_id_lib_menu_item(const bContext &C, Layout &layout)
 
   if (ID_IS_LINKED(id)) {
     const bool disabled = !BKE_idtype_idcode_is_localizable(GS(id->name));
+    /* When displaying the material selector for objects, the material slot may be assigned to
+     * the object data instead of the object. In that case disable the button if the object
+     * data is non-editable. Otherwise the button does nothing. */
+    const bool is_linked_material_editable_disabled = [&]() {
+      Object *object = GS(idfrom->name) == ID_OB ? id_cast<Object *>(idfrom) : nullptr;
+      return object && (idtype == ID_MA) &&
+             /* Trying to assign to linked/packed object data. */
+             (object->data && ID_IS_LINKED(object->data)) &&
+             /* Means material is assigned to the object data, not the object. */
+             (object->matbits && (object->matbits[math::max(object->actcol - 1, 0)] == 0));
+    }();
 
     if (!ID_IS_PACKED(id)) {
       but = layout.button("Pack", ICON_PACKAGE, nullptr, TIP_("Pack library data-block"));
@@ -1133,6 +1144,9 @@ static void template_id_lib_menu_item(const bContext &C, Layout &layout)
 
         BKE_main_id_newptr_and_tag_clear(CTX_data_main(&C));
       });
+      if (disabled || is_linked_material_editable_disabled) {
+        button_flag_enable(but, BUT_DISABLED);
+      }
     }
 
     if (ID_IS_PACKED(id)) {
@@ -1140,6 +1154,9 @@ static void template_id_lib_menu_item(const bContext &C, Layout &layout)
                           ICON_PACKAGE,
                           nullptr,
                           TIP_("Packed library data-block, click to unpack and make local"));
+      if (disabled || is_linked_material_editable_disabled) {
+        button_flag_enable(but, BUT_DISABLED);
+      }
     }
 
     but = layout.button("Create Override",
@@ -1148,19 +1165,12 @@ static void template_id_lib_menu_item(const bContext &C, Layout &layout)
                         TIP_("Create a library override hierarchy"));
     button_func_set(
         but, [pprop = pprop](bContext &C) mutable { template_ui_make_local(C, pprop, true); });
+
     if (disabled) {
       button_flag_enable(but, BUT_DISABLED);
     }
-    /* When displaying the material selector for objects, the material slot may be assigned to
-     * the object data instead of the object. In that case disable the button if the object
-     * data is non-editable. Otherwise the button does nothing. */
-    if (Object *object = GS(idfrom->name) == ID_OB ? id_cast<Object *>(idfrom) : nullptr;
-        object && (idtype == ID_MA) &&
-        /* Trying to assign to linked/packed object data. */
-        (object->data && ID_IS_LINKED(object->data)) &&
-        /* Means material is assigned to the object data, not the object. */
-        (object->matbits && (object->matbits[math::max(object->actcol - 1, 0)] == 0)))
-    {
+
+    if (is_linked_material_editable_disabled) {
       button_disable(but,
                      N_("Material is assigned to the object data, which is linked/packed "
                         "and therefore not editable. Change to link this material slot to the "
@@ -1170,7 +1180,7 @@ static void template_id_lib_menu_item(const bContext &C, Layout &layout)
     but = layout.button("Make local", ICON_NONE, nullptr, "");
     button_func_set(
         but, [pprop = pprop](bContext &C) mutable { template_ui_make_local(C, pprop, false); });
-    if ((id->tag & ID_TAG_INDIRECT) || disabled) {
+    if ((id->tag & ID_TAG_INDIRECT) || disabled || is_linked_material_editable_disabled) {
       button_flag_enable(but, BUT_DISABLED);
     }
   }
@@ -1199,40 +1209,74 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
   if (RNA_pointer_is_null(&ptr) || !RNA_struct_is_a(type, RNA_Material)) {
     return;
   }
+  PropertyPointerRNA pprop = {ptr, prop};
+  Button *but = nullptr;
+  const bool editable_prop = RNA_property_editable(&ptr, prop);
   if (PointerRNA idptr = CTX_data_pointer_get_type(C, "id", RNA_ID); !RNA_pointer_is_null(&idptr))
   {
+    ID *idfrom = ptr.owner_id;
+    ID *id = static_cast<ID *>(idptr.data);
+    const bool copy_editable_allowed = !BKE_id_copy_is_allowed(id) ||
+                                       (idfrom && !ID_IS_EDITABLE(idfrom)) || (!editable_prop) ||
+                                       /* object in editmode - don't change data */
+                                       (idfrom && GS(idfrom->name) == ID_OB &&
+                                        ((id_cast<Object *>(idfrom))->mode & OB_MODE_EDIT));
+
     id_mark_as_asset_menu_items(*C, layout);
 
     layout.prop(&idptr, "use_fake_user", UI_ITEM_NONE, "Fake User", ICON_NONE);
 
-    PointerRNA opptr = layout.op("object.make_single_user", "Make Single User", ICON_BLANK1);
-    RNA_boolean_set(&opptr, "object", false);
-    RNA_boolean_set(&opptr, "obdata", false);
-    RNA_boolean_set(&opptr, "material", true);
-    RNA_boolean_set(&opptr, "animation", false);
-    RNA_boolean_set(&opptr, "obdata_animation", false);
+    but = uiDefIconTextBut(block,
+                           ButtonType::But,
+                           ICON_BLANK1,
+                           "Make Single User",
+                           0,
+                           0,
+                           UI_UNIT_X,
+                           UI_UNIT_Y,
+                           nullptr,
+                           "Make a copy of the Data-Block");
+    but->flag |= BUT_UNDO;
+    button_func_set(but, [pprop = pprop](bContext &C) mutable { template_ui_alone(C, pprop); });
+
+    if (copy_editable_allowed) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
+    else if (ID_REAL_USERS(id) == 1) {
+      button_disable(but, "Data-Block already have a single user");
+    }
+    else if (ID_REAL_USERS(id) < 1) {
+      button_disable(but, "Data-Block have no users (Reload Required)");
+    }
 
     layout.separator();
 
     template_id_lib_menu_item(*C, layout);
 
-    opptr = layout.op("object.material_slot_add", "Duplicate into New Slot", ICON_DUPLICATE);
+    PointerRNA opptr = layout.op(
+        "object.material_slot_add", "Duplicate into New Slot", ICON_DUPLICATE);
     RNA_boolean_set(&opptr, "duplicate_active_material", true);
+    but = layout.block()->last_but();
+    if (copy_editable_allowed) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
     layout.separator();
 
-    Button *but = uiDefIconTextBut(block,
-                                   ButtonType::But,
-                                   ICON_X,
-                                   "Unlink",
-                                   0,
-                                   0,
-                                   UI_UNIT_X,
-                                   UI_UNIT_Y,
-                                   nullptr,
-                                   TIP_("Unlink data-block"));
-    PropertyPointerRNA pprop = {ptr, prop};
+    but = uiDefIconTextBut(block,
+                           ButtonType::But,
+                           ICON_X,
+                           "Unlink",
+                           0,
+                           0,
+                           UI_UNIT_X,
+                           UI_UNIT_Y,
+                           nullptr,
+                           TIP_("Unlink data-block"));
     button_func_set(but,
                     [pprop = pprop](bContext &C) mutable { template_ui_delete(C, pprop, false); });
+    if (copy_editable_allowed) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
     but = uiDefIconTextBut(block,
                            ButtonType::But,
                            ICON_BLANK1,
@@ -1246,6 +1290,9 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
 
     button_func_set(but,
                     [pprop = pprop](bContext &C) mutable { template_ui_delete(C, pprop, true); });
+    if (copy_editable_allowed) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
   }
   else {
     // uiDefIconTextBut(block,
@@ -1261,11 +1308,22 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
     layout.separator();
 
     layout.op("wm.link", "Link...", ICON_LINKED);
+    but = layout.block()->last_but();
+    if (!editable_prop) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
     layout.op("wm.append", "Append...", ICON_NONE);
-
+    but = layout.block()->last_but();
+    if (!editable_prop) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
     layout.separator();
     PointerRNA opptr = layout.op("material.paste", "Paste as New Material", ICON_PASTEDOWN);
     RNA_boolean_set(&opptr, "paste_as_new_material", true);
+    but = layout.block()->last_but();
+    if (!editable_prop) {
+      button_flag_enable(but, BUT_DISABLED);
+    }
   }
 }
 
