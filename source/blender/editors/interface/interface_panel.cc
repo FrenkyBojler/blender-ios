@@ -1757,13 +1757,6 @@ bool panel_is_dragging(const Panel *panel)
 
 static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
 {
-  if ((a.panel->type->flag & PANEL_TYPE_TOP) && !(b.panel->type->flag & PANEL_TYPE_TOP)) {
-    return true;
-  }
-  if (!(a.panel->type->flag & PANEL_TYPE_TOP) && (b.panel->type->flag & PANEL_TYPE_TOP)) {
-    return false;
-  }
-
   /* Stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though). */
   if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
@@ -1796,12 +1789,6 @@ static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
 
 static bool compare_panel(const PanelSort &a, const PanelSort &b)
 {
-  if ((a.panel->type->flag & PANEL_TYPE_TOP) && !(b.panel->type->flag & PANEL_TYPE_TOP)) {
-    return true;
-  }
-  if (!(a.panel->type->flag & PANEL_TYPE_TOP) && (b.panel->type->flag & PANEL_TYPE_TOP)) {
-    return false;
-  }
   return a.panel->sortorder < b.panel->sortorder;
 }
 
@@ -1830,10 +1817,8 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
 {
   Vector<PanelSort> panel_sort;
   for (Panel &panel : region->panels) {
-    if (panel.runtime_flag & PANEL_ACTIVE) {
-      /* These panels should have types since they are currently displayed to the user. */
-      BLI_assert(panel.type != nullptr);
-      panel_sort.append({&panel, 0, 0});
+    if (panel.type != nullptr) {
+      panel_sort.append({&panel, panel.ofsx, panel.ofsy});
     }
   }
   if (panel_sort.is_empty()) {
@@ -1854,6 +1839,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   /* X offset. */
   const int region_offset_x = panel_region_offset_x_get(region);
   for (PanelSort &ps : panel_sort) {
+    if (!(ps.panel->runtime_flag & PANEL_ACTIVE)) {
+      continue;
+    }
     const bool show_background = panel_should_show_background(region, ps.panel->type);
     ps.panel->runtime->region_ofsx = region_offset_x;
     ps.new_offset_x = region_offset_x + (show_background ? UI_PANEL_MARGIN_X : 0);
@@ -1862,6 +1850,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   /* Y offset. */
   int y = 0;
   for (PanelSort &ps : panel_sort) {
+    if (!(ps.panel->runtime_flag & PANEL_ACTIVE)) {
+      continue;
+    }
     const bool show_background = panel_should_show_background(region, ps.panel->type);
 
     y -= get_panel_real_size_y(ps.panel);
@@ -1880,6 +1871,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   /* Interpolate based on the input factor. */
   bool changed = false;
   for (PanelSort &ps : panel_sort) {
+    if (!(ps.panel->runtime_flag & PANEL_ACTIVE)) {
+      continue;
+    }
     if (ps.panel->flag & PNL_SELECT) {
       continue;
     }
