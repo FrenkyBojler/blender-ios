@@ -208,7 +208,7 @@ static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator *op)
 
   Material *ma = nullptr;
   if (RNA_boolean_get(op->ptr, "duplicate_active_material")) {
-    ma = static_cast<Material *>(CTX_data_pointer_get_type(C, "material", RNA_Material).data);
+    ma = static_cast<Material *>(CTX_data_pointer_get_type(C, "id", RNA_Material).data);
   }
   BKE_object_material_slot_add(bmain, ob);
   if (ma) {
@@ -223,16 +223,8 @@ static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator *op)
 
     Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, RNA_Object)) ? ptr.data :
                                                                                          nullptr);
-    nodes::node_tree_shader_default(C, bmain, &ma->id);
-    if (ob != nullptr) {
-      /* Add slot follows user-preferences for creating new slots,
-       * RNA pointer assignment doesn't, see: #60014. */
-      if (BKE_object_material_get_p(ob, ob->actcol) == nullptr) {
-        BKE_object_material_slot_add(bmain, ob);
-      }
-    }
 
-    /* when creating new ID blocks, use is already 1, but RNA
+    /* When creating new ID blocks, use is already 1, but RNA
      * pointer use also increases user, so this compensates it */
     id_us_min(&ma->id);
 
@@ -243,6 +235,8 @@ static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator *op)
     PointerRNA idptr = RNA_id_pointer_create(&ma->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
     RNA_property_update(C, &ptr, prop);
+
+    WM_event_add_notifier(C, NC_MATERIAL | NA_ADDED, ma);
   }
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
