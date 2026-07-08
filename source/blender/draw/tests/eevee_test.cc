@@ -214,7 +214,7 @@ static void test_eevee_shadow_tag_update()
       ResourceHandle hdl = manager.resource_handle(obmat, float3(0.5f, 0.5f, -1.0f), half_extent);
       manager.resource_handle(obmat2);
       manager.end_sync();
-      past_casters_updated.append(hdl.resource_index());
+      past_casters_updated.append(hdl.index());
       past_casters_updated.push_update();
     }
     {
@@ -222,7 +222,7 @@ static void test_eevee_shadow_tag_update()
       manager.resource_handle(obmat2);
       ResourceHandle hdl = manager.resource_handle(obmat, float3(-1.0f, 0.5f, -1.0f), half_extent);
       manager.end_sync();
-      curr_casters_updated.append(hdl.resource_index());
+      curr_casters_updated.append(hdl.index());
       curr_casters_updated.push_update();
     }
   }
@@ -813,27 +813,27 @@ static void test_eevee_shadow_finalize()
     tile.do_update = true;
     tiles_data[lod2_ofs] = shadow_tile_pack(tile);
 
-    tile.page = uint3(0, 1, 0);
+    tile.page = uint3(4, 0, 0);
     tile.do_update = true;
     tiles_data[lod3_ofs] = shadow_tile_pack(tile);
 
-    tile.page = uint3(1, 1, 0);
+    tile.page = uint3(5, 0, 0);
     tile.do_update = true;
     tiles_data[lod4_ofs] = shadow_tile_pack(tile);
 
-    tile.page = uint3(2, 1, 0);
+    tile.page = uint3(6, 0, 0);
     tile.do_update = true;
     tiles_data[lod5_ofs] = shadow_tile_pack(tile);
 
-    tile.page = uint3(3, 1, 0);
+    tile.page = uint3(7, 0, 0);
     tile.do_update = true;
     tiles_data[lod0_ofs + 31] = shadow_tile_pack(tile);
 
-    tile.page = uint3(0, 2, 0);
+    tile.page = uint3(0, 1, 0);
     tile.do_update = true;
     tiles_data[lod3_ofs + 8] = shadow_tile_pack(tile);
 
-    tile.page = uint3(1, 2, 0);
+    tile.page = uint3(1, 1, 0);
     tile.do_update = true;
     tiles_data[lod0_ofs + 32 * 16 - 8] = shadow_tile_pack(tile);
 
@@ -1310,6 +1310,7 @@ static void test_eevee_shadow_tilemap_amend()
   pass.bind_ssbo(LIGHT_BUF_SLOT, culling_light_buf);
   pass.bind_ssbo(LIGHT_ZBIN_BUF_SLOT, culling_zbin_buf);
   pass.bind_ssbo(LIGHT_TILE_BUF_SLOT, culling_tile_buf);
+  pass.bind_ssbo("light_buf_write", culling_light_buf);
   pass.dispatch(int3(1));
   pass.barrier(GPU_BARRIER_TEXTURE_UPDATE);
 

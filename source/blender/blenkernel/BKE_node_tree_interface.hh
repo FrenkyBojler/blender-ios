@@ -60,12 +60,12 @@ namespace detail {
 template<typename T> static bool item_is_type(const bNodeTreeInterfaceItem &item)
 {
   bool match = false;
-  switch (eNodeTreeInterfaceItemType(item.item_type)) {
-    case NODE_INTERFACE_SOCKET: {
+  switch (item.item_type) {
+    case NodeTreeInterfaceItemType::Socket: {
       match |= std::is_same_v<T, bNodeTreeInterfaceSocket>;
       break;
     }
-    case NODE_INTERFACE_PANEL: {
+    case NodeTreeInterfaceItemType::Panel: {
       match |= std::is_same_v<T, bNodeTreeInterfacePanel>;
       break;
     }
@@ -145,10 +145,14 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketFloatFrequency",
      SOCK_FLOAT,
      PROP_FREQUENCY},
+    {"NodeSocketFloatPixel", "NodeTreeInterfaceSocketFloatPixel", SOCK_FLOAT, PROP_PIXEL},
+
     {"NodeSocketInt", "NodeTreeInterfaceSocketInt", SOCK_INT, PROP_NONE},
     {"NodeSocketIntUnsigned", "NodeTreeInterfaceSocketIntUnsigned", SOCK_INT, PROP_UNSIGNED},
     {"NodeSocketIntPercentage", "NodeTreeInterfaceSocketIntPercentage", SOCK_INT, PROP_PERCENTAGE},
     {"NodeSocketIntFactor", "NodeTreeInterfaceSocketIntFactor", SOCK_INT, PROP_FACTOR},
+    {"NodeSocketIntPixel", "NodeTreeInterfaceSocketIntPixel", SOCK_INT, PROP_PIXEL},
+
     {"NodeSocketBool", "NodeTreeInterfaceSocketBool", SOCK_BOOLEAN, PROP_NONE},
 
     {"NodeSocketVector", "NodeTreeInterfaceSocketVector", SOCK_VECTOR, PROP_NONE},
@@ -175,6 +179,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler", "NodeTreeInterfaceSocketVectorEuler", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ", "NodeTreeInterfaceSocketVectorXYZ", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel", "NodeTreeInterfaceSocketVectorPixel", SOCK_VECTOR, PROP_PIXEL},
 
     {"NodeSocketVector2D", "NodeTreeInterfaceSocketVector2D", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor2D",
@@ -203,6 +208,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler2D", "NodeTreeInterfaceSocketVectorEuler2D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ2D", "NodeTreeInterfaceSocketVectorXYZ2D", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel2D", "NodeTreeInterfaceSocketVectorPixel2D", SOCK_VECTOR, PROP_PIXEL},
 
     {"NodeSocketVector4D", "NodeTreeInterfaceSocketVector4D", SOCK_VECTOR, PROP_NONE},
     {"NodeSocketVectorFactor4D",
@@ -231,6 +237,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      PROP_ACCELERATION},
     {"NodeSocketVectorEuler4D", "NodeTreeInterfaceSocketVectorEuler4D", SOCK_VECTOR, PROP_EULER},
     {"NodeSocketVectorXYZ4D", "NodeTreeInterfaceSocketVectorXYZ4D", SOCK_VECTOR, PROP_XYZ},
+    {"NodeSocketVectorPixel4D", "NodeTreeInterfaceSocketVectorPixel4D", SOCK_VECTOR, PROP_PIXEL},
 
     /* 2D Integer Vector types. */
     {"NodeSocketIntVector2D", "NodeTreeInterfaceSocketIntVector2D", SOCK_INT_VECTOR, PROP_NONE},
@@ -246,6 +253,10 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketIntVectorFactor2D",
      SOCK_INT_VECTOR,
      PROP_FACTOR},
+    {"NodeSocketIntVectorPixel2D",
+     "NodeTreeInterfaceSocketIntVectorPixel2D",
+     SOCK_INT_VECTOR,
+     PROP_PIXEL},
 
     /* 3D Integer Vector types. */
     {"NodeSocketIntVector3D", "NodeTreeInterfaceSocketIntVector3D", SOCK_INT_VECTOR, PROP_NONE},
@@ -261,6 +272,10 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
      "NodeTreeInterfaceSocketIntVectorFactor3D",
      SOCK_INT_VECTOR,
      PROP_FACTOR},
+    {"NodeSocketIntVectorPixel3D",
+     "NodeTreeInterfaceSocketIntVectorPixel3D",
+     SOCK_INT_VECTOR,
+     PROP_PIXEL},
 
     {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
     {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
@@ -395,11 +410,11 @@ template<typename T> const T &get_socket_data_as(const bNodeTreeInterfaceSocket 
 
 /**
  * Add a tree interface socket based on the properties of an existing node socket.
- * \param ntree Node tree where the interface socket is added.
- * \param from_node Node that owns the template socket. Does not have to be part of \a ntree.
- * \param from_sock Template socket on which the interface properties are based.
- * \param name Optional custom socket name. By default the visible socket label or name is used.
- * \param in_out Optional input/output direction. By default same as the template socket.
+ * \param ntree: Node tree where the interface socket is added.
+ * \param from_node: Node that owns the template socket. Does not have to be part of `ntree`.
+ * \param from_sock: Template socket on which the interface properties are based.
+ * \param name: Optional custom socket name. By default the visible socket label or name is used.
+ * \param in_out: Optional input/output direction. By default same as the template socket.
  */
 bNodeTreeInterfaceSocket *add_interface_socket_from_node(
     bNodeTree &ntree,
@@ -409,7 +424,7 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
     std::optional<eNodeSocketInOut> in_out = std::nullopt);
 
 /**
- * Reference to a node tree's interface item.
+ * Reference to a node tree's dragged interface items.
  *
  * Used by the node interface drag controller to reorder interface items and
  * the node space drop-boxes to drop Group Input/Output nodes into the node
@@ -417,14 +432,13 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
  */
 struct bNodeTreeInterfaceItemReference {
   bNodeTree *tree;
-  /* The item under the cursor when dragging started. Used to create Group Input node in the node
-   * editor. */
-  bNodeTreeInterfaceItem *item;
   /* All dragged items. If a parent item is selected, its children are excluded because they are
    * dragged implicitly. */
   bNodeTreeInterfaceItem **items;
   int items_count;
 };
+
+void item_reference_free(bNodeTreeInterfaceItemReference *item_reference);
 
 }  // namespace node_interface
 

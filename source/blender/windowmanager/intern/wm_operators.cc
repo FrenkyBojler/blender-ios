@@ -40,16 +40,16 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_dial_2d.h"
-#include "BLI_listbase.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_dial_2d.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_time.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_time.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_brush.hh"
@@ -78,6 +78,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "ED_fileselect.hh"
@@ -416,7 +417,7 @@ static const char *wm_context_member_from_ptr(bContext *C, const PointerRNA *ptr
       }
     }
   }
-  BLI_freelistN(&lb);
+  lb.free_no_destruct();
 
   if (member_found) {
     *r_is_id = member_found_is_id;
@@ -940,7 +941,7 @@ bool WM_operator_last_properties_store(wmOperator *op)
   }
 
   if (op->properties) {
-    if (!BLI_listbase_is_empty(&op->properties->data.group)) {
+    if (!op->properties->data.group.is_empty()) {
       CLOG_DEBUG(WM_LOG_OPERATORS, "Storing properties for '%s'", op->type->idname);
     }
     op->type->last_properties = IDP_CopyProperty(op->properties);
@@ -1208,16 +1209,16 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
     case ICON_NONE:
       alert_icon = ui::AlertIcon::None;
       break;
-    case ICON_ERROR:
+    case ICON_STATUS_WARNING_FILLED:
       alert_icon = ui::AlertIcon::Warning;
       break;
     case ICON_QUESTION:
       alert_icon = ui::AlertIcon::Question;
       break;
-    case ICON_CANCEL:
+    case ICON_STATUS_ERROR_FILLED:
       alert_icon = ui::AlertIcon::Error;
       break;
-    case ICON_INFO:
+    case ICON_STATUS_INFO_FILLED:
       alert_icon = ui::AlertIcon::Info;
       break;
   }
@@ -1480,18 +1481,16 @@ struct wmOpPopUp {
 };
 
 /* Only invoked by OK button in popups created with #wm_block_dialog_create(). */
-static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
+static void dialog_exec_cb(bContext *C, wmOpPopUp *data, ui::Block *block)
 {
   wmOperator *op;
   {
     /* Execute will free the operator.
      * In this case, wm_operator_ui_popup_cancel won't run. */
-    wmOpPopUp *data = static_cast<wmOpPopUp *>(arg1);
     op = data->op;
     MEM_delete(data);
   }
 
-  ui::Block *block = static_cast<ui::Block *>(arg2);
   /* Explicitly set RETURN_OK flag, otherwise the menu might be canceled
    * in case WM_operator_call_ex exits/reloads the current file (#49199). */
 
@@ -1508,10 +1507,9 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 static void wm_operator_ui_popup_cancel(bContext *C, void *user_data);
 
 /* Only invoked by Cancel button in popups created with #wm_block_dialog_create(). */
-static void dialog_cancel_cb(bContext *C, void *arg1, void *arg2)
+static void dialog_cancel_cb(bContext *C, wmOpPopUp *data, ui::Block *block)
 {
-  wm_operator_ui_popup_cancel(C, arg1);
-  ui::Block *block = static_cast<ui::Block *>(arg2);
+  wm_operator_ui_popup_cancel(C, data);
   popup_menu_retval_set(block, ui::RETURN_CANCEL, true);
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, block);
@@ -1871,7 +1869,8 @@ wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
                                                 std::optional<std::string> title,
                                                 std::optional<std::string> confirm_text,
                                                 const bool cancel_default,
-                                                std::optional<std::string> message)
+                                                std::optional<std::string> message,
+                                                const bool show_icon)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
   data->op = op;
@@ -1881,8 +1880,8 @@ wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
   data->title = title ? std::move(*title) : WM_operatortype_name(op->type, op->ptr);
   data->confirm_text = confirm_text ? std::move(*confirm_text) : IFACE_("OK");
   data->message = message ? std::move(*message) : std::string();
-  data->icon = ui::AlertIcon::None;
-  data->size = WM_POPUP_SIZE_SMALL;
+  data->icon = show_icon ? ui::AlertIcon::Info : ui::AlertIcon::None;
+  data->size = show_icon ? WM_POPUP_SIZE_LARGE : WM_POPUP_SIZE_SMALL;
   data->position = (message) ? WM_POPUP_POSITION_CENTER : WM_POPUP_POSITION_MOUSE;
   data->cancel_default = cancel_default;
   data->mouse_move_quit = false;
@@ -1913,7 +1912,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 
   /* Operator is stored and kept alive in the window manager. So passing a pointer to the UI is
    * fine, it will remain valid. */
-  ui::popup_block_invoke(C, wm_block_create_redo, op, nullptr);
+  ui::popup_block_invoke(C, wm_block_create_redo, op, nullptr, op->type->srna);
 
   return OPERATOR_CANCELLED;
 }
@@ -2034,7 +2033,7 @@ static ui::Block *wm_block_search_menu(bContext *C, ARegion *region, void *userd
   }
   else if (init_data->search_type == SEARCH_TYPE_SINGLE_MENU) {
     button_func_menu_search(but, init_data->single_menu_idname.c_str());
-    button_flag2_enable(but, ui::BUT2_ACTIVATE_ON_INIT_NO_SELECT);
+    button_flag_enable(but, ui::BUT_ACTIVATE_ON_INIT_NO_SELECT);
   }
   else {
     BLI_assert_unreachable();
@@ -2679,13 +2678,12 @@ static void radial_control_set_tex(RadialControl *rc)
                                             1,
                                             gpu::TextureFormat::UNORM_8,
                                             GPU_TEXTURE_USAGE_SHADER_READ,
-                                            ibuf->float_buffer.data);
+                                            ibuf->float_data());
 
         GPU_texture_filter_mode(rc->texture, true);
         GPU_texture_swizzle_set(rc->texture, "111r");
 
-        MEM_delete(ibuf->float_buffer.data);
-        MEM_delete(ibuf);
+        IMB_freeImBuf(ibuf);
       }
       break;
     default:
@@ -3226,7 +3224,7 @@ static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
   rc->orig_paintcursors = wm->runtime->paintcursors;
-  BLI_listbase_clear(&wm->runtime->paintcursors);
+  wm->runtime->paintcursors.clear_no_delete();
 
   /* Add radial control paint cursor. */
   rc->cursor = WM_paint_cursor_activate(
@@ -3802,7 +3800,7 @@ static wmOperatorStatus redraw_timer_exec(bContext *C, wmOperator *op)
 
     if (type == eRTAnimationPlay) {
       WorkspaceStatus status(C);
-      status.item(fmt::format("{} / {} {}", a + 1, iter, infostr), ICON_INFO);
+      status.item(fmt::format("{} / {} {}", a + 1, iter, infostr), ICON_STATUS_INFO);
     }
 
     redraw_timer_step(C, scene, depsgraph, win, area, region, type, cfra, a, iter);
@@ -4231,6 +4229,7 @@ void wm_operatortypes_register()
   WM_operatortype_append(WM_OT_read_history);
   WM_operatortype_append(WM_OT_read_homefile);
   WM_operatortype_append(WM_OT_read_factory_settings);
+  WM_operatortype_append(WM_OT_save_auto_save);
   WM_operatortype_append(WM_OT_save_homefile);
   WM_operatortype_append(WM_OT_save_userpref);
   WM_operatortype_append(WM_OT_read_userpref);

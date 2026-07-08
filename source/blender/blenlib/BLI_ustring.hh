@@ -81,6 +81,13 @@ class UString {
   {
     return ustr_.empty();
   }
+
+  char operator[](const int64_t i) const
+  {
+    /* Accessing null char at end is allowed too. */
+    BLI_assert(i >= 0 && i <= this->size());
+    return ustr_[i];
+  }
 };
 
 /**
@@ -115,10 +122,10 @@ template<> struct DefaultHash<UString> {
 template<FixedString FStr> inline UString operator""_ustr()
 {
   /* This is a more optimized variant of just doing this:
-   *   ```
+   * \code{.cc}
    *   static UString ustr(FStr.data);
    *   return ustr
-   *   ```
+   * \endcode
    *
    * The goal of the actual implementation is to improve upon performance and binary size compared
    * to the above. This is possible here we have two pieces of information the compiler can't have:

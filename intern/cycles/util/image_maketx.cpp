@@ -382,7 +382,8 @@ bool resolve_tx(const string &filepath,
                 ustring colorspace,
                 const ImageAlphaType alpha_type,
                 const ImageFormatType format_type,
-                string &out_filepath)
+                string &out_filepath,
+                ImageMetaData &out_metadata)
 {
 
   /* Nothing to do if file doesn't even exist. */
@@ -404,7 +405,9 @@ bool resolve_tx(const string &filepath,
     out_filepath = tx_filepath;
 
     if (!texture_cache_file_outdated(filepath, tx_filepath)) {
-      return true;
+      if (out_metadata.oiio_load_metadata(tx_filepath) && out_metadata.is_tx_file) {
+        return true;
+      }
     }
   }
 
@@ -416,8 +419,10 @@ bool resolve_tx(const string &filepath,
     const string tx_default_filepath = path_join(path_join(filedir, default_texture_cache_dir),
                                                  tx_filename);
     if (!texture_cache_file_outdated(filepath, tx_default_filepath)) {
-      out_filepath = tx_default_filepath;
-      return true;
+      if (out_metadata.oiio_load_metadata(tx_default_filepath) && out_metadata.is_tx_file) {
+        out_filepath = tx_default_filepath;
+        return true;
+      }
     }
 
     if (texture_cache_path.empty()) {
@@ -425,9 +430,9 @@ bool resolve_tx(const string &filepath,
     }
   }
 
-  /* If it's already a tx file, we can use it directly as well. But it's
+  /* If it's already a tx, tiff or exr file, we can use it directly as well. But it's
    * preferable to use a Cycles native tx file for performance. */
-  if (string_endswith(filepath, ".tx")) {
+  if (out_metadata.oiio_load_metadata(filepath) && out_metadata.is_tx_file) {
     out_filepath = filepath;
     return true;
   }
@@ -631,11 +636,11 @@ static bool write_buf_tx(std::unique_ptr<ImageOutput> &out,
   clamp_half_tx(buf, out_format);
   OIIO::ImageBuf &write_buf = (compress_as_srgb) ? srgb_buf : buf;
   if (!out->open(out_filepath, out_spec, mode)) {
-    LOG_ERROR << "Could not open \"" << out_filepath << "\" : " << out->geterror();
+    LOG_WARNING << "Could not open \"" << out_filepath << "\" : " << out->geterror();
     return false;
   }
   if (!write_buf.write(out.get())) {
-    LOG_ERROR << "Write failed: " << write_buf.geterror();
+    LOG_WARNING << "Write failed: " << write_buf.geterror();
     out->close();
     return false;
   }
@@ -698,11 +703,22 @@ static bool write_mipmap_tx(std::unique_ptr<ImageOutput> &out,
   }
 
   if (!out->close()) {
-    LOG_ERROR << "Error writing \"" << out_filepath << "\" : " << out->geterror();
+    LOG_WARNING << "Error writing \"" << out_filepath << "\" : " << out->geterror();
     return false;
   }
 
   return true;
+}
+
+ustring make_tx_get_file_colorspace(const ImageMetaData &metadata)
+{
+  /* Tx files are written in a handful of colorspace that can be directly loaded into
+   * memory without colorspace conversion. */
+  const bool is_data = ColorSpaceManager::colorspace_is_data(metadata.colorspace);
+  const bool compress_as_srgb = metadata.is_compressible_as_srgb;
+  return is_data          ? u_colorspace_data :
+         compress_as_srgb ? u_colorspace_scene_linear_srgb :
+                            u_colorspace_scene_linear;
 }
 
 static bool make_tx(const string &filepath,
@@ -741,17 +757,23 @@ static bool make_tx(const string &filepath,
   spec.attribute("planarconfig", "contig");
 
   /* Always convert to scene linear or data colorspace with associated alpha. */
-  const bool is_data = ColorSpaceManager::colorspace_is_data(metadata.colorspace);
-  const bool compress_as_srgb = metadata.is_compressible_as_srgb;
-  const ustring colorspace = is_data          ? u_colorspace_data :
-                             compress_as_srgb ? u_colorspace_scene_linear_srgb :
-                                                u_colorspace_scene_linear;
+  const ustring colorspace = make_tx_get_file_colorspace(metadata);
 
   spec.attribute("oiio:ColorSpace", colorspace);
   const char *interop_id = ColorSpaceManager::colorspace_interop_id(colorspace);
   if (interop_id) {
     spec.attribute("colorInteropID", interop_id);
   }
+  else {
+    spec.erase_attribute("colorInteropID");
+  }
+  /* Remove other potentially interfering colorspace metadata, that is no
+   * longer correct after colorspace conversion. Cycles itself does not use this,
+   * but other software could. */
+  spec.erase_attribute("Exif:ColorSpace");
+  spec.erase_attribute("ICCProfile");
+  spec.erase_attribute("CICP");
+
   spec.attribute("oiio:UnassociatedAlpha", 0);
 
   /* Source image metadata. */
@@ -841,7 +863,7 @@ static bool make_tx(const string &filepath,
      * incomplete files in case of failure. */
     std::string rename_err;
     if (!OIIO::Filesystem::rename(tmp_filepath, out_filepath, rename_err)) {
-      LOG_ERROR << "Could not rename file: " << rename_err;
+      LOG_WARNING << "Could not rename file: " << rename_err;
       ok = false;
     }
   }

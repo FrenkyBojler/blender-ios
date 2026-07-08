@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -668,22 +668,6 @@ msgstr "ด้านล่าง"
 
 msgid "Place the Mix node at the same height as the lowest node"
 msgstr "วางโหนดผสมไว้ที่ความสูงเดียวกับโหนดที่อยู่ต่ำที่สุด"
-
-
-msgid "Show Hotkey List"
-msgstr "แสดงรายการปุ่มลัด"
-
-
-msgid "Expand this box into a list of all the hotkeys for functions in this addon"
-msgstr "ขยายกล่องนี้เพื่อแสดงรายการปุ่มลัดทั้งหมดสำหรับฟังก์ชันต่างๆ ในส่วนเสริมนี้"
-
-
-msgid "Show Principled Naming Tags"
-msgstr "แสดงป้ายระบุการตั้งชื่อตามหลักการ"
-
-
-msgid "Expand this box into a list of all naming tags for Principled Texture setup"
-msgstr "ขยายกล่องนี้ให้เป็นรายการป้ายระบุชื่อทั้งหมดสำหรับการตั้งค่าพื้นผิวตามหลักการ"
 
 
 msgid "Fribidi Library"
@@ -1646,6 +1630,38 @@ msgid "Armatures active edit bone"
 msgstr "แก้ไขโครงกระดูกที่ใช้งานอยู่"
 
 
+msgid "Asset Library"
+msgstr "คลังสินทรัพย์"
+
+
+msgid "All Libraries"
+msgstr "คลังทั้งหมด"
+
+
+msgid "Show assets from all of the listed asset libraries"
+msgstr "แสดงเนื้อหาจากคลังเนื้อหาทั้งหมดที่ระบุไว้"
+
+
+msgid "Current File"
+msgstr "ไฟล์ปัจจุบัน"
+
+
+msgid "Show the assets currently available in this Blender session"
+msgstr "แสดงสินทรัพย์ที่มีอยู่ในช่วงสมัยของเบลนเดอร์นี้"
+
+
+msgid "Essentials"
+msgstr "รากแก่น"
+
+
+msgid "Custom"
+msgstr "กำหนดเอง"
+
+
+msgid "Show assets from the asset libraries configured in the Preferences"
+msgstr "แสดงเนื้อหาจากคลังเนื้อหาที่กำหนดค่าไว้ในส่วนการตั้งค่า"
+
+
 msgid "User Asset Libraries"
 msgstr "คลังสินทรัพย์ของผู้ใช้"
 
@@ -1726,6 +1742,10 @@ msgid "The type of license this asset is distributed under. An empty license nam
 msgstr "ประเภทของใบอนุญาตที่ใช้ในการเผยแพร่สินทรัพย์นี้ ชื่อใบอนุญาตที่ว่างเปล่าไม่ได้หมายความว่าสินทรัพย์นี้ปราศจากข้อกำหนดด้านใบอนุญาตเสมอไป โปรดติดต่อผู้สร้างหากต้องการคำชี้แจงเพิ่มเติม"
 
 
+msgid "Link"
+msgstr "เชื่อมโยง"
+
+
 msgid "Tags"
 msgstr "ป้ายระบุ"
 
@@ -1787,44 +1807,8 @@ msgid "Regions for quick access to assets"
 msgstr "บริเวณที่เข้าถึงสินทรัพย์ได้อย่างรวดเร็ว"
 
 
-msgid "Asset Library"
-msgstr "คลังสินทรัพย์"
-
-
 msgid "Choose the asset library to display assets from"
 msgstr "เลือกคลังสินทรัพย์เพื่อแสดงสินทรัพย์จาก"
-
-
-msgid "All Libraries"
-msgstr "คลังทั้งหมด"
-
-
-msgid "Show assets from all of the listed asset libraries"
-msgstr "แสดงเนื้อหาจากคลังเนื้อหาทั้งหมดที่ระบุไว้"
-
-
-msgid "Current File"
-msgstr "ไฟล์ปัจจุบัน"
-
-
-msgid "Show the assets currently available in this Blender session"
-msgstr "แสดงสินทรัพย์ที่มีอยู่ในช่วงสมัยของเบลนเดอร์นี้"
-
-
-msgid "Essentials"
-msgstr "รากแก่น"
-
-
-msgid "Show the basic building blocks and utilities coming with Blender"
-msgstr "แสดงส่วนประกอบพื้นฐานและเครื่องมือต่างๆ ที่มาพร้อมกับเบลนเดอร์"
-
-
-msgid "Custom"
-msgstr "กำหนดเอง"
-
-
-msgid "Show assets from the asset libraries configured in the Preferences"
-msgstr "แสดงเนื้อหาจากคลังเนื้อหาที่กำหนดค่าไว้ในส่วนการตั้งค่า"
 
 
 msgid "Activate Operator"
@@ -4179,10 +4163,6 @@ msgid "Show .blend files items (objects, materials, etc.)"
 msgstr "แสดงรายการในไฟล์ .blend (วัตถุ วัสดุ อื่น ๆ)"
 
 
-msgid "Link"
-msgstr "เชื่อมโยง"
-
-
 msgid "Matrix"
 msgstr "เมทริกซ์"
 
@@ -4957,58 +4937,6 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
-
-
-msgid "Snap"
-msgstr "ยึดติด"
-
-
-msgid "Local View"
-msgstr "มุมมองท้องถิ่น"
-
-
-msgid "Viewpoint"
-msgstr "จุดของมุมมอง"
-
-
-msgid "Navigation"
-msgstr "การนำทาง"
-
-
-msgid "Align View"
-msgstr "จัดมุมมอง"
-
-
-msgid "Align View to Active"
-msgstr "จัดมุมมองไปยังที่วัตถุใช้งาน"
-
-
-msgid "View Regions"
-msgstr "ขอบเขตมุมมอง"
-
-
-msgid "Import"
-msgstr "นำเข้า"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Light"
-msgstr "แสง"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Add Image"
 msgstr "เพิ่มภาพ"
 
@@ -5025,6 +4953,10 @@ msgid "Hooks"
 msgstr "ตะขอ"
 
 
+msgid "Math"
+msgstr "คณิตศาสตร์"
+
+
 msgid "Names"
 msgstr "ชื่อ"
 
@@ -5033,20 +4965,28 @@ msgid "Face Data"
 msgstr "ข้อมูลด้าน"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
 msgid "Merge"
 msgstr "ผสาน"
 
 
-msgid "Keying"
-msgstr "คีย์"
+msgid "Import"
+msgstr "นำเข้า"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Pivot Point"
 msgstr "จุดหมุน"
+
+
+msgid "Snap"
+msgstr "ยึดติด"
 
 
 msgid "Proportional Editing Falloff"
@@ -5055,6 +4995,46 @@ msgstr "แก้ไข"
 
 msgid "Mask Edit"
 msgstr "การแก้ไขหน้ากาก"
+
+
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
+
+
+msgid "Local View"
+msgstr "มุมมองท้องถิ่น"
+
+
+msgid "Viewpoint"
+msgstr "จุดของมุมมอง"
+
+
+msgid "Navigation"
+msgstr "การนำทาง"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Align View"
+msgstr "จัดมุมมอง"
+
+
+msgid "Align View to Active"
+msgstr "จัดมุมมองไปยังที่วัตถุใช้งาน"
+
+
+msgid "View Regions"
+msgstr "ขอบเขตมุมมอง"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Light"
+msgstr "แสง"
 
 
 msgid "Zoom"
@@ -5460,6 +5440,10 @@ msgstr "แกนมุมมอง"
 
 msgid "Move"
 msgstr "เคลื่อนที่"
+
+
+msgid "Search"
+msgstr "ค้นหา"
 
 
 msgctxt "Operator"
@@ -6315,12 +6299,12 @@ msgid "Single Image"
 msgstr "ภาพเดี่ยว"
 
 
-msgid "Overlays"
-msgstr "วางซ้อน"
-
-
 msgid "View Lock"
 msgstr "ล็อกมุมมอง"
+
+
+msgid "Overlays"
+msgstr "วางซ้อน"
 
 
 msgid "Mask Display"
@@ -6402,11 +6386,6 @@ msgstr "อินเตอร์เฟสผู้ใช้"
 msgctxt "Operator"
 msgid "Measure"
 msgstr "วัดขนาด"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "ขนาดกระดูก"
 
 
 msgctxt "Operator"
@@ -6852,8 +6831,8 @@ msgid "Error Message"
 msgstr "ข้อความแสดงข้อผิดพลาด"
 
 
-msgid "Search"
-msgstr "ค้นหา"
+msgid "Cancel"
+msgstr "ยกเลิก"
 
 
 msgctxt "WindowManager"
@@ -7819,10 +7798,6 @@ msgstr "พื้นผิว"
 
 msgid "Key %d"
 msgstr "คีย์ %d"
-
-
-msgid "Cancel"
-msgstr "ยกเลิก"
 
 
 msgctxt "Curve"

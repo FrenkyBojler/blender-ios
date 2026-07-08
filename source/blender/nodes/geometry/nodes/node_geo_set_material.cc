@@ -22,18 +22,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::Volume,
                        GeometryComponent::Type::PointCloud,
                        GeometryComponent::Type::Curve,
                        GeometryComponent::Type::GreasePencil});
-  b.add_output<decl::Geometry>("Geometry")
-      .propagate_all()
+  b.add_output<decl::Geometry>("Geometry"_ustr)
+      .propagate_all_geometry()
       .align_with_previous()
       .description("Geometry to assign a material to");
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Material>("Material").optional_label();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .hide_value()
+      .evaluated_geometry_field();
+  b.add_input<decl::Material>("Material"_ustr).optional_label();
 }
 
 static void assign_material_to_id_geometry(ID *id,
@@ -86,10 +89,10 @@ static void assign_material_to_id_geometry(ID *id,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Material *material = params.extract_input<Material *>("Material");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  Material *material = params.extract_input<Material *>("Material"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
 
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
 
   /* Only add the warnings once, even if there are many unique instances. */
   bool no_faces_warning = false;
@@ -118,19 +121,19 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     if (Volume *volume = geometry_set.get_volume_for_write()) {
       BKE_id_material_eval_assign(&volume->id, 1, material);
-      if (selection_field.node().depends_on_input()) {
+      if (selection_field.depends_on_input()) {
         volume_selection_warning = true;
       }
     }
     if (PointCloud *pointcloud = geometry_set.get_pointcloud_for_write()) {
       BKE_id_material_eval_assign(&pointcloud->id, 1, material);
-      if (selection_field.node().depends_on_input()) {
+      if (selection_field.depends_on_input()) {
         point_selection_warning = true;
       }
     }
     if (Curves *curves = geometry_set.get_curves_for_write()) {
       BKE_id_material_eval_assign(&curves->id, 1, material);
-      if (selection_field.node().depends_on_input()) {
+      if (selection_field.depends_on_input()) {
         curves_selection_warning = true;
       }
     }
@@ -180,14 +183,14 @@ static void node_geo_exec(GeoNodeExecParams params)
         TIP_("Curves only support a single material; selection input cannot be a field"));
   }
 
-  params.set_output("Geometry", std::move(geometry_set));
+  params.set_output("Geometry"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetMaterial", GEO_NODE_SET_MATERIAL);
+  geo_node_type_base(&ntype, "GeometryNodeSetMaterial"_ustr, GEO_NODE_SET_MATERIAL);
   ntype.ui_name = "Set Material";
   ntype.ui_description = "Assign a material to geometry elements";
   ntype.enum_name_legacy = "SET_MATERIAL";

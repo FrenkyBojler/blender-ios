@@ -16,11 +16,14 @@ namespace blender::nodes::node_geo_points_to_vertices_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Points")
+  b.add_input<decl::Geometry>("Points"_ustr)
       .supported_type(GeometryComponent::Type::PointCloud)
       .description("Points that are converted to vertices in a mesh");
-  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
+  b.add_input<decl::Bool>("Selection"_ustr)
+      .default_value(true)
+      .evaluated_geometry_field()
+      .hide_value();
+  b.add_output<decl::Geometry>("Mesh"_ustr).propagate_all_geometry();
 }
 
 /* One improvement would be to move the attribute arrays directly to the mesh when possible. */
@@ -91,22 +94,22 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Points"_ustr);
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     geometry_set_points_to_vertices(
-        geometry_set, selection_field, params.get_attribute_filter("Mesh"));
+        geometry_set, selection_field, params.get_attribute_filter("Mesh"_ustr));
   });
 
-  params.set_output("Mesh", std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodePointsToVertices", GEO_NODE_POINTS_TO_VERTICES);
+  geo_node_type_base(&ntype, "GeometryNodePointsToVertices"_ustr, GEO_NODE_POINTS_TO_VERTICES);
   ntype.ui_name = "Points to Vertices";
   ntype.ui_description = "Generate a mesh vertex for each point cloud point";
   ntype.enum_name_legacy = "POINTS_TO_VERTICES";

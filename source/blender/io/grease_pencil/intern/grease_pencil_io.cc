@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_bounds.hh"
-#include "BLI_color.hh"
-#include "BLI_listbase.h"
+#include "BLI_color_types.hh"
+#include "BLI_listbase.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
@@ -204,7 +204,9 @@ std::optional<Bounds<float2>> GreasePencilExporter::compute_objects_bounds(
   }
 
   /* Add small gap. */
-  full_bounds->pad(gap);
+  if (full_bounds) {
+    full_bounds->pad(gap);
+  }
 
   return full_bounds;
 }
@@ -309,11 +311,12 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
 {
   using SelectMode = ExportParams::SelectMode;
 
+  const Main *bmain = CTX_data_main(&context_.C);
   Scene &scene = *CTX_data_scene(&context_.C);
   ViewLayer *view_layer = CTX_data_view_layer(&context_.C);
   const float3 camera_z_axis = float3(context_.rv3d->viewinv[2]);
 
-  BKE_view_layer_synced_ensure(&scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, &scene, view_layer);
 
   Vector<ObjectInfo> objects;
   auto add_object = [&](Object *object) {

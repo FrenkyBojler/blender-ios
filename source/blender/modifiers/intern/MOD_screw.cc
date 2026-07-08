@@ -10,13 +10,13 @@
 #include <algorithm>
 #include <climits>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLI_bitmap.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_bitmap.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_span.hh"
 
 #include "BLT_translation.hh"
@@ -45,9 +45,9 @@
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "GEO_mesh_merge_by_distance.hh"
+#include "GEO_mesh_merge_verts.hh"
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 
@@ -844,7 +844,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         vert_loop_map ? vert_loop_map[edges_new[i][0]] : UINT_MAX,
         vert_loop_map ? vert_loop_map[edges_new[i][1]] : UINT_MAX,
     };
-    const bool has_mloop_orig = mloop_index_orig[0] != UINT_MAX;
+
+    const bool has_mloop_orig = edge_face_map && (edge_face_map[i] != UINT_MAX) &&
+                                (mloop_index_orig[0] != UINT_MAX);
 
     int mat_nr;
 

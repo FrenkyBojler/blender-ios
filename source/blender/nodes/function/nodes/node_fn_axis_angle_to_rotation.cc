@@ -8,22 +8,23 @@
 #include "NOD_value_elem_eval.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_axis_angle_to_rotation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Axis").default_value({0.0f, 0.0f, 1.0f});
-  b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE);
-  b.add_output<decl::Rotation>("Rotation");
+  b.add_input<decl::Vector>("Axis"_ustr).default_value({0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Float>("Angle"_ustr).subtype(PROP_ANGLE);
+  b.add_output<decl::Rotation>("Rotation"_ustr);
 };
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   static auto fn = mf::build::SI2_SO<float3, float, math::Quaternion>(
       "Axis Angle to Quaternion", [](float3 axis, float angle) {
-        if (UNLIKELY(math::is_zero(axis))) {
+        if (math::is_zero(axis)) [[unlikely]] {
           return math::Quaternion::identity();
         }
         const float3 axis_normalized = math::normalize(axis);
@@ -31,6 +32,15 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
         return math::to_quaternion(axis_angle);
       });
   builder.set_matching_fn(fn);
+}
+
+static int node_gpu_material(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *in,
+                             GPUNodeStack *out)
+{
+  return GPU_stack_link(mat, node, "axis_angle_to_rotation", in, out);
 }
 
 static void node_eval_elem(value_elem::ElemEvalParams &params)
@@ -67,12 +77,14 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeAxisAngleToRotation", FN_NODE_AXIS_ANGLE_TO_ROTATION);
+  fn_cmp_node_type_base(
+      &ntype, "FunctionNodeAxisAngleToRotation"_ustr, FN_NODE_AXIS_ANGLE_TO_ROTATION);
   ntype.ui_name = "Axis Angle to Rotation";
   ntype.ui_description = "Build a rotation from an axis and a rotation around that axis";
   ntype.enum_name_legacy = "AXIS_ANGLE_TO_ROTATION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
+  ntype.gpu_fn = node_gpu_material;
   ntype.build_multi_function = node_build_multi_function;
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;

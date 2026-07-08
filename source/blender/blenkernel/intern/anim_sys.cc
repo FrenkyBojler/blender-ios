@@ -15,20 +15,21 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bit_vector.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_wrapper.hh"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
+#include "DNA_anim_enums.h"
 #include "DNA_anim_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -40,12 +41,13 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -138,8 +140,8 @@ KS_Path *BKE_keyingset_find_path(KeyingSet *ks,
 KeyingSet *BKE_keyingset_add(ListBaseT<KeyingSet> *list,
                              const char idname[],
                              const char name[],
-                             short flag,
-                             short keyingflag)
+                             eKS_Settings flag,
+                             eInsertKeyFlags keyingflag)
 {
   KeyingSet *ks;
 
@@ -173,8 +175,8 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
                                 const char group_name[],
                                 const char rna_path[],
                                 int array_index,
-                                short flag,
-                                short groupmode)
+                                eKSP_Settings flag,
+                                eKSP_Grouping groupmode)
 {
   KS_Path *ksp;
 
@@ -699,8 +701,8 @@ static float get_fcurve_blend_value(FCurve &fcu,
  * Apply the rotation fcurves to the `ptr` by converting them to a matrix first. This means the
  * rotation can be applied regardless of rotation mode.
  *
- * \param blend_factor LERP between the current rotation value of the ptr and the value of the
- * rotation_fcurves. A `1` means the rotation_fcurves will be applied at 100%.
+ * \param blend_factor: LERP between the current rotation value of the `ptr` and the value of the
+ * `rotation_fcurves`. A `1` means the `rotation_fcurves` will be applied at 100%.
  */
 static void blend_rotation_with_conversion(PointerRNA &ptr,
                                            const Span<FCurve *> rotation_fcurves,
@@ -1096,6 +1098,8 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
         case NLASTRIP_EXTEND_HOLD_FORWARD:
           in_range = ctime >= strip.start;
           break;
+        case NLASTRIP_EXTEND_NOTHING:
+          break;
       }
     }
 
@@ -1148,7 +1152,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
   }
 
   /* check if a valid strip was found
-   * - must not be muted (i.e. will have contribution
+   * - must not be muted (i.e. will have contribution)
    */
   if ((estrip == nullptr) || (estrip->flag & NLASTRIP_FLAG_MUTED)) {
     return nullptr;
@@ -1187,7 +1191,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
       }
       break;
       /* There must be strips to transition from and to (i.e. `prev` and `next` required). */
-    case NLASTRIP_TYPE_TRANSITION:
+    case NLASTRIP_TYPE_TRANSITION: {
       if (ELEM(nullptr, estrip->prev, estrip->next)) {
         return nullptr;
       }
@@ -1199,6 +1203,10 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
           anim_eval_context, estrip->end);
       nlastrip_evaluate_controls(estrip->prev, &start_eval_context, flush_to_original);
       nlastrip_evaluate_controls(estrip->next, &end_eval_context, flush_to_original);
+      break;
+    }
+    case NLASTRIP_TYPE_META:
+    case NLASTRIP_TYPE_SOUND:
       break;
   }
 
@@ -1416,7 +1424,7 @@ static void nlaeval_free(NlaEvalData *nlaeval)
     nlaevalchan_free_data(&nec);
   }
 
-  BLI_freelistN(&nlaeval->channels);
+  nlaeval->channels.free_no_destruct();
   BLI_ghash_free(nlaeval->path_hash, nullptr, nullptr);
   MEM_delete(nlaeval->key_hash);
 }
@@ -2251,7 +2259,7 @@ static void nlaevalchan_combine_quaternion(NlaEvalChannelSnapshot *lower_necs,
  * \param upper_necs: Can be nullptr.
  * \param upper_blendmode: Enum value in eNlaStrip_Blend_Mode.
  * \param upper_influence: Value in range [0, 1].
- * \param upper_necs: Never nullptr.
+ * \param r_blended_necs: Never nullptr.
  */
 static void nlaevalchan_blendOrcombine(NlaEvalChannelSnapshot *lower_necs,
                                        NlaEvalChannelSnapshot *upper_necs,
@@ -2622,7 +2630,7 @@ static void nlaevalchan_blendOrCombine_get_inverted_lower_evalchan(
 
 /* ---------------------- */
 /* F-Modifier stack joining/separation utilities -
- * should we generalize these for BLI_listbase.h interface? */
+ * should we generalize these for BLI_listbase.hh interface? */
 
 /* Temporarily join two lists of modifiers together, storing the result in a third list */
 static void nlaeval_fmodifiers_join_stacks(ListBaseT<FModifier> *result,
@@ -2695,7 +2703,7 @@ static void nlasnapshot_from_action(PointerRNA *ptr,
 {
   /* Evaluate modifiers which modify time to evaluate the base curves at. */
   FModifiersStackStorage storage;
-  storage.modifier_count = BLI_listbase_count(modifiers);
+  storage.modifier_count = modifiers->count();
   storage.size_per_modifier = evaluate_fmodifiers_storage_size_per_modifier(modifiers);
   storage.buffer = alloca(storage.modifier_count * storage.size_per_modifier);
 
@@ -3464,7 +3472,7 @@ static bool animsys_evaluate_nla_for_flush(NlaEvalData *echannels,
   }
 
   if (is_action_track_evaluated_without_nla(adt, has_strips)) {
-    BLI_freelistN(&estrips);
+    estrips.free_no_destruct();
     return false;
   }
 
@@ -3484,7 +3492,7 @@ static bool animsys_evaluate_nla_for_flush(NlaEvalData *echannels,
   }
 
   /* Free temporary evaluation data that's not used elsewhere. */
-  BLI_freelistN(&estrips);
+  estrips.free_no_destruct();
   return true;
 }
 
@@ -3569,7 +3577,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
    * keyframe remap function detects (r_context->strip.act == nullptr) and will keyframe without
    * remapping. */
   if (is_action_track_evaluated_without_nla(adt, has_strips)) {
-    BLI_freelistN(&lower_estrips);
+    lower_estrips.free_no_destruct();
     return;
   }
 
@@ -3595,7 +3603,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
 
   /* If nullptr, then keyframing will fail. No need to do any more processing. */
   if (!r_context->eval_strip) {
-    BLI_freelistN(&lower_estrips);
+    lower_estrips.free_no_destruct();
     return;
   }
 
@@ -3603,7 +3611,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
   if (r_context->strip.blendmode == NLASTRIP_MODE_REPLACE &&
       IS_EQF(r_context->strip.influence, 1.0f))
   {
-    BLI_freelistN(&lower_estrips);
+    lower_estrips.free_no_destruct();
     return;
   }
 
@@ -3619,7 +3627,7 @@ static void animsys_evaluate_nla_for_keyframing(PointerRNA *ptr,
   }
 
   /* Free temporary evaluation data that's not used elsewhere. */
-  BLI_freelistN(&lower_estrips);
+  lower_estrips.free_no_destruct();
 }
 
 /**
@@ -3847,7 +3855,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
   float influence = context->strip.influence;
 
   if (blend_mode == NLASTRIP_MODE_REPLACE && influence == 1.0f &&
-      BLI_listbase_is_empty(&context->upper_estrips))
+      context->upper_estrips.is_empty())
   {
     r_values_mask = remap_domain;
     return;
@@ -3933,11 +3941,11 @@ void BKE_animsys_free_nla_keyframing_context_cache(ListBaseT<NlaKeyframingContex
 {
   for (NlaKeyframingContext &ctx : *cache) {
     MEM_SAFE_DELETE(ctx.eval_strip);
-    BLI_freelistN(&ctx.upper_estrips);
+    ctx.upper_estrips.free_no_destruct();
     nlaeval_free(&ctx.lower_eval_data);
   }
 
-  BLI_freelistN(cache);
+  cache->free_no_destruct();
 }
 
 /* ***************************************** */
@@ -4104,7 +4112,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
    * however, if there are some curves, we will need to make sure that their 'ctime' property gets
    * set correctly, so this optimization must be skipped in that case...
    */
-  if (BLI_listbase_is_empty(&main->actions) && BLI_listbase_is_empty(&main->curves)) {
+  if (main->actions.is_empty() && main->curves.is_empty()) {
     if (G.debug & G_DEBUG) {
       printf("\tNo Actions, so no animation needs to be evaluated...\n");
     }
@@ -4180,7 +4188,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
    * this tagged by Depsgraph on frame-change. This optimization means that objects
    * linked from other (not-visible) scenes will not need their data calculated.
    */
-  EVAL_ANIM_IDS(main->objects.first, eAnimData_Recalc(0));
+  EVAL_ANIM_IDS(main->objects.first, eAnimData_Recalc{});
 
   /* masks */
   EVAL_ANIM_IDS(main->masks.first, ADT_RECALC_ANIM);
@@ -4218,7 +4226,7 @@ void BKE_animsys_update_driver_array(ID *id)
   if (adt && adt->drivers.first) {
     BLI_assert(!adt->driver_array);
 
-    int num_drivers = BLI_listbase_count(&adt->drivers);
+    int num_drivers = adt->drivers.count();
     adt->driver_array = MEM_new_array_uninitialized<FCurve *>(size_t(num_drivers),
                                                               "adt->driver_array");
 
@@ -4336,7 +4344,12 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
 
       /* set error-flag if evaluation failed */
       if (ok == 0) {
-        CLOG_WARN(&LOG_ANIM_DRIVER, "Invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
+        CLOG_WARN(&LOG_ANIM_DRIVER,
+                  "Invalid driver on %s '%s' - %s[%d]",
+                  BKE_idtype_idcode_to_name(GS(id->name)),
+                  id->name + 2,
+                  fcu->rna_path,
+                  fcu->array_index);
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }
     }

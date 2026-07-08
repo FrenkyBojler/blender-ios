@@ -86,6 +86,7 @@ class SocketUsageParams {
    * Utility for the case when the socket depends on a specific menu input to have a certain value.
    */
   bool menu_input_may_be(UString identifier, int enum_value) const;
+  bool bool_input_may_be(UString identifier, bool bool_value) const;
 };
 
 /**
@@ -123,9 +124,9 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
  * Same as above, but automatically retrieves the input values from the given properties.
  * This is used with the geometry nodes modifier and node tools.
  */
-void infer_group_interface_usage(
+void infer_group_interface_inputs_usage(
     const bNodeTree &group,
-    const IDProperty *properties,
+    const PointerRNA &properties_ptr,
     MutableSpan<SocketUsage> r_input_usages,
     std::optional<MutableSpan<SocketUsage>> r_output_usages = std::nullopt);
 

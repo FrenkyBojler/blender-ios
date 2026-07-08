@@ -8,10 +8,10 @@
 
 #include <cstring>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_object_types.h"
@@ -224,7 +224,7 @@ static wmOperatorStatus objects_remove_active_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   int single_collection_index = RNA_enum_get(op->ptr, "collection");
   Collection *single_collection = collection_object_active_find_index(
@@ -574,8 +574,7 @@ static bool collection_exporter_poll(bContext *C)
 static bool collection_exporter_remove_poll(bContext *C)
 {
   const Collection *collection = CTX_data_collection(C);
-  return collection_exporter_common_check(collection) &&
-         !BLI_listbase_is_empty(&collection->exporters);
+  return collection_exporter_common_check(collection) && !collection->exporters.is_empty();
 }
 
 static bool collection_export_all_poll(bContext *C)

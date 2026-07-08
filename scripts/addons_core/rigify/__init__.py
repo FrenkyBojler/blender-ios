@@ -319,7 +319,7 @@ def check_feature_set_error(_feature_set: RigifyFeatureSets, info: dict, layout:
                 rpt_("This feature set requires Blender {:s} or newer to work properly.")
                 .format(".".join(str(x) for x in info['blender']))
             )
-            sub.label(icon='ERROR', text=text, translate=False)
+            sub.label(icon='STATUS_WARNING', text=text, translate=False)
 
     for dep_link in info.get("dependencies", []):
         if not feature_set_list.get_module_by_link_safe(dep_link):
@@ -332,7 +332,7 @@ def check_feature_set_error(_feature_set: RigifyFeatureSets, info: dict, layout:
                 sub.alert = True
                 sub.label(
                     text="This feature set depends on the following feature set to work properly:",
-                    icon='ERROR'
+                    icon='STATUS_WARNING'
                 )
                 sub_split = col.split(factor=0.8)
                 sub = sub_split.row()
@@ -368,7 +368,7 @@ def draw_feature_set_prefs(layout: bpy.types.UILayout, _context: bpy.types.Conte
         split.label(text="Error:")
         sub = split.row()
         sub.alert = True
-        sub.label(text="This feature set failed to load correctly.", icon='ERROR')
+        sub.label(text="This feature set failed to load correctly.", icon='STATUS_ERROR')
 
     split = col.row().split(factor=split_factor)
     split.label(text="Description:")
@@ -389,7 +389,7 @@ def draw_feature_set_prefs(layout: bpy.types.UILayout, _context: bpy.types.Conte
     if 'warning' in info:
         split = col.row().split(factor=split_factor)
         split.label(text="Warning:")
-        split.label(text="  " + info['warning'], icon='ERROR')
+        split.label(text="  " + info['warning'], icon='STATUS_WARNING')
 
     split = col.row().split(factor=split_factor)
     split.label(text="Internet:")
@@ -657,6 +657,7 @@ def register():
     for cls in classes:
         register_class(cls)
 
+    register_usetime_properties()
     register_rna_properties()
 
     prefs = RigifyPreferences.get_instance()
@@ -696,6 +697,7 @@ def unregister():
     prefs.register_feature_sets(False)
 
     unregister_rna_properties()
+    unregister_usetime_properties()
 
     # Classes.
     for cls in classes:
@@ -708,6 +710,26 @@ def unregister():
     metarig_menu.unregister()
     ui.unregister()
     feature_set_list.unregister()
+
+
+def register_usetime_properties() -> None:
+    """
+    Register all properties that are required at use-time.
+    This makes it possible to use a rigify created rig without having the rigify addon enabled.
+    See rig_ui_template.py
+    """
+    coll_store = bpy.types.BoneCollection
+    coll_store.rigify_ui_row = bpy.props.IntProperty(
+        name="UI Row", default=0, min=0,
+        description="If not zero, row of the UI panel where the button for this collection is shown")
+    coll_store.rigify_ui_title = bpy.props.StringProperty(
+        name="UI Title", description="Text to use on the UI panel button instead of the collection name")
+
+
+def unregister_usetime_properties() -> None:
+    coll_store: typing.Any = bpy.types.BoneCollection
+    del coll_store.rigify_ui_row
+    del coll_store.rigify_ui_title
 
 
 def register_rna_properties() -> None:
@@ -814,11 +836,6 @@ def register_rna_properties() -> None:
     coll_store = bpy.types.BoneCollection
 
     coll_store.rigify_uid = IntProperty(name="Unique ID", default=-1)
-    coll_store.rigify_ui_row = IntProperty(
-        name="UI Row", default=0, min=0,
-        description="If not zero, row of the UI panel where the button for this collection is shown")
-    coll_store.rigify_ui_title = StringProperty(
-        name="UI Title", description="Text to use on the UI panel button instead of the collection name")
     coll_store.rigify_sel_set = BoolProperty(
         name="Add Selection Set", default=False, description='Add Selection Set for this collection')
     coll_store.rigify_color_set_id = IntProperty(name="Color Set ID", default=0, min=0)
@@ -902,8 +919,6 @@ def unregister_rna_properties() -> None:
     coll_store: typing.Any = bpy.types.BoneCollection
 
     del coll_store.rigify_uid
-    del coll_store.rigify_ui_row
-    del coll_store.rigify_ui_title
     del coll_store.rigify_ui_title_name
     del coll_store.rigify_sel_set
     del coll_store.rigify_color_set_id

@@ -15,10 +15,10 @@ namespace blender::nodes::node_fn_combine_transform_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Translation").subtype(PROP_TRANSLATION);
-  b.add_input<decl::Rotation>("Rotation");
-  b.add_input<decl::Vector>("Scale").default_value(float3(1)).subtype(PROP_XYZ);
-  b.add_output<decl::Matrix>("Transform");
+  b.add_input<decl::Vector>("Translation"_ustr).subtype(PROP_TRANSLATION);
+  b.add_input<decl::Rotation>("Rotation"_ustr);
+  b.add_input<decl::Vector>("Scale"_ustr).default_value(float3(1)).subtype(PROP_XYZ);
+  b.add_output<decl::Matrix>("Transform"_ustr);
 }
 
 class CombineTransformFunction : public mf::MultiFunction {
@@ -112,7 +112,7 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeCombineTransform", FN_NODE_COMBINE_TRANSFORM);
+  fn_node_type_base(&ntype, "FunctionNodeCombineTransform"_ustr, FN_NODE_COMBINE_TRANSFORM);
   ntype.ui_name = "Combine Transform";
   ntype.ui_description =
       "Combine a translation vector, a rotation, and a scale vector into a transformation matrix";

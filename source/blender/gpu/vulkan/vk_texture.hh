@@ -69,13 +69,6 @@ class VKTexture : public Texture {
   bool use_stencil_ = false;
 
   char swizzle_[4] = {'r', 'g', 'b', 'a'};
-  VKImageViewInfo image_view_info_ = {eImageViewUsage::ShaderBinding,
-                                      IndexRange(0, VK_REMAINING_ARRAY_LAYERS),
-                                      IndexRange(0, VK_REMAINING_MIP_LEVELS),
-                                      {{'r', 'g', 'b', 'a'}},
-                                      false,
-                                      false,
-                                      VKImageViewArrayed::DONT_CARE};
 
   /**
    * \brief Has this texture data.
@@ -92,8 +85,8 @@ class VKTexture : public Texture {
   virtual ~VKTexture() override;
 
   void generate_mipmap() override;
-  void copy_to(Texture *texture) override;
-  void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
+  void copy_to(Texture *texture, IndexRange mip_levels) override;
+  void copy_to(VKTexture &dst_texture, IndexRange mip_levels, VkImageAspectFlags vk_image_aspect);
   void clear(const double4 data) override;
   void clear_depth_stencil(const GPUFrameBufferBits buffer,
                            float clear_depth,
@@ -101,7 +94,7 @@ class VKTexture : public Texture {
                            std::optional<int> layer);
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
-  void *read(int mip, eGPUDataFormat format) override;
+  void read(int mip, eGPUDataFormat format, void *data) override;
   void read_sub(
       int mip, eGPUDataFormat format, const int region[6], IndexRange layers, void *r_data);
   void update_sub(int mip,
