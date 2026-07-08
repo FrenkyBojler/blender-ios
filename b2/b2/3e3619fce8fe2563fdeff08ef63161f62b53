@@ -1,4 +1,4 @@
-Referenced by issue #141871, Blender LTS: Maintenance Task 5.2
+Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #144944, Blender freezes when closing it while a Cycles render is active
 Referenced by issue #145633, Blender freezes when closing Blender after using the GPU compositor
 Referenced by pull request #146096, Fix #145633: Revert "Fix #144526: Crash on exit with Video_Editing template"
