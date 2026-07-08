@@ -233,7 +233,7 @@ static BMO_FlagSet bmo_enum_relax_edge_loops_interpolation_method[] = {
 };
 
 /*
- * Relax.
+ * Relax Edge Loops.
  *
  * Relax the loop, so it is smoother.
  */
