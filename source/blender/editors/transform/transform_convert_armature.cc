@@ -195,8 +195,6 @@ static short pose_grab_with_ik_add(Object &ob, bke::PChanBone pchanbone)
   /* Watch-it! has to be 0 here, since we're still on the
    * same bone for the first time through the loop #25885. */
   data->rootbone = 0;
-  /* We modify the pchan pointer below so we also have to get the corresponding bone pointer. */
-  Bone *bone = pchanbone.bone;
 
   /* We only include bones that are part of a continual connected chain. */
   do {
@@ -215,10 +213,11 @@ static short pose_grab_with_ik_add(Object &ob, bke::PChanBone pchanbone)
     /* Now we count this pchan as being included. */
     data->rootbone++;
 
+    /* We modify the pchan pointer below so we also have to get the corresponding bone pointer. */
+    Bone *bone = pchan->bone_get(ob);
     /* Continue to parent, but only if we're connected to it. */
     if (bone->flag & BONE_CONNECTED) {
       pchan = pchan->parent;
-      bone = pchan->bone_get(ob);
     }
     else {
       pchan = nullptr;
