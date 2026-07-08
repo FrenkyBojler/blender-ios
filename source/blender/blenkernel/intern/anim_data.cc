@@ -1015,9 +1015,10 @@ void BKE_animdata_fix_paths(ID &id,
                             const bool verify_paths,
                             const DriverMap &driver_map)
 {
+  bool is_changed = false;
   /* We always need to fix drivers that target this ID. This is independent of this ID having
    * animation data. */
-  driver_target_path_fix(id, prefix, old_infix, new_infix, driver_map);
+  is_changed |= driver_target_path_fix(id, prefix, old_infix, new_infix, driver_map);
 
   AnimData *adt = BKE_animdata_from_id(&id);
   if (!adt) {
@@ -1025,15 +1026,16 @@ void BKE_animdata_fix_paths(ID &id,
   }
 
   if (adt->action && adt->slot_handle != animrig::Slot::unassigned) {
-    rename_paths_action(
+    is_changed |= rename_paths_action(
         adt->action, adt->slot_handle, id, prefix, old_infix, new_infix, verify_paths);
   }
   if (adt->tmpact && adt->tmp_slot_handle != animrig::Slot::unassigned) {
-    rename_paths_action(
+    is_changed |= rename_paths_action(
         adt->tmpact, adt->tmp_slot_handle, id, prefix, old_infix, new_infix, verify_paths);
   }
   for (NlaTrack &nlt : adt->nla_tracks) {
-    nlastrips_path_rename_fix(id, prefix, old_infix, new_infix, nlt.strips, verify_paths);
+    is_changed |= nlastrips_path_rename_fix(
+        id, prefix, old_infix, new_infix, nlt.strips, verify_paths);
   }
   for (FCurve &fcurve : adt->drivers) {
     std::optional<std::string> fixed_path = rna_path_rename_fix(
@@ -1043,6 +1045,10 @@ void BKE_animdata_fix_paths(ID &id,
     }
     MEM_delete(fcurve.rna_path);
     fcurve.rna_path = BLI_strdup(fixed_path->c_str());
+    is_changed = true;
+  }
+  if (is_changed) {
+    DEG_id_tag_update(&id, ID_RECALC_SYNC_TO_EVAL);
   }
 }
 
