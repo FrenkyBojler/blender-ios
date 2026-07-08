@@ -1,4 +1,4 @@
-Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
+Referenced by issue #141871, Blender LTS: Maintenance Task 5.2
 Referenced by commit 83306cdbf4ee580a0af46ce29c6a41538f43b13e, Revert "Fix #143360: Separate geometry flags RNA access from weight proximity modifier"
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by issue #137983, Release note tools: List of bug fixes per release override
