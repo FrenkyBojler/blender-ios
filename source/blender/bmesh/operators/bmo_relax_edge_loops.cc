@@ -235,11 +235,11 @@ static void get_relax_input_chains(BMesh *bm, Vector<RelaxChainData> &r_chains)
   BM_mesh_edgeloops_free(&eloops);
 }
 
-static void calculate_relax_t(Span<BMVert *> verts,
-                              const RelaxPhase &phase,
-                              const bool regular,
-                              Vector<float> &r_t_knots,
-                              Vector<float> &r_t_points)
+static void calculate_phase_distances(Span<BMVert *> verts,
+                                      const RelaxPhase &phase,
+                                      const bool regular,
+                                      Vector<float> &r_knot_distances,
+                                      Vector<float> &r_point_distances)
 {
   const int knots_num = phase.knot_indices.size();
   const int points_num = phase.point_indices.size();
@@ -267,18 +267,18 @@ static void calculate_relax_t(Span<BMVert *> verts,
 
   for (const int i : IndexRange(total)) {
     if (i % 2 == 0 || i == total - 1) {
-      r_t_knots.append(cumulative[i]);
+      r_knot_distances.append(cumulative[i]);
     }
     else {
-      r_t_points.append(cumulative[i]);
+      r_point_distances.append(cumulative[i]);
     }
   }
 
   /* Place a point halfway between two knots if regular is enabled. */
   if (regular) {
-    r_t_points.clear();
+    r_point_distances.clear();
     for (const int p : IndexRange(points_num)) {
-      r_t_points.append((r_t_knots[p] + r_t_knots[p + 1]) / 2.0f);
+      r_point_distances.append((r_knot_distances[p] + r_knot_distances[p + 1]) / 2.0f);
     }
   }
 }
@@ -314,15 +314,17 @@ static void execute_relax_phase(
     return;
   }
 
-  Vector<float> t_knots, t_points;
-  calculate_relax_t(verts, phase, regular, t_knots, t_points);
+  Vector<float> knot_distances;
+  Vector<float> point_distances;
+  calculate_phase_distances(verts, phase, regular, knot_distances, point_distances);
 
-  const Span<float> accumulated_lengths = Span<float>(t_knots).drop_front(1);
+  const Span<float> accumulated_lengths = Span<float>(knot_distances).drop_front(1);
 
   const int points_num = phase.point_indices.size();
   Array<int> segment_indices(points_num);
   Array<float> factors(points_num);
-  length_parameterize::sample_at_lengths(accumulated_lengths, t_points, segment_indices, factors);
+  length_parameterize::sample_at_lengths(
+      accumulated_lengths, point_distances, segment_indices, factors);
 
   Array<float3> sampled_positions(points_num);
 
@@ -337,11 +339,11 @@ static void execute_relax_phase(
   }
   else {
     std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
-    calculate_relax_splines(verts, phase.knot_indices, t_knots, is_closed, axis_coeffs);
+    calculate_relax_splines(verts, phase.knot_indices, knot_distances, is_closed, axis_coeffs);
 
     for (const int i : IndexRange(points_num)) {
       const int seg = segment_indices[i];
-      const float dt = t_points[i] - axis_coeffs[0][seg].x;
+      const float dt = point_distances[i] - axis_coeffs[0][seg].x;
 
       const SplineCoeffs &cx = axis_coeffs[0][seg];
       const SplineCoeffs &cy = axis_coeffs[1][seg];
