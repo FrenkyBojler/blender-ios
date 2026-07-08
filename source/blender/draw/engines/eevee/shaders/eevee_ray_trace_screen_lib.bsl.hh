@@ -131,8 +131,10 @@ ScreenTraceHitData raytrace_screen(ViewMatrices view,
   time = mix(prev_time, time, saturate(prev_delta / (prev_delta - delta)));
 
   ScreenTraceHitData result;
-  /* We can only hit a backface if the ray was under the surface. */
-  result.hit_backface = prev_delta < 0.0f;
+  /* We can only hit a backface if the ray was under the surface.
+   * Fast math optimizations can lead to deltas slightly below zero. */
+  const float epsilon = -1e-7f;
+  result.hit_backface = prev_delta < epsilon;
   result.ss_hit_P = ssray.origin.xyz + ssray.direction.xyz * time;
   result.v_hit_P = view.point_screen_to_view(result.ss_hit_P);
   /* Convert to world space ray time. */
@@ -168,6 +170,8 @@ ScreenTraceHitData raytrace_planar(ViewMatrices view,
   float t = 0.0f, time = 0.0f;
   bool hit = false;
   constexpr int max_steps = 32;
+  /* Fast math optimizations can lead to deltas slightly below zero. */
+  constexpr float epsilon = -1e-7f;
   for (int iter = 1; !hit && (time < ssray.max_time) && (iter < max_steps); iter++) {
     float stride = 1.0f + float(iter) * rt_data.quality;
 
@@ -183,7 +187,7 @@ ScreenTraceHitData raytrace_planar(ViewMatrices view,
 
     delta = depth_sample - ss_ray.z;
     /* Check if the ray is below the surface. */
-    hit = (delta < 0.0f);
+    hit = (delta < epsilon);
   }
   /* Reject hit if background. */
   hit = hit && (depth_sample != 1.0f);
