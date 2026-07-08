@@ -1656,6 +1656,9 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   /* Override (wrong) DNA default of 0 for attributes_active_index. See comments on the
    * Mesh.attributes_active_index declaration. */
   if (attributes_active_name.empty()) {
+    /* There might still be some situations where we get an out-of-range
+     * attributes_active_index. It would be nice to find out about those
+     * so assert in debugmode. */
     BLI_assert(ELEM(mesh->attributes_active_index, 0, -1));
     mesh->attributes_active_index = -1;
   }
@@ -1946,6 +1949,9 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
     }
   }
   else {
+    /* There might still be some situations where we get an out-of-range
+     * attributes_active_index. It would be nice to find out about those
+     * so assert in debugmode. */
     BLI_assert(ELEM(mesh->attributes_active_index, 0, -1));
     mesh->attributes_active_index = -1;
   }
