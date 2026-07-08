@@ -355,7 +355,6 @@ static void add_passes_used_by_render_layer_node(const bNode *node, Set<std::str
   }
 }
 
-// TODO: Update for compositor modifiers.
 /* Adds the pass names of the passes used by the given Group Input node to the given used passes.
  * The Group Input node only uses the combined pass for the first input, while the rest are
  * ignored. */
@@ -441,7 +440,7 @@ static void add_passes_used_by_cryptomatte_node(const bNode *node,
  * passes. This is called recursively for node groups. */
 static void add_used_passes_recursive(const bNodeTree *node_tree,
                                       const ViewLayer *view_layer,
-                                      const bool is_root_tree,
+                                      const bool is_root_tree_of_first_modifier,
                                       Set<const bNodeTree *> &node_trees_already_searched,
                                       Set<std::string> &used_passes)
 {
@@ -469,7 +468,7 @@ static void add_used_passes_recursive(const bNodeTree *node_tree,
         add_passes_used_by_render_layer_node(node, used_passes);
         break;
       case NODE_GROUP_INPUT:
-        if (is_root_tree) {
+        if (is_root_tree_of_first_modifier) {
           add_passes_used_by_group_input_node(node, used_passes);
         }
         break;
@@ -487,13 +486,18 @@ Set<std::string> get_used_passes(const Scene &scene,
                                  const ExecutionMode mode)
 {
   Set<std::string> used_passes;
+  bool is_first_modifier = true;
   Set<const bNodeTree *> node_trees_already_searched;
   for (const SceneCompositorModifier &modifier : scene.compositor_modifiers) {
     if (!is_modifier_enabled(modifier, mode)) {
       continue;
     }
-    add_used_passes_recursive(
-        modifier.node_group, view_layer, true, node_trees_already_searched, used_passes);
+    add_used_passes_recursive(modifier.node_group,
+                              view_layer,
+                              is_first_modifier,
+                              node_trees_already_searched,
+                              used_passes);
+    is_first_modifier = false;
   }
   return used_passes;
 }
