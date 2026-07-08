@@ -128,6 +128,7 @@ enum eSpaceButtons_Flag : char {
   /** Do not add materials, particles, etc. in TemplateTextureUser list. */
   SB_TEX_USER_LIMITED = (1 << 3),
   SB_SHADING_CONTEXT = (1 << 4),
+  SB_SHOW_BREADCRUMBS = (1 << 5),
 };
 ENUM_OPERATORS(eSpaceButtons_Flag)
 

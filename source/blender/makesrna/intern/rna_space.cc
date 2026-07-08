@@ -6277,6 +6277,11 @@ static void rna_def_space_properties(BlenderRNA *brna)
                            "Outliner Sync",
                            "Change to the corresponding tab when outliner data icons are clicked");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+
+  prop = RNA_def_property(srna, "show_breadcrumbs", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SB_SHOW_BREADCRUMBS);
+  RNA_def_property_ui_text(prop, "Show Breadcrumbs", "Show context breadcrumbs panel");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 }
 
 static void rna_def_space_image_overlay(BlenderRNA *brna)

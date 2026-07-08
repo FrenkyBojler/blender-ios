@@ -1271,13 +1271,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 static bool buttons_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  return sbuts->mainb != BCONTEXT_TOOL && (sbuts->flag & SB_PIN_CONTEXT);
-}
-
-static bool buttons_panel_context_popover_poll(const bContext *C, PanelType * /*pt*/)
-{
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  return sbuts->mainb != BCONTEXT_TOOL;
+  return sbuts->mainb != BCONTEXT_TOOL && (sbuts->flag & SB_SHOW_BREADCRUMBS);
 }
 
 static void buttons_panel_context_draw(const bContext *C, Panel *panel)
@@ -1347,14 +1341,6 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     first = false;
   }
-  if (sbuts->flag & SB_PIN_CONTEXT) {
-    ui::Layout &pin_row = row.row(false);
-    pin_row.alignment_set(ui::LayoutAlign::Right);
-    pin_row.separator_spacer();
-    pin_row.emboss_set(ui::EmbossType::None);
-    pin_row.op(
-        "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
-  }
 }
 
 void buttons_context_register(ARegionType *art)
@@ -1367,17 +1353,6 @@ void buttons_context_register(ARegionType *art)
   pt->draw = buttons_panel_context_draw;
   pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH | PANEL_TYPE_TOP;
   BLI_addtail(&art->paneltypes, pt);
-  WM_paneltype_add(pt);
-
-  pt = MEM_new_zeroed<PanelType>("spacetype buttons panel context popover");
-  STRNCPY_UTF8(pt->idname, "PROPERTIES_PT_context_popover");
-  STRNCPY_UTF8(pt->label, N_("Context")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  pt->poll = buttons_panel_context_popover_poll;
-  pt->draw = buttons_panel_context_draw;
-  pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;
-  pt->ui_units_x = 22;
-  WM_paneltype_add(pt);
 }
 
 ID *buttons_context_id_path(const bContext *C)
