@@ -837,8 +837,7 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   } \
   ((void)0)
 #define CHECK_PASS_DENOISING(name, type, channels, chanid) \
-  if (view_layer->eevee.enabled_denoising_pass_categories & (EEVEE_DENOISING_PASS_CATEGORY_ALL)) \
-  { \
+  if (view_layer->eevee.denoising_pass_flags & (EEVEE_DENOISING_PASS_STORE)) { \
     RE_engine_register_pass( \
         engine, scene, view_layer, RE_PASSNAME_##name, channels, chanid, type); \
   } \

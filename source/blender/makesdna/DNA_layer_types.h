@@ -68,20 +68,12 @@ enum eViewLayerEEVEEPassType : int {
 #define EEVEE_RENDER_PASS_MAX_BIT 26
 ENUM_OPERATORS(eViewLayerEEVEEPassType)
 
-/**
- * Denoising render pass categories for EEVEE.
- * #ViewLayerEEVEE.enabled_denoising_pass_categories
- */
-enum eViewLayerEEVEEDenoisingPassCategory : int {
-  /* Can be changed in the future if not all passes should be enabled by the same flag. */
-  EEVEE_DENOISING_PASS_CATEGORY_ALL = (1 << 0)
-};
-ENUM_OPERATORS(eViewLayerEEVEEDenoisingPassCategory)
-
 /** #SceneRenderLayer::passflag */
 enum eViewLayerEEVEEDenoisingPassFlag : uint32_t {
+  /* Can be changed in the future if not all passes should be enabled by the same flag. */
+  EEVEE_DENOISING_PASS_STORE = (1 << 0),
   /* Whether to use roughness-based weighting for the albedo or split by the BSDF type. */
-  EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING = (1 << 0),
+  EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING = (1 << 1),
 };
 ENUM_OPERATORS(eViewLayerEEVEEDenoisingPassFlag)
 
@@ -237,8 +229,8 @@ struct LayerCollection {
 struct ViewLayerEEVEE {
   eViewLayerEEVEEPassType render_passes = {};
   float ambient_occlusion_distance = 10.0f;
-  eViewLayerEEVEEDenoisingPassCategory enabled_denoising_pass_categories = {};
   int denoising_pass_flags = EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
+  char _pad[4] = {};
 };
 
 /** AOV Render-pass definition. */
