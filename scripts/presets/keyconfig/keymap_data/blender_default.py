@@ -1084,6 +1084,14 @@ def km_user_interface(_params):
          {"properties": [("direction", 'RIGHT')]}),
         ("ui.view_item_focus", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
         ("ui.view_item_focus", {"type": 'BUTTON4MOUSE', "value": 'PRESS'}, None),
+        ("ui.view_item_page_scroll", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True},
+         {"properties": [("scroll_direction", 'UP')]}),
+        ("ui.view_item_page_scroll", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
+         {"properties": [("scroll_direction", 'DOWN')]}),
+        ("ui.view_item_page_scroll", {"type": 'HOME', "value": 'PRESS'},
+         {"properties": [("scroll_direction", 'TOP')]}),
+        ("ui.view_item_page_scroll", {"type": 'END', "value": 'PRESS'},
+         {"properties": [("scroll_direction", 'BOTTOM')]}),
     ])
 
     return keymap
@@ -1291,6 +1299,8 @@ def km_property_editor(_params):
         ("constraint.apply", {"type": 'A', "value": 'PRESS', "ctrl": True}, {"properties": [("report", True)]}),
         # Strip modifiers
         ("sequencer.strip_modifier_duplicate", {"type": 'D', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.add_strip_modifier_menu", {"type": 'A', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.strip_modifier_set_active", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -3197,6 +3207,8 @@ def km_sequencer(params):
         ("sequencer.retiming_key_delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("sequencer.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("sequencer.delete", {"type": 'DEL', "value": 'PRESS'}, None),
+        ("sequencer.ripple_delete", {"type": 'X', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.ripple_delete", {"type": 'DEL', "value": 'PRESS', "shift": True}, None),
         ("sequencer.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         ("sequencer.paste", {"type": 'V', "value": 'PRESS', "ctrl": True, "shift": True},

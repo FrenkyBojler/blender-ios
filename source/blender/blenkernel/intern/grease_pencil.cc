@@ -11,7 +11,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_asset_edit.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_storage.hh"
@@ -305,7 +305,9 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   CustomData_reset(&grease_pencil->layers_data_legacy);
 
   /* Write LibData */
-  writer->write_id_struct(id_address, grease_pencil);
+  writer->write_id_struct(id_address, grease_pencil, [](BlendStructWriter &struct_writer) {
+    struct_writer.generated_ptr(offsetof(GreasePencil, attribute_storage.dna_attributes));
+  });
   BKE_id_blend_write(writer, &grease_pencil->id);
 
   grease_pencil->attribute_storage.wrap().blend_write(*writer, attribute_data);
@@ -697,8 +699,9 @@ static void update_curve_plane_normal_cache(const Span<float3> positions,
 
         float length;
         normal = math::normalize_and_get_length(normal, length);
-        /* Check for degenerate case where the points are on a line. */
-        if (math::is_zero(length)) {
+        /* Check for degenerate case where the points are on a line (Newell's method can introduce
+         * a small error that accumulates with many points). */
+        if (length < std::numeric_limits<float>::epsilon() * points.size()) {
           for (const int point_i : points.drop_back(1)) {
             float3 segment_vec = positions[point_i] - positions[point_i + 1];
             if (math::length_squared(segment_vec) != 0.0f) {
@@ -4617,7 +4620,11 @@ static void write_drawing_array(GreasePencil &grease_pencil,
         curves.blend_write_prepare(write_data, !BLO_write_is_undo(writer));
         drawing_copy.runtime = nullptr;
 
-        writer->write_struct_at_address_cast<GreasePencilDrawing>(drawing_base, &drawing_copy);
+        writer->write_struct_at_address_cast<GreasePencilDrawing>(
+            drawing_base, &drawing_copy, [](BlendStructWriter &struct_writer) {
+              struct_writer.generated_ptr(
+                  offsetof(GreasePencilDrawing, geometry.attribute_storage.dna_attributes));
+            });
         curves.blend_write(*writer, grease_pencil.id, write_data);
         break;
       }
