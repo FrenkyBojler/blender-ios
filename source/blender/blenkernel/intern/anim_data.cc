@@ -965,7 +965,7 @@ static bool driver_target_path_fix(ID &owner_id,
       }
     }
 
-    if (GS(owner_id.name) == ID_OB && target->pchan_name[0]) {
+    if (GS(owner_id.name) == ID_OB && target->pchan_name[0] && prefix.find("bones")) {
       /* If the target is a bone we can assume that the infix will be surrounded with square
        * brackets and escaped. */
       BLI_assert(old_infix.size() >= 4);
