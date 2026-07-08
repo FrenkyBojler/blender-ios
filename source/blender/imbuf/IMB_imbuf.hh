@@ -553,6 +553,11 @@ void IMB_free_all_data(ImBuf *ibuf);
 void IMB_free_gpu_textures(ImBuf *ibuf);
 
 /**
+ * Clear #IMB_GPU_LOAD_FAILED flag, to retry failed GPU texture creation.
+ */
+void IMB_clear_gpu_load_failed(ImBuf *ibuf);
+
+/**
  * \brief Transform modes to use for IMB_transform function.
  *
  * These are not flags as the combination of cropping and repeat can lead to different expectation.
@@ -657,7 +662,6 @@ void IMB_update_gpu_texture_sub(gpu::Texture *tex,
                                 int z,
                                 int w,
                                 int h,
-                                bool use_high_bitdepth,
                                 bool use_grayscale,
                                 bool use_premult);
 
