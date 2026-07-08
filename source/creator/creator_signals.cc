@@ -185,6 +185,8 @@ extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
         fprintf(stderr, "Module  : %s\n", modulename);
       }
     }
+
+    sig_cleanup_and_terminate(SIGSEGV);
   }
   else {
     auto crash_func = [&]() {
@@ -208,6 +210,8 @@ extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
 
         BLI_windows_exception_show_dialog(
             filepath_crashlog, G.filepath_last_blend, GPU_platform_gpu_name(), version.c_str());
+
+        sig_cleanup_and_terminate(SIGSEGV);
       }
     };
 
@@ -215,8 +219,6 @@ extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
      * even if multiple crashes occur simultaneously. */
     static std::once_flag crash_func_once;
     std::call_once(crash_func_once, crash_func);
-
-    sig_cleanup_and_terminate(SIGSEGV);
   }
 
   return EXCEPTION_EXECUTE_HANDLER;
