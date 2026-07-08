@@ -84,7 +84,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::Curve,
-                       //  GeometryComponent::Type::GreasePencil, /* TODO */
+                       GeometryComponent::Type::GreasePencil,
                        GeometryComponent::Type::PointCloud})
       .description(
           "The geometries that are used to constrain the triangulation using the points, edges, "
