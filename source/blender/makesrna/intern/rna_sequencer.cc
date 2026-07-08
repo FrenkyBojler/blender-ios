@@ -701,7 +701,7 @@ static void rna_Strip_content_trim_end_range(
   Strip *strip = static_cast<Strip *>(ptr->data);
 
   *min = 0;
-  *max = strip->len + strip->anim_endofs - strip->startofs - strip->endofs - 1;
+  *max = strip->content_length() + strip->anim_endofs - strip->startofs - strip->endoffset() - 1;
 }
 
 static void rna_Strip_content_trim_start_range(
@@ -710,7 +710,7 @@ static void rna_Strip_content_trim_start_range(
   Strip *strip = static_cast<Strip *>(ptr->data);
 
   *min = 0;
-  *max = strip->len + strip->anim_startofs - strip->startofs - strip->endofs - 1;
+  *max = strip->content_length() + strip->anim_startofs - strip->startofs - strip->endoffset() - 1;
 }
 
 static void rna_Strip_left_handle_range(
@@ -751,7 +751,7 @@ static void rna_Strip_left_handle_offset_range(
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   *min = INT_MIN;
-  *max = strip->len - strip->endofs - 1;
+  *max = strip->content_length() - strip->endoffset() - 1;
 }
 
 static void rna_Strip_right_handle_offset_range(
@@ -759,7 +759,7 @@ static void rna_Strip_right_handle_offset_range(
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   *min = INT_MIN;
-  *max = strip->len - strip->startofs - 1;
+  *max = strip->content_length() - strip->endoffset() - 1;
 }
 
 static void rna_Strip_duration_set(PointerRNA *ptr, int value)
