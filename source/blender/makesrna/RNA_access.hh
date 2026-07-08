@@ -706,7 +706,7 @@ bool RNA_property_copy(Main *bmain,
                        int index,
                        IDOverrideLibraryProperty *removed_oprop = nullptr,
                        IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
-bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index);
+bool RNA_property_reset(Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index);
 bool RNA_property_assign_default(PointerRNA *ptr, PropertyRNA *prop);
 
 /* Quick name based property access

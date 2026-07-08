@@ -7917,7 +7917,7 @@ std::optional<StringRefNull> RNA_translate_ui_text(
   return rna_translate_ui_text(text, text_ctxt, type, prop, translate);
 }
 
-bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index)
+bool RNA_property_reset(Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index)
 {
   int len;
 
@@ -8000,7 +8000,13 @@ bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index)
     }
 
     case PROP_POINTER: {
-      PointerRNA value = PointerRNA_NULL;
+      PointerRNA value;
+      if (bmain) {
+        value = RNA_property_pointer_get_default(*bmain, *ptr, *prop);
+      }
+      else {
+        value = PointerRNA_NULL;
+      }
       RNA_property_pointer_set(ptr, prop, value, nullptr);
       return true;
     }
