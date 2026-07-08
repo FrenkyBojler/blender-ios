@@ -2,3 +2,4 @@ Referenced by pull request #158007, Fix #157474: Blender crash when using undo w
 Referenced by commit a28091feec7081e98c02d6f81bef154db511e640, Fix #157474: Blender crash when using undo while editing pose
 Referenced by issue #161197, Regression: Auto IK tool isn't limiting to connected bones anymore
 Referenced by pull request #161216, Fix #161197: Auto IK regression
+Referenced by commit 691f9218b5ec4e06373d4b9f1f373870d839ac4d, Fix #161197: Auto IK regression
