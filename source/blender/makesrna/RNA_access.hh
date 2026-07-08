@@ -706,6 +706,10 @@ bool RNA_property_copy(Main *bmain,
                        int index,
                        IDOverrideLibraryProperty *removed_oprop = nullptr,
                        IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
+/**
+ * \param bmain: If not null, used to retrieve default values for pointer properties.
+ * Otherwise, the property will be reset to a null pointer.
+ */
 bool RNA_property_reset(Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index);
 bool RNA_property_assign_default(PointerRNA *ptr, PropertyRNA *prop);
 
