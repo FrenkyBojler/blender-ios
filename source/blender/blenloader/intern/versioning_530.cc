@@ -95,14 +95,7 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  /**
-   * Always bump subversion in BKE_blender_version.h when adding versioning
-   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 2)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 6)) {
     for (Brush &brush : bmain->brushes) {
       if (ELEM(brush.ob_mode, OB_MODE_WEIGHT_PAINT, OB_MODE_VERTEX_PAINT)) {
         brush.mesh_automasking_settings = MEM_new<MeshAutomaskingSettings>(__func__);
@@ -125,6 +118,13 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->wpaint));
     }
   }
+
+  /**
+   * Always bump subversion in BKE_blender_version.h when adding versioning
+   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
+   *
+   * \note Keep this message at the bottom of the function.
+   */
 }
 
 }  // namespace blender
