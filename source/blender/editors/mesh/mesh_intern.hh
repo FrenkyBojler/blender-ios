@@ -148,7 +148,7 @@ void MESH_OT_circularize(wmOperatorType *ot);
 
 void MESH_OT_flatten(wmOperatorType *ot);
 
-/* *** `editmesh_relax.cc` *** */
+/* *** `editmesh_relax_edge_loops.cc` *** */
 
 void MESH_OT_relax_edge_loops(wmOperatorType *ot);
 
