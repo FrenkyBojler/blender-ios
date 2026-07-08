@@ -443,7 +443,7 @@ static void point_with_symmetry_draw(const PaintMode paint_mode,
 
 static void inactive_cursor_draw(PaintCursorContext &pcontext)
 {
-  bool has_cube_tip = BKE_brush_has_cube_tip(pcontext.brush, pcontext.mode);
+  const bool has_cube_tip = BKE_brush_has_cube_tip(pcontext.brush, pcontext.mode);
   const float roundness = has_cube_tip ? pcontext.brush->tip_roundness : 1.0f;
   const float tip_scale_x = has_cube_tip ? pcontext.brush->tip_scale_x : 1.0f;
   const float alpha = clamp_f(BKE_brush_alpha_get(pcontext.paint, pcontext.brush), 0.0f, 1.0f);
