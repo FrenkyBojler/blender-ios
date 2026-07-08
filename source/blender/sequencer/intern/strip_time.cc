@@ -635,9 +635,6 @@ float Strip::endoffset() const
 
 void Strip::content_length_set(int new_len)
 {
-  if (this->type == STRIP_TYPE_SCENE) {
-    this->endofs = this->len - this->endofs;
-  }
   this->len = new_len;
 }
 

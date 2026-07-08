@@ -667,7 +667,7 @@ static void rna_Strip_right_handle_offset_set(PointerRNA *ptr, float value)
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
 
   seq::relations_invalidate_cache(scene, strip);
-  strip->endofs = value;
+  strip->endoffset_set(value);
 }
 
 static void rna_Strip_content_trim_start_set(PointerRNA *ptr, int value)
