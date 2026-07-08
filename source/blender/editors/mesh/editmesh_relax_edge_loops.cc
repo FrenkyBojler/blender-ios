@@ -28,7 +28,11 @@ namespace blender {
 
 static const EnumPropertyItem prop_interpolation_items[] = {
     {RELAX_EDGE_LOOPS_INTERP_CUBIC, "CUBIC", 0, "Cubic", "Natural cubic spline, smooth results"},
-    {RELAX_EDGE_LOOPS_INTERP_LINEAR, "LINEAR", 0, "Linear", "Simple and fast linear algorithm"},
+    {RELAX_EDGE_LOOPS_INTERP_LINEAR,
+     "LINEAR",
+     0,
+     "Linear",
+     "Relax edge loops using linear interpolation"},
     {0, nullptr},
 };
 
@@ -52,12 +56,12 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
     if (em->bm->totedgesel > 0) {
       has_edges_selected = true;
     }
-    
+
     if (em->bm->totfacesel > 0) {
       has_faces_selected = true;
       continue;
     }
-    
+
     if (em->bm->totedgesel < 2) {
       continue;
     }
