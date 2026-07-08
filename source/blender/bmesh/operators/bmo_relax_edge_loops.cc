@@ -13,8 +13,8 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_length_parameterize.hh"
+#include "BLI_listbase.hh"
 #include "BLI_math_solvers.hh"
-#include "BLI_set.hh"
 #include "BLI_vector.hh"
 #include <array>
 
@@ -208,72 +208,31 @@ static void build_relax_phases(int verts_num, bool is_closed, Vector<RelaxPhase>
   }
 }
 
-static RelaxChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
+static bool bm_edge_relax_test_cb(BMEdge *e, void * /*user_data*/)
 {
-  RelaxChainData chain_data;
-  Set<BMVert *> visited_verts;
-
-  chain_data.verts.append(start_edge->v1);
-  chain_data.verts.append(start_edge->v2);
-  visited_verts.add(start_edge->v1);
-  visited_verts.add(start_edge->v2);
-  r_visited.add(start_edge);
-
-  auto walk_fn = [&](BMVert *v_curr, Vector<BMVert *> &list) {
-    while (true) {
-      BMEdge *e_next = nullptr;
-      BMIter eiter;
-      BMEdge *e_candidate;
-      BM_ITER_ELEM (e_candidate, &eiter, v_curr, BM_EDGES_OF_VERT) {
-        if (!r_visited.contains(e_candidate) && BM_elem_flag_test(e_candidate, BM_ELEM_TAG)) {
-          e_next = e_candidate;
-          break;
-        }
-      }
-      if (!e_next) {
-        break;
-      }
-      BMVert *v_next = BM_edge_other_vert(e_next, v_curr);
-      if (visited_verts.contains(v_next)) {
-        break;
-      }
-      v_curr = v_next;
-      visited_verts.add(v_curr);
-      list.append(v_curr);
-      r_visited.add(e_next);
-    }
-  };
-
-  walk_fn(start_edge->v2, chain_data.verts);
-  Vector<BMVert *> pre_chain;
-  walk_fn(start_edge->v1, pre_chain);
-  if (!pre_chain.is_empty()) {
-    std::reverse(pre_chain.begin(), pre_chain.end());
-    pre_chain.extend(chain_data.verts);
-    chain_data.verts = std::move(pre_chain);
-  }
-
-  if (chain_data.verts.size() > 2) {
-    BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
-    chain_data.is_closed = closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG);
-  }
-  return chain_data;
+  return BM_elem_flag_test(e, BM_ELEM_TAG);
 }
 
 static void get_relax_input_chains(BMesh *bm, Vector<RelaxChainData> &r_chains)
 {
-  Set<BMEdge *> visited;
-  BMIter iter;
-  BMEdge *edge;
-  BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
-    if (!BM_elem_flag_test(edge, BM_ELEM_TAG) || visited.contains(edge)) {
-      continue;
+  ListBaseT<BMEdgeLoopStore> eloops = {nullptr};
+  const BMEdgeLoopFind_Params params = {
+      .use_vert_junction = true,
+  };
+  BM_mesh_edgeloops_find(bm, &eloops, bm_edge_relax_test_cb, nullptr, &params);
+
+  for (BMEdgeLoopStore &el_store : eloops) {
+    RelaxChainData chain;
+    chain.is_closed = BM_edgeloop_is_closed(&el_store);
+    for (LinkData &node : *BM_edgeloop_verts_get(&el_store)) {
+      chain.verts.append(static_cast<BMVert *>(node.data));
     }
-    RelaxChainData chain = walk_edges(edge, visited);
     if (chain.verts.size() >= 3) {
       r_chains.append(std::move(chain));
     }
   }
+
+  BM_mesh_edgeloops_free(&eloops);
 }
 
 static void calculate_relax_t(Span<BMVert *> verts,
