@@ -1,4 +1,4 @@
-Referenced by issue #141871, Blender LTS: Maintenance Task 5.2
+Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #144958, Python: Modifying Workspaces via Python and 'Reporting an Error' Crashes Blender
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by commit 41b2ab6b40556128b54922a29340b82d4bf65803, Cleanup: check the blend-file path isn't empty before comparing
