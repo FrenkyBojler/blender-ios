@@ -979,7 +979,7 @@ static bool driver_target_path_fix(ID &owner_id,
       const std::string old_bone_name = infix_to_name(old_infix);
       if (old_bone_name == StringRef(target->pchan_name)) {
         const std::string new_bone_name = infix_to_name(new_infix);
-        BLI_strncpy(target->pchan_name, new_bone_name.data(), new_bone_name.size() + 1);
+        BLI_strncpy(target->pchan_name, new_bone_name.data(), MAXBONENAME);
         is_changed = true;
       }
     }
