@@ -518,17 +518,47 @@ void main()
       float2 dx = gpu_dfdx(gp_interp.uv);
       float2 dy = gpu_dfdy(gp_interp.uv);
 
-      frag_color = get_color(gp_interp.uv, dx, dy);
-      frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos_1.xy,
-                                        gp_interp_flat.sspos_2.xy,
-                                        gp_interp_flat.sspos_0,
-                                        gp_interp_flat.sspos_3,
-                                        gp_interp.uv,
-                                        gp_interp_flat.mat_flag,
-                                        gp_interp_flat.sspos_1.w,
-                                        gp_interp_flat.sspos_2.w,
-                                        gp_interp_noperspective.hardness,
-                                        gp_interp_noperspective.thickness.zw);
+      float4 base_color = get_color(gp_interp.uv, dx, dy);
+      float mask = gpencil_stroke_mask(gp_interp_flat.sspos_1.xy,
+                                       gp_interp_flat.sspos_2.xy,
+                                       gp_interp_flat.sspos_0,
+                                       gp_interp_flat.sspos_3,
+                                       gp_interp.uv,
+                                       gp_interp_flat.mat_flag,
+                                       gp_interp_flat.sspos_1.w,
+                                       gp_interp_flat.sspos_2.w,
+                                       gp_interp_noperspective.hardness,
+                                       gp_interp_noperspective.thickness.zw);
+
+      frag_color = base_color;
+      frag_color *= mask;
+
+      if (!flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) {
+        float r1 = gp_interp_flat.sspos_1.w;
+        float2 p1 = gp_interp_flat.sspos_1.xy;
+        float2 p0 = gp_interp_flat.sspos_0;
+        float hardfac = gp_interp_noperspective.hardness;
+
+        bool is_start = length_squared(p0) < 1e-6;
+        float2 pos1 = gl_FragCoord.xy - p1;
+
+        /* Partial alpha for the joints. */
+        if (length_squared(pos1) < r1 * r1 && !is_start) {
+          float round_mask = gpencil_stroke_hardess_mask(length(pos1) / r1, hardfac);
+
+          /* Prevent division by zero. */
+          if (round_mask >= 1.0f - 0.001f) {
+            frag_color = float4(0.0f);
+          }
+          else {
+            /* Calculate alpha such that applying the round mask on top will result in the line
+             * mask. */
+            float mask_2 = (mask - round_mask) / (1.0 - base_color.w * round_mask);
+
+            frag_color = base_color * mask_2;
+          }
+        }
+      }
     }
   }
 

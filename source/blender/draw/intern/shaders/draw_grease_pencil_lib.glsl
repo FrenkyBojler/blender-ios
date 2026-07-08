@@ -102,11 +102,6 @@ float gpencil_stroke_segment_mask(float2 p1,
     return 0.0f;
   }
 
-  /* Skip the joint */
-  if (length_squared(pos1) < r1 * r1 && !is_start) {
-    return 0.0f;
-  }
-
   /* Calculate the factor along the main segment. */
   float t1 = dot(pos1, line1) / len_sq1;
   float clamped_t1 = saturate(t1);
