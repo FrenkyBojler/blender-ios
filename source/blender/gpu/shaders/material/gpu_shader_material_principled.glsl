@@ -277,10 +277,11 @@ void node_bsdf_principled(float4 base_color,
       diffuse_weight = subsurface_weight * weight *
                        saturate(0.5f * (1.0f - subsurface_anisotropy));
 
-      float weight = subsurface_weight * weight * saturate(0.5f * (1.0f + subsurface_anisotropy));
+      float tw_weight = subsurface_weight * weight *
+                        saturate(0.5f * (1.0f + subsurface_anisotropy));
       /* Forward scattering is approximated by translucent. */
       ClosureTranslucent translucent_data;
-      translucent_data.color = base_color.rgb * coat_tint.rgb * weight;
+      translucent_data.color = base_color.rgb * coat_tint.rgb * tw_weight;
       translucent_data.N = N;
       closure_eval(translucent_data);
     }
