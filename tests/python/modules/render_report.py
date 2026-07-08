@@ -248,6 +248,20 @@ def get_gpu_device_vendor(blender):
     return None
 
 
+def get_gpu_device_ray_queries_support(blender, gpu_backend):
+    command = [
+        blender,
+        "--background",
+        "--factory-startup",
+        "--gpu-backend",
+        gpu_backend,
+        "--python-expr",
+        'import gpu; gpu.init(); print("GPU_RAY_QUERIES_SUPPORT:", gpu.capabilities.ray_query_support_get())'
+    ]
+    completed_process = subprocess.run(command, stdout=subprocess.PIPE, universal_newlines=True)
+    return "GPU_RAY_QUERIES_SUPPORT: True" in completed_process.stdout
+
+
 class Report:
     __slots__ = (
         'title',
