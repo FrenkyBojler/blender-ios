@@ -73,7 +73,7 @@ static void viewroll_apply(ViewOpsData *vod, int x, int y)
     if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
       vod->rv3d->camroll = vod->init.camroll + angle;
       /* Keep angle between -Pi and Pi */
-      vod->rv3d->camroll = math::mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
+      vod->rv3d->camroll = math::floored_mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
     }
   }
 
@@ -195,7 +195,6 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
 
   ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
 
-
   if (vod->depsgraph == nullptr) {
     vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     vod->init_navigation(C, nullptr, &ViewOpsType_roll);
@@ -220,7 +219,7 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
   if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
     vod->rv3d->camroll = vod->init.camroll + angle;
     /* Keep angle between -Pi and Pi */
-    vod->rv3d->camroll = math::mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
+    vod->rv3d->camroll = math::floored_mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
   }
 
   V3D_SmoothParams sview_params = {};
