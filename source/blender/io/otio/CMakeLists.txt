@@ -5,6 +5,7 @@
 set(INC
   .
   exporter
+  importer
   ../../editors/include
   ../../makesrna
   $ENV{HOME}/opentimelineio/include
@@ -29,10 +30,12 @@ set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::imbuf
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
   PRIVATE "$ENV{HOME}/opentimelineio/lib/libopentimelineio.a"

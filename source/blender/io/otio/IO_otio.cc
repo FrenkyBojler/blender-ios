@@ -17,6 +17,9 @@
 
 #include "CLG_log.h"
 
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+
 #include "DNA_listBase.h"
 #include "DNA_sequence_types.h"
 
@@ -30,6 +33,7 @@
 
 #include "IO_otio.hh"
 #include "otio_export.hh"
+#include "otio_import.hh"
 
 namespace blender {
 namespace io::otio {
@@ -89,7 +93,7 @@ void OTIO_import(const bContext *C, const char *filepath, ReportList *reports)
 
   if (is_error(err)) {
     CLOG_ERROR(&LOG,
-               "Failed to decode OTIO file:'%s'. Details: %s. Description: %s",
+               "Failed to decode OTIO file:'%s'\nDetails: %s\nDescription: %s",
                filepath,
                err.details.c_str(),
                err.full_description.c_str());
@@ -106,6 +110,10 @@ void OTIO_import(const bContext *C, const char *filepath, ReportList *reports)
     CLOG_INFO(&LOG, "New Scene '%s' Added", scene->id.name + 2);
   }
   seq::editing_ensure(scene);
+  build_blender_timeline(bmain, scene, timeline, reports);
+
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
 }
 
 static bool validate_transitions(ReportList *reports, ListBaseT<Strip> *seqbase)
