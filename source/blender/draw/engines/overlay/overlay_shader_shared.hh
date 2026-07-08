@@ -379,6 +379,21 @@ struct [[host_shared]] ExtraInstanceData {
 #endif
 };
 
+struct [[host_shared]] CameraPanoramicInstanceData {
+  float4 color_;
+  float4x4 object_to_world;
+  float4 pano_params0;
+  float4 pano_params1;
+
+#ifndef GPU_SHADER
+  CameraPanoramicInstanceData(const float4x4 &object_to_world, const float4 &color)
+  {
+    this->color_ = color;
+    this->object_to_world = object_to_world;
+  }
+#endif
+};
+
 struct [[host_shared]] VertexData {
   float4 pos_;
   /* TODO: change to color_id. Idea expressed in #125894. */

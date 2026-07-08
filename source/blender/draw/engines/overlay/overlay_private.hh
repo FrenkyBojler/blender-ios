@@ -545,6 +545,7 @@ class ShaderModule {
   StaticShader depth_mesh_conservative = shader_selectable("overlay_depth_mesh_conservative");
   StaticShader depth_pointcloud = shader_selectable("overlay_depth_pointcloud");
   StaticShader extra_shape = shader_selectable("overlay_extra");
+  StaticShader extra_camera_pano = shader_selectable("overlay_extra_camera_pano");
   StaticShader extra_point = shader_selectable("overlay_extra_point");
   StaticShader extra_wire = shader_selectable("overlay_extra_wire");
   StaticShader extra_wire_object = shader_selectable("overlay_extra_wire_object");
@@ -720,6 +721,7 @@ struct Resources : public select::SelectMap {
     shaders->depth_grease_pencil.ensure_compile_async();
     shaders->depth_mesh.ensure_compile_async();
     shaders->depth_pointcloud.ensure_compile_async();
+    shaders->extra_camera_pano.ensure_compile_async();
     shaders->extra_grid.ensure_compile_async();
     shaders->extra_ground_line.ensure_compile_async();
     shaders->extra_loose_points.ensure_compile_async();

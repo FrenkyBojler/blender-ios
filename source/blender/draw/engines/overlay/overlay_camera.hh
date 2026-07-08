@@ -55,6 +55,41 @@ struct CameraInstanceData : public ExtraInstanceData {
       : ExtraInstanceData(p_matrix, color, 1.0f) {};
 };
 
+struct CameraPanoramicData : public CameraPanoramicInstanceData {
+ public:
+  float4x4 &matrix = object_to_world;
+  float &corner_x = matrix[0][3];
+  float &corner_y = matrix[1][3];
+  float &center_x = matrix[2][3];
+  float &center_y = matrix[3][3];
+  float &depth = color_[3];
+
+  float &longitude_min = pano_params0.x;
+  float &longitude_max = pano_params0.y;
+  float &latitude_min = pano_params0.z;
+  float &latitude_max = pano_params0.w;
+
+  float &fisheye_polynomial_k0 = pano_params0.x;
+  float &fisheye_polynomial_k1 = pano_params0.y;
+  float &fisheye_polynomial_k2 = pano_params0.z;
+  float &fisheye_polynomial_k3 = pano_params0.w;
+  float &fisheye_polynomial_k4 = pano_params1.x;
+
+  float &central_cylindrical_range_u_min = pano_params0.x;
+  float &central_cylindrical_range_u_max = pano_params0.y;
+  float &central_cylindrical_range_v_min = pano_params0.z;
+  float &central_cylindrical_range_v_max = pano_params0.w;
+  float &central_cylindrical_radius = pano_params1.x;
+
+  CameraPanoramicData(const CameraPanoramicData &data)
+      : CameraPanoramicData(data.object_to_world, data.color_)
+  {
+  }
+
+  CameraPanoramicData(const float4x4 &p_matrix, const float4 &color)
+      : CameraPanoramicInstanceData(p_matrix, color) {};
+};
+
 /**
  * Camera object display (including stereoscopy).
  * Also camera reconstruction bundles.
@@ -63,6 +98,7 @@ struct CameraInstanceData : public ExtraInstanceData {
 /* TODO(fclem): Split into multiple overlay classes. */
 class Cameras : Overlay {
   using CameraInstanceBuf = ShapeInstanceBuf<ExtraInstanceData>;
+  using CameraPanoInstanceBuf = ShapeInstanceBuf<CameraPanoramicInstanceData>;
 
  private:
   PassSimple ps_ = {"Cameras"};
@@ -92,6 +128,7 @@ class Cameras : Overlay {
     CameraInstanceBuf fisheye_latitude_buf = {selection_type_, "camera_fisheye_latitude_buf"};
     CameraInstanceBuf fisheye_tria_buf = {selection_type_, "camera_fisheye_tria_buf"};
     CameraInstanceBuf fisheye_tria_wire_buf = {selection_type_, "camera_fisheye_tria_wire_buf"};
+    CameraPanoInstanceBuf pano_frame_buf = {selection_type_, "camera_pano_frame_buf"};
     CameraInstanceBuf sphere_solid_buf = {selection_type_, "camera_sphere_solid_buf"};
     LinePrimitiveBuf stereo_connect_lines = {selection_type_, "camera_dashed_lines_buf"};
     LinePrimitiveBuf tracking_path = {selection_type_, "camera_tracking_path_buf"};
@@ -130,6 +167,7 @@ class Cameras : Overlay {
       call_buffers_.fisheye_latitude_buf.clear();
       call_buffers_.fisheye_tria_buf.clear();
       call_buffers_.fisheye_tria_wire_buf.clear();
+      call_buffers_.pano_frame_buf.clear();
       call_buffers_.sphere_solid_buf.clear();
       call_buffers_.stereo_connect_lines.clear();
       call_buffers_.tracking_path.clear();
@@ -226,6 +264,15 @@ class Cameras : Overlay {
       call_buffers_.fisheye_tria_wire_buf.end_sync(sub_pass,
                                                    res.shapes.camera_fisheye_tria_wire.get());
       call_buffers_.sphere_solid_buf.end_sync(sub_pass, res.shapes.sphere_low_detail.get());
+    }
+
+    {
+      PassSimple::Sub &sub_pass = ps_.sub("camera_pano_shapes");
+      sub_pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
+                             DRW_STATE_DEPTH_LESS_EQUAL,
+                         state.clipping_plane_count);
+      sub_pass.shader_set(res.shaders->extra_camera_pano.get());
+      call_buffers_.pano_frame_buf.end_sync(sub_pass, res.shapes.camera_frame.get());
     }
 
     {
@@ -326,6 +373,12 @@ class Cameras : Overlay {
     const bool is_equidistant = cam.panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT;
     const bool is_mirrorball = cam.panorama_type == CAM_PANORAMA_MIRRORBALL;
     const bool is_panoramic = cam.type == CAM_PANO && (is_equisolid || is_equidistant || is_mirrorball);
+    const bool is_equirectangular = cam.panorama_type == CAM_PANORAMA_EQUIRECTANGULAR;
+    const bool is_lens_polynomial = cam.panorama_type == CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL;
+    const bool is_central_cylindrical = cam.panorama_type == CAM_PANORAMA_CENTRAL_CYLINDRICAL;
+    const bool is_panoramic_ext = cam.type == CAM_PANO &&
+                                        (is_equirectangular || is_lens_polynomial ||
+                                         is_central_cylindrical);
 
     const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
     const bool is_stereo3d_view = (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
@@ -439,7 +492,33 @@ class Cameras : Overlay {
             data.matrix.y_axis() *= aspect_ratio.y;
           }
 
-          call_buffers_.fisheye_frame_buf.append(data, select_id);         
+          call_buffers_.fisheye_frame_buf.append(data, select_id);
+        }
+        else if (is_panoramic_ext) {
+          CameraPanoramicData pano_data(data.matrix, data.color_);
+
+          if (is_equirectangular) {
+            pano_data.longitude_min = cam.longitude_min;
+            pano_data.longitude_max = cam.longitude_max;
+            pano_data.latitude_min = cam.latitude_min;
+            pano_data.latitude_max = cam.latitude_max;
+          }
+          else if (is_lens_polynomial) {
+            pano_data.fisheye_polynomial_k0 = cam.fisheye_polynomial_k0;
+            pano_data.fisheye_polynomial_k1 = cam.fisheye_polynomial_k1;
+            pano_data.fisheye_polynomial_k2 = cam.fisheye_polynomial_k2;
+            pano_data.fisheye_polynomial_k3 = cam.fisheye_polynomial_k3;
+            pano_data.fisheye_polynomial_k4 = cam.fisheye_polynomial_k4;
+          }
+          else if (is_central_cylindrical) {
+            pano_data.central_cylindrical_range_u_min = cam.central_cylindrical_range_u_min;
+            pano_data.central_cylindrical_range_u_max = cam.central_cylindrical_range_u_max;
+            pano_data.central_cylindrical_range_v_min = cam.central_cylindrical_range_v_min;
+            pano_data.central_cylindrical_range_v_max = cam.central_cylindrical_range_v_max;
+            pano_data.central_cylindrical_radius = cam.central_cylindrical_radius;
+          }
+
+          call_buffers_.pano_frame_buf.append(pano_data, select_id);
         }
         else {
 

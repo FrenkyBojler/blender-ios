@@ -679,6 +679,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_edit_uv_tiled_image_borders_vert.glsl
   engines/overlay/shaders/overlay_edit_uv_verts_frag.glsl
   engines/overlay/shaders/overlay_edit_uv_verts_vert.glsl
+  engines/overlay/shaders/overlay_extra_camera_pano_vert.glsl
   engines/overlay/shaders/overlay_extra_frag.glsl
   engines/overlay/shaders/overlay_extra_groundline_vert.glsl
   engines/overlay/shaders/overlay_extra_lightprobe_grid_vert.glsl

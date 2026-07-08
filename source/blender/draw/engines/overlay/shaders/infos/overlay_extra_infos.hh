@@ -47,6 +47,27 @@ CREATE_INFO_VARIANT(overlay_extra_clipped, overlay_extra, drw_clipped)
 CREATE_INFO_VARIANT(overlay_extra_selectable_clipped, overlay_extra_selectable, drw_clipped)
 /* clang-format on */
 
+GPU_SHADER_CREATE_INFO(overlay_extra_camera_pano)
+DO_STATIC_COMPILATION()
+TYPEDEF_SOURCE("overlay_shader_shared.hh")
+VERTEX_IN(0, float3, pos)
+VERTEX_IN(1, int, vclass)
+VERTEX_OUT(overlay_extra_iface)
+FRAGMENT_OUT(0, float4, frag_color)
+FRAGMENT_OUT(1, float4, line_output)
+VERTEX_SOURCE("overlay_extra_camera_pano_vert.glsl")
+FRAGMENT_SOURCE("overlay_extra_frag.glsl")
+ADDITIONAL_INFO(draw_view)
+ADDITIONAL_INFO(draw_globals)
+STORAGE_BUF(0, read, CameraPanoramicInstanceData, data_buf[])
+GPU_SHADER_CREATE_END()
+
+/* clang-format off */
+CREATE_INFO_VARIANT(overlay_extra_camera_pano_selectable, overlay_extra_camera_pano, overlay_select)
+CREATE_INFO_VARIANT(overlay_extra_camera_pano_clipped, overlay_extra_camera_pano, drw_clipped)
+CREATE_INFO_VARIANT(overlay_extra_camera_pano_selectable_clipped, overlay_extra_camera_pano_selectable, drw_clipped)
+/* clang-format on */
+
 GPU_SHADER_CREATE_INFO(overlay_extra_spot_cone)
 DO_STATIC_COMPILATION()
 ADDITIONAL_INFO(overlay_extra)
