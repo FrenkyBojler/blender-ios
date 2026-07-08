@@ -14,10 +14,10 @@
 
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
-#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_vector_compare_lib.glsl"
 #include "infos/overlay_common_infos.hh"
+#include "overlay_common_lib.glsl"
 #include "overlay_shader_shared.hh"
 
 SHADER_LIBRARY_CREATE_INFO(draw_globals)
@@ -38,24 +38,15 @@ struct Line {
     return {.dir = float2(0.0f), .dist = 0.0f, .dist_raw = 0.0f};
   }
 
-  /**
-   * Unpack a line from data. Keep in sync with `pack_line_data()` in `overlay_common_lib.glsl`.
-   */
-  static Line decode(float2 data)
+  static Line unpack(float2 data)
   {
-    /* Unpack distance to edge, remove 0.1f boundary that differentiates cleared pixels. */
-    float dist = (data.y - 0.5f) * 2.5f;
+    /* If the data indicates a blocked pixel, store 0.0f instead of 1.0f,
+     * specifically for the small line fix at the bottom.. */
+    float dist_raw = data.y == 1.0f ? 0.0f : data.y;
 
-    /* Recover perpendicular vector from packed sin_theta. */
-    float sin_theta = (data.x - 0.5f) * 2.0f;
-    float cos_theta = cos_from_sin(sin_theta);
-    float2 perp = normalize(float2(sin_theta, cos_theta));
-
-    return {
-        .dir = perp,
-        .dist = dist,
-        .dist_raw = data.y,
-    };
+    Line line = {.dist_raw = dist_raw};
+    unpack_line_data(data, line.dir, line.dist);
+    return line;
   }
 
   bool is_valid() const
@@ -124,7 +115,7 @@ struct Resources {
     TexelData data = {
         .color = texelFetch(color_tx, texel_actual, 0),
         .depth = texelFetch(depth_tx, texel_actual, 0).r,
-        .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rg),
+        .line = Line::unpack(texelFetch(line_tx, texel_actual, 0).rg),
     };
     if (any(notEqual(offset, int2(0)))) {
       data.line.offset_to_neighbor(offset);

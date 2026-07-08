@@ -34,5 +34,5 @@ void main()
   frag_color.a *= 1.0f - (geometry_flat_out.final_color_outer.a > 0.0f ? mix_w_outer : mix_w);
 
   frag_color.a *= test_occlusion() ? alpha : 1.0f;
-  line_output = pack_line_data_blocked();
+  line_output = pack_line_data_no_aa();
 }
