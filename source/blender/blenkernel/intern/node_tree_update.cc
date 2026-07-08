@@ -580,6 +580,11 @@ class NodeTreeMainUpdater {
     ntree.runtime->invalid_zone_output_node_ids.clear();
     ntree.runtime->shader_node_errors.clear();
 
+    if (ntree.runtime->changed_flag & NTREE_CHANGED_ANY) {
+      result.interface_changed = true;
+      result.output_changed = true;
+    }
+
     if (this->update_panel_toggle_names(ntree)) {
       result.interface_changed = true;
     }
