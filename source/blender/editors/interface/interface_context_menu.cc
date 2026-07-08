@@ -533,6 +533,11 @@ static bool but_menu_add_path_operators(Layout &layout, PointerRNA *ptr, Propert
   }
 
   const char *base_path = ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id);
+
+  if (base_path[0] == '\0' ) {
+    return false;
+  }
+
   BLI_path_abs(filepath, base_path);
 
   if (!BLI_exists(filepath)) {
