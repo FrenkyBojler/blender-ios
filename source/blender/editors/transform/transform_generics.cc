@@ -1207,6 +1207,8 @@ static void calculateCenter_FromAround(TransInfo *t, int around, float r_center[
       break;
     }
   }
+
+  // printf("calculated Centre %d: %f | %f | %f\n", around, r_center[0], r_center[1], r_center[2]);
 }
 
 static void calculateZfac(TransInfo *t)

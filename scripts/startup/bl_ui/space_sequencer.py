@@ -115,6 +115,19 @@ class SEQUENCER_HT_header(Header):
         if sequencer_tool_settings and st.view_type == 'PREVIEW':
             layout.prop(sequencer_tool_settings, "pivot_point", text="", icon_only=True)
 
+        if st.mode in {'MASK'} and st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_proportional_edit_mask", text="", icon_only=True)
+            sub = row.row(align=True)
+            sub.active = tool_settings.use_proportional_edit_mask
+            sub.prop_with_popover(
+                tool_settings,
+                "proportional_edit_falloff",
+                text="",
+                icon_only=True,
+                panel="SEQUENCER_PT_proportional_edit",
+            )
+
         if sequencer_tool_settings and st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
             row = layout.row(align=True)
             row.prop(sequencer_tool_settings, "overlap_mode", text="")
@@ -250,6 +263,24 @@ class SEQUENCE_PT_mask_animation(MASK_PT_animation, Panel):
 
 
 # --- end mask ---
+
+
+class SEQUENCER_PT_proportional_edit(Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Proportional Editing"
+    bl_ui_units_x = 8
+
+    def draw(self, context):
+        layout = self.layout
+        tool_settings = context.tool_settings
+        col = layout.column()
+
+        col.prop(tool_settings, "use_proportional_connected")
+        col.separator()
+
+        col.prop(tool_settings, "proportional_edit_falloff", expand=True)
+        col.prop(tool_settings, "proportional_size")
 
 
 class SEQUENCER_PT_gizmo_display(Panel):
@@ -2214,6 +2245,7 @@ classes = (
     SEQUENCER_PT_snapping,
     SEQUENCER_PT_preview_snapping,
     SEQUENCER_PT_sequencer_snapping,
+    SEQUENCER_PT_proportional_edit,
 
     SEQUENCE_PT_mask,
     SEQUENCE_PT_mask_layers,

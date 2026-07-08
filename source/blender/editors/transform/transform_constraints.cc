@@ -21,6 +21,8 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+#include "BKE_scene.hh"
+
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
@@ -874,6 +876,21 @@ void drawPropCircle(TransInfo *t)
     else if (t->spacetype == SPACE_IMAGE) {
       GPU_matrix_scale_2f(1.0f / t->aspect[0], 1.0f / t->aspect[1]);
     }
+    else if (t->spacetype == SPACE_SEQ) {
+      int r_width, r_height;
+      BKE_render_resolution(&t->scene->r, false, &r_width, &r_height);
+      float maxdim = max_ff((float)r_width, (float)r_height);
+      GPU_matrix_scale_2f(maxdim, maxdim);
+    }
+
+    float space_centre_global[3];
+    if (t->spacetype == SPACE_SEQ) {
+      /* Space Sequencer Expects Center Origin Coordinates */
+      copy_v3_fl3(space_centre_global, t->center_global[0] - 0.5f, t->center_global[1] - 0.5f, t->center_global[2] - 0.5f);
+    }
+    else {
+      copy_v3_v3(space_centre_global, t->center_global);
+    }
 
     GPUDepthTest depth_test_enabled = GPU_depth_test_get();
     if (depth_test_enabled) {
@@ -893,11 +910,12 @@ void drawPropCircle(TransInfo *t)
     immUniform1f("lineWidth", 3.0f * U.pixelsize);
 
     immUniformThemeColorShadeAlpha(TH_GRID, -20, 255);
-    imm_drawcircball(t->center_global, t->prop_size, imat, pos);
+    // printf("prop: [%f, %f] | %f\n", space_centre_global[0], space_centre_global[1], t->prop_size);
+    imm_drawcircball(space_centre_global, t->prop_size, imat, pos);
 
     immUniform1f("lineWidth", 1.0f * U.pixelsize);
     immUniformThemeColorShadeAlpha(TH_GRID, 20, 255);
-    imm_drawcircball(t->center_global, t->prop_size, imat, pos);
+    imm_drawcircball(space_centre_global, t->prop_size, imat, pos);
 
     immUnbindProgram();
 

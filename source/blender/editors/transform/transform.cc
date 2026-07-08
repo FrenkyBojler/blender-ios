@@ -453,8 +453,8 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       adr[1] = 0;
     }
   }
-  printf("vec: %f | %f\n", vec[0], vec[1]);
-  printf("adr: %d | %d\n", adr[0], adr[1]);
+  // printf("vec: %f | %f\n", vec[0], vec[1]);
+  // printf("adr: %d | %d\n", adr[0], adr[1]);
 }
 void projectIntView(TransInfo *t, const float vec[3], int adr[2])
 {
