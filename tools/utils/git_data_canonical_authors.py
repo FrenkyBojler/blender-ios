@@ -82,6 +82,7 @@ def canonical_author_map() -> dict[str, str]:
         "Ale\u0161 Jelov\u010dan <frogstomp>": (
             "Ale\u0161 Jelov\u010dan <33534+frogstomp@noreply.localhost>",
             "Ale\u0161 Jelov\u010dan <frogstomp@noreply.localhost>",
+            "frogstomp <ales.zurnal@gmail.com>",
             "frogstomp <email.frogstomp@gmail.com>",
         ),
         "Almaz Shinbay <almaz.shinbay@nu.edu.kz>": (
@@ -257,6 +258,7 @@ def canonical_author_map() -> dict[str, str]:
             "Cl\u00c3\u00a9ment Foucault <foucault.clem@gmail.com>",
             "Cl\u00e9ment <clement@Clements-MacBook-Pro.local>",
             "Cl\u00e9ment FOUCAULT <foucault.clem@gmail.com>",
+            "Cl\u00e9ment Foucault <8117+fclem@noreply.localhost>",
             "Cl\u00e9ment Foucault <>",
             "Cl\u00e9ment Foucault <fclem>",
             "Cl\u00e9ment Foucault <fclem@noreply.localhost>",
@@ -906,6 +908,7 @@ def canonical_author_map() -> dict[str, str]:
             "RedMser <redmser@noreply.localhost>",
         ),
         "Richard Antalik <richardantalik@gmail.com>": (
+            "Richard Antalik <13648+iss@noreply.localhost>",
             "Richard Antalik <ISS>",
             "Richard Antalik <iss@noreply.localhost>",
         ),
@@ -1026,8 +1029,9 @@ def canonical_author_map() -> dict[str, str]:
         "Thomas Szepe <HG1_public@gmx.net>": (
             "HG1 <HG1_public@gmx.net>",
         ),
-        "Tibo Stans <192132910+stanzerelli@users.noreply.github.com>": (
+        "Tibo Stans <stanstibo@gmail.com>": (
             "Stanzerelli <192132910+stanzerelli@users.noreply.github.com>",
+            "Tibo Stans <192132910+stanzerelli@users.noreply.github.com>",
             "Tibo Stans <stanzerelli@noreply.localhost>",
         ),
         "Tobias Kummer | Overmind Studios <tobiaskummer@googlemail.com>": (
