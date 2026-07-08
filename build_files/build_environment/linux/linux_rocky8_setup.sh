@@ -20,16 +20,17 @@ DEPS_PACKAGES=(
   autoconf
   automake
   bison
-  libtool       # libtoolize
+  libtool        # libtoolize
   flex
-  ninja-build   # ninja
+  ninja-build    # ninja
   yasm
-  gettext-devel # autopoint
+  gettext-devel  # autopoint
   patchelf
   help2man
-  texinfo       # makeinfo
+  texinfo        # makeinfo
 
   # Required for 'external_ssl'
+  # perl-Net-Curl # Cannot find "WWW::Curl::Easy" in podpath: cannot find suitable replacement path, cannot resolve link
   perl-IPC-Cmd
   perl-Time-Piece
   perl-Pod-Html
@@ -42,39 +43,42 @@ DEPS_PACKAGES=(
   patch
 
   # Required for 'external_epoxy'
-  libX11-devel # for <X11/Xlib.h>
+  libX11-devel   # for <X11/Xlib.h>
   libglvnd-devel # for <EGL/eglplatform.h>
 
   # Required for 'external_sdl'
   # Source: https://wiki.libsdl.org/SDL3/README-linux#build-dependencies
   alsa-lib-devel
-  fribidi-devel
+  # fribidi-devel
   pulseaudio-libs-devel
-  pipewire-devel
+  # pipewire-devel
   libX11-devel
-  libXext-devel
+  # libXext-devel
   libXrandr-devel
   libXcursor-devel
-  libXfixes-devel
+  # libXfixes-devel
   libXi-devel
-  libXScrnSaver-devel
-  libXtst-devel
-  dbus-devel
-  ibus-devel
+  # libXScrnSaver-devel
+  # libXtst-devel
+  # dbus-devel
+  # ibus-devel
   systemd-devel
   mesa-libGL-devel
   libxkbcommon-devel
-  mesa-libGLES-devel
+  # mesa-libGLES-devel
   mesa-libEGL-devel
-  vulkan-devel
-  wayland-devel
-  wayland-protocols-devel
+  # vulkan-devel
+  # wayland-devel
+  # wayland-protocols-devel
   libdrm-devel
   mesa-libgbm-devel
-  libusb1-devel
+  # libusb1-devel
   # libdecor-devel
-  # pipewire-jack-audio-connection-kit-devel
-  libthai-devel
+  # jack-audio-connection-kit-devel
+  # libthai-devel
+
+  # Required for 'external_materialx'
+  libXt-devel
 
   # bzip2
   # make
@@ -129,7 +133,7 @@ parse_args() {
         shift
         ;;
       *)
-        echo "Unknown arg: $1"
+        echo "[main]: Unknown arg: $1"
         exit 1
         ;;
     esac
@@ -138,12 +142,12 @@ parse_args() {
 
 check_requirements() {
   if [ "$(id -u)" -ne 0 ]; then
-    echo "This script must be run as root"
+    echo "[check_requirements]: This script must be run as root"
     exit 1
   fi
 
   if [ ! -f /etc/os-release ]; then
-    echo "Cannot detect OS. /etc/os-release missing."
+    echo "[check_requirements]: Cannot detect OS. /etc/os-release missing."
     exit 1
   fi
 
@@ -152,13 +156,13 @@ check_requirements() {
   case "$ID" in
     rocky|rhel|almalinux) ;;
     *)
-      echo "Unsupported OS: $ID. Script need Rocky/RHEL/Alma 8."
+      echo "[check_requirements]: Unsupported OS: $ID. Script need Rocky/RHEL/Alma 8."
       exit 1
       ;;
   esac
 
   if [ "${VERSION_ID%%.*}" != "8" ]; then
-    echo "Unsupported version: $VERSION_ID. Script need major version 8."
+    echo "[check_requirements]: Unsupported version: $VERSION_ID. Script need major version 8."
     exit 1
   fi
 
@@ -194,46 +198,52 @@ dnf() {
 }
 
 # Repos
-enable_repos() {
-  echo "[repos]: Enabling config-manager, versionlock, powertools, epel"
+dnf_config() {
+  echo "[dnf_config]: Configuring DNF subcommands and repositories"
 
   # Required by config manager command below to enable powertools
+  echo "[dnf_config]: Installing config-manager subcommand"
   dnf -y install 'dnf-command(config-manager)'
 
   # Required for version locking CUDA installation
+  echo "[dnf_config]: Installing versionlock subcommand"
   dnf -y install 'dnf-command(versionlock)'
 
   # Packages `ninja-build` and `meson` are not available unless CBR or PowerTools repositories are enabled.
   # See: https://wiki.rockylinux.org/rocky/repo/#notes-on-unlisted-repositories
+  echo "[dnf_config]: Enable PowerTools repository"
   dnf config-manager --set-enabled powertools
 
   # Required by epel-release has the patchelf and rubygem-asciidoctor packages
+  echo "[dnf_config]: Enable EPEL repository"
   dnf -y install epel-release
 
-  echo "[repos]: Done"
+  echo "[dnf_config]: Done"
 }
 
 # GCC toolset
-install_gcc_toolset() {
-  local VERSION="${1:?Usage: install_gcc_toolset <version>}"
+install_gcc() {
+  local VERSION="${1:?Usage: install_gcc <version>}"
 
-  echo "[gcc]:   Installing SCL utilities"
+  echo "[install_gcc]: Installing SCL utilities"
   # Keep this separate from the packages install, since otherwise older tool-chain will be installed.
   dnf -y install scl-utils
   dnf -y install scl-utils-build
 
-  echo "[gcc]:   Installing GCC $VERSION"
+  echo "[install_gcc]: Installing GCC $VERSION"
   dnf -y install gcc-toolset-$VERSION
 
   # Set as default shell env
-  echo "[gcc]:   Enabling GCC $VERSION by default via /etc/profile.d"
+  echo "[install_gcc]: Enabling GCC $VERSION by default via /etc/profile.d"
   tee /etc/profile.d/enablegcc$VERSION.sh > /dev/null <<PROFEOF
 #!/bin/bash
 source scl_source enable gcc-toolset-$VERSION
 PROFEOF
   chmod +x /etc/profile.d/enablegcc$VERSION.sh
 
-  echo "[gcc]:   GCC $VERSION installed"
+  echo "[install_gcc]: GCC $VERSION installed"
+
+  echo "[install_gcc]: Re-open shell or run 'source /etc/profile.d/enablegcc14.sh' to enable GCC 14"
 }
 
 # CUDA
@@ -241,7 +251,7 @@ install_cuda() {
   local VERSION="${1:?Usage: install_cuda <version>}"
   local DNF_VER="${VERSION//./-}"
 
-  echo "[cuda]:  Adding CUDA repository"
+  echo "[install_cuda]: Adding CUDA repository"
   # There is no AArch64 repo, instead we use SBSA which works for device binaries
   local CUDA_ARCH="x86_64"
   if [ "$ARCH" = "aarch64" ]; then
@@ -250,13 +260,13 @@ install_cuda() {
   dnf config-manager --add-repo "http://developer.download.nvidia.com/compute/cuda/repos/rhel8/${CUDA_ARCH}/cuda-rhel8.repo"
 
   # Without setting up a version lock "dnf update" commands may pull in newer CUDA package versions
-  echo "[cuda]:  Configuring CUDA version lock"
+  echo "[install_cuda]: Configuring CUDA version lock"
   dnf versionlock add "cuda-*-${DNF_VER}*"
 
-  echo "[cuda]:  Installing CUDA $VERSION"
+  echo "[install_cuda]: Installing CUDA $VERSION"
   dnf -y install "cuda-toolkit-${DNF_VER}"
 
-  echo "[cuda]:  CUDA $VERSION installed"
+  echo "[install_cuda]: CUDA $VERSION installed"
 }
 
 # ROCm
@@ -266,11 +276,11 @@ install_rocm() {
 
   # There is no aarch64 repo for rhel8 systems
   if [ "$ARCH" = "aarch64" ]; then
-    echo "[rocm]:  Skipping (aarch64 has no ROCm repo)"
+    echo "[install_rocm]: Skipping (aarch64 has no ROCm repo)"
     return 0
   fi
 
-  echo "[rocm]:  Adding ROCm $VERSION repository"
+  echo "[install_rocm]: Adding ROCm $VERSION repository"
   rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
   tee /etc/yum.repos.d/graphics-$VERSION.repo > /dev/null <<EOF
 [graphics-$VERSION]
@@ -294,32 +304,31 @@ EOF
 
   dnf -y makecache
 
-  echo "[rocm]:  Installing ROCm $VERSION"
+  echo "[install_rocm]: Installing ROCm $VERSION"
 
   dnf -y install hipcc$VERSION hip-devel$VERSION rocm-llvm$VERSION rocm-core$VERSION rocm-device-libs$VERSION
   update-alternatives --set rocm /opt/rocm-$VERSION
 
-  echo "[rocm]:  ROCm $VERSION installed"
+  echo "[install_rocm]: ROCm $VERSION installed"
 }
 
 # Packages
 install_packages() {
   local -n PACKAGES="${1:?Usage: install_packages <array_name>}"
-  echo "[pkgs]:  Installing packages for building dependencies"
+  echo "[install_packages]: Installing packages"
 
   dnf -y install "${PACKAGES[@]}"
 
-  echo "[pkgs]:  Packages installed"
+  echo "[install_packages]: Packages installed"
 }
 
 parse_args "$@"
 check_requirements
 show_warning
-enable_repos
+dnf_config
 install_cuda "${CUDA_VERSION}"
 install_rocm "${ROCM_VERSION}"
-install_gcc_toolset "${GCC_VERSION}"
+install_gcc "${GCC_VERSION}"
 install_packages DEPS_PACKAGES
 
-echo "[done]:  Setup completed"
-echo "[gcc]:   Re-open your shell or run 'source /etc/profile.d/enablegcc14.sh' to enable GCC 14"
+echo "[main]: Completed"
