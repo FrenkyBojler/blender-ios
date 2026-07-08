@@ -17,12 +17,12 @@
 
 #include <fmt/format.h>
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_idprop.hh"
 #include "BKE_idprop_hash.hh"
@@ -34,7 +34,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+#include "BLI_strict_flags.hh" /* IWYU pragma: keep. Keep last. */
 
 namespace blender {
 
@@ -74,14 +74,14 @@ constexpr int MAX_IDPROP_DEPTH_LEVEL = 1026;
  * Write code uses one level less than runtime processing code, because it still has to write
  * something when it detects the issue, to ensure references to the 'limit properties' remain
  * valid.
- * Limits overly noisy continous error messages in the console due to runtime processing and
+ * Limits overly noisy continuous error messages in the console due to runtime processing and
  * undo/redo. */
 constexpr int MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE = MAX_IDPROP_DEPTH_LEVEL - 1;
 /**
  * Read code uses two level less than runtime processing code, because it still has to read
  * something when it detects the issue, to ensure references to the 'limit properties' remain
  * valid.
- * Limits overly noisy continous error messages in the console due to runtime processing and
+ * Limits overly noisy continuous error messages in the console due to runtime processing and
  * undo/redo. */
 constexpr int MAX_IDPROP_DEPTH_LEVEL_FOR_READ = MAX_IDPROP_DEPTH_LEVEL - 2;
 

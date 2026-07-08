@@ -17,9 +17,9 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -927,7 +927,7 @@ static void ui_node_draw_input(ui::Layout &layout,
   }
 
   if (dependency_loop) {
-    row->label(RPT_("Dependency Loop"), ICON_ERROR);
+    row->label(RPT_("Dependency Loop"), ICON_STATUS_WARNING_FILLED);
     add_dummy_decorator = true;
   }
   else if (lnode) {

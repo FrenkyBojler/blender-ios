@@ -34,12 +34,12 @@
 #include "BKE_scene_runtime.hh"
 #include "BKE_screen.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -298,6 +298,7 @@ void ED_node_set_active(
               for (int i = 0; i < ma.tot_slots; i++) {
                 if (ma.texpaintslot[i].ima == image) {
                   ma.paint_active_slot = i;
+                  DEG_id_tag_update(&ma.id, ID_RECALC_SYNC_TO_EVAL);
                 }
               }
             }

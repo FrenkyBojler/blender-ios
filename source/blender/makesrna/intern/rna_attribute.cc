@@ -269,8 +269,8 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 #  include "DNA_meshdata_types.h"
 #  include "DNA_pointcloud_types.h"
 
-#  include "BLI_math_color.h"
-#  include "BLI_string.h"
+#  include "BLI_math_color_c.hh"
+#  include "BLI_string.hh"
 
 #  include "BKE_anonymous_attribute_id.hh"
 #  include "BKE_attribute_legacy_convert.hh"
@@ -340,7 +340,7 @@ static AttributeOwner owner_from_pointer_rna(const PointerRNA *ptr)
 
 static std::optional<std::string> rna_Attribute_path(const PointerRNA *ptr)
 {
-  return fmt::format("attributes[\"{}\"]", BLI_str_escape(rna_Attribute_name_get(*ptr).c_str()));
+  return fmt::format("attributes[\"{}\"]", BLI_str_escape(rna_Attribute_name_get(*ptr)));
 }
 
 static StructRNA *srna_by_custom_data_layer_type(const eCustomDataType type)
