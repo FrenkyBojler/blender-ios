@@ -1212,16 +1212,6 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
   }
 
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  if (((space_outliner->filter &
-        (SO_FILTER_NO_COLLECTION | SO_FILTER_NO_OBJECT | SO_FILTER_NO_OB_MESH |
-         SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_EMPTY)) != 0) ||
-      (space_outliner->filter_state != SO_FILTER_OB_ALL))
-  {
-    if (GS(id->name) == ID_GR && insert_type != TE_INSERT_INTO) {
-      return false;
-    }
-  }
-
   /* Get collection to drag out of. */
   ID *parent = drag_id->from_parent;
   Collection *from_collection = collection_parent_from_ID(parent);
@@ -1431,8 +1421,6 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   if (!collection_drop_init(C, drag, event->xy, &data)) {
     return OPERATOR_CANCELLED;
   }
-
-  wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
 
   Collection *relative = nullptr;
   bool relative_after = false;
