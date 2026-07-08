@@ -4,4 +4,4 @@ Referenced by commit d27dacfc54d368202f4c2252b1cd5ac291cde5fa, Fix #148300: Cann
 Referenced by issue #148535, Tests: ui_test_undo.compositor_make_group fails on macOS
 Referenced by issue #150980, Drag and drop colour does not work if dropped in region of transparent side bar
 Referenced by issue #154248, Can’t drop asset from custom asset shelf if view scrolled
-Referenced by issue #141871, Blender LTS: Maintenance Task 5.2
+Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
