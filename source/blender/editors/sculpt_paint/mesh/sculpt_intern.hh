@@ -663,6 +663,18 @@ void calc_brush_plane(const Depsgraph &depsgraph,
                       float3 &r_area_no,
                       float3 &r_area_co);
 
+void calc_local_from_screen(const ViewContext &vc,
+                            const float center[3],
+                            const float screen_dir[2],
+                            float r_local_dir[3]);
+
+void calc_brush_local_mat(const ViewContext &vc,
+                          const Object &ob,
+                          const float center[3],
+                          const float normal[3],
+                          float rotation,
+                          float local_mat[4][4]);
+
 std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
                                        const Brush &brush,
                                        const Object &ob,

@@ -679,59 +679,21 @@ static void object_space_overlays_draw(const PaintCursorContext &pcontext)
   }
 }
 
-static void calc_local_from_screen(const ViewContext &vc,
-                                   const float center[3],
-                                   const float screen_dir[2],
-                                   float r_local_dir[3])
-{
-  Object &ob = *vc.obact;
-  invert_m4_m4(ob.runtime->world_to_object.ptr(), ob.object_to_world().ptr());
-  float loc[3];
-
-  mul_v3_m4v3(loc, ob.object_to_world().ptr(), center);
-  const float zfac = ED_view3d_calc_zfac(vc.rv3d, loc);
-
-  ED_view3d_win_to_delta(vc.region, screen_dir, zfac, r_local_dir);
-  normalize_v3(r_local_dir);
-
-  add_v3_v3(r_local_dir, ob.loc);
-  mul_m4_v3(ob.world_to_object().ptr(), r_local_dir);
-}
-
 static void cursor_space_drawing_setup(const PaintCursorContext &pcontext)
 {
   if (BKE_brush_has_cube_tip(pcontext.brush, pcontext.mode)) {
     float mat[4][4];
-    zero_m4(mat);
+    calc_brush_local_mat(pcontext.vc,
+                         *pcontext.vc.obact,
+                         pcontext.location,
+                         pcontext.normal,
+                         pcontext.paint->runtime->brush_rotation,
+                         mat);
 
-    const float angle = pcontext.paint->runtime->brush_rotation;
-    float motion_normal_screen[2];
-    motion_normal_screen[0] = cosf(angle);
-    motion_normal_screen[1] = sinf(angle);
-
-    /* Get the motion normal in object space. */
-    float motion_normal_world[3];
-    calc_local_from_screen(
-        pcontext.vc, pcontext.location, motion_normal_screen, motion_normal_world);
-
-    float tangent_y[3];
-
-    /* Project the motion normal onto the tangent space. */
-    cross_v3_v3v3(tangent_y, pcontext.normal, motion_normal_world);
-    normalize_v3_v3(mat[1], tangent_y);
-
-    /* Get other axes. */
-    cross_v3_v3v3(mat[0], mat[1], pcontext.normal);
-    copy_v3_v3(mat[2], pcontext.normal);
-
-    /* Set location. */
-    copy_v3_v3(mat[3], pcontext.location);
-    mat[3][3] = 1.0f;
-
-    normalize_m4(mat);
-
+    /* GPU_matrix_mul does post-multiplication, so object to world is multiplied first. */
     GPU_matrix_mul(pcontext.vc.obact->object_to_world().ptr());
     GPU_matrix_mul(mat);
+
     return;
   }
 

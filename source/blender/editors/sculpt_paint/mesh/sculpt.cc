@@ -2847,10 +2847,10 @@ static void update_sculpt_normal(const Depsgraph &depsgraph,
   }
 }
 
-static void calc_local_from_screen(const ViewContext &vc,
-                                   const float center[3],
-                                   const float screen_dir[2],
-                                   float r_local_dir[3])
+void calc_local_from_screen(const ViewContext &vc,
+                            const float center[3],
+                            const float screen_dir[2],
+                            float r_local_dir[3])
 {
   Object &ob = *vc.obact;
   float loc[3];
@@ -2865,39 +2865,31 @@ static void calc_local_from_screen(const ViewContext &vc,
   mul_m4_v3(ob.world_to_object().ptr(), r_local_dir);
 }
 
-static void calc_brush_local_mat(const float rotation,
-                                 const Object &ob,
-                                 float local_mat[4][4],
-                                 float local_mat_inv[4][4])
+void calc_brush_local_mat(const ViewContext &vc,
+                          const Object &ob,
+                          const float center[3],
+                          const float normal[3],
+                          const float rotation,
+                          float local_mat[4][4])
 {
-  const StrokeCache *cache = ob.runtime->sculpt_session->cache;
-  float tmat[4][4];
-  float mat[4][4];
-  float scale[4][4];
-  float angle, v[3];
+  float tangent_y[3];
+  float motion_normal_screen[2];
+  float motion_normal_local[3];
 
   /* Ensure `ob.world_to_object` is up to date. */
   invert_m4_m4(ob.runtime->world_to_object.ptr(), ob.object_to_world().ptr());
 
-  /* Initialize last column of matrix. */
-  mat[0][3] = 0.0f;
-  mat[1][3] = 0.0f;
-  mat[2][3] = 0.0f;
-  mat[3][3] = 1.0f;
+  zero_m4(local_mat);
+  local_mat[3][3] = 1.0f;
 
-  /* Read rotation (user angle, rake, etc.) to find the view's movement direction (negative X of
-   * the brush). */
-  angle = rotation + cache->special_rotation;
   /* By convention, motion direction points down the brush's Y axis, the angle represents the X
    * axis, normal is a 90 deg CCW rotation of the motion direction. */
-  float motion_normal_screen[2];
-  motion_normal_screen[0] = cosf(angle);
-  motion_normal_screen[1] = sinf(angle);
-  /* Convert view's brush transverse direction to object-space,
-   * i.e. the normal of the plane described by the motion */
-  float motion_normal_local[3];
-  calc_local_from_screen(
-      *cache->vc, cache->location_symm, motion_normal_screen, motion_normal_local);
+  motion_normal_screen[0] = cosf(rotation);
+  motion_normal_screen[1] = sinf(rotation);
+
+  /* Convert view's brush transverse direction to object-space, i.e. the normal of the plane
+   * described by the motion. */
+  calc_local_from_screen(vc, center, motion_normal_screen, motion_normal_local);
 
   /* Calculate the movement direction for the local matrix.
    * Note that there is a deliberate prioritization here: Our calculations are
@@ -2907,21 +2899,41 @@ static void calc_brush_local_mat(const float rotation,
    * apparent to the user).
    * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
    * and the motion plane. */
-
-  cross_v3_v3v3(v, cache->sculpt_normal, motion_normal_local);
-  normalize_v3_v3(mat[1], v);
+  cross_v3_v3v3(tangent_y, normal, motion_normal_local);
+  normalize_v3_v3(local_mat[1], tangent_y);
 
   /* Get other axes. */
-  cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
-  copy_v3_v3(mat[2], cache->sculpt_normal);
+  cross_v3_v3v3(local_mat[0], local_mat[1], normal);
+  copy_v3_v3(local_mat[2], normal);
 
   /* Set location. */
-  copy_v3_v3(mat[3], cache->location_symm);
+  copy_v3_v3(local_mat[3], center);
+
+  normalize_m4(local_mat);
+}
+
+static void calc_brush_local_mat(const float rotation,
+                                 const Object &ob,
+                                 float local_mat[4][4],
+                                 float local_mat_inv[4][4])
+{
+  const StrokeCache *cache = ob.runtime->sculpt_session->cache;
+  float tmat[4][4];
+  float scale[4][4];
+  float mat[4][4];
+
+  /* Read rotation (user angle, rake, etc.) to find the view's movement direction (negative X of
+   * the brush). */
+  calc_brush_local_mat(*cache->vc,
+                       ob,
+                       cache->location_symm,
+                       cache->sculpt_normal,
+                       rotation + cache->special_rotation,
+                       mat);
 
   /* Scale by brush radius. */
   float radius = cache->radius;
 
-  normalize_m4(mat);
   scale_m4_fl(scale, radius);
   mul_m4_m4m4(tmat, mat, scale);
 
