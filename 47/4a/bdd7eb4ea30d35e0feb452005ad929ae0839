@@ -1,4 +1,4 @@
 Referenced by pull request #143405, Fix #143360: Separate geometry flags RNA access from weight proximity modifier
-Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
+Referenced by issue #141871, Blender LTS: Maintenance Task 5.2
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by issue #143538, RNA: Fix bitflags enum properties writing outside of their defined bitmask
