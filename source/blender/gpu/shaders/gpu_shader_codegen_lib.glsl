@@ -93,7 +93,7 @@ struct ClosureUndetermined {
 
   float weight() const
   {
-    return average((abs(color)));
+    return reduce_add(abs(color));
   }
 };
 
