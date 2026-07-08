@@ -3418,9 +3418,18 @@ template<typename T> void fill_curve_degenerate_interior_faces_test()
   BLI_assert(vert_index == verts_num);
   BLI_assert(face_index == faces_num);
 
+  Vector<int> face_offsets;
+  Vector<int> face_vert_offsets;
+  for (const int i : faces.index_range()) {
+    face_offsets.append(face_vert_offsets.size());
+    face_vert_offsets.extend(faces[i]);
+  }
+  face_offsets.append(face_vert_offsets.size());
+
   CDT_input<T> in;
   in.vert = verts;
-  in.face = faces;
+  in.face_offsets = OffsetIndices<int>(face_offsets);
+  in.face_vert_indices = face_vert_offsets;
   in.epsilon = T(0.00001);
   in.need_ids = false;
 
@@ -3455,7 +3464,8 @@ template<typename T> void dissolve_pendant_edge_face_test()
   0.44 -0.1
   0 1 2 3 4 5
   )";
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   in.need_ids = false;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(out.vert.size(), 8);
@@ -3486,7 +3496,8 @@ template<typename T> void stale_symedge_before_remove_faces_in_holes_test()
   0.0 0.0
   0 1 2 3 4 5 6
   )";
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   in.need_ids = false;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(out.vert.size(), 12);
@@ -3514,7 +3525,8 @@ template<typename T> void fuzz_repro_minimize_test1()
   0.257921 0.862028
   0 1 0 3 4
   )";
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   in.need_ids = true;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   (void)out;
@@ -3537,7 +3549,8 @@ template<typename T> void fuzz_repro_minimize_test2()
   0.459831 0.861793
   0 1 2 3 4
   )";
-  CDT_input<T> in = fill_input_from_string<T>(spec);
+  InputStorage<T> store;
+  CDT_input<T> in = fill_input_from_string<T>(spec, store);
   in.need_ids = false;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   (void)out;
