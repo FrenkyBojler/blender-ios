@@ -42,7 +42,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
+#include "BKE_animsys.hh" /* <------ should this be here?, needed for sequencer update */
 #include "BKE_callbacks.hh"
 #include "BKE_camera.h"
 #include "BKE_colortools.hh"
@@ -1105,9 +1105,9 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
   RE_display_free(resc);
 }
 
-/* Get the scene referenced by the given node if the node uses its render. Returns nullptr
- * otherwise. */
-static Scene *get_scene_referenced_by_node(const bNode *node)
+/* Get the scene referenced by the given node if the node uses its render. The main pipeline scene
+ * is given. Returns nullptr otherwise. */
+static Scene *get_scene_referenced_by_node(const bNode *node, Scene *pipeline_scene)
 {
   if (node->is_muted()) {
     return nullptr;
@@ -1120,6 +1120,9 @@ static Scene *get_scene_referenced_by_node(const bNode *node)
       node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
   {
     return reinterpret_cast<Scene *>(node->id);
+  }
+  if (node->type_legacy == NODE_GROUP_INPUT) {
+    return pipeline_scene;
   }
 
   return nullptr;
@@ -1140,7 +1143,7 @@ static bool compositor_needs_render(Scene *scene)
   }
 
   for (const bNode *node : ntree->all_nodes()) {
-    Scene *node_scene = get_scene_referenced_by_node(node);
+    Scene *node_scene = get_scene_referenced_by_node(node, scene);
     if (node_scene && node_scene == scene) {
       return true;
     }
@@ -1177,7 +1180,7 @@ static void do_render_compositor_scenes(Render *re)
    * compositor will find it. */
   Set<Scene *> scenes_rendered;
   for (bNode *node : re->scene->compositing_node_group->all_nodes()) {
-    Scene *node_scene = get_scene_referenced_by_node(node);
+    Scene *node_scene = get_scene_referenced_by_node(node, re->scene);
     if (!node_scene) {
       continue;
     }
@@ -1267,7 +1270,6 @@ static void do_render_compositor(Render *re)
         }
 
         compositor::NodeGroupOutputTypes needed_outputs =
-            compositor::NodeGroupOutputTypes::GroupOutputNode |
             compositor::NodeGroupOutputTypes::FileOutputNode;
         if (!G.background) {
           needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode |
@@ -1283,14 +1285,15 @@ static void do_render_compositor(Render *re)
         compositor::RenderContext compositor_render_context;
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
-          RE_compositor_execute(*re,
-                                *re->main,
-                                *re->pipeline_scene_eval,
-                                re->r,
-                                *ntree,
-                                rv.name,
-                                &compositor_render_context,
-                                needed_outputs);
+          RE_compositor_execute(render::CompositorInputData(*re,
+                                                            *re->main,
+                                                            *re->pipeline_scene_eval,
+                                                            re->r,
+                                                            *ntree,
+                                                            rv.name,
+                                                            &compositor_render_context,
+                                                            needed_outputs,
+                                                            false));
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
       }
@@ -1684,6 +1687,35 @@ static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
   return true;
 }
 
+bool RE_disable_save_output_allowed(const bool is_animation, Scene &scene, ReportList *reports)
+{
+  const bool save_output = (scene.r.mode & R_SAVE_OUTPUT) != 0;
+  const bool do_compositing = (scene.r.scemode & R_DOCOMP) != 0;
+  const bool do_sequencer = RE_seq_render_active(&scene, &scene.r);
+
+  if (is_animation && do_sequencer && !save_output) {
+    BKE_report(reports, RPT_ERROR, "Render output disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && !do_compositing) {
+    BKE_report(reports, RPT_ERROR, "Render output and compositing disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && do_compositing) {
+    if (!bke::compositor::node_tree_has_linked_file_output(scene.compositing_node_group)) {
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Render output disabled in Output properties and no active compositing File "
+                 "Output nodes");
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool RE_is_rendering_allowed(const Main &bmain,
                              Scene *scene,
                              ViewLayer *single_layer,
@@ -1849,6 +1881,7 @@ void RE_SetReports(Render *re, ReportList *reports)
 static void render_update_depsgraph(Render *re)
 {
   Scene *scene = re->scene;
+  BKE_scene_camera_switch_update(re->scene);
   DEG_evaluate_on_framechange(re->pipeline_depsgraph, BKE_scene_frame_get(scene));
   BKE_scene_update_sound(re->pipeline_depsgraph, re->main);
 }
