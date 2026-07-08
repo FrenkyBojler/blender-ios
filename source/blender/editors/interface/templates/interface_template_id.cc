@@ -1252,14 +1252,13 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
     layout.separator();
 
     template_id_lib_menu_item(*C, layout);
+    Layout *sub = &layout.column(true);
+    sub->enabled_set(copy_editable_allowed);
 
     PointerRNA opptr = layout.op(
         "object.material_slot_add", "Duplicate into New Slot", ICON_DUPLICATE);
     RNA_boolean_set(&opptr, "duplicate_active_material", true);
     but = layout.block()->last_but();
-    if (copy_editable_allowed) {
-      button_flag_enable(but, BUT_DISABLED);
-    }
     layout.separator();
 
     but = uiDefIconTextBut(block,
@@ -1306,24 +1305,17 @@ static void template_id_material_menu_draw(const bContext *C, Menu *menu)
     //                  nullptr,
     //                  TIP_("Browse Assets..."));
     layout.separator();
+    Layout *sub = &layout.column(true);
+    sub->enabled_set(editable_prop);
 
-    layout.op("wm.link", "Link...", ICON_LINKED);
-    but = layout.block()->last_but();
-    if (!editable_prop) {
-      button_flag_enable(but, BUT_DISABLED);
-    }
-    layout.op("wm.append", "Append...", ICON_NONE);
-    but = layout.block()->last_but();
-    if (!editable_prop) {
-      button_flag_enable(but, BUT_DISABLED);
-    }
+    sub->op("wm.link", "Link...", ICON_LINKED);
+    sub->op("wm.append", "Append...", ICON_NONE);
+
     layout.separator();
+    sub = &layout.column(true);
+    sub->enabled_set(editable_prop);
     PointerRNA opptr = layout.op("material.paste", "Paste as New Material", ICON_PASTEDOWN);
     RNA_boolean_set(&opptr, "paste_as_new_material", true);
-    but = layout.block()->last_but();
-    if (!editable_prop) {
-      button_flag_enable(but, BUT_DISABLED);
-    }
   }
 }
 
