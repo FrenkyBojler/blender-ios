@@ -183,8 +183,8 @@ DriverMap BKE_animdata_build_driver_target_map();
  * \param verify_paths: If true, only paths that are invalid before path replacement but resolve
  * correctly after the change, are changed.
  * \param driver_map: Maps IDs to where they are being used in drivers. Of that map, only the given
- * `id` is read. But building the map for a single ID requires traversing all of Main so it is
- * passed in to improve the case when this function is called in a loop.
+ * `id` is read. But building the map for a single ID requires iterating Main anyway so it is built
+ * for all IDs passed in to improve the case when this function is called in a loop.
  * See `BKE_animdata_build_driver_target_map`.
  */
 void BKE_animdata_fix_paths(ID &id,

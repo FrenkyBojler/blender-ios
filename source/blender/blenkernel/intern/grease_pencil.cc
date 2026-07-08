@@ -4367,8 +4367,6 @@ void GreasePencil::rename_node(Main &bmain,
   /* Update layer name dependencies. */
   if (node.is_layer()) {
     DriverMap driver_map = BKE_animdata_build_driver_target_map(bmain);
-    RNA_path_name_to_infix(old_name);
-    RNA_path_name_to_infix(node.name());
     BKE_animdata_fix_paths(this->id,
                            "layers",
                            RNA_path_name_to_infix(old_name),
