@@ -432,8 +432,6 @@ enum {
   PANEL_TYPE_INSTANCED = (1 << 4),
   /** Don't search panels with this type during property search. */
   PANEL_TYPE_NO_SEARCH = (1 << 7),
-  /** Keep this panel at the top of the region. */
-  PANEL_TYPE_TOP = (1 << 8),
 };
 
 struct LayoutPanelHeader {

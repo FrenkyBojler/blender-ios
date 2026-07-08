@@ -1757,17 +1757,12 @@ bool panel_is_dragging(const Panel *panel)
 
 static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
 {
-  if ((a.panel->type->flag & PANEL_TYPE_TOP) && !(b.panel->type->flag & PANEL_TYPE_TOP)) {
-    return true;
-  }
-  if (!(a.panel->type->flag & PANEL_TYPE_TOP) && (b.panel->type->flag & PANEL_TYPE_TOP)) {
-    return false;
-  }
-
   /* Stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though). */
   if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
-    /* Pass the no-header checks and check for `ofsy` and #Panel.sortorder below. */
+    if (a.panel->type->order != b.panel->type->order) {
+      return a.panel->type->order < b.panel->type->order;
+    }
   }
   else if (a.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     return true;
@@ -1796,10 +1791,17 @@ static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
 
 static bool compare_panel(const PanelSort &a, const PanelSort &b)
 {
-  if ((a.panel->type->flag & PANEL_TYPE_TOP) && !(b.panel->type->flag & PANEL_TYPE_TOP)) {
+  /* Stick uppermost header-less panels to the top of the region -
+   * prevent them from being sorted (multiple header-less panels have to be sorted though). */
+  if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
+    if (a.panel->type->order != b.panel->type->order) {
+      return a.panel->type->order < b.panel->type->order;
+    }
+  }
+  else if (a.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     return true;
   }
-  if (!(a.panel->type->flag & PANEL_TYPE_TOP) && (b.panel->type->flag & PANEL_TYPE_TOP)) {
+  else if (b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     return false;
   }
   return a.panel->sortorder < b.panel->sortorder;
