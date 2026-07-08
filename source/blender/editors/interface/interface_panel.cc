@@ -1755,14 +1755,22 @@ bool panel_is_dragging(const Panel *panel)
  * panels do not match for sorting.
  */
 
+static bool panel_is_before(const Panel *a, const Panel *b)
+{
+  for (const Panel *p = a->next; p; p = p->next) {
+    if (p == b) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool find_highest_panel(const PanelSort &a, const PanelSort &b)
 {
   /* Stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though). */
   if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
-    if (a.panel->type->order != b.panel->type->order) {
-      return a.panel->type->order < b.panel->type->order;
-    }
+    return panel_is_before(a.panel, b.panel);
   }
   else if (a.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     return true;
@@ -1794,9 +1802,7 @@ static bool compare_panel(const PanelSort &a, const PanelSort &b)
   /* Stick uppermost header-less panels to the top of the region -
    * prevent them from being sorted (multiple header-less panels have to be sorted though). */
   if (a.panel->type->flag & PANEL_TYPE_NO_HEADER && b.panel->type->flag & PANEL_TYPE_NO_HEADER) {
-    if (a.panel->type->order != b.panel->type->order) {
-      return a.panel->type->order < b.panel->type->order;
-    }
+    return panel_is_before(a.panel, b.panel);
   }
   else if (a.panel->type->flag & PANEL_TYPE_NO_HEADER) {
     return true;
