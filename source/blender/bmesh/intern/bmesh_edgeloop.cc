@@ -189,8 +189,7 @@ int BM_mesh_edgeloops_find(BMesh *bm,
    * be tested cheaply as the walk clears the tags. */
   Set<BMVert *> vert_junction_set;
   if (use_vert_junction) {
-    for (uint i = 0; i < edges_len; i += 1) {
-      e = edges[i];
+    for (BMEdge *e : Span{edges, edges_len}) {
       for (BMVert *v_end : {e->v1, e->v2}) {
         if (!vert_junction_set.contains(v_end) && bm_vert_is_junction(v_end)) {
           vert_junction_set.add(v_end);
@@ -203,8 +202,7 @@ int BM_mesh_edgeloops_find(BMesh *bm,
   }
   const Set<BMVert *> *vert_junctions = use_vert_junction ? &vert_junction_set : nullptr;
 
-  for (uint i = 0; i < edges_len; i += 1) {
-    e = edges[i];
+  for (BMEdge *e : Span{edges, edges_len}) {
     if (BM_elem_flag_test(e, BM_ELEM_INTERNAL_TAG)) {
       BMEdgeLoopStore *el_store = MEM_new_zeroed<BMEdgeLoopStore>(__func__);
 
@@ -238,8 +236,7 @@ int BM_mesh_edgeloops_find(BMesh *bm,
     }
   }
 
-  for (uint i = 0; i < edges_len; i += 1) {
-    e = edges[i];
+  for (BMEdge *e : Span{edges, edges_len}) {
     BM_elem_flag_disable(e, BM_ELEM_INTERNAL_TAG);
     BM_elem_flag_disable(e->v1, BM_ELEM_INTERNAL_TAG);
     BM_elem_flag_disable(e->v2, BM_ELEM_INTERNAL_TAG);
@@ -453,8 +450,7 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm,
     }
   }
 
-  for (uint i = 0; i < edges_len; i += 1) {
-    e = edges[i];
+  for (BMEdge *e : Span{edges, edges_len}) {
     BM_elem_flag_disable(e, BM_ELEM_INTERNAL_TAG);
     BM_elem_flag_disable(e->v1, BM_ELEM_INTERNAL_TAG);
     BM_elem_flag_disable(e->v2, BM_ELEM_INTERNAL_TAG);
