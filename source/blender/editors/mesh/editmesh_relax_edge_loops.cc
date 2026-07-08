@@ -43,15 +43,22 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
   const int iterations = RNA_int_get(op->ptr, "iterations");
   const bool even_spacing = RNA_boolean_get(op->ptr, "even_spacing");
-  bool changed = false;
+  bool changed_multi = false;
+  bool has_edges_selected = false;
+  bool has_faces_selected = false;
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    if (em->bm->totedgesel == 0) {
+    if (em->bm->totedgesel > 0) {
+      has_edges_selected = true;
+    }
+    
+    if (em->bm->totfacesel > 0) {
+      has_faces_selected = true;
       continue;
     }
-    if (em->bm->totfacesel > 0) {
-      BKE_report(op->reports, RPT_WARNING, "Operator requires separate edge loops");
+    
+    if (em->bm->totedgesel < 2) {
       continue;
     }
 
@@ -66,14 +73,26 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    changed = true;
+    changed_multi = true;
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = true;
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
   }
 
-  return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  if (!changed_multi) {
+    if (has_faces_selected) {
+      BKE_report(op->reports, RPT_WARNING, "Operator requires separate edge loops");
+    }
+    else if (!has_edges_selected) {
+      BKE_report(op->reports, RPT_WARNING, "No edges selected");
+    }
+    else {
+      BKE_report(op->reports, RPT_WARNING, "No edge loops found containing 2 or more edges");
+    }
+  }
+
+  return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void MESH_OT_relax_edge_loops(wmOperatorType *ot)
