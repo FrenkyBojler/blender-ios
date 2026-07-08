@@ -10,7 +10,6 @@
 #include "workbench_common.bsl.hh"
 #include "workbench_shader_shared.hh"
 
-
 namespace workbench::shadow::rt {
 
 struct Resources {
@@ -53,7 +52,7 @@ struct Resources {
                            (drw_view_is_perspective() ? drw_view_z_distance(P) : 1.0f);
 
   /* Offset by pixel sife to compensate for floating point precission. */
-  P += N * pixel_size;
+  const float tMin = pixel_size / max(dot(N, -srt.pass_data.light_direction_ws), 0.1f);
 
   rayQueryEXT query;
   rayQueryInitializeEXT(query,
@@ -61,7 +60,7 @@ struct Resources {
                         gl_RayFlagsTerminateOnFirstHitEXT,
                         0xFF,
                         P,
-                        0.0f,
+                        tMin,
                         -srt.pass_data.light_direction_ws,
                         FLT_MAX);
   rayQueryProceedEXT(query);
