@@ -437,7 +437,7 @@ template<typename T> void empty_test()
   EXPECT_EQ(0, out.face.size());
   EXPECT_EQ(0, out.vert_orig.size());
   EXPECT_EQ(0, out.edge_orig.size());
-  EXPECT_EQ(0, out.face.size());
+  EXPECT_EQ(0, out.face_orig.size());
 }
 
 template<typename T> void onept_test()
