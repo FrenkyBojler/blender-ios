@@ -79,10 +79,10 @@ static void calculate_splines_axis(Span<float> distances,
   if (verts_num < 2) {
     return;
   }
-  const int num_segments = is_closed ? verts_num : verts_num - 1;
-  Array<float> segment_length(num_segments);
+  const int segments_num = is_closed ? verts_num : verts_num - 1;
+  Array<float> segment_length(segments_num);
 
-  for (const int i : IndexRange(num_segments)) {
+  for (const int i : IndexRange(segments_num)) {
     segment_length[i] = distances[i + 1] - distances[i];
     if (!(segment_length[i] > 0.0f)) {
       segment_length[i] = RELAX_EPSILON;
@@ -139,7 +139,7 @@ static void calculate_splines_axis(Span<float> distances,
   }
 
   /* Build polynomial coefficients for each segment. */
-  for (const int i : IndexRange(num_segments)) {
+  for (const int i : IndexRange(segments_num)) {
     const int i_next = is_closed ? math::mod_periodic(i + 1, verts_num) : i + 1;
 
     const float coeff_a = coords[i];
@@ -151,7 +151,7 @@ static void calculate_splines_axis(Span<float> distances,
   }
 }
 
-static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase> &r_phases)
+static void build_relax_phases(int verts_num, bool is_closed, Vector<RelaxPhase> &r_phases)
 {
   if (!is_closed) {
     /* There are two relax phases, in the first phase, odd vertices are relaxed
@@ -160,11 +160,11 @@ static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase>
      * be moved. */
     for (const int phase_index : IndexRange(2)) {
       RelaxPhase phase;
-      for (const int i : IndexRange(num_verts)) {
+      for (const int i : IndexRange(verts_num)) {
         if (i % 2 == phase_index) {
           phase.knot_indices.append(i);
         }
-        else if (i > 0 && i < num_verts - 1) {
+        else if (i > 0 && i < verts_num - 1) {
           phase.point_indices.append(i);
         }
       }
@@ -173,11 +173,11 @@ static void build_relax_phases(int num_verts, bool is_closed, Vector<RelaxPhase>
     return;
   }
 
-  Vector<int> vert_indices(num_verts);
+  Vector<int> vert_indices(verts_num);
   array_utils::fill_index_range(vert_indices.as_mutable_span());
 
   for (const int j : IndexRange(2)) {
-    const bool extend = num_verts % 2 == 1 ? j == 1 : j == 0;
+    const bool extend = verts_num % 2 == 1 ? j == 1 : j == 0;
     const int knot_start = !extend && j == 1 ? 1 : 0;
     const int point_start = !extend && j == 1 ? 2 : 1;
 
@@ -282,9 +282,9 @@ static void calculate_relax_t(Span<BMVert *> verts,
                               Vector<float> &r_t_knots,
                               Vector<float> &r_t_points)
 {
-  const int n_knots = phase.knot_indices.size();
-  const int n_points = phase.point_indices.size();
-  const int total = n_knots + n_points;
+  const int knots_num = phase.knot_indices.size();
+  const int points_num = phase.point_indices.size();
+  const int total = knots_num + points_num;
 
   Array<float3> positions(total);
   for (const int i : IndexRange(total)) {
@@ -318,7 +318,7 @@ static void calculate_relax_t(Span<BMVert *> verts,
   /* Place a point halfway between two knots if regular is enabled. */
   if (regular) {
     r_t_points.clear();
-    for (const int p : IndexRange(n_points)) {
+    for (const int p : IndexRange(points_num)) {
       r_t_points.append((r_t_knots[p] + r_t_knots[p + 1]) / 2.0f);
     }
   }
@@ -330,13 +330,13 @@ static void calculate_relax_splines(Span<BMVert *> verts,
                                     bool is_closed,
                                     std::array<Vector<SplineCoeffs>, 3> &r_coeffs)
 {
-  const int num_knots = knot_indices.size();
-  const int coords_size = is_closed ? num_knots - 1 : num_knots;
-  Array<float> coords_x(coords_size);
-  Array<float> coords_y(coords_size);
-  Array<float> coords_z(coords_size);
+  const int knots_num = knot_indices.size();
+  const int coords_num = is_closed ? knots_num - 1 : knots_num;
+  Array<float> coords_x(coords_num);
+  Array<float> coords_y(coords_num);
+  Array<float> coords_z(coords_num);
 
-  for (const int i : IndexRange(coords_size)) {
+  for (const int i : IndexRange(coords_num)) {
     const float *co = verts[knot_indices[i]]->co;
     coords_x[i] = co[0];
     coords_y[i] = co[1];
@@ -360,12 +360,12 @@ static void execute_relax_phase(
 
   const Span<float> accumulated_lengths = Span<float>(t_knots).drop_front(1);
 
-  const int num_points = phase.point_indices.size();
-  Array<int> segment_indices(num_points);
-  Array<float> factors(num_points);
+  const int points_num = phase.point_indices.size();
+  Array<int> segment_indices(points_num);
+  Array<float> factors(points_num);
   length_parameterize::sample_at_lengths(accumulated_lengths, t_points, segment_indices, factors);
 
-  Array<float3> sampled_positions(num_points);
+  Array<float3> sampled_positions(points_num);
 
   if (interpolation == RELAX_EDGE_LOOPS_INTERP_LINEAR) {
     Array<float3> knot_positions(phase.knot_indices.size());
@@ -380,7 +380,7 @@ static void execute_relax_phase(
     std::array<Vector<SplineCoeffs>, 3> axis_coeffs;
     calculate_relax_splines(verts, phase.knot_indices, t_knots, is_closed, axis_coeffs);
 
-    for (const int i : IndexRange(num_points)) {
+    for (const int i : IndexRange(points_num)) {
       const int seg = segment_indices[i];
       const float dt = t_points[i] - axis_coeffs[0][seg].x;
 
@@ -394,7 +394,7 @@ static void execute_relax_phase(
     }
   }
 
-  for (const int i : IndexRange(num_points)) {
+  for (const int i : IndexRange(points_num)) {
     const int v_index = phase.point_indices[i];
     const float3 current_pos(verts[v_index]->co);
     const float3 final_pos = (current_pos + sampled_positions[i]) / 2.0f;
