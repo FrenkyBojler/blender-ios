@@ -112,61 +112,48 @@ float gpencil_stroke_segment_mask(float2 p1,
   float clamped_t1 = saturate(t1);
   // float radius = r1 * (1.0f - clamped_t1) + r2 * clamped_t1;
 
-  float radius = 0.0f;
+  float radius = r1;
   float l = sqrt(len_sq1);
   float a = r2 - r1;
   float cos_theta = a / l;
 
   float joint = 1.0f;
 
-  float x = t1 * l;
+  float2 p = float2(dot(pos1, line1), dot(pos1, tan1)) / l;
 
-  /* Check if one circle is inside the other. */
-  if (abs(cos_theta) > 1.0f) {
-    radius = max(r1, r2);
-  }
-  else if (abs(cos_theta) < 0.001f * l) {
-    radius = r1;
-  }
-  else {
-
-    float tan_half_theta = sqrt((l - a) / (l + a));
-
-    float T = ((x + r1) * (r2 / tan_half_theta - r1 * tan_half_theta) / (l + r1 + r2) +
-               r1 * tan_half_theta - r1) /
-              a;
-
-    // radius = r1 + a * saturate(T);
-    radius = r1 + a * T;
-
-    if (x < -cos_theta * r1) {
-      // if (x < 0.0f) {
-      //   radius = r1;
-      // }
-      // else {
-      // radius = sqrt(r1 * r1 - x * x);
-      radius = r1;
-      // }
-    }
-
-    if (x > l - cos_theta * r2) {
-      // if (x > l) {
-      //   radius = r2;
-      // }
-      // else {
-      // radius = sqrt(r2 * r2 - (x - l) * (x - l));
-      radius = r2;
-      // }
-    }
-  }
+  float J = l * r1 / (2.0f * a);
+  float J2 = J + l / 2.0f;
 
   /* The distance factor squared to the main segment. This is clamped and will lead to round
    * corners. */
-  float dist = length_squared(pos1 - clamped_t1 * line1);
-  // float dist = length_squared(pos1 - t1 * line1);
+  float main_ds = length_squared(pos1 - clamped_t1 * line1);
+  float dist = sqrt(main_ds) / radius;
+
+  if (abs(a) > 0.001f) {
+
+    if ((length_squared(p + float2(J, 0.0f)) - J * J) *
+            (length_squared(p + float2(J * 2.0f - J2, 0.0f)) - J2 * J2) <
+        0.0f)
+    {
+      float c = cos_theta;
+
+      float te = (a * p.x + r1 * l) / p.y;
+      te = te * te;
+
+      float T_a = a * a + te;
+      float T_b = -2.0f * l * a / c - te / (c * c);
+      float T_c = l * l / (c * c);
+
+      dist = (-T_b - sqrt(T_b * T_b - 4.0f * T_a * T_c)) / (2.0f * T_a);
+      dist = sqrt(dist);
+    }
+    else {
+      dist = min(length(p) / r1, length(p - float2(l, 0.0f)) / r2);
+    }
+  }
 
   if (both_round || both_ends) {
-    dist = sqrt(dist) / radius;
+    // dist = sqrt(dist) / radius;
     return gpencil_stroke_hardess_mask(dist, hardfac) * joint;
   }
 
