@@ -1205,7 +1205,7 @@ static void paint_cursor_update_rake_rotation(bContext *C, PaintCursorContext &p
 
   const bke::PaintRuntime *paint_runtime = pcontext.paint->runtime;
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = pcontext.vc.region;
   float2 mouse = {pcontext.translation.x - region->winrct.xmin,
                   pcontext.translation.y - region->winrct.ymin};
   if (!paint_runtime->stroke_active) {
