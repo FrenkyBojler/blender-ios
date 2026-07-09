@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8498,34 +8498,6 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Local View"
-msgstr "Локални поглед"
-
-
-msgid "Navigation"
-msgstr "Навигација"
-
-
-msgid "Align View"
-msgstr "Поравнај поглед"
-
-
-msgid "Select Linked"
-msgstr "Изабери повезано"
-
-
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
-
-
-msgid "Light"
-msgstr "Светлост"
-
-
 msgid "Relations"
 msgstr "Односи"
 
@@ -8554,8 +8526,8 @@ msgid "Hooks"
 msgstr "Удице"
 
 
-msgid "Import"
-msgstr "Увоз"
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Clear Transform"
@@ -8568,10 +8540,6 @@ msgstr "У међувремену"
 
 msgid "Propagate"
 msgstr "Пренеси"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Names"
@@ -8598,20 +8566,56 @@ msgid "Merge"
 msgstr "Сједини"
 
 
+msgid "Import"
+msgstr "Увоз"
+
+
 msgid "Special Characters"
 msgstr "Специјални знаци"
+
+
+msgid "Metaball"
+msgstr "Мета лопта"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Bone Roll"
 msgstr "Ролна костију"
 
 
+msgid "Snap"
+msgstr "Лепљење"
+
+
+msgid "Mirror"
+msgstr "Огледало"
+
+
+msgid "UV Mapping"
+msgstr "UV Мапирање"
+
+
+msgid "Local View"
+msgstr "Локални поглед"
+
+
 msgid "Linked"
 msgstr "Повезано"
 
 
-msgid "Snap"
-msgstr "Лепљење"
+msgid "Navigation"
+msgstr "Навигација"
+
+
+msgid "Align View"
+msgstr "Поравнај поглед"
+
+
+msgid "Select Linked"
+msgstr "Изабери повезано"
 
 
 msgid "Keying"
@@ -8622,12 +8626,8 @@ msgid "Tracking"
 msgstr "Праћење"
 
 
-msgid "Mirror"
-msgstr "Огледало"
-
-
-msgid "UV Mapping"
-msgstr "UV Мапирање"
+msgid "Light"
+msgstr "Светлост"
 
 
 msgid "Basic"
@@ -19066,12 +19066,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Transform Orientations"
-msgstr "Трансформација оријентација"
-
-
 msgid "Motion Tracking"
 msgstr "Праћење покрета"
+
+
+msgid "Transform Orientations"
+msgstr "Трансформација оријентација"
 
 
 msgid "Bone Constraints"
