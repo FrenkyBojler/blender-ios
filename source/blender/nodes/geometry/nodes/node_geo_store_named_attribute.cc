@@ -109,7 +109,7 @@ static void grease_pencil_add_missing_update_tags(const std::string &name,
         continue;
       }
       bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-      drawing.tag_positions_changed();
+      drawing.tag_texture_matrices_changed();
     }
   }
 }
