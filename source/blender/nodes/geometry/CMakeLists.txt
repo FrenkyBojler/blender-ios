@@ -185,6 +185,7 @@ set(SRC
   nodes/node_geo_is_viewport.cc
   nodes/node_geo_join_bundle.cc
   nodes/node_geo_join_geometry.cc
+  nodes/node_geo_jolt_solver.cc
   nodes/node_geo_list_get_item.cc
   nodes/node_geo_list_length.cc
   nodes/node_geo_material_replace.cc
@@ -389,6 +390,13 @@ endif()
 if(WITH_OPENSUBDIV)
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
+
+list(APPEND INC_SYS
+  ${JOLT_INCLUDE_DIRS}
+)
+list(APPEND LIB
+  ${JOLT_LIBRARIES}
+)
 
 add_node_discovery(
   bf_nodes_geometry_generated

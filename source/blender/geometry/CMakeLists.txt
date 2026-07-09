@@ -25,6 +25,7 @@ set(SRC
   intern/foreach_geometry.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
+  intern/jolt.cc
   intern/merge_curves.cc
   intern/merge_layers.cc
   intern/mesh_bevel.cc
@@ -74,6 +75,7 @@ set(SRC
   GEO_grid_samplers.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
+  GEO_jolt.hh
   GEO_merge_curves.hh
   GEO_merge_layers.hh
   GEO_mesh_bevel.hh
@@ -160,6 +162,13 @@ endif()
 if(WITH_MANIFOLD)
   add_definitions(-DWITH_MANIFOLD)
 endif()
+
+list(APPEND INC_SYS
+  ${JOLT_INCLUDE_DIRS}
+)
+list(APPEND LIB
+  ${JOLT_LIBRARIES}
+)
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::geometry ALIAS bf_geometry)
