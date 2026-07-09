@@ -33,7 +33,7 @@ namespace blender::ed::space_node {
 static wmOperatorStatus add_scene_compositor_modifier_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  bke::compositor::new_modifier(scene, "Scene Compositor Modifier");
+  bke::compositor::new_modifier(*scene, "Scene Compositor Modifier");
   WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
@@ -58,12 +58,12 @@ static wmOperatorStatus remove_scene_compositor_modifier_exec(bContext *C, wmOpe
   Scene *scene = CTX_data_scene(C);
 
   const std::string name = RNA_string_get(op->ptr, "name");
-  SceneCompositorModifier *modifier = bke::compositor::get_modifier(scene, name.c_str());
+  SceneCompositorModifier *modifier = bke::compositor::get_modifier(*scene, name);
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }
 
-  bke::compositor::remove_modifier(scene, modifier);
+  bke::compositor::remove_modifier(*scene, *modifier);
 
   // TODO: Updates.
   WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
@@ -103,7 +103,7 @@ static wmOperatorStatus move_scene_compositor_modifier_exec(bContext *C, wmOpera
   const std::string name = RNA_string_get(op->ptr, "name");
   ModifierMoveDirection direction = ModifierMoveDirection(RNA_enum_get(op->ptr, "direction"));
 
-  SceneCompositorModifier *modifier = bke::compositor::get_modifier(scene, name.c_str());
+  SceneCompositorModifier *modifier = bke::compositor::get_modifier(*scene, name);
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }
@@ -170,14 +170,13 @@ static wmOperatorStatus duplicate_scene_compositor_modifier_exec(bContext *C, wm
   }
 
   std::string name = RNA_string_get(op->ptr, "name");
-  SceneCompositorModifier *modifier = name.empty() ?
-                                          bke::compositor::get_active_modifier(scene) :
-                                          bke::compositor::get_modifier(scene, name.c_str());
+  SceneCompositorModifier *modifier = name.empty() ? bke::compositor::get_active_modifier(*scene) :
+                                                     bke::compositor::get_modifier(*scene, name);
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }
 
-  bke::compositor::copy_modifier(scene, modifier);
+  bke::compositor::copy_modifier(*scene, *modifier);
 
   // TODO: Updates.
   WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
@@ -212,7 +211,7 @@ static wmOperatorStatus move_scene_compositor_modifier_to_index_exec(bContext *C
 {
   Scene *scene = CTX_data_scene(C);
   const std::string name = RNA_string_get(op->ptr, "name");
-  SceneCompositorModifier *modifier = bke::compositor::get_modifier(scene, name.c_str());
+  SceneCompositorModifier *modifier = bke::compositor::get_modifier(*scene, name);
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }
@@ -273,11 +272,11 @@ static wmOperatorStatus set_active_scene_compositor_modifier_exec(bContext *C, w
 {
   Scene *scene = CTX_data_scene(C);
   const std::string name = RNA_string_get(op->ptr, "name");
-  SceneCompositorModifier *modifier = bke::compositor::get_modifier(scene, name.c_str());
+  SceneCompositorModifier *modifier = bke::compositor::get_modifier(*scene, name);
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }
-  bke::compositor::set_active_modifier(scene, modifier);
+  bke::compositor::set_active_modifier(*scene, *modifier);
 
   // TODO: Updates.
   WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);

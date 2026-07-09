@@ -243,13 +243,13 @@ static wmOperatorStatus add_scene_compositor_modifier_node_group_asset_exec(bCon
     return OPERATOR_CANCELLED;
   }
 
-  SceneCompositorModifier *modifier = bke::compositor::new_modifier(
-      scene, DATA_(node_group->id.name + 2));
-  modifier->node_group = node_group;
+  SceneCompositorModifier &modifier = bke::compositor::new_modifier(
+      *scene, DATA_(node_group->id.name + 2));
+  modifier.node_group = node_group;
   id_us_plus(&node_group->id);
-  modifier->flags &= ~SceneCompositorModifierFlags::ShowNodeGroupSelector;
+  modifier.flags &= ~SceneCompositorModifierFlags::ShowNodeGroupSelector;
 
-  bke::compositor::update_modifier_node_group_interface(*scene, *modifier);
+  bke::compositor::update_modifier_node_group_interface(*scene, modifier);
 
   // TODO: Updates.
   return OPERATOR_FINISHED;

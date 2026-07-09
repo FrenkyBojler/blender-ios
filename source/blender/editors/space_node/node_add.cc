@@ -2020,12 +2020,12 @@ static wmOperatorStatus new_scene_compositor_modifier_node_group_exec(bContext *
   bke::node_update_asset_metadata(*node_group);
 
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *active_modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *active_modifier = bke::compositor::get_active_modifier(*scene);
   if (!active_modifier) {
-    SceneCompositorModifier *modifier = bke::compositor::new_modifier(scene,
+    SceneCompositorModifier &modifier = bke::compositor::new_modifier(*scene,
                                                                       "Scene Compositor Modifier");
-    modifier->flags |= SceneCompositorModifierFlags::IsActive;
-    active_modifier = modifier;
+    modifier.flags |= SceneCompositorModifierFlags::IsActive;
+    active_modifier = &modifier;
   }
   active_modifier->node_group = node_group;
 
@@ -2058,7 +2058,7 @@ static wmOperatorStatus duplicate_scene_compositor_modifier_node_group_exec(bCon
                                                                             wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
   if (!modifier) {
     return OPERATOR_CANCELLED;
   }

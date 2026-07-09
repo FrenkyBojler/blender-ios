@@ -78,7 +78,7 @@ static void composite_get_from_context(const bContext *C,
   }
 
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
   if (!modifier || !modifier->node_group || ID_MISSING(modifier->node_group)) {
     return;
   }

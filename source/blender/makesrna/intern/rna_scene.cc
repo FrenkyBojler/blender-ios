@@ -1257,7 +1257,7 @@ static bool rna_Scene_compositing_node_group_poll(PointerRNA * /*ptr*/, PointerR
 static PointerRNA rna_Scene_compositing_node_group_get(PointerRNA *scene_ptr)
 {
   Scene *scene = scene_ptr->data_as<Scene>();
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
   if (!modifier) {
     return RNA_pointer_create_with_parent(*scene_ptr, RNA_NodeTree, nullptr);
   }
@@ -1278,9 +1278,9 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *scene_ptr,
     return;
   }
 
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
   if (!modifier) {
-    bke::compositor::new_modifier(scene, "Scene Compositor Modifier");
+    bke::compositor::new_modifier(*scene, "Scene Compositor Modifier");
   }
 
   if (modifier->node_group) {
@@ -3144,7 +3144,7 @@ static void rna_SceneCompositorModifier_name_set(PointerRNA *ptr, const char *va
 {
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorModifier *modifier = ptr->data_as<SceneCompositorModifier>();
-  bke::compositor::rename_modifier(scene, modifier, value);
+  bke::compositor::rename_modifier(*scene, *modifier, value);
   WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
@@ -3157,7 +3157,7 @@ static void rna_SceneCompositorModifier_is_active_set(PointerRNA *ptr, bool is_a
 
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorModifier *modifier = ptr->data_as<SceneCompositorModifier>();
-  bke::compositor::set_active_modifier(scene, modifier);
+  bke::compositor::set_active_modifier(*scene, *modifier);
   WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
 }
 
@@ -3207,9 +3207,9 @@ static void rna_SceneCompositorModifier_node_group_update(Main *bmain,
 static SceneCompositorModifier *rna_SceneCompositorModifiers_new(ID *scene_id, const char *name)
 {
   Scene *scene = id_cast<Scene *>(scene_id);
-  SceneCompositorModifier *modifier = bke::compositor::new_modifier(scene, name);
+  SceneCompositorModifier &modifier = bke::compositor::new_modifier(*scene, name);
   WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
-  return modifier;
+  return &modifier;
 }
 
 static void rna_SceneCompositorModifiers_remove(ID *scene_id,
@@ -3223,7 +3223,7 @@ static void rna_SceneCompositorModifiers_remove(ID *scene_id,
     BKE_report(reports, RPT_ERROR, "Modifier was not found in the stack");
     return;
   }
-  bke::compositor::remove_modifier(scene, modifier);
+  bke::compositor::remove_modifier(*scene, *modifier);
   modifier_ptr->invalidate();
   rna_SceneCompositorModifier_compositor_update(bmain, scene, modifier_ptr);
 }
@@ -3231,7 +3231,7 @@ static void rna_SceneCompositorModifiers_remove(ID *scene_id,
 static void rna_SceneCompositorModifiers_clear(ID *scene_id, Main *bmain)
 {
   Scene *scene = id_cast<Scene *>(scene_id);
-  bke::compositor::clear_modifiers(scene);
+  bke::compositor::clear_modifiers(*scene);
 
   PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
   rna_Scene_compositor_update(bmain, scene, &scene_ptr);
@@ -3240,7 +3240,7 @@ static void rna_SceneCompositorModifiers_clear(ID *scene_id, Main *bmain)
 static PointerRNA rna_SceneCompositorModifiers_active_get(PointerRNA *ptr)
 {
   const Scene *scene = ptr->data_as<Scene>();
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
   return RNA_pointer_create_with_parent(*ptr, RNA_SceneCompositorModifier, modifier);
 }
 
@@ -3250,7 +3250,7 @@ static void rna_SceneCompositorModifiers_active_set(PointerRNA *ptr,
 {
   Scene *scene = ptr->data_as<Scene>();
   SceneCompositorModifier *modifier = value.data_as<SceneCompositorModifier>();
-  bke::compositor::set_active_modifier(scene, modifier);
+  bke::compositor::set_active_modifier(*scene, *modifier);
 
   if (bke::compositor::is_modifier_enabled(*modifier, bke::compositor::ExecutionMode::Preview)) {
     DEG_id_tag_update(&modifier->node_group->id, ID_RECALC_NTREE_OUTPUT);

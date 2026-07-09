@@ -586,7 +586,7 @@ static bool buttons_context_path_scene_compositor_modifier(ButsContextPath *path
 {
   Scene *scene = path->ptr[path->len - 1].data_as<Scene>();
 
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(scene);
+  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
   if (modifier) {
     path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, RNA_StripModifier, modifier);
     path->len++;

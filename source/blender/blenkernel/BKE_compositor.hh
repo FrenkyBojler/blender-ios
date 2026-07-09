@@ -15,6 +15,7 @@
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 namespace blender {
@@ -99,35 +100,35 @@ enum class ExecutionMode : uint8_t {
 bool has_any_enabled_modifier(const Scene &scene, ExecutionMode mode);
 
 /* Gets the compositor modifier with the given name in the given scene. */
-SceneCompositorModifier *get_modifier(const Scene *scene, const char *name);
+SceneCompositorModifier *get_modifier(const Scene &scene, StringRef name);
 
 /* Gets the active compositor modifier in the given scene. */
-SceneCompositorModifier *get_active_modifier(const Scene *scene);
+SceneCompositorModifier *get_active_modifier(const Scene &scene);
 
 /* Returns true if the given modifier is enabled for the given execution mode. */
 bool is_modifier_enabled(const SceneCompositorModifier &modifier, ExecutionMode mode);
 
 /* Sets the given compositor modifier in the given scene to be the active one. */
-void set_active_modifier(const Scene *scene, SceneCompositorModifier *modifier);
+void set_active_modifier(const Scene &scene, SceneCompositorModifier &modifier);
 
 /* Rename the given compositor modifier in the given scene to the given name. Animation data paths
  * may be updated if update_animation_data is true. */
-void rename_modifier(Scene *scene,
-                     SceneCompositorModifier *modifier,
-                     const char *new_name,
+void rename_modifier(Scene &scene,
+                     SceneCompositorModifier &modifier,
+                     StringRef new_name,
                      bool update_animation_data = true);
 
 /* Adds a new compositor modifier of the given name to the given scene. */
-SceneCompositorModifier *new_modifier(Scene *scene, const char *name);
+SceneCompositorModifier &new_modifier(Scene &scene, StringRef name);
 
 /* Copy the given compositor modifier in the given scene. */
-SceneCompositorModifier *copy_modifier(Scene *scene, SceneCompositorModifier *source_modifier);
+SceneCompositorModifier &copy_modifier(Scene &scene, SceneCompositorModifier &source_modifier);
 
 /* Removes the given compositor modifier from the given scene. */
-void remove_modifier(Scene *scene, SceneCompositorModifier *modifier);
+void remove_modifier(Scene &scene, SceneCompositorModifier &modifier);
 
 /* Removes all compositor modifiers from the given scene. */
-void clear_modifiers(Scene *scene);
+void clear_modifiers(Scene &scene);
 
 /* Gets the modifier that the given property belongs to. */
 const SceneCompositorModifier *get_modifier_from_property(const PointerRNA &property_ptr);
@@ -161,6 +162,10 @@ bool is_viewport_compositor_used(const bContext &context);
 void add_depsgraph_relations(Scene &scene,
                              const bNodeTree &node_group,
                              DepsNodeHandle *compositor_output_depsgraph_node);
+
+/* --------------------------------------------------------------------
+ * Compute Contexts.
+ */
 
 /* Computes the hash of the compositor active compute context. The active compute context is the
  * context that the user last interacted with, see root_node_group.active_viewer_key for more

@@ -175,15 +175,15 @@ bool has_any_enabled_modifier(const Scene &scene, const ExecutionMode mode)
   return false;
 }
 
-SceneCompositorModifier *get_modifier(const Scene *scene, const char *name)
+SceneCompositorModifier *get_modifier(const Scene &scene, StringRef name)
 {
   return static_cast<SceneCompositorModifier *>(BLI_findstring(
-      &(scene->compositor_modifiers), name, offsetof(SceneCompositorModifier, name)));
+      &(scene.compositor_modifiers), name.data(), offsetof(SceneCompositorModifier, name)));
 }
 
-SceneCompositorModifier *get_active_modifier(const Scene *scene)
+SceneCompositorModifier *get_active_modifier(const Scene &scene)
 {
-  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+  for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
     if (flag_is_set(modifier.flags, SceneCompositorModifierFlags::IsActive)) {
       return &modifier;
     }
@@ -209,43 +209,43 @@ bool is_modifier_enabled(const SceneCompositorModifier &modifier, const Executio
   return false;
 }
 
-void set_active_modifier(const Scene *scene, SceneCompositorModifier *modifier)
+void set_active_modifier(const Scene &scene, SceneCompositorModifier &modifier)
 {
-  for (SceneCompositorModifier &other_modifier : scene->compositor_modifiers) {
+  for (SceneCompositorModifier &other_modifier : scene.compositor_modifiers) {
     other_modifier.flags &= ~SceneCompositorModifierFlags::IsActive;
   }
 
   /* Activate the active state of the modifier. */
-  modifier->flags |= SceneCompositorModifierFlags::IsActive;
+  modifier.flags |= SceneCompositorModifierFlags::IsActive;
 }
 
-void rename_modifier(Scene *scene,
-                     SceneCompositorModifier *modifier,
-                     const char *new_name,
+void rename_modifier(Scene &scene,
+                     SceneCompositorModifier &modifier,
+                     StringRef new_name,
                      const bool update_animation_data)
 {
-  std::string old_name = modifier->name;
-  STRNCPY_UTF8(modifier->name, new_name);
-  BLI_uniquename(&scene->compositor_modifiers,
-                 modifier,
+  std::string old_name = modifier.name;
+  new_name.copy_utf8_truncated(modifier.name);
+  BLI_uniquename(&scene.compositor_modifiers,
+                 &modifier,
                  CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Compositor Modifier"),
                  '.',
                  offsetof(SceneCompositorModifier, name),
-                 sizeof(modifier->name));
+                 sizeof(modifier.name));
 
   if (!update_animation_data) {
     return;
   }
 
   /* Fix all the animation data which may link to this. */
-  AnimData *animation_data = BKE_animdata_from_id(&scene->id);
+  AnimData *animation_data = BKE_animdata_from_id(&scene.id);
   if (animation_data) {
-    BKE_animdata_fix_paths_rename(&scene->id,
+    BKE_animdata_fix_paths_rename(&scene.id,
                                   animation_data,
                                   nullptr,
                                   "compositor_modifiers",
                                   old_name.c_str(),
-                                  modifier->name,
+                                  modifier.name,
                                   0,
                                   0,
                                   /*verify_paths=*/true,
@@ -253,46 +253,46 @@ void rename_modifier(Scene *scene,
   }
 }
 
-SceneCompositorModifier *new_modifier(Scene *scene, const char *name)
+SceneCompositorModifier &new_modifier(Scene &scene, StringRef name)
 {
-  SceneCompositorModifier *modifier = MEM_new<SceneCompositorModifier>(
+  SceneCompositorModifier &modifier = *MEM_new<SceneCompositorModifier>(
       "Scene Compositor Modifier");
   rename_modifier(scene, modifier, name, false);
-  BLI_addtail(&scene->compositor_modifiers, modifier);
+  BLI_addtail(&scene.compositor_modifiers, &modifier);
   set_active_modifier(scene, modifier);
   return modifier;
 }
 
-SceneCompositorModifier *copy_modifier(Scene *scene, SceneCompositorModifier *source_modifier)
+SceneCompositorModifier &copy_modifier(Scene &scene, SceneCompositorModifier &source_modifier)
 {
-  SceneCompositorModifier *new_modifier = MEM_dupalloc(source_modifier);
-  if (source_modifier->node_group) {
-    id_us_plus(&new_modifier->node_group->id);
+  SceneCompositorModifier &new_modifier = *MEM_dupalloc(&source_modifier);
+  if (source_modifier.node_group) {
+    id_us_plus(&new_modifier.node_group->id);
   }
-  BLI_addtail(&scene->compositor_modifiers, new_modifier);
-  rename_modifier(scene, new_modifier, source_modifier->name, false);
+  BLI_addtail(&scene.compositor_modifiers, &new_modifier);
+  rename_modifier(scene, new_modifier, source_modifier.name, false);
   set_active_modifier(scene, new_modifier);
   return new_modifier;
 }
 
-void remove_modifier(Scene *scene, SceneCompositorModifier *modifier)
+void remove_modifier(Scene &scene, SceneCompositorModifier &modifier)
 {
-  if (modifier->node_group) {
-    id_us_min(&modifier->node_group->id);
+  if (modifier.node_group) {
+    id_us_min(&modifier.node_group->id);
   }
-  BLI_remlink(&scene->compositor_modifiers, modifier);
-  MEM_delete(modifier);
-  if (!scene->compositor_modifiers.is_empty()) {
-    set_active_modifier(scene, &*scene->compositor_modifiers.begin());
+  BLI_remlink(&scene.compositor_modifiers, &modifier);
+  MEM_delete(&modifier);
+  if (!scene.compositor_modifiers.is_empty()) {
+    set_active_modifier(scene, *scene.compositor_modifiers.begin());
   }
 }
 
-void clear_modifiers(Scene *scene)
+void clear_modifiers(Scene &scene)
 {
-  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
+  for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
     MEM_delete(&modifier);
   }
-  BLI_listbase_clear(&scene->compositor_modifiers);
+  BLI_listbase_clear(&scene.compositor_modifiers);
 }
 
 const SceneCompositorModifier *get_modifier_from_property(const PointerRNA &property_ptr)
@@ -601,6 +601,10 @@ void add_depsgraph_relations(Scene &scene,
   }
 }
 
+/* --------------------------------------------------------------------
+ * Compute Contexts.
+ */
+
 /* Recursively search node groups to find the node group whose instance key matches the given
  * active node group instance key, and returns it compute context hash. */
 static std::optional<ComputeContextHash> compute_active_compute_context_hash_recursive(
@@ -642,7 +646,7 @@ static std::optional<ComputeContextHash> compute_active_compute_context_hash_rec
 ComputeContextHash compute_active_compute_context_hash(const Scene &scene)
 {
   const bke::DataBlockComputeContext scene_compute_context(nullptr, scene.id);
-  const SceneCompositorModifier *active_modifier = get_active_modifier(&scene);
+  const SceneCompositorModifier *active_modifier = get_active_modifier(scene);
   if (!active_modifier) {
     return scene_compute_context.hash();
   }

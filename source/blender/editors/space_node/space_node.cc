@@ -428,7 +428,7 @@ static std::optional<SceneAndCompositorModifier> get_scene_compositor_modifier_f
     return std::nullopt;
   }
 
-  return SceneAndCompositorModifier(scene, bke::compositor::get_active_modifier(scene));
+  return SceneAndCompositorModifier(scene, bke::compositor::get_active_modifier(*scene));
 }
 
 const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
