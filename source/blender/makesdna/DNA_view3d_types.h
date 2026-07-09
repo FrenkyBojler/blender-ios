@@ -97,6 +97,7 @@ enum eRegionView3D_Flag : short {
    */
   RV3D_ZOFFSET_DISABLED = 1 << 6,
   RV3D_WAS_CAMOB = 1 << 7,
+  RV3D_MIRROR_X = 1 << 8,
 };
 ENUM_OPERATORS(eRegionView3D_Flag)
 

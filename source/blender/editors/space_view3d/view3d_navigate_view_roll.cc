@@ -71,7 +71,12 @@ static void viewroll_apply(ViewOpsData *vod, int x, int y)
 
     const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
     if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
-      vod->rv3d->camroll = vod->init.camroll - angle;
+      if ((vod->rv3d->rflag & RV3D_MIRROR_X) != 0) {
+        vod->rv3d->camroll = vod->init.camroll + angle;
+      }
+      else {
+        vod->rv3d->camroll = vod->init.camroll - angle;
+      }
       /* Keep angle between -Pi and Pi */
       vod->rv3d->camroll = math::floored_mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
     }
@@ -217,7 +222,12 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
 
   const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
   if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
-    vod->rv3d->camroll = vod->init.camroll - angle;
+    if ((vod->rv3d->rflag & RV3D_MIRROR_X) != 0) {
+      vod->rv3d->camroll = vod->init.camroll + angle;
+    }
+    else {
+      vod->rv3d->camroll = vod->init.camroll - angle;
+    }
     /* Keep angle between -Pi and Pi */
     vod->rv3d->camroll = math::floored_mod(vod->rv3d->camroll - M_PI, M_PI * 2.0f) - M_PI;
   }

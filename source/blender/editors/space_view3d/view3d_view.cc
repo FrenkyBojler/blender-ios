@@ -385,6 +385,11 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 
   normalize_m4_m4(bmat, ob->object_to_world().ptr());
   rotate_m4(bmat, 'Z', -rv3d->camroll);
+
+  if (rv3d->rflag & RV3D_MIRROR_X) {
+    negate_v4(bmat[0]);
+  }
+
   invert_m4_m4(rv3d->viewmat, bmat);
 
   /* view quat calculation, needed for add object */

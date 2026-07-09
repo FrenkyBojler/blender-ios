@@ -430,6 +430,7 @@ void BKE_camera_params_from_view3d(CameraParams *params,
     params->offsetx = 2.0f * rv3d->camdx * params->zoom;
     params->offsety = 2.0f * rv3d->camdy * params->zoom;
     params->roll = rv3d->camroll;
+    params->is_mirrored = (rv3d->rflag & RV3D_MIRROR_X) != 0;
 
     params->shiftx *= params->zoom;
     params->shifty *= params->zoom;
@@ -511,6 +512,10 @@ void BKE_camera_params_compute_viewplane(
   float dx2 = dx;
   dx = dx2 * c - dy * s;
   dy = dx2 * s + dy * c;
+
+  if (params->is_mirrored) {
+    dx = -dx;
+  }
 
   viewplane.xmin += dx;
   viewplane.ymin += dy;

@@ -45,6 +45,7 @@ float BKE_camera_sensor_size(int sensor_fit, float sensor_x, float sensor_y);
 struct CameraParams {
   /* lens */
   bool is_ortho = false;
+  bool is_mirrored = false;
   float lens = 0.0f;
   float ortho_scale = 1.0f;
   float zoom = 1.0f;

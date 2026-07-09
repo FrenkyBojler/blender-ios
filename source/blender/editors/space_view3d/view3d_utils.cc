@@ -592,8 +592,13 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   float x = event_ofs[0] / (region->winx * zoomfac);
   float y = event_ofs[1] / (region->winy * zoomfac);
   float aspect = float(region->winx) / float(region->winy);
+  const bool is_mirrored = (rv3d->rflag & RV3D_MIRROR_X) != 0;
 
   x *= aspect;
+
+  if (is_mirrored) {
+    x = -x;
+  }
 
   const float c = cosf(rv3d->camroll);
   const float s = sinf(rv3d->camroll);

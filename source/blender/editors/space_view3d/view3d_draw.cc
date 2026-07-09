@@ -406,6 +406,7 @@ static void view3d_camera_border(const Scene *scene,
   }
   if (no_roll) {
     params.roll = 0.0f;
+    params.is_mirrored = false;
   }
   BKE_camera_params_compute_viewplane(&params, region->winx, region->winy, 1.0f, 1.0f);
   rect_view = params.viewplane;
@@ -422,6 +423,7 @@ static void view3d_camera_border(const Scene *scene,
   }
   if (no_roll) {
     params.roll = 0.0f;
+    params.is_mirrored = false;
   }
   BKE_camera_params_compute_viewplane(
       &params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
@@ -489,6 +491,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   y2 = viewborder.ymax;
 
   const float roll = rv3d->camroll;
+  const bool is_mirrored = (rv3d->rflag & RV3D_MIRROR_X) != 0;
   GPU_line_width(1.0f);
 
   /* apply offsets so the real 3D camera shows through */
@@ -510,12 +513,17 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   {
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-    if (roll != 0.0f) {
+    if (roll != 0.0f || is_mirrored) {
       GPU_matrix_push();
       const int center_x = region->winx / 2;
       const int center_y = region->winy / 2;
       GPU_matrix_translate_2f(center_x, center_y);
-      GPU_matrix_rotate_2d(RAD2DEG(rv3d->camroll));
+      if (is_mirrored) {
+        GPU_matrix_scale_2f(-1.0f, 1.0f);
+      }
+      if (roll != 0.0f) {
+        GPU_matrix_rotate_2d(RAD2DEG(rv3d->camroll));
+      }
       GPU_matrix_translate_2f(-center_x, -center_y);
     }
 
@@ -576,7 +584,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
   /* When overlays are disabled, only show camera outline & passepartout. */
   if (v3d->flag2 & V3D_HIDE_OVERLAYS || !(v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
-    if (roll != 0.0f) {
+    if (roll != 0.0f || is_mirrored) {
       GPU_matrix_pop();
     }
     return;
@@ -707,7 +715,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
                      sizeof(v3d->camera->id.name) - 2);
   }
 
-  if (roll != 0.0f) {
+  if (roll != 0.0f || is_mirrored) {
     GPU_matrix_pop();
   }
 }
@@ -1249,6 +1257,11 @@ static void draw_viewport_name(ARegion *region, View3D *v3d, int xoffset, int *y
   /* Indicate that clipping region is enabled. */
   if (RV3D_CLIPPING_ENABLED(v3d, rv3d)) {
     name_array[name_array_len++] = IFACE_(" (Clipped)");
+  }
+
+  /* Indicate that the view is mirrored. */
+  if (rv3d->persp == RV3D_CAMOB && rv3d->rflag & RV3D_MIRROR_X) {
+    name_array[name_array_len++] = IFACE_(" (Mirrored)");
   }
 
   if (name_array_len > 1) {
