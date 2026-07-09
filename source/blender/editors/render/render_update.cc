@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DEG_depsgraph_debug.hh"
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
@@ -109,21 +110,17 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
 static void update_compositor(const DEGEditorUpdateContext *update_context)
 {
   const Scene *scene = DEG_get_evaluated(update_context->depsgraph, update_context->scene);
-  const bNodeTree *node_tree = scene->compositing_node_group;
-  if (!node_tree) {
+  if (!(scene->id.recalc & ID_RECALC_COMPOSITOR)) {
     return;
   }
 
-  if (node_tree->id.recalc & ID_RECALC_NTREE_OUTPUT) {
-    if (DEG_id_is_user_modified(update_context->depsgraph, &node_tree->id)) {
-      update_context->scene->runtime->compositor.cache.clear_frames();
-    }
-
-    ED_node_compositor_job(update_context->bmain,
-                           update_context->scene,
-                           update_context->view_layer,
-                           DEG_id_is_user_modified(update_context->depsgraph, &node_tree->id));
+  const bool is_user_modified = DEG_id_is_user_modified(update_context->depsgraph, &scene->id);
+  if (is_user_modified) {
+    update_context->scene->runtime->compositor.cache.clear_frames();
   }
+
+  ED_node_compositor_job(
+      update_context->bmain, update_context->scene, update_context->view_layer, is_user_modified);
 }
 
 void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, const bool updated)
