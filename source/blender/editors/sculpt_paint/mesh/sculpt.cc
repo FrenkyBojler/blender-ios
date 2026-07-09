@@ -3708,22 +3708,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
       break;
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
       BLI_assert(cursor_sample_result.plane_normal && cursor_sample_result.plane_center);
-      if (eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_TUBE) {
-        brushes::do_clay_strips_brush(depsgraph,
-                                      sd,
-                                      ob,
-                                      node_mask,
-                                      ss.cache->view_normal_symm,
-                                      *cursor_sample_result.plane_center);
-      }
-      else {
-        brushes::do_clay_strips_brush(depsgraph,
-                                      sd,
-                                      ob,
-                                      node_mask,
-                                      *cursor_sample_result.plane_normal,
-                                      *cursor_sample_result.plane_center);
-      }
+      brushes::do_clay_strips_brush(depsgraph,
+                                    sd,
+                                    ob,
+                                    node_mask,
+                                    *cursor_sample_result.plane_normal,
+                                    *cursor_sample_result.plane_center);
       break;
     case SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE:
       brushes::do_multiplane_scrape_brush(depsgraph, sd, ob, node_mask);
