@@ -277,11 +277,29 @@ BLI_INLINE const char *pad_up_4(const char *ptr)
   return reinterpret_cast<const char *>((uintptr_t(ptr) + 3) & ~3);
 }
 
+template<typename T>
+bool sdna_data_pointer_consume(T &data,
+                               const int64_t num,
+                               const void *data_pointer_end,
+                               const char **r_error_message)
+{
+  if ((data + num) > data_pointer_end) [[unlikely]] {
+    *r_error_message = "Invalid data in SDNA file";
+    return false;
+  }
+  data += num;
+  return true;
+}
+
 /**
  * In sdna->data the data, now we convert that to something understandable
  */
 static bool init_structDNA(SDNA *sdna, const char **r_error_message)
 {
+  /* The various pointers iterating over the SDNA::data buffer in this function should never reach
+   * this address. */
+  const void *data_pointer_end = sdna->data + sdna->data_size;
+
   int member_index_gravity_fix = -1;
 
   int *data = reinterpret_cast<int *>(const_cast<char *>(sdna->data));
@@ -300,15 +318,22 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
 
   const char *cp;
 
-  data++;
+  if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+    return false;
+  }
+
   /* Names array ('NAME') */
   if (*data == MAKE_ID('N', 'A', 'M', 'E')) {
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
 
     /* NOTE: this is endianness-sensitive. */
     sdna->members_num = *data;
 
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
     sdna->members.resize(sdna->members_num, nullptr);
   }
   if (sdna->members.is_empty()) {
@@ -318,21 +343,25 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
 
   cp = reinterpret_cast<char *>(data);
   for (int member_index = 0; member_index < sdna->members_num; member_index++) {
-    sdna->members[member_index] = cp;
+    const StringRef orig_member_name = cp;
+    sdna->members[member_index] = orig_member_name;
 
     /* "float gravity [3]" was parsed wrong giving both "gravity" and
      * "[3]"  members. we rename "[3]", and later set the type of
      * "gravity" to "void" so the offsets work out correct */
-    if (*cp == '[' && STREQ(cp, "[3]")) {
+    if (orig_member_name == "[3]") {
       if (member_index && sdna->members[member_index - 1] == "Cvi") {
         sdna->members[member_index] = "gravity[3]";
         member_index_gravity_fix = member_index;
       }
     }
-    while (*cp) {
-      cp++;
+
+    /* Consume the string and its '\0' terminator. */
+    if (!sdna_data_pointer_consume(
+            cp, orig_member_name.size() + 1, data_pointer_end, r_error_message))
+    {
+      return false;
     }
-    cp++;
   }
 
   cp = pad_up_4(cp);
@@ -340,12 +369,16 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   /* Type names array ('TYPE') */
   data = reinterpret_cast<int *>(const_cast<char *>(cp));
   if (*data == MAKE_ID('T', 'Y', 'P', 'E')) {
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
 
     /* NOTE: this is endianness-sensitive. */
     sdna->types_num = *data;
 
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
     sdna->types = Array<StringRef>(sdna->types_num, nullptr);
   }
   if (sdna->types.is_empty()) {
@@ -355,12 +388,15 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
 
   cp = reinterpret_cast<char *>(data);
   for (int type_index = 0; type_index < sdna->types_num; type_index++) {
+    StringRef orig_type_name = cp;
     /* WARNING! See: DNA_struct_rename_legacy_hack_static_from_alias docs. */
-    sdna->types[type_index] = DNA_struct_rename_legacy_hack_static_from_alias(cp);
-    while (*cp) {
-      cp++;
+    sdna->types[type_index] = DNA_struct_rename_legacy_hack_static_from_alias(orig_type_name);
+    /* Consume the string and its '\0' terminator. */
+    if (!sdna_data_pointer_consume(
+            cp, orig_type_name.size() + 1, data_pointer_end, r_error_message))
+    {
+      return false;
     }
-    cp++;
   }
 
   cp = pad_up_4(cp);
@@ -369,12 +405,16 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   data = reinterpret_cast<int *>(const_cast<char *>(cp));
   short *sp;
   if (*data == MAKE_ID('T', 'L', 'E', 'N')) {
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
     /* NOTE: this is endianness-sensitive. */
     sp = reinterpret_cast<short *>(data);
     sdna->types_size = sp;
 
-    sp += sdna->types_num;
+    if (!sdna_data_pointer_consume(sp, sdna->types_num, data_pointer_end, r_error_message)) {
+      return false;
+    }
   }
   if (!sdna->types_size) {
     *r_error_message = "TLEN error in SDNA file";
@@ -382,18 +422,24 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   }
   /* prevent BUS error */
   if (sdna->types_num & 1) {
-    sp++;
+    if (!sdna_data_pointer_consume(sp, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
   }
 
   /* Struct array ('STRC') */
   data = reinterpret_cast<int *>(sp);
   if (*data == MAKE_ID('S', 'T', 'R', 'C')) {
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
 
     /* NOTE: this is endianness-sensitive. */
     const int structs_num = *data;
 
-    data++;
+    if (!sdna_data_pointer_consume(data, 1, data_pointer_end, r_error_message)) {
+      return false;
+    }
     sdna->structs = Array<SDNA_Struct *, 0>(structs_num, nullptr);
   }
   if (sdna->structs.is_empty()) {
@@ -410,12 +456,44 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
     SDNA_Struct *struct_info = reinterpret_cast<SDNA_Struct *>(sp);
     sdna->structs[struct_index] = struct_info;
 
+    if (struct_info->type_index < 0 || struct_info->type_index >= sdna->types_num) {
+      *r_error_message = "Invalid struct type index in SDNA file";
+      return false;
+    }
+    for (int64_t struct_member_index : IndexRange(struct_info->members_num)) {
+      SDNA_StructMember &struct_member = struct_info->members[struct_member_index];
+      if (struct_member.type_index < 0 || struct_member.type_index >= sdna->types_num) {
+        *r_error_message = "Invalid struct member's type index in SDNA file";
+        return false;
+      }
+      if (struct_member.member_index < 0 || struct_member.member_index >= sdna->members_num) {
+        *r_error_message = "Invalid struct member's member index in SDNA file";
+        return false;
+      }
+    }
+
     if (!struct_indices.add(struct_info->type_index)) {
       *r_error_message = "Invalid duplicate struct type index in SDNA file";
       return false;
     }
 
-    sp += 2 + (sizeof(SDNA_StructMember) / sizeof(short)) * struct_info->members_num;
+    BLI_STATIC_ASSERT_ALIGN(SDNA_StructMember, sizeof(short))
+    constexpr int64_t struct_member_short_size = (sizeof(SDNA_StructMember) / sizeof(short));
+    if (!sdna_data_pointer_consume(sp,
+                                   2 + (struct_member_short_size * struct_info->members_num),
+                                   data_pointer_end,
+                                   r_error_message))
+    {
+      return false;
+    }
+  }
+
+  /* The whole SDNA data should have been processed and consumed, so the current pointer should be
+   * at the expected 'end' value now. */
+  cp = reinterpret_cast<char *>(sp);
+  if (cp != data_pointer_end) {
+    *r_error_message = "Invalid data in SDNA file";
+    return false;
   }
 
   {
@@ -494,6 +572,8 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
   }
 
   return true;
+
+#undef SDNA_DATA_POINTER_VALIDATE
 }
 
 std::unique_ptr<SDNA> DNA_sdna_from_data(const void *data,
