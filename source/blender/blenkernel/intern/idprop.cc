@@ -74,14 +74,14 @@ constexpr int MAX_IDPROP_DEPTH_LEVEL = 1026;
  * Write code uses one level less than runtime processing code, because it still has to write
  * something when it detects the issue, to ensure references to the 'limit properties' remain
  * valid.
- * Limits overly noisy continous error messages in the console due to runtime processing and
+ * Limits overly noisy continuous error messages in the console due to runtime processing and
  * undo/redo. */
 constexpr int MAX_IDPROP_DEPTH_LEVEL_FOR_WRITE = MAX_IDPROP_DEPTH_LEVEL - 1;
 /**
  * Read code uses two level less than runtime processing code, because it still has to read
  * something when it detects the issue, to ensure references to the 'limit properties' remain
  * valid.
- * Limits overly noisy continous error messages in the console due to runtime processing and
+ * Limits overly noisy continuous error messages in the console due to runtime processing and
  * undo/redo. */
 constexpr int MAX_IDPROP_DEPTH_LEVEL_FOR_READ = MAX_IDPROP_DEPTH_LEVEL - 2;
 
@@ -1599,7 +1599,7 @@ static void IDP_WriteIDPArray(const IDProperty *prop,
         IDP_WriteProperty_OnlyData(&empty_array[a], writer, recursion_depth + 1);
       }
 
-      MEM_delete(empty_prop_idparray);
+      IDP_FreeProperty_ex(empty_prop_idparray, false);
       return;
     }
 

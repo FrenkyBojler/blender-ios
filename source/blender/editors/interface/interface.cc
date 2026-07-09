@@ -33,7 +33,7 @@
 
 #include "BLI_utildefines.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_report.hh"
@@ -5641,11 +5641,6 @@ void block_flag_disable(Block *block, int flag)
 void button_flag_enable(Button *but, int64_t flag)
 {
   but->flag |= flag;
-}
-
-void button_flag2_enable(Button *but, int flag)
-{
-  but->flag2 |= flag;
 }
 
 void button_flag_disable(Button *but, int64_t flag)
