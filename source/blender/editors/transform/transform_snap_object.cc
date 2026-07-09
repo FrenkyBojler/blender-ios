@@ -135,7 +135,7 @@ SnapData::SnapData(SnapObjectContext *sctx, const float4x4 &obmat)
     this->pmat_local = obmat;
   }
 
-  const float clip_near = sctx->runtime.v3d ? sctx->runtime.v3d->clip_start : 0.0f;
+  const float clip_near = sctx->runtime.v3d ? sctx->runtime.v3d->clip_start : 0.01f;
   dist_squared_to_projected_aabb_precalc(&this->nearest_precalc,
                                          this->pmat_local.ptr(),
                                          sctx->runtime.win_size,
