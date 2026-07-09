@@ -7,7 +7,7 @@ This file does not run anything, its methods are accessed for tests by ``run_ble
 
 Pie menu interaction tests driven by event simulation.
 
-Covered cases:
+For example, these pie menus are covered:
   - Object Mode pie → Edit Mode
   - Snap pie → Cursor to World Origin
   - Pivot pie → Cursor
@@ -315,6 +315,9 @@ def test_anim_keyframe_insert_pie_location():
     e, t, area, center = yield from _setup_view3d()
 
     prefs = bpy.context.window_manager.keyconfigs.active.preferences
+
+    # The 'I' key defaults to a standard popup menu. 
+    # We must explicitly enable click-drag pies to access the pie menu variant.
     original_use_pie_click_drag = prefs.use_pie_click_drag
     prefs.use_pie_click_drag = True
     try:
