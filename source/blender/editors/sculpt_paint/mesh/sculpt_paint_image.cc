@@ -106,7 +106,7 @@ static void fetch_image_buffers(ImageData &image_data,
           return processor;
         }
 
-        /* Fast path for sRGB, to avoid overhead of callig into OenColorIO. */
+        /* Fast path for sRGB, to avoid overhead of calling into OpenColorIO. */
         if (buffer->byte_data() && IMB_colormanagement_space_is_srgb(buffer_colorspace)) {
           processor.is_srgb_byte = true;
           processor.is_noop = false;
@@ -307,7 +307,7 @@ static void paint_blend_pixels(const PaintBlendSettings &settings,
 
   PRF_scope(ProfileCategory::Editor);
 
-  /* Keep variables in registers. during the loop */
+  /* Keep variables in registers during the loop. */
   const float4 brush_color = settings.brush_color;
   const float brush_alpha = settings.brush_alpha;
   const bool is_mix = settings.blend_mode == IMB_BLEND_MIX;
