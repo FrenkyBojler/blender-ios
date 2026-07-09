@@ -399,6 +399,49 @@ const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene)
   return nullptr;
 }
 
+static void scene_strip_visible_frame_range(const Scene *sequencer_scene,
+                                            const Strip *scene_strip,
+                                            float *r_start,
+                                            float *r_end)
+{
+  /* ..._handle are frames in "sequencer logic", meaning that on the right_handle point in time,
+   * the strip is not visible any more. The last visible frame of the strip is actually on
+   * (right_handle-1), hence the -1 when computing the end_frame. */
+  const float left_handle = scene_strip->left_handle();
+  const float right_handle = scene_strip->right_handle(sequencer_scene);
+  float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
+                      scene_strip->scene->r.sfra + scene_strip->anim_startofs;
+  float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
+                    scene_strip->scene->r.sfra + scene_strip->anim_startofs;
+
+  /* This can happen when the strip time is reversed. */
+  if (start_frame > end_frame) {
+    std::swap(start_frame, end_frame);
+  }
+
+  *r_start = start_frame;
+  *r_end = end_frame;
+}
+
+bool get_scene_strip_frame_range_for_sync(const bContext &C, float *r_start, float *r_end)
+{
+  const WorkSpace *workspace = CTX_wm_workspace(&C);
+  if (!workspace || (workspace->flags & WORKSPACE_SYNC_SCENE_TIME) == 0) {
+    return false;
+  }
+  const Scene *sequencer_scene = workspace->sequencer_scene;
+  if (!sequencer_scene) {
+    return false;
+  }
+  const Strip *scene_strip = get_scene_strip_for_time_sync(sequencer_scene);
+  if (!scene_strip || !scene_strip->scene) {
+    return false;
+  }
+
+  scene_strip_visible_frame_range(sequencer_scene, scene_strip, r_start, r_end);
+  return true;
+}
+
 void sync_active_scene_and_time_with_scene_strip(bContext &C)
 {
   Scene *sequencer_scene = get_sequencer_scene_for_time_sync(C);
@@ -472,6 +515,14 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     if (obact && prev_obact->type == obact->type) {
       object::mode_set(&C, prev_obact->mode);
     }
+  }
+
+  if (active_scene->r.flag & SCER_LIMIT_PREVIEW_TO_SCENE_STRIP) {
+    float start_frame, end_frame;
+    scene_strip_visible_frame_range(sequencer_scene, scene_strip, &start_frame, &end_frame);
+    active_scene->r.flag |= SCER_PRV_RANGE;
+    active_scene->r.psfra = round_fl_to_int(start_frame);
+    active_scene->r.pefra = round_fl_to_int(end_frame);
   }
 
   DEG_id_tag_update(&active_scene->id, ID_RECALC_FRAME_CHANGE);

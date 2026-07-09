@@ -36,6 +36,21 @@ class TIME_PT_playhead_snapping(Panel):
         if 'SECOND' in tool_settings.snap_playhead_element:
             col.prop(tool_settings, "snap_playhead_second_step")
 
+class TIME_PT_frame_range_sync(Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Frame Range"
+
+    def draw(self, context):
+        scene = context.scene
+
+        layout = self.layout
+        col = layout.column()
+        # col.active = context.sequencer_scene
+        # todo(habib): show this in storyboard template only?
+        # todo(habib): gray out two topics
+        col.prop(scene, "use_preview_range_scene_strip")
+
 
 def playback_controls(layout, context):
     st = context.space_data
@@ -126,6 +141,7 @@ def playback_controls(layout, context):
 
         row = layout.row(align=True)
         row.prop(scene, "use_preview_range", text="", toggle=True)
+        row.popover(panel="TIME_PT_frame_range_sync", text="")
         sub = row.row(align=True)
         sub.scale_x = 0.8
         if not scene.use_preview_range:
@@ -362,6 +378,7 @@ classes = (
     TIME_PT_auto_keyframing,
     TIME_PT_jump,
     TIME_PT_playhead_snapping,
+    TIME_PT_frame_range_sync,
 )
 
 if __name__ == "__main__":  # only for live edit.
