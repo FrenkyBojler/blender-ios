@@ -5651,10 +5651,26 @@ static int item_estimate_fit_text_extra_width(Item &item)
     }
 
     int full_width = width;
+    const std::optional<PropertyType> prop_type = button.rnaprop ?
+                                                      std::make_optional(
+                                                          RNA_property_type(button.rnaprop)) :
+                                                      std::nullopt;
     if (button.type == ButtonType::Label) {
       full_width = text_icon_full_width(button.str, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
     }
-    else if (button.rnaprop && RNA_property_type(button.rnaprop) == PROP_BOOLEAN) {
+    else if (*prop_type == PROP_BOOLEAN) {
+      full_width = text_icon_full_width(
+          button.str, button.icon, text_pad_default, UI_FSTYLE_WIDGET);
+    }
+    else if (*prop_type == PROP_ENUM) {
+      full_width = text_icon_full_width(
+          button.str, button.icon, text_pad_compact, UI_FSTYLE_WIDGET);
+    }
+    else if (button.type == ButtonType::Menu) {
+      full_width = text_icon_full_width(
+          button.str, button.icon, text_pad_compact, UI_FSTYLE_WIDGET);
+    }
+    else if (button.opptr) {
       full_width = text_icon_full_width(
           button.str, button.icon, text_pad_default, UI_FSTYLE_WIDGET);
     }
