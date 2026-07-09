@@ -199,6 +199,11 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       (type != SOCK_STRING || is_supported_data_block_type(&ntree, type)))
   {
     params.add_item(
+        IFACE_("Angle"),
+        SocketSearchOp{
+            "Angle"_ustr, SOCK_VECTOR, NODE_COMPARE_GREATER_THAN, NODE_COMPARE_MODE_DIRECTION});
+
+    params.add_item(
         IFACE_("C"),
         SocketSearchOp{
             "Angle"_ustr, SOCK_VECTOR, NODE_COMPARE_EQUAL, NODE_COMPARE_MODE_DOT_PRODUCT});
@@ -207,11 +212,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
                     SocketSearchOp{"Angle"_ustr, SOCK_FLOAT, NODE_COMPARE_EQUAL});
     params.add_item(IFACE_("Epsilon"),
                     SocketSearchOp{"Angle"_ustr, SOCK_FLOAT, NODE_COMPARE_NOT_EQUAL});
-
-    params.add_item(
-        IFACE_("Angle"),
-        SocketSearchOp{
-            "Angle"_ustr, SOCK_VECTOR, NODE_COMPARE_GREATER_THAN, NODE_COMPARE_MODE_DIRECTION});
   }
 }
 
