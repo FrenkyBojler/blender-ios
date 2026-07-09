@@ -589,7 +589,7 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
           const int total_dst_verts = results[i].cdt_result.vert_orig.size();
           const OffsetIndices src_points_by_component = group.points_by_component();
           const Span<Vector<uint>> verts_orig = results[i].cdt_result.vert_orig.as_span();
-          const Span<std::pair<int, int>> intersected_edges_orig =
+          const Span<int2> intersected_edges_orig =
               results[i].cdt_result.intersected_edges_orig.as_span();
 
           Array<int> dst_point_to_src_point(total_dst_verts, -1);
@@ -667,7 +667,8 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
 
             for (const int intersection_point : intersection_points.index_range()) {
               const int dst_point = intersection_points[intersection_point];
-              const auto [edge1, edge2] = intersected_edges_orig[dst_point];
+              const int edge1 = intersected_edges_orig[dst_point][0];
+              const int edge2 = intersected_edges_orig[dst_point][1];
               BLI_assert(edge1 != -1 && edge2 != -1);
 
               const auto [vert1, vert2] = verts_from_cdt_edge(edge1);
@@ -922,8 +923,8 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
 
       MutableSpan<int2> edges = all_edges.slice(edges_range);
       for (const int i : result.edge.index_range()) {
-        edges[i] = int2(result.edge[i].first + verts_range.start(),
-                        result.edge[i].second + verts_range.start());
+        edges[i] = int2(result.edge[i][0] + verts_range.start(),
+                        result.edge[i][1] + verts_range.start());
       }
 
       MutableSpan<int> face_offsets = all_face_offsets.slice(faces_range);
