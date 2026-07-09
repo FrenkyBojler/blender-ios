@@ -3679,6 +3679,9 @@ static void rna_def_object(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "active_shape_key_index", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "shapenr");
+  /* Exception for active shape-key, since changing this in edit-mode updates
+   * the shape key from object mode data. */
+  RNA_def_property_flag(prop, PROP_FORCE_UNDO);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* XXX this is really unpredictable... */
   RNA_def_property_int_funcs(prop,
                              "rna_Object_active_shape_key_index_get",
