@@ -1237,8 +1237,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
         const float angle_cos = use_normal ?
                                     dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                     1.0f;
-        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-        {
+        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
           continue;
         }
 
@@ -1342,8 +1341,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
         const float angle_cos = use_normal ?
                                     dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                     1.0f;
-        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-        {
+        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
           continue;
         }
 
@@ -1467,8 +1465,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
         const float angle_cos = use_normal ?
                                     dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                     1.0f;
-        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-        {
+        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
           continue;
         }
         const float final_alpha = factors[i] * brush_strength * brush_alpha_pressure;

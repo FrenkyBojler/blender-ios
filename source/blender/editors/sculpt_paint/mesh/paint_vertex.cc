@@ -1112,8 +1112,7 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
           const float angle_cos = use_normal ?
                                       dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                       1.0f;
-          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-          {
+          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
             continue;
           }
 
@@ -1275,8 +1274,7 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
           const float angle_cos = use_normal ?
                                       dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                       1.0f;
-          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-          {
+          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
             continue;
           }
           const float brush_fade = factors[i];
@@ -1439,8 +1437,7 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
           const float angle_cos = use_normal ?
                                       dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                       1.0f;
-          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-          {
+          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
             continue;
           }
           const float brush_fade = factors[i];
@@ -1788,8 +1785,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
           const float angle_cos = use_normal ?
                                       dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                       1.0f;
-          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
-          {
+          if (!vwpaint::test_brush_angle_falloff(brush, angle_cos)) {
             continue;
           }
           const float brush_fade = factors[i];
