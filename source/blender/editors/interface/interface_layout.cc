@@ -5706,7 +5706,9 @@ static int item_estimate_fit_text_extra_width(Item &item)
   /* For non fixed or non auto fixed sub items add the max fit width per item. */
   int max_extra_width = 0;
   int max_extra_width_n = 0;
-
+  const LayoutItemGridFlow *grid_flow = layout.type() == ItemType::LayoutGridFlow ?
+                                            static_cast<const LayoutItemGridFlow *>(&item) :
+                                            nullptr;
   for (auto &sub : layout.items()) {
     if (sub->type() != ItemType::Button) {
       if (sub->fixed_size() || ItemInternal::auto_fixed_size(sub)) {
@@ -5717,6 +5719,7 @@ static int item_estimate_fit_text_extra_width(Item &item)
     max_extra_width = std::max(max_extra_width, item_estimate_fit_text_extra_width(*sub));
     max_extra_width_n++;
   }
+  max_extra_width_n = grid_flow ? grid_flow->tot_columns : max_extra_width_n;
   return add_extra_width + (max_extra_width * max_extra_width_n);
 }
 
