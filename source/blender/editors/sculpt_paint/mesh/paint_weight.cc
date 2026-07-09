@@ -71,7 +71,6 @@
 namespace blender {
 
 using namespace blender::ed::sculpt_paint;
-using ed::sculpt_paint::vwpaint::NormalAnglePrecalc;
 
 struct WPaintAverageAccum {
   uint len;
@@ -101,7 +100,6 @@ struct WeightPaintGroupData {
 
 struct WPaintData : public PaintModeData {
   ViewContext vc;
-  NormalAnglePrecalc normal_angle_precalc;
 
   WeightPaintGroupData active, mirror;
 
@@ -985,9 +983,6 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   wpd->vc = this->vc;
 
   const Brush *brush = BKE_paint_brush_for_read(&wp.paint);
-  vwpaint::view_angle_limits_init(&wpd->normal_angle_precalc,
-                                  brush->falloff_angle,
-                                  (brush->flag & BRUSH_FRONTFACE_FALLOFF) != 0);
 
   wpd->active.index = vgroup_index.active;
   wpd->mirror.index = vgroup_index.mirror;
@@ -1227,8 +1222,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
         const float angle_cos = use_normal ?
                                     dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                     1.0f;
-        if (!vwpaint::test_brush_angle_falloff(
-                brush, wpd.normal_angle_precalc, angle_cos, &brush_strength))
+        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
         {
           continue;
         }
@@ -1330,8 +1324,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
         const float angle_cos = use_normal ?
                                     dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                     1.0f;
-        if (!vwpaint::test_brush_angle_falloff(
-                brush, wpd.normal_angle_precalc, angle_cos, &brush_strength))
+        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
         {
           continue;
         }
@@ -1445,8 +1438,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
         const float angle_cos = use_normal ?
                                     dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
                                     1.0f;
-        if (!vwpaint::test_brush_angle_falloff(
-                brush, wpd.normal_angle_precalc, angle_cos, &brush_strength))
+        if (!vwpaint::test_brush_angle_falloff(brush, angle_cos))
         {
           continue;
         }
