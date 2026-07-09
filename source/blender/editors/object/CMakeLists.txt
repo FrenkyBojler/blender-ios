@@ -89,3 +89,14 @@ blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.hh
 add_dependencies(bf_editor_object bf_rna)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    object_utils_test.cc
+  )
+  set(TEST_INC
+  )
+  set(TEST_LIB
+  )
+  blender_add_test_suite_lib(editor_object "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+endif()

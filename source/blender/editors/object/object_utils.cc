@@ -78,12 +78,29 @@ bool calc_active_center_for_editmode(Object *obedit, const bool select_only, flo
       bArmature *arm = id_cast<bArmature *>(obedit->data);
       EditBone *ebo = arm->act_edbone;
 
-      if (ebo && (!select_only || (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL)))) {
-        copy_v3_v3(r_center, ebo->head);
-        return true;
+      if (ebo == nullptr) {
+        break;
       }
 
-      break;
+      const bool tip_selected = (ebo->flag & BONE_TIPSEL) != 0;
+      const bool root_selected = (ebo->flag & BONE_ROOTSEL) != 0;
+      const bool bone_selected = (ebo->flag & BONE_SELECTED) != 0;
+
+      if (select_only && !(tip_selected || root_selected || bone_selected)) {
+        break;
+      }
+
+      /* Use the tip when it is the only selected endpoint of the active bone.
+       * Otherwise keep the head/root center. Without this, Snap With
+       * Center + Active Element pivot snaps the tip relative to the head and
+       * produces a large cursor offset (#161215). */
+      if (tip_selected && !root_selected) {
+        copy_v3_v3(r_center, ebo->tail);
+      }
+      else {
+        copy_v3_v3(r_center, ebo->head);
+      }
+      return true;
     }
     case OB_CURVES_LEGACY:
     case OB_SURF: {
