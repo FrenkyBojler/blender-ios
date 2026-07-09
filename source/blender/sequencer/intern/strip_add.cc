@@ -189,7 +189,10 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
 
   // tmp
   if (seq::strip_is_transition(strip)) {
-    strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
+    strip->len = 1; /* Effect is generator, set non zero length. */
+    strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
+    strip->left_handle_set(scene, strip->input1->right_handle(scene) - 5);
+    strip->right_handle_set(scene, strip->input2->left_handle() + 5);
   }
 
   strip_add_set_name(scene, strip, load_data);

@@ -1109,18 +1109,16 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
 
   /* Unconditional channel, retiming key, and handle clamping. Should never be ignored. */
   if (BLI_rcti_clamp_pt_v(&ts->hard_clamp, val)) {
-    r_val[0] = float(val[0]);
-    r_val[1] = float(val[1]);
     clamped = true;
   }
 
-  auto clamp_x{[val, &r_val, &clamped](int min, int max) {
+  auto clamp_x{[&val, &clamped](int min, int max) {
     if (val[0] < min) {
-      r_val[0] = float(min);
+      val[0] = min;
       clamped = true;
     }
     else if (val[0] > max) {
-      r_val[0] = float(max);
+      val[0] = max;
       clamped = true;
     }
   }};
@@ -1140,6 +1138,8 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
     }
   }
 
+  r_val[0] = float(val[0]);
+  r_val[1] = float(val[1]);
   return clamped;
 }
 

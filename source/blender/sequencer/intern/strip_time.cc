@@ -537,7 +537,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
 
 int Strip::left_handle() const
 {
-  if (this->input1 && !this->input2) {
+  if ((this->input1 || this->input2) && !seq::strip_is_transition(this)) {
     return this->startdisp;
   }
 
@@ -546,7 +546,7 @@ int Strip::left_handle() const
 
 int Strip::right_handle(const Scene *scene) const
 {
-  if (this->input1 && !this->input2) {
+  if ((this->input1 || this->input2) && !seq::strip_is_transition(this)) {
     return this->enddisp;
   }
 
