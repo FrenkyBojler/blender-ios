@@ -27,39 +27,6 @@
 
 namespace blender::deg::tests {
 
-struct FrameSample {
-  int frame = 0;
-  float matrix_world[4][4];
-};
-
-// Sample world matrices for a set of objects across [frame_start, frame_end]
-// inclusive, evaluating sequentially. Returns one vector of samples per
-// object, indexed the same order as `objects`.
-Array<Vector<FrameSample>> sample_motion(const Span<Object *> &objects,
-                                         Depsgraph *depsgraph,
-                                         const int frame_start,
-                                         const int frame_end)
-{
-  Array<Vector<FrameSample>> results(objects.size());
-  for (Vector<FrameSample> &v : results) {
-    v.reserve(frame_end - frame_start + 1);
-  }
-
-  for (int frame = frame_start; frame <= frame_end; ++frame) {
-    DEG_evaluate_on_framechange(depsgraph, frame);
-
-    for (size_t i = 0; i < objects.size(); ++i) {
-      Object *eval_ob = DEG_get_evaluated(depsgraph, objects[i]);
-      BLI_assert_msg(eval_ob != nullptr, "Object not found in evaluated depsgraph");
-      FrameSample sample;
-      sample.frame = frame;
-      memcpy(sample.matrix_world, eval_ob->object_to_world().ptr(), sizeof(float[4][4]));
-      results[i].append(sample);
-    }
-  }
-  return results;
-}
-
 class DepsgraphTest : public bke::BlenderGTestBase {
 
  public:
@@ -131,17 +98,18 @@ TEST_F(DepsgraphTest, evaluate_static_object)
 
   for (int frame = 1; frame < 4; frame++) {
     evaluate_at_frame(frame);
-
+    EXPECT_TRUE(DEG_id_is_fully_evaluated(depsgraph_, &ob->id));
     Object *eval_ob = DEG_get_evaluated(depsgraph_, ob);
     ASSERT_NE(eval_ob, nullptr);
-    ASSERT_NE(eval_ob, ob);
-    ASSERT_EQ(eval_ob, prev_eval_ob)
+    EXPECT_NE(eval_ob, ob);
+    EXPECT_EQ(eval_ob, prev_eval_ob)
         << "Just re-evaluating the depsgraph should not create a new eval copy.";
     prev_eval_ob = eval_ob;
 
+    EXPECT_TRUE(DEG_id_is_fully_evaluated(depsgraph_, ob->data));
     ID *eval_mesh = DEG_get_evaluated(depsgraph_, ob->data);
     ASSERT_NE(eval_mesh, nullptr);
-    ASSERT_EQ(eval_mesh, prev_eval_mesh) << "The mesh should also not be re-copied.";
+    EXPECT_EQ(eval_mesh, prev_eval_mesh) << "The mesh should also not be re-copied.";
     prev_eval_mesh = eval_mesh;
 
     /* No animation, so evaluated location should match original. */
@@ -154,9 +122,32 @@ TEST_F(DepsgraphTest, evaluate_static_object)
 
 /* When an object is transformed, the copy on eval data has to be updated, meaning the depsgraph
  * reads from main. */
-TEST_F(DepsgraphTest, evaluate_objects_after_changes_in_main) {}
+TEST_F(DepsgraphTest, evaluate_objects_after_transforms)
+{
+  Object *ob = add_mesh_object("StaticCube");
+  DEG_graph_build_from_view_layer(depsgraph_);
+  DEG_graph_relations_update(depsgraph_);
 
-/*  */
+  evaluate_at_frame(0);
+  Object *eval_ob = DEG_get_evaluated(depsgraph_, ob);
+
+  ob->loc[0] = 1;
+  DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  EXPECT_FALSE(DEG_id_is_fully_evaluated(depsgraph_, &ob->id));
+  EXPECT_GT(abs(ob->loc[0] - eval_ob->loc[0]), 0.0001)
+      << "Modifying data in Main should not affect the depsgraph automatically.";
+
+  evaluate_at_frame(0);
+  EXPECT_TRUE(DEG_id_is_fully_evaluated(depsgraph_, &ob->id));
+  EXPECT_EQ(eval_ob, DEG_get_evaluated(depsgraph_, ob))
+      << "Even though the object was recalculated, the pointer is the same because the depsgraph "
+         "copies into existing memory where possible.";
+  EXPECT_FLOAT_EQ(eval_ob->loc[0], ob->loc[0])
+      << "The location value should have been copied from Main.";
+}
+
+/* When the object is animated, the current copy can be kept since the original object is not
+ * modified by evaluating the action. */
 TEST_F(DepsgraphTest, evaluate_animated_object) {}
 
 }  // namespace blender::deg::tests
