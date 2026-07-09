@@ -2942,7 +2942,7 @@ static void calc_brush_local_mat(const float rotation,
       motion_dir_screen[0] = -motion_normal_screen[1];
       motion_dir_screen[1] = motion_normal_screen[0];
 
-      /* Since the falloff shape is projected,  */
+      /* Calculate brush motion direction in local space. */
       calc_local_from_screen(*cache->vc, cache->location_symm, motion_dir_screen, v);
       normalize_v3_v3(mat[1], v);
       normalize_v3_v3(mat[0], motion_normal_local);
@@ -3463,7 +3463,11 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
       return {IndexMask(), std::nullopt, std::nullopt};
     }
 
-    float4x4 brush_local_mat, brush_local_mat_inv;
+    float4x4 brush_local_mat;
+    float4x4 brush_local_mat_inv;
+
+    /* If sculpt_normal is still zero here, it means the falloff_shape is projected. Therefore,
+     * sculpt_normal is not needed in calc_brush_local_mat. */
     calc_brush_local_mat(mask_tex->rot,
                          ob,
                          eBrushFalloffShape(brush.falloff_shape),
