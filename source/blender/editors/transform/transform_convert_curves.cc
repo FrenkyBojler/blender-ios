@@ -672,7 +672,12 @@ void curve_populate_trans_data_structs(const TransInfo &t,
         },
         exec_mode::grain_size(1024));
   }
-  if (points_to_transform_per_attr.size() > 1 && points_to_transform_per_attr.first().is_empty()) {
+  /* For rotate/scale, pivot a lone selected handle around its control point.
+   * Keep the handle position as center for translation so grid/snap sources
+   * track the handle under the cursor (#161215, see also #144423). */
+  if (ELEM(t.mode, TFM_ROTATION, TFM_RESIZE) && points_to_transform_per_attr.size() > 1 &&
+      points_to_transform_per_attr.first().is_empty())
+  {
     auto update_handle_center = [&](const int handle_selection_attr,
                                     const int opposite_handle_selection_attr) {
       const IndexMask &handles_to_transform = points_to_transform_per_attr[handle_selection_attr];
