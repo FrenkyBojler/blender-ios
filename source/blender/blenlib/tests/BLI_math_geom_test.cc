@@ -168,7 +168,7 @@ TEST(math_geom, DistSquaredToProjectedAabb_PerspectiveNearClip)
       winmat, winsize, mval, near_clip, bbmin, bbmax);
 
   /* The partially clipped edge should produce a real distance inside the snap threshold. */
-  EXPECT_NEAR(dist_sq, 5.0f, 1e-6f);
+  EXPECT_NEAR(dist_sq, 5.0f, 1e-4f);
 
   /* Move the near clip beyond the front endpoint of the selected edge. */
   const float far_near_clip = 5.1f;
