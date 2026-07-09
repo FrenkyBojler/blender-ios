@@ -92,35 +92,6 @@ static int inputs_cmp(const void *a, const void *b)
   return gpu_type_element_count(input_a->type) < gpu_type_element_count(input_b->type) ? 1 : 0;
 }
 
-static inline bool is_ubo_supported_type(const GPUType type)
-{
-  switch (type) {
-    case GPU_FLOAT:
-    case GPU_VEC2:
-    case GPU_VEC3:
-    case GPU_VEC4:
-    case GPU_MAT4:
-      return true;
-    case GPU_NONE:
-    case GPU_INT:
-    case GPU_INT2:
-    case GPU_INT3:
-    case GPU_INT4:
-    case GPU_BOOL:
-    case GPU_MAT3:
-    case GPU_TEX1D_ARRAY:
-    case GPU_TEX2D:
-    case GPU_TEX2D_ARRAY:
-    case GPU_TEX3D:
-    case GPU_CLOSURE:
-    case GPU_ATTR:
-      return false;
-  }
-
-  BLI_assert_unreachable();
-  return false;
-}
-
 /**
  * Make sure we respect the expected alignment of UBOs.
  * mat4, vec4, pad vec3 as vec4, then vec2, then floats.
@@ -147,7 +118,7 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
       continue;
     }
 
-    if (!is_ubo_supported_type(input->type)) {
+    if (!gpu_type_is_ubo_supported(input->type)) {
       BLI_assert_msg(0, "GPU type not supported in UBO");
       continue;
     }
@@ -208,7 +179,9 @@ static inline void buffer_fill_from_list(void *data, ListBaseT<LinkData> *inputs
   float *offset = static_cast<float *>(data);
   for (LinkData &link : *inputs) {
     GPUInput *input = static_cast<GPUInput *>(link.data);
-    memcpy(offset, input->vec, gpu_type_element_count(input->type) * sizeof(float));
+    memcpy(offset,
+           input->constant_value.as_float_span().data(),
+           gpu_type_element_count(input->type) * sizeof(float));
     offset += gpu_type_element_count(get_padded_gpu_type(&link));
   }
 }

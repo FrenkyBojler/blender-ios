@@ -87,6 +87,9 @@ struct GPUNodeLink {
   GPUNodeLinkType link_type;
   int users; /* Refcount */
 
+  /* Typed constant/uniform value. If set, used instead of data. */
+  GPUValue *constant_value = nullptr;
+
   union {
     /* GPU_NODE_LINK_CONSTANT | GPU_NODE_LINK_UNIFORM */
     const float *data;
@@ -134,11 +137,12 @@ struct GPUInput {
 
   GPUDataSource source; /* data source */
 
+  /* GPU_SOURCE_CONSTANT | GPU_SOURCE_UNIFORM */
+  GPUValue constant_value;
+
   /* Content based on GPUDataSource */
   union {
-    /* GPU_SOURCE_CONSTANT | GPU_SOURCE_UNIFORM */
-    float vec[16]; /* vector data */
-                   /* GPU_SOURCE_TEX | GPU_SOURCE_TEX_TILED_MAPPING */
+    /* GPU_SOURCE_TEX | GPU_SOURCE_TEX_TILED_MAPPING */
     GPUMaterialTexture *texture;
     /* GPU_SOURCE_ATTR */
     GPUMaterialAttribute *attr;
