@@ -818,4 +818,33 @@ void scene_time_uniforms(float &seconds, float &frame)
   frame = uni.uniform_buf.scene.frame;
 }
 
+void node_light_info_impl(float4 &color,
+                          float &power,
+                          float3 &position,
+                          float3 &direction,
+                          float &distance,
+                          float &attenuation)
+{
+  /*TODO*/
+}
+
+void node_light_accumulation_impl(float4 diffuse,
+                                  float4 glossy,
+                                  float4 transmission,
+                                  Closure &result)
+{
+  /*TODO*/
+}
+
+void node_light_evaluation_impl(
+    float3 position, float3 normal, float roughness, float4 &color, float &factor)
+{
+  /*TODO*/
+}
+
+void node_shadow_raycast_impl(float3 position, float spread, float &color)
+{
+  /*TODO*/
+}
+
 /** \} */

@@ -99,6 +99,8 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Random Per Island",
             ],
         )
+        self.node_operator(layout, "ShaderNodeLightEvaluation", poll=object_eevee_shader_nodes_poll(context))
+        self.node_operator(layout, "ShaderNodeLightInfo", poll=object_eevee_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeLayerWeight", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context,
@@ -139,6 +141,7 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
         )
         self.node_operator(layout, "ShaderNodeRaycast", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
+        self.node_operator(layout, "ShaderNodeShadowRaycast", poll=object_eevee_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeTangent")
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeTexCoord",
@@ -299,6 +302,11 @@ class NODE_MT_shader_node_shader_base(node_add_menu.NodeMenu):
             layout,
             "ShaderNodeEeveeSpecular",
             poll=object_eevee_shader_nodes_poll(context),
+        )
+        self.node_operator(
+            layout,
+            "ShaderNodeLightAccumulation",
+            poll=object_eevee_shader_nodes_poll(context)
         )
         self.node_operator(
             layout,
