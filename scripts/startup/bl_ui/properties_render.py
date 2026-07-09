@@ -728,6 +728,7 @@ class RENDER_PT_eevee_sampling_render(RenderButtonsPanel, Panel):
 
         col = layout.column(align=True)
         col.prop(props, "taa_render_samples", text="Samples")
+        col.prop(props, "time_limit")
 
         # Add SSS sample count here.
 
@@ -752,7 +753,6 @@ class RENDER_PT_eevee_sampling_advanced(RenderButtonsPanel, Panel):
 
         col = layout.column()
         col.prop(props, "light_threshold")
-        col.prop(props, "time_limit")
 
 
 class RENDER_PT_eevee_film(RenderButtonsPanel, Panel):
