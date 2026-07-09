@@ -21,13 +21,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_dynstr.h"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_dynstr.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_mutex.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -4973,7 +4973,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
     }
     IDP_AppendArray(idprop, item);
     /* IDP_AppendArray does a shallow copy (memcpy), only free memory. */
-    // IDP_FreePropertyContent(item);
+    // IDP_FreeProperty(item);
     MEM_delete(item);
     rna_idproperty_touch(idprop);
   }
@@ -4991,7 +4991,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
       }
       IDP_AppendArray(idprop, item);
       /* #IDP_AppendArray does a shallow copy (memcpy), only free memory. */
-      // IDP_FreePropertyContent(item);
+      // IDP_FreeProperty(item);
       MEM_delete(item);
     }
   }
@@ -5306,19 +5306,14 @@ bool RNA_property_collection_assign_int(PointerRNA *ptr,
   return false;
 }
 
-bool RNA_property_collection_type_get(PointerRNA *ptr, PropertyRNA *prop, PointerRNA *r_ptr)
+std::optional<PointerRNA> RNA_property_collection_type_get(PointerRNA *ptr, PropertyRNA *prop)
 {
   BLI_assert(RNA_property_type(prop) == PROP_COLLECTION);
-
   StructRNA *type = rna_ensure_property(prop)->srna;
-  if (type) {
-    *r_ptr = RNA_pointer_create_with_parent(*ptr, type, ptr->data);
-    return true;
+  if (type == nullptr) {
+    return std::nullopt;
   }
-  else {
-    *r_ptr = *ptr;
-    return false;
-  }
+  return RNA_pointer_create_with_parent(*ptr, type, ptr->data);
 }
 
 int RNA_property_collection_raw_array(
@@ -5919,6 +5914,13 @@ static void update_idprop_bool(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPro
       IDP_bool_set(&idprop, RNA_property_boolean_get_default(&rna_ptr, &rna_prop));
     }
   };
+  /* If stored value was array and property is not (or vice versa), it can't be meaningfully
+   * converted; use default. Happens when node group is switched and the same socket identifier
+   * now maps to a very different socket. */
+  if ((idprop.type == IDP_ARRAY) != (rna_array_size != 0)) {
+    fill_new();
+    return;
+  }
   switch (eIDPropertyType(idprop.type)) {
     case IDP_STRING:
     case IDP_IDPARRAY:
@@ -6049,6 +6051,13 @@ static void update_idprop_int(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProp
       IDP_int_set(&idprop, RNA_property_int_get_default(&rna_ptr, &rna_prop));
     }
   };
+  /* If stored value was array and property is not (or vice versa), it can't be meaningfully
+   * converted; use default. Happens when node group is switched and the same socket identifier
+   * now maps to a very different socket. */
+  if ((idprop.type == IDP_ARRAY) != (rna_array_size != 0)) {
+    fill_new();
+    return;
+  }
   switch (eIDPropertyType(idprop.type)) {
     case IDP_STRING:
     case IDP_IDPARRAY:
@@ -6180,6 +6189,13 @@ static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPr
       IDP_float_set(&idprop, RNA_property_float_get_default(&rna_ptr, &rna_prop));
     }
   };
+  /* If stored value was array and property is not (or vice versa), it can't be meaningfully
+   * converted; use default. Happens when node group is switched and the same socket identifier
+   * now maps to a very different socket. */
+  if ((idprop.type == IDP_ARRAY) != (rna_array_size != 0)) {
+    fill_new();
+    return;
+  }
   switch (eIDPropertyType(idprop.type)) {
     case IDP_STRING:
     case IDP_IDPARRAY:
@@ -6294,7 +6310,7 @@ static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPr
   }
 }
 
-void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
+static void sync_system_properties(PointerRNA &ptr, IDProperty &idprops, const bool ensure)
 {
   BLI_assert(idprops.type == IDP_GROUP);
   Set<IDProperty *> used_props;
@@ -6312,7 +6328,14 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
     IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier);
     if (!idprop) {
-      continue;
+      if (ensure) {
+        /* Create an invalid property, to be filled correctly later by the code for each type. */
+        idprop = bke::idprop::create_group(identifier).release();
+        IDP_AddToGroup(&idprops, idprop);
+      }
+      else {
+        continue;
+      }
     }
 
     used_props.add_new(idprop);
@@ -6366,7 +6389,7 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
             continue;
           }
           PointerRNA prop_ptr = RNA_property_pointer_get(&ptr, &rna_prop);
-          RNA_sync_system_properties(prop_ptr, *idprop);
+          sync_system_properties(prop_ptr, *idprop, ensure);
         }
         break;
       }
@@ -6384,6 +6407,16 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
       IDP_FreeFromGroup(&idprops, &prop);
     }
   }
+}
+
+void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
+{
+  sync_system_properties(ptr, idprops, false);
+}
+
+void RNA_ensure_and_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
+{
+  sync_system_properties(ptr, idprops, true);
 }
 
 /* Standard iterator functions */
@@ -7341,8 +7374,8 @@ std::string RNA_property_as_string(
       break;
     case PROP_STRING: {
       const std::string str_value = RNA_property_string_get(ptr, prop);
-      const std::string escaped = BLI_str_escape(str_value.c_str());
-      ss << fmt::format("\"{}\"", escaped.c_str());
+      const std::string escaped = BLI_str_escape(str_value);
+      ss << fmt::format("\"{}\"", escaped);
       break;
     }
     case PROP_ENUM: {

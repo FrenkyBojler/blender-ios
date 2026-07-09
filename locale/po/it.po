@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'2b1958ccdccb')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'b2d38940ccd4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-08 09:37+0000\n"
+"POT-Creation-Date: 2026-07-06 08:37+0000\n"
 "PO-Revision-Date: 2026-05-04 00:12+0000\n"
 "Last-Translator: Alessandro Vecchio <alessandrovecchio1907@gmail.com>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
@@ -11339,10 +11339,6 @@ msgid "sin(x) / x"
 msgstr "sen(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Moltiplica Fase"
-
-
 msgid "Scale factor determining the 'speed' of the function"
 msgstr "Fattore di scala per determinare la 'velocità' della funzione"
 
@@ -12317,6 +12313,10 @@ msgstr "Ordinamento Inverso"
 
 msgid "Asset Select Parameters"
 msgstr "Parametri di Selezione delle Risorse"
+
+
+msgid "Catalog"
+msgstr "Catalogo"
 
 
 msgid "Filter Asset Types"
@@ -24518,6 +24518,10 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
+msgid "Add Image"
+msgstr "Aggiungi Immagine"
+
+
 msgid "Relations"
 msgstr "Relazioni"
 
@@ -24614,24 +24618,24 @@ msgid "Sample"
 msgstr "Campione"
 
 
-msgid "Toggle Bone Options"
-msgstr "Attiva/disattiva Opzioni Osso"
-
-
 msgid "Write"
 msgstr "Scrittura"
+
+
+msgid "Toggle Bone Options"
+msgstr "Attiva/disattiva Opzioni Osso"
 
 
 msgid "Enable Bone Options"
 msgstr "Abilita Opzioni Osso"
 
 
-msgid "Disable Bone Options"
-msgstr "Disabilita Opzioni Osso"
-
-
 msgid "Primitives"
 msgstr "Primitive"
+
+
+msgid "Disable Bone Options"
+msgstr "Disabilita Opzioni Osso"
 
 
 msgid "Mesh Select Mode"
@@ -24674,12 +24678,12 @@ msgid "Metaball"
 msgstr "Metaball"
 
 
-msgid "Bone Roll"
-msgstr "Rollio Osso"
-
-
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Bone Roll"
+msgstr "Rollio Osso"
 
 
 msgid "Pivot Point"
@@ -24722,20 +24726,20 @@ msgid "Viewpoint"
 msgstr "Punto di vista"
 
 
-msgid "Navigation"
-msgstr "Navigazione"
-
-
 msgid "Linked"
 msgstr "Collegato"
 
 
-msgid "Align View"
-msgstr "Allinea Vista"
+msgid "Navigation"
+msgstr "Navigazione"
 
 
 msgid "Layout"
 msgstr "Layout"
+
+
+msgid "Align View"
+msgstr "Allinea Vista"
 
 
 msgid "Align View to Active"
@@ -24790,10 +24794,6 @@ msgid "Light Probe"
 msgstr "Sensore di Luce"
 
 
-msgid "Add Image"
-msgstr "Aggiungi Immagine"
-
-
 msgid "Keyframe Insert Pie"
 msgstr "Torta Inserisci Keyframe"
 
@@ -24804,10 +24804,6 @@ msgstr "Di Base"
 
 msgid "Bone Collection Specials"
 msgstr "Speciali della Raccolta di Ossa"
-
-
-msgid "Catalog"
-msgstr "Catalogo"
 
 
 msgid "Assets"

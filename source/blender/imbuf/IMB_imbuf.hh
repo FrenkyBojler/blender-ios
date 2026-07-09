@@ -553,6 +553,11 @@ void IMB_free_all_data(ImBuf *ibuf);
 void IMB_free_gpu_textures(ImBuf *ibuf);
 
 /**
+ * Clear #IMB_GPU_LOAD_FAILED flag, to retry failed GPU texture creation.
+ */
+void IMB_clear_gpu_load_failed(ImBuf *ibuf);
+
+/**
  * \brief Transform modes to use for IMB_transform function.
  *
  * These are not flags as the combination of cropping and repeat can lead to different expectation.
@@ -609,6 +614,18 @@ ENUM_OPERATORS(GPUTextureCreateFlags)
  */
 gpu::Texture *IMB_create_gpu_texture(const char *name, ImBuf *ibuf, GPUTextureCreateFlags flags);
 
+/* Acquire the GPU texture of the image buffer, creating it if it does not exist yet (with
+ * #IMB_create_gpu_texture), and return an owned reference to it.
+ *
+ * If #try_only is true, the texture is not created and null is returned when it does not exist
+ * yet. */
+gpu::Texture *IMB_acquire_gpu_texture(const char *name,
+                                      ImBuf *ibuf,
+                                      bool use_high_bitdepth,
+                                      bool use_premult,
+                                      bool limit_size,
+                                      bool try_only = false);
+
 gpu::TextureFormat IMB_gpu_get_texture_format(const ImBuf *ibuf,
                                               bool high_bitdepth,
                                               bool use_grayscale);
@@ -645,7 +662,6 @@ void IMB_update_gpu_texture_sub(gpu::Texture *tex,
                                 int z,
                                 int w,
                                 int h,
-                                bool use_high_bitdepth,
                                 bool use_grayscale,
                                 bool use_premult);
 
