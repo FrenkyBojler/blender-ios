@@ -475,6 +475,18 @@ static void query_time_dependent_strips_strips(TransInfo *t,
       [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 }
 
+static void transitions_for_each(Editing *ed,
+                                 const Strip *strip,
+                                 FunctionRef<void(Strip *)> callback)
+{
+  Span<Strip *> effects = seq::lookup_effects_by_strip(ed, strip);
+  for (Strip *effect_strip : effects) {
+    if (seq::strip_is_transition(effect_strip)) {
+      callback(effect_strip);
+    }
+  }
+}
+
 static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, Strip *strip)
 {
   TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
@@ -505,6 +517,13 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
         /* Ensure that the left handle's frame is greater than or equal to the content start. */
         ts->soft_clamp_min = max_ii(ts->soft_clamp_min, -strip->startofs);
       }
+
+      transitions_for_each(seq::editing_get(scene), strip, [&](Strip *transition) {
+        if (transition->input2 == strip && (transition->input1->flag & SEQ_RIGHTSEL)) {
+          int offset = strip->right_handle(scene) - transition->right_handle(scene);
+          ts->soft_clamp_max = min_ii(ts->soft_clamp_max, offset);
+        }
+      });
     }
     if (right_sel) {
       if (!(left_sel && right_sel)) {
@@ -517,6 +536,15 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
         /* Ensure that the right handle's frame is less than or equal to the content end. */
         ts->soft_clamp_max = min_ii(ts->soft_clamp_max, strip->endofs);
       }
+
+      // TODO: make a function like adjacent_handle_transition_for_each. use it in flush code as
+      // well
+      transitions_for_each(seq::editing_get(scene), strip, [&](Strip *transition) {
+        if (transition->input1 == strip && (transition->input2->flag & SEQ_LEFTSEL)) {
+          int offset = strip->left_handle() - transition->left_handle();
+          ts->soft_clamp_min = max_ii(ts->soft_clamp_min, offset);
+        }
+      });
     }
     return true;
   }
@@ -651,7 +679,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   /* TODO(john): This ensures that y-axis movement is restricted only if all of the selected items
    * are handles, since currently it is possible to select whole strips and handles at the same
    * time. This should be removed for 5.0 when we make this behavior impossible. */
-  if (only_handles_selected || invalid_selection) {
+  if (only_handles_selected || has_transition_handles) {
     ts->hard_clamp.ymin = 0;
     ts->hard_clamp.ymax = 0;
   }
@@ -928,6 +956,8 @@ static void flush_strip_transforms(TransInfo *t,
 
     /* Move the transition with the cut point if adjacent handles are selected. This is only done
      * for the right handle to avoid moving it twice. */
+    // TODO: those two can be moved out and done in one place. Just store the x_offset and new
+    // channel from each branch
     const int delta_x = *r_right_new - strip->right_handle(scene);
     Span<Strip *> effects = seq::lookup_effects_by_strip(seq::editing_get(scene), strip);
     for (Strip *e : effects) {
