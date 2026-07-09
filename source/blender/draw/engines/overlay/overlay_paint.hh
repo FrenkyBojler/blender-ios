@@ -161,6 +161,31 @@ class Paints : Overlay {
       }
     }
 
+    if (state.ctx_mode == CTX_MODE_SCULPT) {
+      const PaintModeSettings &paint_settings = state.scene->toolsettings->paint_mode;
+      show_paint_mask_ = paint_settings.stencil && (paint_mode_settings.flag & PAINTMODE_STENCIL);
+
+      if (show_paint_mask_) {
+        const bool mask_premult = (paint_settings.stencil->alpha_mode == IMA_ALPHA_PREMUL);
+        const bool mask_inverted = (paint_settings.flag & PAINTMODE_STENCIL_INVERTED);
+        gpu::Texture *mask_texture = BKE_image_acquire_gpu_texture(paint_settings.stencil,
+                                                                   nullptr);
+        DRW_manager_get()->hold_texture(mask_texture);
+
+        auto &pass = paint_mask_ps_;
+        pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_BLEND_ALPHA,
+                       state.clipping_plane_count);
+        pass.shader_set(res.shaders->paint_texture.get());
+        pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
+        pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
+        pass.bind_texture("mask_image", mask_texture);
+        pass.push_constant("maskPremult", mask_premult);
+        pass.push_constant("mask_invert_stencil", mask_inverted);
+        pass.push_constant("mask_color", stencil_color);
+        pass.push_constant("opacity", opacity);
+      }
+    }
+
     void object_sync(
         Manager & manager, const ObjectRef &ob_ref, Resources & /*res*/, const State &state) final
     {
