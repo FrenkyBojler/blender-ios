@@ -84,7 +84,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::Curve,
-                       //  GeometryComponent::Type::GreasePencil, /* TODO */
+                       GeometryComponent::Type::GreasePencil,
                        GeometryComponent::Type::PointCloud})
       .description(
           "The geometries that are used to constrain the triangulation using the points, edges, "
@@ -382,36 +382,31 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
 
           /* Face sources, in the same fixed order. */
           Vector<SourceComponent, 2> face_source_domains;
-          Vector<int, 3> face_offsets;
+          Vector<int, 3> faces_by_source_data;
           if (mesh && !group.mesh_faces.is_empty()) {
             face_source_domains.append(SourceComponent::Mesh);
-            face_offsets.append(group.mesh_faces.size());
+            faces_by_source_data.append(group.mesh_faces.size());
           }
           if (!face_curves.is_empty()) {
             face_source_domains.append(SourceComponent::Curve);
-            face_offsets.append(face_curves.size());
+            faces_by_source_data.append(face_curves.size());
           }
 
           group.point_offsets.append(0);
           edge_offsets.append(0);
-          face_offsets.append(0);
+          faces_by_source_data.append(0);
           const OffsetIndices<int> points_by_source = offset_indices::accumulate_counts_to_offsets(
               group.point_offsets);
           const OffsetIndices<int> edges_by_source = offset_indices::accumulate_counts_to_offsets(
               edge_offsets);
           const OffsetIndices<int> faces_by_source = offset_indices::accumulate_counts_to_offsets(
-              face_offsets);
-
-          meshintersect::CDT_input<double> cdt_input;
-          cdt_input.vert.reinitialize(points_by_source.total_size());
-          cdt_input.edge.reinitialize(edges_by_source.total_size());
-          cdt_input.face.reinitialize(faces_by_source.total_size());
+              faces_by_source_data);
 
           /* Add 2D points. */
+          Array<double2> cdt_verts(points_by_source.total_size());
           for (const int source_i : group.point_source_domains.index_range()) {
             const IndexRange dst_range = points_by_source[source_i];
-            MutableSpan<double2> dst_positions_2d = cdt_input.vert.as_mutable_span().slice(
-                dst_range);
+            MutableSpan<double2> dst_positions_2d = cdt_verts.as_mutable_span().slice(dst_range);
             switch (group.point_source_domains[source_i]) {
               case SourceComponent::Mesh:
                 gather_2d_positions(mesh->vert_positions(), group.mesh_verts, dst_positions_2d);
@@ -440,8 +435,9 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
           }
 
           /* Add edge constraints. */
+          Array<std::pair<int, int>> cdt_edges(edges_by_source.total_size());
           for (const int source_i : edge_source_domains.index_range()) {
-            MutableSpan<std::pair<int, int>> dst_edges = cdt_input.edge.as_mutable_span().slice(
+            MutableSpan<std::pair<int, int>> dst_edges = cdt_edges.as_mutable_span().slice(
                 edges_by_source[source_i]);
             switch (edge_source_domains[source_i]) {
               case SourceComponent::Mesh: {
@@ -490,10 +486,31 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
             }
           }
 
-          /* Add face constraints. */
+          /* Count total face sizes. */
+          Array<int> cdt_face_offsets(faces_by_source.total_size() + 1);
           for (const int source_i : face_source_domains.index_range()) {
-            MutableSpan<Vector<int>> dst_faces = cdt_input.face.as_mutable_span().slice(
+            MutableSpan<int> dst_face_sizes = cdt_face_offsets.as_mutable_span().slice(
                 faces_by_source[source_i]);
+            switch (face_source_domains[source_i]) {
+              case SourceComponent::Mesh:
+                offset_indices::gather_group_sizes(
+                    mesh->faces(), group.mesh_faces, dst_face_sizes);
+                break;
+              case SourceComponent::Curve:
+                offset_indices::gather_group_sizes(
+                    curves->evaluated_points_by_curve(), group.curves, dst_face_sizes);
+                break;
+              case SourceComponent::PointCloud:
+                break;
+            }
+          }
+          const OffsetIndices<int> cdt_faces = offset_indices::accumulate_counts_to_offsets(
+              cdt_face_offsets);
+
+          /* Add face constraints. */
+          Array<int> cdt_face_vert_indices(cdt_faces.total_size());
+          for (const int source_i : face_source_domains.index_range()) {
+            const OffsetIndices<int> dst_faces = cdt_faces.slice(faces_by_source[source_i]);
             switch (face_source_domains[source_i]) {
               case SourceComponent::Mesh: {
                 const int dst_point_offset = points_by_source[mesh_point_source].start();
@@ -502,8 +519,8 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
                 group.mesh_faces.foreach_index(
                     [&](const int index, const int pos) {
                       const IndexRange face = faces[index];
-                      Vector<int> &dst_face = dst_faces[pos];
-                      dst_face.reinitialize(face.size());
+                      MutableSpan<int> dst_face = cdt_face_vert_indices.as_mutable_span().slice(
+                          dst_faces[pos]);
                       for (const int i : face.index_range()) {
                         dst_face[i] = mesh_vert_to_dst[corner_verts[face[i]]] + dst_point_offset;
                       }
@@ -519,8 +536,8 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
                       for (const int i : range) {
                         const int curve = face_curves[i];
                         const IndexRange points = points_by_curve[curve];
-                        Vector<int> &dst_face = dst_faces[i];
-                        dst_face.reinitialize(points.size());
+                        MutableSpan<int> dst_face = cdt_face_vert_indices.as_mutable_span().slice(
+                            dst_faces[i]);
                         for (const int j : points.index_range()) {
                           dst_face[j] = curve_point_to_dst[points[j]] + dst_point_offset;
                         }
@@ -532,6 +549,11 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
                 break;
             }
           }
+
+          const meshintersect::CDT_input<double> cdt_input{
+              .vert = cdt_verts,
+              .face_offsets = cdt_faces,
+              .face_vert_indices = cdt_face_vert_indices};
 
           results[i].cdt_result = meshintersect::delaunay_2d_calc(cdt_input, output_type);
 
