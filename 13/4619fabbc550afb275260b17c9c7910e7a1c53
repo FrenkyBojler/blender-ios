@@ -1,1 +1,2 @@
 Referenced by issue #95666, Crash when attempting multires linear subdivide
+Referenced by issue #159152, Copying MultiRes Modifier with subdivisions automatically converts linear/simple to catmull
