@@ -599,8 +599,8 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   const float s = sinf(rv3d->camroll);
 
   float x2 = x;
-  x = x * c - y * s;
-  y = x2 * s + y * c;
+  x = x * c + y * s;
+  y = -x2 * s + y * c;
 
   x /= aspect;
 

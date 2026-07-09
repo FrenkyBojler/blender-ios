@@ -581,7 +581,7 @@ static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup
   gz->matrix_space[3][1] -= region->winy / 2.0f;
 
   transpose_m4(gz->matrix_space);
-  rotate_m4(gz->matrix_space, 'Z', viewgroup->state.roll);
+  rotate_m4(gz->matrix_space, 'Z', -viewgroup->state.roll);
   transpose_m4(gz->matrix_space);
 
   gz->matrix_space[3][0] += region->winx / 2.0f;

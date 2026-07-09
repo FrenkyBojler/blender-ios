@@ -302,10 +302,10 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
     float s = sinf(rv3d->camroll);
     float xmin1 = border.xmin;
     float xmax1 = border.xmax;
-    border.xmin = xmin1 * c - border.ymin * s;
-    border.ymin = xmin1 * s + border.ymin * c;
-    border.xmax = xmax1 * c - border.ymax * s;
-    border.ymax = xmax1 * s + border.ymax * c;
+    border.xmin = xmin1 * c + border.ymin * s;
+    border.ymin = -xmin1 * s + border.ymin * c;
+    border.xmax = xmax1 * c + border.ymax * s;
+    border.ymax = -xmax1 * s + border.ymax * c;
 
     border.xmin += BLI_rctf_size_x(&vb) / 2.0f;
     border.ymin += BLI_rctf_size_y(&vb) / 2.0f;

@@ -509,8 +509,8 @@ void BKE_camera_params_compute_viewplane(
   float c = cosf(params->roll);
   float s = sinf(params->roll);
   float dx2 = dx;
-  dx = dx2 * c + dy * s;
-  dy = -dx2 * s + dy * c;
+  dx = dx2 * c - dy * s;
+  dy = dx2 * s + dy * c;
 
   viewplane.xmin += dx;
   viewplane.ymin += dy;

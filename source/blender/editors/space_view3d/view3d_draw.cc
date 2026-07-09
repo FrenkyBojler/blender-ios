@@ -515,7 +515,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       const int center_x = region->winx / 2;
       const int center_y = region->winy / 2;
       GPU_matrix_translate_2f(center_x, center_y);
-      GPU_matrix_rotate_2d(RAD2DEG(-rv3d->camroll));
+      GPU_matrix_rotate_2d(RAD2DEG(rv3d->camroll));
       GPU_matrix_translate_2f(-center_x, -center_y);
     }
 
