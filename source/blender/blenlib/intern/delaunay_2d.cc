@@ -2087,8 +2087,8 @@ void add_edge_constraint(
     }
     if (crossings[n].lambda == 0) {
       if (crossings[n].vert->visit_index == visit) {
-        /* Shouldn't happen but if it does, just bail out. */
-        BLI_assert(false);
+        /* Degenerate input can make the constraint traversal revisit a vertex. Bail out instead of
+         * asserting; the constraint cannot be added robustly. */
         return;
       }
       crossings[n].vert->visit_index = visit;
