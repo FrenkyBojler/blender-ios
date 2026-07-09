@@ -316,7 +316,7 @@ def test_anim_keyframe_insert_pie_location():
 
     prefs = bpy.context.window_manager.keyconfigs.active.preferences
 
-    # The 'I' key defaults to a standard popup menu. 
+    # The 'I' key defaults to a standard popup menu.
     # We must explicitly enable click-drag pies to access the pie menu variant.
     original_use_pie_click_drag = prefs.use_pie_click_drag
     prefs.use_pie_click_drag = True
