@@ -2972,17 +2972,6 @@ static void calc_brush_local_mat(const float rotation,
   invert_m4_m4(local_mat, tmat);
 }
 
-static void calc_brush_local_mat(const float rotation,
-                                 const Object &ob,
-                                 const eBrushFalloffShape falloff_shape,
-                                 float local_mat[4][4],
-                                 float local_mat_inv[4][4])
-{
-  const StrokeCache *cache = ob.runtime->sculpt_session->cache;
-  calc_brush_local_mat(
-      rotation, ob, falloff_shape, cache->sculpt_normal_symm, local_mat, local_mat_inv);
-}
-
 float3 tilt_apply_to_normal(const Object &object,
                             const float4x4 &view_inverse,
                             const float3 &normal,
@@ -3027,6 +3016,7 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
     calc_brush_local_mat(mask_tex->rot,
                          ob,
                          eBrushFalloffShape(brush->falloff_shape),
+                         cache->sculpt_normal_symm,
                          cache->brush_local_mat.ptr(),
                          cache->brush_local_mat_inv.ptr());
   }
@@ -6953,7 +6943,8 @@ void cube_tip_init(const Sculpt & /*sd*/, const Object &ob, const Brush &brush, 
   float unused[4][4];
 
   zero_m4(mat);
-  calc_brush_local_mat(0.0, ob, eBrushFalloffShape(brush.falloff_shape), unused, mat);
+  calc_brush_local_mat(
+      0.0, ob, eBrushFalloffShape(brush.falloff_shape), ss.cache->sculpt_normal_symm, unused, mat);
 
   /* NOTE: we ignore the radius scaling done inside of calc_brush_local_mat to
    * duplicate prior behavior.
