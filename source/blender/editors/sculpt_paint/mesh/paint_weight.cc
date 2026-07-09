@@ -201,7 +201,7 @@ static float wpaint_blend(const VPaint &wp,
                           float weight,
                           const float alpha,
                           float paintval,
-                          const float /*brush_alpha_value*/,
+                          const float paint_factor,
                           const bool do_flip)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&wp.paint);
@@ -229,7 +229,7 @@ static float wpaint_blend(const VPaint &wp,
     }
   }
 
-  weight = ED_wpaint_blend_tool(blend, weight, paintval, alpha);
+  weight = ED_wpaint_blend_tool(blend, weight, paintval * paint_factor, alpha);
 
   CLAMP(weight, 0.0f, 1.0f);
   /* The following is a reasonable lower bound for values that a user may want for weight values,
@@ -532,7 +532,8 @@ static void do_weight_paint_vertex_single(const VPaint &wp,
                                           const WeightPaintInfo &wpi,
                                           const uint index,
                                           float alpha,
-                                          float paintweight)
+                                          float paintweight,
+                                          float automasking_factor)
 {
   Mesh *mesh = id_cast<Mesh *>(ob.data);
   MDeformVert *dv = &wpi.dvert[index];
@@ -654,7 +655,7 @@ static void do_weight_paint_vertex_single(const VPaint &wp,
 
   {
     float new_weight = wpaint_blend(
-        wp, weight_prev, alpha, paintweight, wpi.brush_alpha_value, wpi.do_flip);
+        wp, weight_prev, alpha, paintweight, automasking_factor, wpi.do_flip);
 
     float weight = wpaint_clamp_monotonic(weight_prev, weight_cur, new_weight);
 
@@ -738,7 +739,8 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
                                          const WeightPaintInfo &wpi,
                                          const uint index,
                                          float alpha,
-                                         float paintweight)
+                                         float paintweight,
+                                         float additional_factor)
 {
   Mesh *mesh = id_cast<Mesh *>(ob.data);
   MDeformVert *dv = &wpi.dvert[index];
@@ -799,7 +801,7 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
     oldw = curw;
   }
 
-  neww = wpaint_blend(wp, oldw, alpha, paintweight, wpi.brush_alpha_value, wpi.do_flip);
+  neww = wpaint_blend(wp, oldw, alpha, paintweight, additional_factor, wpi.do_flip);
   neww = wpaint_clamp_monotonic(oldw, curw, neww);
 
   if (wpi.do_lock_relative) {
@@ -856,19 +858,27 @@ static void do_weight_paint_vertex_multi(const VPaint &wp,
   }
 }
 
+/**
+ * @param final_alpha per-vertex factor
+ * @param automasking_factor additional optional mixing factor, to avoid washing out non-binary
+ *   automasking values.
+ */
 static void do_weight_paint_vertex(const VPaint &wp,
                                    Object &ob,
                                    WPaintData &wpd,
                                    const WeightPaintInfo &wpi,
                                    const uint index,
-                                   float alpha,
-                                   float paintweight)
+                                   float final_alpha,
+                                   float paintweight,
+                                   float automasking_factor = 1.0f)
 {
   if (wpi.do_multipaint) {
-    do_weight_paint_vertex_multi(wp, ob, wpd, wpi, index, alpha, paintweight);
+    do_weight_paint_vertex_multi(
+        wp, ob, wpd, wpi, index, final_alpha, paintweight, automasking_factor);
   }
   else {
-    do_weight_paint_vertex_single(wp, ob, wpd, wpi, index, alpha, paintweight);
+    do_weight_paint_vertex_single(
+        wp, ob, wpd, wpi, index, final_alpha, paintweight, automasking_factor);
   }
 }
 
@@ -876,6 +886,7 @@ struct WeightPaintStroke final : public PaintStroke {
   Main *bmain_;
   ToolSettings *tool_settings_;
   VPaint *weight_paint_;
+  Base *base_;
 
   WeightPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
@@ -883,6 +894,7 @@ struct WeightPaintStroke final : public PaintStroke {
     bmain_ = CTX_data_main(C);
     tool_settings_ = CTX_data_tool_settings(C);
     weight_paint_ = tool_settings_->wpaint;
+    base_ = CTX_data_active_base(C);
   }
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
@@ -1198,6 +1210,9 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
+      auto_mask::calc_vert_factors(
+          depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
         if (factors[i] == 0.0f) {
@@ -1314,6 +1329,9 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
 
+      auto_mask::calc_vert_factors(
+          depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
+
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
         if (factors[i] == 0.0f) {
@@ -1407,6 +1425,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
 
   struct LocalData {
     Vector<float> factors;
+    Vector<float> automask_factors;
     Vector<float> distances;
   };
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -1428,6 +1447,16 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
           ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
       filter_distances_with_radius(cache.radius, distances, factors);
       calc_brush_strength_factors(cache, brush, distances, factors);
+
+      MutableSpan<float> automask_factors;
+      if (cache.automasking) {
+        tls.automask_factors.resize(verts.size());
+        automask_factors = tls.automask_factors;
+        automask_factors.fill(1.0f);
+        auto_mask::calc_vert_factors(
+            depsgraph, ob, *cache.automasking, nodes[i], verts, automask_factors);
+        scale_factors(factors, automask_factors);
+      }
 
       for (const int i : verts.index_range()) {
         const int vert = verts[i];
@@ -1453,7 +1482,8 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
           }
         }
 
-        do_weight_paint_vertex(vp, ob, wpd, wpi, vert, final_alpha, paintweight);
+        const float automask_factor = automask_factors.is_empty() ? 1.0f : automask_factors[i];
+        do_weight_paint_vertex(vp, ob, wpd, wpi, vert, final_alpha, paintweight, automask_factor);
       }
     });
   });
@@ -1514,6 +1544,9 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
               ss, vert_positions, verts, eBrushFalloffShape(brush.falloff_shape), distances);
           filter_distances_with_radius(cache.radius, distances, factors);
           calc_brush_strength_factors(cache, brush, distances, factors);
+
+          auto_mask::calc_vert_factors(
+              depsgraph, ob, cache.automasking.get(), nodes[i], verts, factors);
 
           for (const int i : verts.index_range()) {
             const int vert = verts[i];
@@ -1748,6 +1781,13 @@ static void wpaint_do_paint(const Depsgraph &depsgraph,
   IndexMaskMemory memory;
   const IndexMask node_mask = vwpaint::pbvh_gather_generic(depsgraph, ob, wp, brush, memory);
 
+  if (auto_mask::is_enabled(wp.paint, ob, &brush)) {
+    auto_mask::Cache &cache = auto_mask::stroke_cache_ensure(depsgraph, wp.paint, &brush, ob);
+    if (cache.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
+      cache.calc_cavity_factor(depsgraph, ob, node_mask);
+    }
+  }
+
   wpaint_paint_leaves(depsgraph, ob, wp, wpd, wpi, mesh, node_mask);
 }
 
@@ -1824,12 +1864,12 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   const ToolSettings &ts = *tool_settings_;
   const Brush &brush = *BKE_paint_brush(&wp.paint);
   WPaintData *wpd = static_cast<WPaintData *>(mode_data_.get());
-  ViewContext *vc;
+  ViewContext *vc = &this->vc;
   Object *ob = this->object;
 
   SculptSession &ss = *ob->runtime->sculpt_session;
 
-  vwpaint::update_cache_variants(*this->depsgraph, wp, *ob, itemptr);
+  vwpaint::update_cache_variants(*this->depsgraph, *vc, wp, *ob, *this->base_, itemptr);
 
   float mat[4][4];
 
@@ -1845,7 +1885,6 @@ void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
     return;
   }
 
-  vc = &wpd->vc;
   ob = vc->obact;
 
   ED_view3d_init_mats_rv3d(ob, vc->rv3d);
