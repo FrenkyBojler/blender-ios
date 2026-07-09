@@ -326,7 +326,7 @@ void update_modifier_node_group_interface(Scene &scene, SceneCompositorModifier 
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &scene.id, RNA_SceneCompositorModifierProperties, &modifier);
-  RNA_sync_system_properties(properties_ptr, *modifier.system_properties);
+  RNA_ensure_and_sync_system_properties(properties_ptr, *modifier.system_properties);
 
   if (modifier.node_group) {
     DEG_id_tag_update(&modifier.node_group->id, ID_RECALC_NTREE_OUTPUT);

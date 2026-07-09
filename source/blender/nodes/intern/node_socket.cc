@@ -1991,7 +1991,11 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
                                                0,
                                                socket.name,
                                                socket.description);
-        RNA_def_property_subtype(property, PropertySubType(data->subtype));
+        const PropertySubType subtype = PropertySubType(data->subtype);
+        RNA_def_property_subtype(property, subtype);
+        if (subtype == PROP_FILEPATH) {
+          RNA_def_property_flag(property, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
+        }
         set_scene_compositor_modifier_property_update_function(property);
       };
 
