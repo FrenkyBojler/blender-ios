@@ -111,20 +111,20 @@ struct GPUConstant : public GPUInput {};
 
 static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
 {
+  const GPUValue &value = input->constant_value;
   switch (input->type) {
     case GPU_FLOAT:
     case GPU_VEC2:
     case GPU_VEC3:
     case GPU_VEC4:
-      return stream << Span<float>(input->vec, gpu_type_element_count(input->type));
+      return stream << value.as_float_span();
     case GPU_INT:
     case GPU_INT2:
     case GPU_INT3:
     case GPU_INT4:
-      return stream << Span<int>(reinterpret_cast<const int *>(input->vec),
-                                 gpu_type_element_count(input->type));
+      return stream << value.as_int_span();
     case GPU_BOOL:
-      return stream << "bool(" << (*reinterpret_cast<const int *>(input->vec) != 0) << ")";
+      return stream << (value.as_bool() ? "true" : "false");
     default:
       BLI_assert(0);
       return stream;
@@ -501,7 +501,7 @@ GPUGraphOutput GPUCodegen::graph_serialize(GPUNodeTag tree_tag)
 
 void GPUCodegen::generate_cryptomatte()
 {
-  cryptomatte_input_ = MEM_new_zeroed<GPUInput>(__func__);
+  cryptomatte_input_ = MEM_new<GPUInput>(__func__);
   cryptomatte_input_->type = GPU_FLOAT;
   cryptomatte_input_->source = GPU_SOURCE_CRYPTOMATTE;
 
@@ -512,7 +512,7 @@ void GPUCodegen::generate_cryptomatte()
                                            BLI_strnlen(material->id.name + 2, MAX_NAME - 2));
     material_hash = hash.float_encoded();
   }
-  cryptomatte_input_->vec[0] = material_hash;
+  cryptomatte_input_->constant_value = GPUValue(material_hash);
 
   BLI_addtail(&ubo_inputs_, BLI_genericNodeN(cryptomatte_input_));
 }
@@ -523,6 +523,9 @@ void GPUCodegen::generate_uniform_buffer()
   for (GPUNode &node : graph.nodes) {
     for (GPUInput &input : node.inputs) {
       if (input.source == GPU_SOURCE_UNIFORM && !input.link) {
+        if (!gpu_type_is_ubo_supported(input.type)) {
+          continue;
+        }
         /* We handle the UBO uniforms separately. */
         BLI_addtail(&ubo_inputs_, BLI_genericNodeN(&input));
         uniforms_total_++;
