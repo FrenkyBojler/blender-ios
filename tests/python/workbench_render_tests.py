@@ -120,12 +120,14 @@ def main():
     if args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
-    gpu_vendor = render_report.get_gpu_device_vendor(args.blender, args.gpu_backend)
+    gpu_info = render_report.get_gpu_device_info(args.blender, args.gpu_backend)
+    gpu_vendor = gpu_info["DEVICE_TYPE"]
+
     if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
         if gpu_vendor == "AMD" and args.gpu_backend == "vulkan":
             blocklist += BLOCKLIST_AMD_VK
 
-    if not render_report.get_gpu_device_ray_queries_support(args.blender, args.gpu_backend):
+    if not gpu_info["RAY_QUERY_SUPPORT"]:
         blocklist += BLOCKLIST_NON_RT
 
     report = WorkbenchReport("Workbench", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
