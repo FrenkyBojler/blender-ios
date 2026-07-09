@@ -240,19 +240,10 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
 
   SET_FLAG_FROM_TEST(result,
                      view_layer->eevee.denoising_pass_flags & EEVEE_DENOISING_PASS_STORE,
-                     EEVEE_RENDER_PASS_DENOISING_DEPTH);
-  SET_FLAG_FROM_TEST(result,
-                     view_layer->eevee.denoising_pass_flags & EEVEE_DENOISING_PASS_STORE,
-                     EEVEE_RENDER_PASS_DENOISING_NORMAL);
-  SET_FLAG_FROM_TEST(result,
-                     view_layer->eevee.denoising_pass_flags & EEVEE_DENOISING_PASS_STORE,
-                     EEVEE_RENDER_PASS_DENOISING_ROUGHNESS);
-  SET_FLAG_FROM_TEST(result,
-                     view_layer->eevee.denoising_pass_flags & EEVEE_DENOISING_PASS_STORE,
-                     EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO);
-  SET_FLAG_FROM_TEST(result,
-                     view_layer->eevee.denoising_pass_flags & EEVEE_DENOISING_PASS_STORE,
-                     EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO);
+                     EEVEE_RENDER_PASS_DENOISING_DEPTH | EEVEE_RENDER_PASS_DENOISING_NORMAL |
+                         EEVEE_RENDER_PASS_DENOISING_ROUGHNESS |
+                         EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO |
+                         EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO);
 
   return result;
 }
