@@ -7,75 +7,183 @@
 # https://developer.blender.org/docs/handbook/release_process/build/rocky_8/
 set -euo pipefail
 
+# Values below need to be aligned with build_files/config/pipeline_config.yaml
+ROCM_VERSION="7.2.1"
+CUDA_VERSION="12.8"
+GCC_VERSION="14"
+DEPS_PACKAGES=(
+  git
+  git-lfs
+  cmake3
+
+  # Required for 'cmake/check_software.cmake'
+  autoconf
+  automake
+  bison
+  libtool       # libtoolize
+  flex
+  ninja-build   # ninja
+  yasm
+  gettext-devel # autopoint
+  patchelf
+  help2man
+  texinfo       # makeinfo
+
+  # Required for 'external_ssl'
+  perl-IPC-Cmd
+  perl-Time-Piece
+  perl-Pod-Html
+
+  # Required for 'external_openal'
+  pulseaudio-libs-devel
+  alsa-lib-devel
+
+  # Required for 'external_openjph'
+  patch
+
+  # Required for 'external_epoxy'
+  libX11-devel # for <X11/Xlib.h>
+  libglvnd-devel # for <EGL/eglplatform.h>
+
+  # Required for 'external_sdl'
+  # Source: https://wiki.libsdl.org/SDL3/README-linux#build-dependencies
+  alsa-lib-devel
+  fribidi-devel
+  pulseaudio-libs-devel
+  pipewire-devel
+  libX11-devel
+  libXext-devel
+  libXrandr-devel
+  libXcursor-devel
+  libXfixes-devel
+  libXi-devel
+  libXScrnSaver-devel
+  libXtst-devel
+  dbus-devel
+  ibus-devel
+  systemd-devel
+  mesa-libGL-devel
+  libxkbcommon-devel
+  mesa-libGLES-devel
+  mesa-libEGL-devel
+  vulkan-devel
+  wayland-devel
+  wayland-protocols-devel
+  libdrm-devel
+  mesa-libgbm-devel
+  libusb1-devel
+  # libdecor-devel
+  # pipewire-jack-audio-connection-kit-devel
+  libthai-devel
+
+  # bzip2
+  # make
+  # autoconf
+  # automake
+  # libtool
+  # patchelf
+  # mesa-libGL-devel
+  # mesa-libGLU-devel
+  # zlib-devel
+  # tcl
+  # python3
+  # python3-mako
+  # python3-pyyaml
+  # bison
+  # flex
+  # ncurses-devel
+  # libstdc++-static
+  # cairo-devel
+  # libdrm-devel
+  # pixman-devel
+  # libffi-devel
+  # libinput-devel
+  # libevdev-devel
+  # mesa-libgbm-devel
+  # systemd-devel
+  # mesa-dri-drivers
+  # mesa-libEGL
+  # mesa-libGL
+  # libxkbcommon-devel
+  # libX11-devel
+  # libXcursor-devel
+  # libXi-devel
+  # libXinerama-devel
+  # libXrandr-devel
+  # libXt-devel
+  # libXxf86vm-devel
+)
+
 ASSUME_YES="${ASSUME_YES:-0}"
-SKIP_BLENDER_PACKAGES="${SKIP_BLENDER_PACKAGES:-0}"
 VERBOSE=0
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -v|--verbose)
-      VERBOSE=1
-      shift
-      ;;
-    -y|--yes)
-      ASSUME_YES=1
-      shift
-      ;;
-    --no-blender-packages)
-      SKIP_BLENDER_PACKAGES=1
-      shift
-      ;;
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -v|--verbose)
+        VERBOSE=1
+        shift
+        ;;
+      -y|--yes)
+        ASSUME_YES=1
+        shift
+        ;;
+      *)
+        echo "Unknown arg: $1"
+        exit 1
+        ;;
+    esac
+  done
+}
+
+check_requirements() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root"
+    exit 1
+  fi
+
+  if [ ! -f /etc/os-release ]; then
+    echo "Cannot detect OS. /etc/os-release missing."
+    exit 1
+  fi
+
+  . /etc/os-release
+
+  case "$ID" in
+    rocky|rhel|almalinux) ;;
     *)
-      echo "Unknown arg: $1"
+      echo "Unsupported OS: $ID. Script need Rocky/RHEL/Alma 8."
       exit 1
       ;;
   esac
-done
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "This script must be run as root"
-  exit 1
-fi
-
-if [ ! -f /etc/os-release ]; then
-  echo "Cannot detect OS. /etc/os-release missing."
-  exit 1
-fi
-
-. /etc/os-release
-
-case "$ID" in
-  rocky|rhel|almalinux) ;;
-  *)
-    echo "Unsupported OS: $ID. Script need Rocky/RHEL/Alma 8."
+  if [ "${VERSION_ID%%.*}" != "8" ]; then
+    echo "Unsupported version: $VERSION_ID. Script need major version 8."
     exit 1
-    ;;
-esac
+  fi
 
-if [ "${VERSION_ID%%.*}" != "8" ]; then
-  echo "Unsupported version: $VERSION_ID. Script need major version 8."
-  exit 1
-fi
+  ARCH=$(uname -m)
+}
 
-ARCH=$(uname -i)
-
-if [[ "${ASSUME_YES}" != "1" ]]; then
-  cat <<EOF
+show_warning() {
+  if [[ "${ASSUME_YES}" != "1" ]]; then
+    cat <<EOF
 ######################### WARNING ##########################
 This script will install repositories and packages for
 building Blender library dependencies, including:
-  - GCC 14
-  - CUDA 12.8
+  - GCC $GCC_VERSION
+  - CUDA $CUDA_VERSION
 EOF
-  if [ "$ARCH" = "x86_64" ]; then
-    echo "  - ROCm 7.2.1"
-  fi
-  cat <<EOF
+    if [ "$ARCH" = "x86_64" ]; then
+      echo "  - ROCm $ROCM_VERSION"
+    fi
+    cat <<EOF
 ############################################################
 EOF
-  read -r -p "Continue? [y/N] " CONFIRM
-  [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
-fi
+    read -r -p "Continue? [y/N] " CONFIRM
+    [[ "${CONFIRM}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
+  fi
+}
 
 dnf() {
   if [[ "${VERBOSE}" == "1" ]]; then
@@ -106,88 +214,78 @@ enable_repos() {
 }
 
 # GCC toolset
-install_gcc() {
-  echo "[gcc]:   Installing GCC 14"
+install_gcc_toolset() {
+  local VERSION="${1:?Usage: install_gcc_toolset <version>}"
 
-  # Install all the packages needed for a new tool-chain.
-  #
-  # NOTE: Keep this separate from the packages install, since otherwise
-  # older tool-chain will be installed.
+  echo "[gcc]:   Installing SCL utilities"
+  # Keep this separate from the packages install, since otherwise older tool-chain will be installed.
   dnf -y install scl-utils
   dnf -y install scl-utils-build
 
-  # Currently this is defined by the VFX platform (CY2026), see: https://vfxplatform.com
-  dnf -y install gcc-toolset-14
+  echo "[gcc]:   Installing GCC $VERSION"
+  dnf -y install gcc-toolset-$VERSION
 
-  # Set GCC 14 as default shell env, so nvcc/other tools building
-  # against it don't need to be invoked with `scl enable` manually.
-  echo "[gcc]:   Enabling GCC 14 by default via /etc/profile.d"
-  tee /etc/profile.d/enablegcc14.sh > /dev/null <<'PROFEOF'
+  # Set as default shell env
+  echo "[gcc]:   Enabling GCC $VERSION by default via /etc/profile.d"
+  tee /etc/profile.d/enablegcc$VERSION.sh > /dev/null <<PROFEOF
 #!/bin/bash
-source scl_source enable gcc-toolset-14
+source scl_source enable gcc-toolset-$VERSION
 PROFEOF
-  chmod +x /etc/profile.d/enablegcc14.sh
-  set +u
-  source /etc/profile.d/enablegcc14.sh
-  set -u
+  chmod +x /etc/profile.d/enablegcc$VERSION.sh
 
-  echo "[gcc]:   GCC 14 installed"
+  echo "[gcc]:   GCC $VERSION installed"
 }
 
 # CUDA
 install_cuda() {
-  echo "[cuda]:  Adding CUDA repository"
+  local VERSION="${1:?Usage: install_cuda <version>}"
+  local DNF_VER="${VERSION//./-}"
 
-  # For RHEL8 there is no aarch64 repo so instead we use sbsa which works for device binaries
-  # For RHEL9 the aarch64 repo exists and this fallback will no longer be needed
+  echo "[cuda]:  Adding CUDA repository"
+  # There is no AArch64 repo, instead we use SBSA which works for device binaries
   local CUDA_ARCH="x86_64"
   if [ "$ARCH" = "aarch64" ]; then
       CUDA_ARCH="sbsa"
   fi
-
-  # Repository for CUDA (`nvcc`)
   dnf config-manager --add-repo "http://developer.download.nvidia.com/compute/cuda/repos/rhel8/${CUDA_ARCH}/cuda-rhel8.repo"
 
+  # Without setting up a version lock "dnf update" commands may pull in newer CUDA package versions
   echo "[cuda]:  Configuring CUDA version lock"
-  dnf versionlock add 'cuda-*-12-8*'
+  dnf versionlock add "cuda-*-${DNF_VER}*"
 
-  echo "[cuda]:  Installing CUDA 12.8"
-  dnf -y install cuda-toolkit-12-8
+  echo "[cuda]:  Installing CUDA $VERSION"
+  dnf -y install "cuda-toolkit-${DNF_VER}"
 
-  echo "[cuda]:  CUDA 12.8 Installed"
+  echo "[cuda]:  CUDA $VERSION installed"
 }
 
 # ROCm
 install_rocm() {
-  # AMD's ROCM
-  # Based on instructions from:
-  # https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/native-install/rhel.html
-  # NOTE: the following steps have intentionally been skipped as they aren't needed:
-  # - "Register kernel-mode driver".
-  # - "Install kernel driver".
+  local VERSION="${1:?Usage: install_rocm <version>}"
+  # Source: https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/install/install-methods/package-manager/package-manager-rl.html
 
-  # For ROCm there is no aarch64 repo
+  # There is no aarch64 repo for rhel8 systems
   if [ "$ARCH" = "aarch64" ]; then
     echo "[rocm]:  Skipping (aarch64 has no ROCm repo)"
     return 0
   fi
 
-  echo "[rocm]:  Adding ROCm 7.2.1 repository"
+  echo "[rocm]:  Adding ROCm $VERSION repository"
   rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
-  tee /etc/yum.repos.d/graphics-7.2.1.repo > /dev/null <<EOF
-[graphics-7.2.1]
-name=graphics-7.2.1
-baseurl=https://repo.radeon.com/graphics/7.2.1/el/8.10/main/x86_64/
+  tee /etc/yum.repos.d/graphics-$VERSION.repo > /dev/null <<EOF
+[graphics-$VERSION]
+name=graphics-$VERSION
+baseurl=https://repo.radeon.com/graphics/$VERSION/el/8.10/main/x86_64/
 enabled=1
 priority=50
 gpgcheck=1
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
 
-  tee /etc/yum.repos.d/rocm-7.2.1.repo > /dev/null <<EOF
-[ROCm-7.2.1]
-name=ROCm-7.2.1
-baseurl=https://repo.radeon.com/rocm/el8/7.2.1/main
+  tee /etc/yum.repos.d/rocm-$VERSION.repo > /dev/null <<EOF
+[ROCm-$VERSION]
+name=ROCm-$VERSION
+baseurl=https://repo.radeon.com/rocm/el8/$VERSION/main
 enabled=1
 gpgcheck=1
 exclude=rock-dkms
@@ -196,152 +294,32 @@ EOF
 
   dnf -y makecache
 
-  echo "[rocm]:  Installing ROCm 7.2.1"
+  echo "[rocm]:  Installing ROCm $VERSION"
 
-  dnf -y install hipcc7.2.1 hip-devel7.2.1 rocm-llvm7.2.1 rocm-core7.2.1 rocm-device-libs7.2.1
-  update-alternatives --set rocm /opt/rocm-7.2.1
+  dnf -y install hipcc$VERSION hip-devel$VERSION rocm-llvm$VERSION rocm-core$VERSION rocm-device-libs$VERSION
+  update-alternatives --set rocm /opt/rocm-$VERSION
 
-  echo "[rocm]:  ROCm 7.2.1 installed"
+  echo "[rocm]:  ROCm $VERSION installed"
 }
 
 # Packages
 install_packages() {
-  echo "[pkgs]:  Installing Blender dependency packages"
+  local -n PACKAGES="${1:?Usage: install_packages <array_name>}"
+  echo "[pkgs]:  Installing packages for building dependencies"
 
-  local PACKAGES_FOR_LIBS=(
-      git
-      git-lfs
-      bzip2
-      tar
-      cmake3
-      patch
-      make
-
-      # Required by `external_nasm` which uses an `autoconf` build-system
-      autoconf
-      automake
-      libtool
-
-      # Required by `flex`
-      help2man
-
-      # Required by `external_libsndfile` configure scripts
-      autogen
-
-      # Used to set rpath on shared libraries
-      patchelf
-
-      # Builds generated by meson use Ninja for the actual build
-      ninja-build
-
-      # Required by `WITH_GHOST_WAYLAND` build option
-      mesa-libEGL-devel
-      # Required by `external_opensubdiv` and Blender
-      mesa-libGL-devel
-      mesa-libGLU-devel
-
-      # NOTE(@ideasman42): Currently flex's `autogen.sh` is required to run because the bundled
-      # configuration is looking for an older version of `aclocal` than the system provides
-      # This is resolved by generating new configuration files which requires the `autopoint`
-      # command from `gettext-devel`, if the flex package is updated we could remove this
-      # Required by `flex` running `autogen.sh` for `autopoint`
-      gettext-devel
-      # NOTE(@ideasman42): It seems newer files generated by `autogen.sh` also require `makeinfo`
-      # and there isn't a flag to disable GNU "info"
-      # Required by `flex` as a build-time dependency for `makeinfo`
-      texinfo
-
-      # Required by `external_ispc`
-      zlib-devel
-      # TODO: dependencies build without this, consider removal
-      rubygem-asciidoctor
-      # TODO: dependencies build without this, consider removal
-      wget
-      # Required by `external_sqlite` as a build-time dependency (needed for the `tclsh` command)
-      tcl
-      # Required by `external_aom`
-      # TODO: Blender is already building `external_nasm` which is listed as an alternative to `yasm`
-      # Why are both needed?
-      yasm
-
-      # NOTE(@ideasman42): while `python39` is available, the default Python version is 3.6
-      # For example, this is used for the `python3-mako` package
-      # So use the "default" system Python since it means it's most compatible with other packages
-      python3
-
-      # Required by `external_igc`
-      python3-mako
-      python3-pyyaml
-
-      # Required by `external_igc` and `external_osl` as a build-time dependency
-      bison
-      # Required by `external_osl` as a build-time dependency
-      flex
-
-      # Required by `external_ispc`
-      ncurses-devel
-      # Required by `external_ispc` when building with Clang
-      libstdc++-static
-
-      # Required by `external_ssl` as build-time dependency
-      perl-core
-      perl-IPC-Cmd
-      perl-Pod-Html
-
-      # Required by `external_wayland_weston`
-      cairo-devel
-      libdrm-devel
-      pixman-devel
-      libffi-devel
-      libinput-devel
-      libevdev-devel
-      mesa-libgbm-devel
-      # Required by `libudev`
-      systemd-devel
-      # Required by `weston --headless` as run-time requirement for off screen rendering
-      mesa-dri-drivers
-      mesa-libEGL
-      mesa-libGL
-  )
-
-  dnf -y install "${PACKAGES_FOR_LIBS[@]}"
-
-  if [[ "${SKIP_BLENDER_PACKAGES}" != "1" ]]; then
-    # Additional packages needed for building Blender
-    local PACKAGES_FOR_BLENDER=(
-        # Required for `WITH_GHOST_WAYLAND` build option
-        libxkbcommon-devel
-
-        # Required for `WITH_GHOST_X11` build option
-        libX11-devel
-        libXcursor-devel
-        libXi-devel
-        libXinerama-devel
-        libXrandr-devel
-        libXt-devel
-        libXxf86vm-devel
-    )
-    dnf -y install "${PACKAGES_FOR_BLENDER[@]}"
-  else
-    echo "[pkgs]:  Skipping Blender GUI packages (--no-blender-packages)"
-  fi
-
-  # Dependencies for pip
-  dnf -y install python3 python3-pip python3-devel
-
-  # Dependencies for asound
-  dnf -y install alsa-lib-devel pulseaudio-libs-devel
-
-  # Required for `WITH_JACK` build option
-  dnf -y install jack-audio-connection-kit-devel
+  dnf -y install "${PACKAGES[@]}"
 
   echo "[pkgs]:  Packages installed"
 }
 
+parse_args "$@"
+check_requirements
+show_warning
 enable_repos
-install_gcc
-install_cuda
-install_packages
-install_rocm
+install_cuda "${CUDA_VERSION}"
+install_rocm "${ROCM_VERSION}"
+install_gcc_toolset "${GCC_VERSION}"
+install_packages DEPS_PACKAGES
 
 echo "[done]:  Setup completed"
+echo "[gcc]:   Re-open your shell or run 'source /etc/profile.d/enablegcc14.sh' to enable GCC 14"
