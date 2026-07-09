@@ -180,6 +180,7 @@ if(WITH_GTESTS)
   )
   set(TEST_SRC
     intern/builder/deg_builder_rna_test.cc
+    intern/tests/deg_eval_test.cc
   )
   set(TEST_LIB
     ${LIB}
