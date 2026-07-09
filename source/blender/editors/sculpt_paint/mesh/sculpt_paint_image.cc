@@ -353,23 +353,6 @@ static Bounds<int2> negative_bounds()
   return {int2(std::numeric_limits<int>::max()), int2(std::numeric_limits<int>::lowest())};
 }
 
-static float4 get_brush_color(SculptSession &ss, const Paint &paint, const Brush &brush)
-{
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    /* Mask uses brush strength to determine if the brush is flipped/inverted. */
-    const bool negative_strength = ss.cache->bstrength < 0.0;
-    /* Brush strength must be positive to work correctly when texture painting. */
-    ss.cache->bstrength = std::abs(ss.cache->bstrength);
-    return float4(negative_strength ? float3(0.0f, 0.0f, 0.0f) : float3(1.0f, 1.0f, 1.0f), 1.0f);
-  }
-  else {
-    return float4(ss.cache->toggle_settings.invert ?
-                      BKE_brush_secondary_color_get(&paint, &brush) :
-                      BKE_brush_color_get(&paint, &brush),
-                  1.0f);
-  }
-}
-
 static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
                             const Paint &paint,
@@ -388,7 +371,175 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   BitVector<> brush_test = init_uv_primitives_brush_test(
       ss, pbvh_data.vert_tris, pixel_node.uv_primitives.tri_indices, positions);
 
-  float4 brush_color = get_brush_color(ss, paint, brush);
+  float4 brush_color = float4(ss.cache->toggle_settings.invert ?
+                                  BKE_brush_secondary_color_get(&paint, &brush) :
+                                  BKE_brush_color_get(&paint, &brush),
+                              1.0f);
+
+#ifdef DEBUG_PIXEL_NODES
+  float4 debug_color;
+  uint hash = BLI_hash_int(POINTER_AS_UINT(&node));
+
+  debug_color[0] = float(hash & 255) / 255.0f;
+  debug_color[1] = float((hash >> 8) & 255) / 255.0f;
+  debug_color[2] = float((hash >> 16) & 255) / 255.0f;
+  debug_color[3] = 1.0f;
+#endif
+
+  bool pixels_updated = false;
+  for (UDIMTilePixels &tile_data : pixel_node.tiles) {
+    ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
+    if (image_buffer == nullptr) {
+      continue;
+    }
+    IndexMaskMemory memory;
+
+    MutableSpan<float4> float_buffer;
+    MutableSpan<uchar4> byte_buffer;
+
+    if (image_buffer->float_data()) {
+      BLI_assert(ELEM(image_buffer->channels, 0, 4));
+      float_buffer = MutableSpan(reinterpret_cast<float4 *>(image_buffer->float_data_for_write()),
+                                 image_buffer->x * image_buffer->y);
+    }
+    else {
+      byte_buffer = MutableSpan(reinterpret_cast<uchar4 *>(image_buffer->byte_data_for_write()),
+                                image_buffer->x * image_buffer->y);
+    }
+
+    const TileColorspaceProcessor *processors = image_data.processors.lookup_ptr(
+        tile_data.tile_number);
+
+    const IndexMask valid_rows = IndexMask::from_predicate(
+        tile_data.pixel_rows.index_range(), memory, [&](const int i) {
+          return brush_test[tile_data.pixel_rows[i].uv_primitive_index];
+        });
+
+    Array<bool> row_changed(valid_rows.min_array_size(), false);
+    threading::EnumerableThreadSpecific<PaintLocalData> all_factor_tls;
+    valid_rows.foreach_index(
+        [&](const int row_i) {
+          const PackedPixelRow pixel_row = tile_data.pixel_rows[row_i];
+          const int row_size = pixel_row.num_pixels;
+          threading::parallel_for(IndexRange(row_size), 512, [&](const IndexRange range) {
+            PaintLocalData &tls = all_factor_tls.local();
+            tls.factors.resize(range.size());
+            tls.factors.fill(1.0f);
+            tls.pixel_positions.resize(range.size());
+            calc_pixel_row_positions(positions,
+                                     pbvh_data.vert_tris,
+                                     pixel_node.uv_primitives.tri_indices,
+                                     pixel_node.uv_primitives.delta_barycentric_coords,
+                                     pixel_row,
+                                     range,
+                                     tls.pixel_positions);
+
+            MutableSpan<float> factors = tls.factors;
+
+            tls.distances.resize(range.size());
+            calc_brush_distances(
+                ss, tls.pixel_positions, eBrushFalloffShape(brush.falloff_shape), tls.distances);
+            filter_distances_with_radius(cache.radius, tls.distances, factors);
+            apply_hardness_to_distances(cache, tls.distances);
+            calc_brush_strength_factors(cache, brush, tls.distances, factors);
+            calc_brush_texture_factors(ss, brush, tls.pixel_positions, factors);
+            scale_factors(factors, cache.bstrength);
+
+            if (std::ranges::all_of(factors, [](const float factor) { return factor == 0.0f; })) {
+              return;
+            }
+            row_changed[row_i] = true;
+
+            tls.paint_pixels.resize(range.size());
+            calc_brush_colors(tls.paint_pixels, factors, brush_color);
+
+            if (!float_buffer.is_empty()) {
+              tls.scene_linear_pixels = read_image_pixels(
+                  float_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+            else {
+              tls.scene_linear_pixels = read_image_pixels(byte_buffer,
+                                                          *processors,
+                                                          pixel_row,
+                                                          range,
+                                                          image_buffer->x,
+                                                          tls.byte_to_float_pixels);
+            }
+
+#ifdef DEBUG_PIXEL_NODES
+            apply_debug_color(scene_linear_pixels, pixel_row);
+#endif
+
+            blend_colors(tls.paint_pixels, tls.scene_linear_pixels, brush);
+
+            if (!float_buffer.is_empty()) {
+              write_image_pixels(
+                  tls.paint_pixels, float_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+            else {
+              write_image_pixels(
+                  tls.paint_pixels, byte_buffer, *processors, pixel_row, range, image_buffer->x);
+            }
+          });
+        },
+        exec_mode::grain_size(2));
+
+    const IndexMask changed_rows = IndexMask::from_bools(valid_rows, row_changed, memory);
+
+    const Bounds<int2> dirty_bounds = threading::parallel_reduce(
+        changed_rows.index_range(),
+        512,
+        negative_bounds(),
+        [&](const IndexRange range, const Bounds<int2> &init) {
+          Bounds<int2> current = init;
+          changed_rows.slice(range).foreach_index([&](const int row_i) {
+            const PackedPixelRow pixel_row = tile_data.pixel_rows[row_i];
+
+            const int2 start(pixel_row.start_image_coordinate.x,
+                             pixel_row.start_image_coordinate.y);
+            const int2 end = start + int2(pixel_row.num_pixels + 1, 0);
+
+            current = bounds::merge(current, Bounds<int2>(start, end));
+          });
+          return current;
+        },
+        merge_bounds);
+    if (!dirty_bounds.is_empty()) {
+      tile_data.mark_dirty(dirty_bounds);
+    }
+
+    if (tile_data.flags.dirty) {
+      BKE_image_mark_dirty(image_data.image, image_buffer);
+    }
+    pixels_updated |= tile_data.flags.dirty;
+  }
+
+  pixel_node.flags.dirty |= pixels_updated;
+}
+
+static void do_mask_pixels(const Depsgraph &depsgraph,
+                           Object &object,
+                           const Brush &brush,
+                           ImageData &image_data,
+                           bke::pbvh::Node & /*node*/,
+                           PixelNode &pixel_node)
+{
+  PRF_scope(ProfileCategory::Editor);
+  SculptSession &ss = *object.runtime->sculpt_session;
+  const StrokeCache &cache = *ss.cache;
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  PixelData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
+  const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
+
+  BitVector<> brush_test = init_uv_primitives_brush_test(
+      ss, pbvh_data.vert_tris, pixel_node.uv_primitives.tri_indices, positions);
+
+  /* Mask uses brush strength to determine if the brush is flipped/inverted. */
+  const bool negative_strength = ss.cache->bstrength < 0.0;
+  /* Brush strength must be positive to work correctly when texture painting. */
+  ss.cache->bstrength = std::abs(ss.cache->bstrength);
+  float4 brush_color = float4(
+      negative_strength ? float3(0.0f, 0.0f, 0.0f) : float3(1.0f, 1.0f, 1.0f), 1.0f);
 
 #ifdef DEBUG_PIXEL_NODES
   float4 debug_color;
@@ -682,6 +833,45 @@ bool SCULPT_use_image_mask_brush(PaintModeSettings &paint_mode_settings)
 {
   return paint_mode_settings.flag & PAINTMODE_STENCIL &&
          USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint);
+}
+
+void SCULPT_do_mask_brush_image(const Depsgraph &depsgraph,
+                                const Sculpt &sd,
+                                Object &ob,
+                                const IndexMask &node_mask)
+{
+  PRF_scope(ProfileCategory::Editor);
+  const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
+  ed::sculpt_paint::StrokeCache &cache = *ob.runtime->sculpt_session->cache;
+
+  if (!cache.image_data) {
+    return;
+  }
+
+  ImageData &image_data = *cache.image_data;
+
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
+  PixelData &pixel_data = *pbvh.pixels_;
+  MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
+
+  node_mask.foreach_index(
+      [&](const int i) { fetch_image_buffers(image_data, nodes[i], pixel_nodes[i]); });
+  node_mask.foreach_index(
+      [&](const int i) { do_push_undo_tile(image_data, nodes[i], pixel_nodes[i]); },
+      exec_mode::grain_size(1));
+  node_mask.foreach_index(
+      [&](const int i) {
+        do_mask_pixels(depsgraph, ob, *brush, image_data, nodes[i], pixel_nodes[i]);
+      },
+      exec_mode::grain_size(1));
+
+  fix_non_manifold_seam_bleeding(ob, image_data, nodes, pixel_nodes, node_mask);
+
+  node_mask.foreach_index([&](const int i) {
+    bke::pbvh::pixels::mark_image_dirty(
+        nodes[i], pixel_nodes[i], *image_data.image, image_data.buffers);
+  });
 }
 
 }  // namespace blender
