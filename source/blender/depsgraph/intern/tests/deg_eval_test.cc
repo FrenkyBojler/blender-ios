@@ -176,8 +176,8 @@ TEST_F(DepsgraphTest, evaluate_objects_after_transforms)
       << "The location value should have been copied from Main.";
 }
 
-/* When the object is animated, the object ID does not need to be copied from Main
- * on every frame because the motion comes from the action. */
+/* When the object is animated, a frame change does not cause a read from Main
+ * because the motion comes from evaluating the action. */
 TEST_F(DepsgraphTest, evaluate_animated_object)
 {
   Object *ob = add_mesh_object("animated_cube");
