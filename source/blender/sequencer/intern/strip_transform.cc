@@ -68,10 +68,14 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
            (strip1->left_handle() >= strip2->right_handle(scene))) == 0);
 }
 
-// TODO: rename to transform_test_invalid_overlap
-// TMP
+// TODO: rename to transform_test_invalid_overlap and check where this is used (only for
+// shuffling?) TMP
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
+  /* Don't shuffle transitions. */
+  if (strip_is_transition(test)) {
+    return false;
+  }
   for (Strip &strip : *seqbasep) {
     /* Transitions overlap the strips they're applied on */
     if ((strip.input1 == test || strip.input2 == test) && strip_is_transition(&strip)) {
@@ -115,17 +119,21 @@ void transform_set_overlap_flags(const Scene *scene,
     strip.runtime->flag &= ~seq::StripRuntimeFlag::MarkForDelete;
   }
 
+  /* First mark transitions for deletion. */
   for (Strip *strip : strips) {
     if (seq::strip_is_transition(strip)) {
-      Strip *left = effect_input_get(strip, SEQ_INPUT_LEFT);
-      Strip *right = effect_input_get(strip, SEQ_INPUT_RIGHT);
-      if ((left->right_handle(scene) != right->left_handle()) || (left->channel != right->channel))
+      Strip *left = strip->input1;
+      Strip *right = strip->input2;
+      if (left->right_handle(scene) != right->left_handle() || left->channel != right->channel ||
+          strip->left_handle() < left->left_handle() ||
+          strip->right_handle(scene) > right->right_handle(scene))
       {
         edit_flag_for_removal(scene, seqbasep, strip);
       }
     }
   }
 
+  /* Then test overlap. */
   Editing *ed = seq::editing_get(scene);
   for (Strip *strip : strips) {
     if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
