@@ -378,8 +378,7 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
   /* Tag node trees to update generated RNA with potentially updated session uid values from
    * data-block defaults in interfaces. This is only necessary because RNA types were already
    * generated before these data-blocks were local; theoretically that shouldn't be necessary. */
-  for (ID *id : lapp_context->new_id_to_item.keys())
-  {
+  for (ID *id : lapp_context->new_id_to_item.keys()) {
     if (GS(id->name) == ID_NT) {
       bNodeTree *ntree = id_cast<bNodeTree *>(id);
       BKE_ntree_update_tag_all(ntree);
