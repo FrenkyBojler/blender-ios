@@ -220,7 +220,7 @@ static float4 paint_debug_color(float4 scene, const int img_y)
 /**
  * Slower paint pixels blending with OpenColorIO conversion.
  */
-template<typename PixelT, bool is_float>
+template<typename PixelT>
 BLI_NOINLINE static void paint_blend_pixels_color_managed(
     const PaintBlendSettings &settings,
     const Span<float> factors,
@@ -232,6 +232,7 @@ BLI_NOINLINE static void paint_blend_pixels_color_managed(
     const TileColorspaceProcessor &processors,
     Vector<float4> &paint_pixels)
 {
+  constexpr bool is_float = std::is_same_v<typename PixelT::base_type, float>;
   PRF_scope(ProfileCategory::Editor);
 
   MutableSpan<float4> scene_linear_pixels;
@@ -286,7 +287,7 @@ BLI_NOINLINE static void paint_blend_pixels_color_managed(
  * Perform paint pixel blending with computed factors.
  * Templated and specialized for common color spaces since this is a hotspot.
  */
-template<typename PixelT, bool is_float>
+template<typename PixelT>
 static void paint_blend_pixels(const PaintBlendSettings &settings,
                                const Span<float> factors,
                                const int start,
@@ -297,10 +298,11 @@ static void paint_blend_pixels(const PaintBlendSettings &settings,
                                const TileColorspaceProcessor &processors,
                                Vector<float4> &paint_pixels)
 {
+  constexpr bool is_float = std::is_same_v<typename PixelT::base_type, float>;
   const bool fast_colorspace = is_float ? processors.is_noop : processors.is_srgb_byte;
   if (!fast_colorspace) {
     /* Slow path with OpenColorIO. */
-    paint_blend_pixels_color_managed<PixelT, is_float>(
+    paint_blend_pixels_color_managed<PixelT>(
         settings, factors, start, size, image_pixels, img_x, img_y, processors, paint_pixels);
     return;
   }
@@ -476,26 +478,26 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
             /* Blend pixels with computed factors. */
             if (!float_buffer.is_empty()) {
-              paint_blend_pixels<float4, true>(blend_settings,
-                                               factors,
-                                               0,
-                                               int(range.size()),
-                                               float_buffer,
-                                               img_x,
-                                               img_y,
-                                               *processors,
-                                               tls.paint_blend_pixels);
+              paint_blend_pixels<float4>(blend_settings,
+                                         factors,
+                                         0,
+                                         int(range.size()),
+                                         float_buffer,
+                                         img_x,
+                                         img_y,
+                                         *processors,
+                                         tls.paint_blend_pixels);
             }
             else {
-              paint_blend_pixels<uchar4, false>(blend_settings,
-                                                factors,
-                                                0,
-                                                int(range.size()),
-                                                byte_buffer,
-                                                img_x,
-                                                img_y,
-                                                *processors,
-                                                tls.paint_blend_pixels);
+              paint_blend_pixels<uchar4>(blend_settings,
+                                         factors,
+                                         0,
+                                         int(range.size()),
+                                         byte_buffer,
+                                         img_x,
+                                         img_y,
+                                         *processors,
+                                         tls.paint_blend_pixels);
             }
           });
         },
