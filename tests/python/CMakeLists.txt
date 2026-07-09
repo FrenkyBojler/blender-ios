@@ -1686,6 +1686,11 @@ if(WITH_UI_TESTS)
   # `"${TEST_PYTHON_EXE}" "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run.py" --list-tests`
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
+    test_search_in_editors.test_properties_search
+    test_search_in_editors.test_outliner_search
+    test_search_in_editors.test_dopesheet_search
+    test_search_in_editors.test_graph_editor_search
+    test_search_in_editors.test_file_browser_search
     test_sculpt.asset_shelf_brush_selection
     test_sculpt.face_set_expand
     test_sculpt.face_set_gestures
@@ -1728,6 +1733,7 @@ if(WITH_UI_TESTS)
     test_render.interactive_rendering_cycles
     test_render.interactive_rendering_eevee
     test_render.animation_rendering_and_player
+    test_bpy_types.unregister_referenced_type
   )
   foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
