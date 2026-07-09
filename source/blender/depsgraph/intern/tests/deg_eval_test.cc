@@ -4,8 +4,10 @@
 
 #include "gtest/gtest.h"
 
+#include "BKE_action.hh"
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
@@ -22,6 +24,10 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_fcurve.hh"
+#include "ANIM_keyframing.hh"
 
 #include "testing/testing.h"
 
@@ -86,7 +92,6 @@ class DepsgraphTest : public bke::BlenderGTestBase {
     Mesh *cube_mesh = BKE_mesh_add(bmain_, "cube_mesh");
     BKE_mesh_assign_object(bmain_, ob, cube_mesh);
     BKE_collection_object_add(bmain_, scene_->master_collection, ob);
-    DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     return ob;
   }
 
@@ -108,7 +113,7 @@ TEST_F(DepsgraphTest, build_empty_scene_graph)
 
 TEST_F(DepsgraphTest, evaluate_static_object)
 {
-  Object *ob = add_mesh_object("StaticCube");
+  Object *ob = add_mesh_object("static_cube");
   DEG_graph_build_from_view_layer(depsgraph_);
   DEG_graph_relations_update(depsgraph_);
 
@@ -144,7 +149,7 @@ TEST_F(DepsgraphTest, evaluate_static_object)
  * reads from main. */
 TEST_F(DepsgraphTest, evaluate_objects_after_transforms)
 {
-  Object *ob = add_mesh_object("StaticCube");
+  Object *ob = add_mesh_object("static_cube");
   DEG_graph_build_from_view_layer(depsgraph_);
   DEG_graph_relations_update(depsgraph_);
 
@@ -161,6 +166,8 @@ TEST_F(DepsgraphTest, evaluate_objects_after_transforms)
   EXPECT_TRUE(has_to_read_from_main(depsgraph_));
 
   evaluate_at_frame(0);
+  EXPECT_FALSE(has_to_read_from_main(depsgraph_));
+
   EXPECT_TRUE(DEG_id_is_fully_evaluated(depsgraph_, &ob->id));
   EXPECT_EQ(eval_ob, DEG_get_evaluated(depsgraph_, ob))
       << "Even though the object was recalculated, the pointer is the same because the depsgraph "
@@ -170,7 +177,28 @@ TEST_F(DepsgraphTest, evaluate_objects_after_transforms)
 }
 
 /* When the object is animated, the object ID does not need to be copied from Main
- * on every frame. */
-TEST_F(DepsgraphTest, evaluate_animated_object) {}
+ * on every frame because the motion comes from the action. */
+TEST_F(DepsgraphTest, evaluate_animated_object)
+{
+  Object *ob = add_mesh_object("animated_cube");
+  bAction *action = BKE_action_add(bmain_, "test_action");
+  const bool success = animrig::assign_action(action, ob->id);
+  EXPECT_TRUE(success);
+  animrig::Channelbag &channelbag = animrig::action_channelbag_ensure(*action, ob->id);
+  FCurve *fcu = channelbag.fcurve_create_unique(bmain_, {"location", 0});
+
+  DEG_graph_build_from_view_layer(depsgraph_);
+  DEG_graph_relations_update(depsgraph_);
+
+  animrig::insert_vert_fcurve(fcu, {0, 0}, {}, INSERTKEY_NOFLAGS);
+  animrig::insert_vert_fcurve(fcu, {1, 1}, {}, INSERTKEY_NOFLAGS);
+
+  evaluate_at_frame(0);
+  Object *eval_ob = DEG_get_evaluated(depsgraph_, ob);
+  EXPECT_FLOAT_EQ(eval_ob->loc[0], 0);
+
+  evaluate_at_frame(1);
+  EXPECT_FLOAT_EQ(eval_ob->loc[0], 1);
+}
 
 }  // namespace blender::deg::tests
