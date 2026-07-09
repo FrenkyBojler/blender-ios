@@ -5,6 +5,7 @@
 #include "BLI_delaunay_2d.hh"
 #include "BLI_index_mask.hh"
 
+#include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
@@ -192,11 +193,35 @@ struct TriangulationResult {
 
   Vector<int> component_points_offsets;
   Array<int> src_point_by_dst_point;
+
+  Vector<int> src_by_intersection_offsets;
+  Array<int> intersection_components;
+  Array<int> src_points_by_intersection;
+  Array<float> weights_by_intersection;
+
   IndexRange intersection_points;
 
   OffsetIndices<int> dst_points_range_by_component() const
   {
     return OffsetIndices<int>(component_points_offsets.as_span());
+  }
+
+  GroupedSpan<int> intersection_src_component_by_dst() const
+  {
+    return GroupedSpan<int>(src_by_intersection_offsets.as_span(),
+                            intersection_components.as_span());
+  }
+
+  GroupedSpan<int> intersection_src_by_dst() const
+  {
+    return GroupedSpan<int>(src_by_intersection_offsets.as_span(),
+                            src_points_by_intersection.as_span());
+  }
+
+  GroupedSpan<float> intersection_src_weight_by_dst() const
+  {
+    return GroupedSpan<float>(src_by_intersection_offsets.as_span(),
+                              weights_by_intersection.as_span());
   }
 };
 
@@ -402,8 +427,10 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
           const OffsetIndices<int> faces_by_source = offset_indices::accumulate_counts_to_offsets(
               faces_by_source_data);
 
+          const int total_source_points = points_by_source.total_size();
+
           /* Add 2D points. */
-          Array<double2> cdt_verts(points_by_source.total_size());
+          Array<double2> cdt_verts(total_source_points);
           for (const int source_i : group.point_source_domains.index_range()) {
             const IndexRange dst_range = points_by_source[source_i];
             MutableSpan<double2> dst_positions_2d = cdt_verts.as_mutable_span().slice(dst_range);
@@ -562,11 +589,14 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
           const int total_dst_verts = results[i].cdt_result.vert_orig.size();
           const OffsetIndices src_points_by_component = group.points_by_component();
           const Span<Vector<uint>> verts_orig = results[i].cdt_result.vert_orig.as_span();
+          const Span<std::pair<int, int>> intersected_edges_orig =
+              results[i].cdt_result.intersected_edges_orig.as_span();
 
           Array<int> dst_point_to_src_point(total_dst_verts, -1);
           Vector<int, 4> component_points_offsets;
           int64_t component_i = 0;
           int64_t count = 0;
+          int64_t intersections_start = -1;
           for (const int dst_point : verts_orig.index_range()) {
             const Span<uint> verts = verts_orig[dst_point].as_span();
             if (!verts.is_empty()) {
@@ -590,8 +620,8 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
               count++;
             }
             else {
-              results[i].intersection_points = IndexRange::from_begin_end(dst_point,
-                                                                          verts_orig.size());
+              /* Assume that all the intersection points are added at the end of the output. */
+              intersections_start = dst_point;
               break;
             }
           }
@@ -602,6 +632,100 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
 
           results[i].component_points_offsets = std::move(component_points_offsets);
           results[i].src_point_by_dst_point = std::move(dst_point_to_src_point);
+
+          const uint32_t face_edge_offset = results[i].cdt_result.face_edge_offset;
+          auto verts_from_cdt_edge = [&](const int edge) -> std::pair<int, int> {
+            if (edge < face_edge_offset) {
+              return cdt_edges[edge];
+            }
+            /* See CDT_result::edge_orig for how edge indices are encoded. */
+            const int src_face = (edge / face_edge_offset) - 1;
+            const int src_face_offset = edge % face_edge_offset;
+            const IndexRange face_range = cdt_faces[src_face];
+            const Span<int> face = cdt_face_vert_indices.as_span().slice(face_range);
+            return {face[src_face_offset], (face[src_face_offset] + 1) % face_range.size()};
+          };
+
+          if (intersections_start != -1) {
+            const IndexRange intersection_points = IndexRange::from_begin_end(intersections_start,
+                                                                              total_dst_verts);
+            results[i].intersection_points = intersection_points;
+
+            Array<int> src_component_by_point(total_source_points);
+            for (const int component_i : group.point_source_domains.index_range()) {
+              src_component_by_point.as_mutable_span()
+                  .slice(src_points_by_component[component_i])
+                  .fill(component_i);
+            }
+
+            const int total_src_points_per_intersection = intersection_points.size() * 4;
+
+            Vector<int> src_by_intersection_offsets;
+            Array<int> intersection_components(total_src_points_per_intersection);
+            Array<int> src_points_by_intersection(total_src_points_per_intersection);
+            Array<float> weights_by_intersection(total_src_points_per_intersection);
+
+            for (const int intersection_point : intersection_points.index_range()) {
+              const int dst_point = intersection_points[intersection_point];
+              const auto [edge1, edge2] = intersected_edges_orig[dst_point];
+              BLI_assert(edge1 != -1 && edge2 != -1);
+
+              const auto [vert1, vert2] = verts_from_cdt_edge(edge1);
+              const auto [vert3, vert4] = verts_from_cdt_edge(edge2);
+              const Span<int> src_points = {vert1, vert2, vert3, vert4};
+              Array<float2> src_positions(src_points.size());
+              for (const int i : src_points.index_range()) {
+                const int src_point = src_points[i];
+                const int src_component = src_component_by_point[src_point];
+                src_positions[i] = float2(cdt_verts[src_point]);
+
+                const IndexRange src_range = src_points_by_component[src_component];
+                const int local_point = src_point - int(src_range.start());
+                const IndexMask &mask = group_point_mask(
+                    group, group.point_source_domains[src_component]);
+
+                intersection_components[intersection_point * 4 + i] = src_component;
+                src_points_by_intersection[intersection_point * 4 + i] = int(mask[local_point]);
+              }
+
+              /* Compute the intersection weight from the four positions */
+              const float2 pos1 = src_positions[0];
+              const float2 pos2 = src_positions[1];
+              const float2 pos3 = src_positions[2];
+              const float2 pos4 = src_positions[3];
+
+              /* double area = cross(B - A, C - A) */
+              const float d1 = math::cross(pos4 - pos3, pos1 - pos3);
+              const float d2 = math::cross(pos4 - pos3, pos2 - pos3);
+              const float d3 = math::cross(pos2 - pos1, pos3 - pos1);
+              const float d4 = math::cross(pos2 - pos1, pos4 - pos1);
+
+              /* Factors along each edge for intersection. */
+              const float t = math::safe_divide(d1, (d1 - d2));
+              const float u = math::safe_divide(d3, (d3 - d4));
+
+              /* Weights of each point contributing to the intersection. */
+              const float w1 = (1.0f - t) / 2.0f;
+              const float w2 = t / 2.0f;
+              const float w3 = (1.0f - u) / 2.0f;
+              const float w4 = u / 2.0f;
+
+              weights_by_intersection[intersection_point * 4 + 0] = w1;
+              weights_by_intersection[intersection_point * 4 + 1] = w2;
+              weights_by_intersection[intersection_point * 4 + 2] = w3;
+              weights_by_intersection[intersection_point * 4 + 3] = w4;
+
+              src_by_intersection_offsets.append(src_points.size());
+            }
+            src_by_intersection_offsets.append(0);
+            offset_indices::accumulate_counts_to_offsets(
+                src_by_intersection_offsets.as_mutable_span());
+
+            results[i].src_by_intersection_offsets = std::move(src_by_intersection_offsets);
+            results[i].intersection_components = std::move(intersection_components);
+            results[i].src_points_by_intersection = std::move(src_points_by_intersection);
+            results[i].weights_by_intersection = std::move(weights_by_intersection);
+          }
         }
       },
       threading::individual_task_sizes([&](const int i) {
@@ -672,6 +796,57 @@ static void gather_attributes_for_result_for_component(const AttributeAccessor &
     bke::attribute_math::gather(
         src, dst_to_src_map, dst.span.slice(result_range).slice(component_range));
     dst.finish();
+  });
+}
+
+static void mix_intersection_attributes_for_result(
+    const Span<AttributeAccessor> src_accessors,
+    const IndexRange intersection_points,
+    const GroupedSpan<int> intersection_src_component_by_dst,
+    const GroupedSpan<int> intersection_src_by_dst,
+    const GroupedSpan<float> intersection_src_weight_by_dst,
+    const AttributeFilter &attribute_filter,
+    MutableAttributeAccessor &dst_attributes)
+{
+  dst_attributes.foreach_attribute([&](const AttributeIter &iter) {
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
+    if (attribute_filter.allow_skip(iter.name)) {
+      return;
+    }
+
+    GSpanAttributeWriter dst_generic = dst_attributes.lookup_for_write_span(iter.name);
+    BLI_assert(dst_generic);
+
+    Vector<GAttributeReader> src_attributes;
+    for (const AttributeAccessor &accessor : src_accessors) {
+      src_attributes.append(accessor.lookup_or_default(iter.name, iter.domain, iter.data_type));
+    }
+
+    bke::attribute_math::to_static_type(dst_generic.span.type(), [&]<typename T>() {
+      MutableSpan<T> dst = dst_generic.span.slice(intersection_points).typed<T>();
+      bke::attribute_math::DefaultMixer<T> mixer{dst};
+      threading::parallel_for(dst.index_range(), 1024, [&](const IndexRange range) {
+        for (const int64_t dst_point : range) {
+          /* All these spans should have 4 elements (two end points of two segments that
+           * intersect in the destination point). */
+          const Span<int> src_components = intersection_src_component_by_dst[dst_point];
+          const Span<int> src_indices = intersection_src_by_dst[dst_point];
+          const Span<float> src_weights = intersection_src_weight_by_dst[dst_point];
+          BLI_assert(src_components.size() == 4 && src_indices.size() == 4 &&
+                     src_weights.size() == 4);
+          for (const int i : IndexRange(4)) {
+            const int component_i = src_components[i];
+            const AttributeReader<T> src_attribute = src_attributes[component_i].typed<T>();
+            const int src_point = src_indices[i];
+            mixer.mix_in(dst_point, src_attribute.varray[src_point], src_weights[i]);
+          }
+          mixer.finalize(range);
+        }
+      });
+    });
+    dst_generic.finish();
   });
 }
 
@@ -787,6 +962,37 @@ static Mesh *cdts_to_mesh(const Span<TriangulationResult> results,
             bke::attribute_filter_with_skip_ref(attribute_filter, {"position"}),
             dst_attributes);
       }
+    }
+  });
+  threading::parallel_for(results.index_range(), 1024, [&](const IndexRange range) {
+    for (const int result_i : range) {
+      const TriangulationResult &result = results[result_i];
+      const IndexRange intersection_points = result.intersection_points;
+      const GroupedSpan<int> intersection_src_component_by_dst =
+          result.intersection_src_component_by_dst();
+      const GroupedSpan<int> intersection_src_by_dst = result.intersection_src_by_dst();
+      const GroupedSpan<float> intersection_src_weight_by_dst =
+          result.intersection_src_weight_by_dst();
+
+      Vector<AttributeAccessor> src_accessors;
+      for (const SourceComponent component : result.point_source_domains) {
+        src_accessors.append(src_attributes_for_domain(mesh, curves, pointcloud, component));
+      }
+
+      mix_intersection_attributes_for_result(src_accessors.as_span(),
+                                             intersection_points,
+                                             intersection_src_component_by_dst,
+                                             intersection_src_by_dst,
+                                             intersection_src_weight_by_dst,
+                                             bke::attribute_filter_with_skip_ref(attribute_filter,
+                                                                                 {"position",
+                                                                                  ".edge_verts",
+                                                                                  ".corner_vert",
+                                                                                  ".corner_edge",
+                                                                                  ".select_vert",
+                                                                                  ".select_edge",
+                                                                                  ".select_poly"}),
+                                             dst_attributes);
     }
   });
 
