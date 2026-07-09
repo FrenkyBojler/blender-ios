@@ -791,7 +791,6 @@ struct Film {
   void store_denoising_depth(FilmSample dst, float value, float4 &display)
   {
     [[resource_table]] const Uniform &uni = this->uniforms;
-    [[resource_table]] const draw::View &views = this->views_;
 
     if (uni.uniform_buf.film.denoising_depth_id == -1) {
       return;

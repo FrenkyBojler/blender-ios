@@ -998,6 +998,7 @@ static eShaderType get_write_pass_shader_type(eViewLayerEEVEEPassType pass_type)
 
   switch (Film::pass_storage_type(pass_type)) {
     case PASS_STORAGE_VALUE:
+    case PASS_STORAGE_DENOISING_DEPTH:
       return FILM_PASS_CONVERT_VALUE;
     case PASS_STORAGE_COLOR:
       return FILM_PASS_CONVERT_COLOR;
