@@ -236,7 +236,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     }
   }
 
-  if (is_input && (type != SOCK_STRING || is_supported_data_block_type(&ntree, type))) {
+  if (params.in_out() == SOCK_IN &&
+      (type != SOCK_STRING || is_supported_data_block_type(&ntree, type)))
+  {
     params.add_item(
         IFACE_("Angle"),
         SocketSearchOp{
