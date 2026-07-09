@@ -115,6 +115,7 @@ void Instance::init()
     state.use_in_front = false;
     state.is_wireframe_mode = false;
     state.hide_overlays = (space_image->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS) == 0;
+    state.show_text = !state.hide_overlays;
     state.xray_enabled = false;
     /* Avoid triggering the depth prepass. */
     state.is_render_depth_available = true;
@@ -833,6 +834,8 @@ void Instance::draw_v2d(Manager &manager, View &view)
   grid.draw_line(resources.overlay_output_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 
+  draw_text(resources.overlay_output_color_only_fb);
+
   cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
 }
 
@@ -875,9 +878,12 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.curves.draw_line(framebuffer, manager, view);
   };
 
+  auto draw_line_only = [&](OverlayLayer &layer, Framebuffer &framebuffer) {
+    layer.meshes.draw_line_only(framebuffer, manager, view);
+  };
+
   auto draw_color_only = [&](OverlayLayer &layer, Framebuffer &framebuffer) {
     layer.light_probes.draw_color_only(framebuffer, manager, view);
-    layer.meshes.draw_color_only(framebuffer, manager, view);
     layer.curves.draw_color_only(framebuffer, manager, view);
     layer.grease_pencil.draw_color_only(framebuffer, manager, view);
   };
@@ -969,6 +975,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
 
     draw_color_only(regular, resources.overlay_color_only_fb);
     draw_color_only(infront, resources.overlay_color_only_fb);
+    draw_line_only(regular, resources.overlay_line_only_fb);
+    draw_line_only(infront, resources.overlay_line_only_fb);
 
     /* TODO(fclem): Split overlay and rename draw functions. */
     regular.empties.draw_in_front_images(resources.overlay_color_only_fb, manager, view);

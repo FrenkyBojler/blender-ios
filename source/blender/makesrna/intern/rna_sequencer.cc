@@ -11,13 +11,13 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_layer.hh"
 
 #include "RNA_define.hh"
@@ -153,11 +153,11 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "DNA_node_types.h"
 #  include "DNA_vfont_types.h"
 
-#  include "BLI_iterator.h"
-#  include "BLI_listbase.h"
+#  include "BLI_iterator.hh"
+#  include "BLI_listbase.hh"
 #  include "BLI_path_utils.hh"
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "BKE_anim_data.hh"
@@ -801,7 +801,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->channel) ? 1 : -1;
-  seq::strip_channel_set(strip, value);
+  strip->channel_set(value);
 
   if (seq::transform_test_overlap(scene, seqbase, strip)) {
     seq::transform_seqbase_shuffle_ex(seqbase, strip, scene, channel_delta);
@@ -2057,6 +2057,18 @@ static PointerRNA rna_SequencerCompositorModifierProperties_get(PointerRNA *ptr)
       ptr->owner_id, RNA_SequencerCompositorModifierProperties, cmd);
 }
 
+static int rna_ColorStrip_width_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  const Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  return scene->r.xsch;
+}
+
+static int rna_ColorStrip_height_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  const Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  return scene->r.ysch;
+}
+
 }  // namespace blender
 
 #else
@@ -2553,7 +2565,7 @@ static void rna_def_strip(BlenderRNA *brna)
       srna, "Strip", "A single container for content in the Video Sequence Editor");
   RNA_def_struct_refine_func(srna, "rna_Strip_refine");
   RNA_def_struct_path_func(srna, "rna_Strip_path");
-  RNA_def_struct_ui_icon(srna, ICON_SEQ_SEQUENCER);
+  RNA_def_struct_ui_icon(srna, ICON_SEQ_STRIP);
   RNA_def_struct_idprops_func(srna, "rna_Strip_idprops");
   RNA_def_struct_system_idprops_func(srna, "rna_Strip_system_idprops");
 
@@ -3516,8 +3528,8 @@ static void rna_def_movie(BlenderRNA *brna)
   parm = RNA_def_boolean(func,
                          "can_produce_frames",
                          false,
-                         "True if the strip can produce frames, False otherwise",
-                         "");
+                         "Can Produce Frames",
+                         "True if the strip can produce frames, False otherwise");
   RNA_def_function_return(func, parm);
 
   /* metadata */
@@ -3799,6 +3811,20 @@ static void rna_def_solid_color(StructRNA *srna)
   RNA_def_property_float_sdna(prop, nullptr, "col");
   RNA_def_property_ui_text(prop, "Color", "Effect Strip color");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "width", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_sdna(prop, nullptr, "width");
+  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_int_default_func(prop, "rna_ColorStrip_width_default");
+  RNA_def_property_ui_text(prop, "Width", "Width of the color strip in pixels");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "height", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_sdna(prop, nullptr, "height");
+  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_int_default_func(prop, "rna_ColorStrip_height_default");
+  RNA_def_property_ui_text(prop, "Height", "Height of the color strip in pixels");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 }
 
 static void rna_def_speed_control(StructRNA *srna)
@@ -3919,9 +3945,27 @@ static void rna_def_text(StructRNA *srna)
 
   prop = RNA_def_property(srna, "space_line", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "space_line");
-  RNA_def_property_ui_text(prop, "Line Spacing", "Distance between lines of text");
+  RNA_def_property_ui_text(
+      prop, "Line Spacing", "Distance between lines of text in proportion to text size");
   RNA_def_property_range(prop, 0.0, 50.0f);
   RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1.0f, 1);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "abs_space_line", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_float_sdna(prop, nullptr, "abs_space_line");
+  RNA_def_property_ui_text(
+      prop, "Absolute Line Spacing", "Distance between lines of text in pixels");
+  RNA_def_property_subtype(prop, PROP_PIXEL);
+  RNA_def_property_range(prop, 0.0, 5000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 500.0f, 50.0f, 1);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "use_absolute_line_spacing", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_USE_ABSOLUTE_LINE_SPACING);
+  RNA_def_property_ui_text(
+      prop,
+      "Absolute Line Spacing",
+      "Define spacing using pixel values instead of relative scaling based on font size");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);

@@ -62,6 +62,7 @@ set(SRC
   intern/blender.cc
   intern/blender_cli_command.cc
   intern/blender_copybuffer.cc
+  intern/blender_project.cc
   intern/blender_undo.cc
   intern/blender_user_menu.cc
   intern/blendfile.cc
@@ -320,7 +321,7 @@ set(SRC
   BKE_anim_data.hh
   BKE_anim_path.h
   BKE_anim_visualization.h
-  BKE_animsys.h
+  BKE_animsys.hh
   BKE_anonymous_attribute_id.hh
   BKE_anonymous_attribute_make.hh
   BKE_appdir.hh
@@ -347,6 +348,7 @@ set(SRC
   BKE_blender.hh
   BKE_blender_cli_command.hh
   BKE_blender_copybuffer.hh
+  BKE_blender_project.hh
   BKE_blender_undo.hh
   BKE_blender_user_menu.hh
   BKE_blender_version.h
@@ -424,6 +426,7 @@ set(SRC
   BKE_idtype.hh
   BKE_image.hh
   BKE_image_format.hh
+  BKE_image_gpu.hh
   BKE_image_partial_update.hh
   BKE_image_save.hh
   BKE_image_wrappers.hh
@@ -553,6 +556,7 @@ set(SRC
 
   intern/attribute_storage_access.hh
   intern/data_transfer_intern.hh
+  intern/image_intern.hh
   intern/lib_intern.hh
   intern/multires_inline.hh
   intern/multires_reshape.hh
@@ -586,6 +590,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::intern::clog
+  PUBLIC bf::intern::profile
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
   PUBLIC bf::intern::optional::openvdb  # Contains intern-openvdb items in public headers
@@ -673,7 +678,7 @@ if(WITH_PYTHON)
 
 
   if(PYTHON_EXECUTABLE)
-    get_filename_component(_python_exe_name ${PYTHON_EXECUTABLE} NAME)
+    cmake_path(GET PYTHON_EXECUTABLE FILENAME _python_exe_name)
     add_definitions(-DPYTHON_EXECUTABLE_NAME=${_python_exe_name})
     unset(_python_exe_name)
   endif()
@@ -753,6 +758,7 @@ if(WITH_GTESTS)
     intern/armature_test.cc
     intern/asset_metadata_test.cc
     intern/attribute_storage_test.cc
+    intern/bake_items_serialize_test.cc
     intern/bpath_test.cc
     intern/brush_test.cc
     intern/cryptomatte_test.cc
@@ -773,6 +779,7 @@ if(WITH_GTESTS)
     intern/lib_query_test.cc
     intern/lib_remap_test.cc
     intern/main_test.cc
+    intern/main_namemap_test.cc
     intern/nla_test.cc
     intern/node_socket_value_iter_test.cc
     intern/path_templates_test.cc

@@ -8,6 +8,7 @@
 #include "BLI_math_mpq.hh"
 #include "BLI_math_vector_mpq_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_offset_indices.hh"
 #include "BLI_vector.hh"
 
 namespace blender {
@@ -149,9 +150,10 @@ namespace meshintersect {
  */
 template<typename T> class CDT_input {
  public:
-  Array<VecBase<T, 2>> vert;
-  Array<std::pair<int, int>> edge;
-  Array<Vector<int>> face;
+  Span<VecBase<T, 2>> vert;
+  Span<std::pair<int, int>> edge;
+  OffsetIndices<int> face_offsets;
+  Span<int> face_vert_indices;
   T epsilon{0};
   bool need_ids{true};
 };
@@ -200,6 +202,12 @@ template<typename T> class CDT_result {
    *      and "b" will be a position within that face.
    */
   Array<Vector<uint32_t>> edge_orig;
+  /**
+   * For each output vert, if the output vert is an intersection,
+   * which original edges were intersected?
+   * Note: Indices follow the same encoding as edge_orig (see above).
+   */
+  Array<std::pair<int, int>> intersected_edges_orig;
   /** For each output face, which original faces does it overlap? */
   Array<Vector<uint32_t>> face_orig;
   /** Used to encode edge_orig (see above). */

@@ -8,9 +8,9 @@
  */
 
 #include "BLI_color_types.hh"
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_threads.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_threads.hh"
 
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
@@ -905,7 +905,7 @@ static void node_socket_undefined_draw(bContext * /*C*/,
                                        PointerRNA * /*node_ptr*/,
                                        StringRef /*text*/)
 {
-  layout->label(IFACE_("Undefined Socket Type"), ICON_ERROR);
+  layout->label(IFACE_("Undefined Socket Type"), ICON_STATUS_ERROR);
 }
 
 static void node_socket_undefined_draw_color(bContext * /*C*/,
@@ -933,7 +933,7 @@ static void node_socket_undefined_interface_draw(ID * /*id*/,
                                                  bContext * /*C*/,
                                                  ui::Layout *layout)
 {
-  layout->label(IFACE_("Undefined Socket Type"), ICON_ERROR);
+  layout->label(IFACE_("Undefined Socket Type"), ICON_STATUS_ERROR);
 }
 
 /** \} */
@@ -1123,7 +1123,8 @@ static void draw_node_socket_name_editable(ui::Layout *layout,
       layout->emboss_set(ui::EmbossType::None);
       layout->prop((&sock->runtime->declaration->socket_name_rna->owner),
                    sock->runtime->declaration->socket_name_rna->property_name,
-                   sock->in_out == SOCK_OUT ? ui::eUI_Item_Flag::ITEM_R_TEXT_RIGHT : UI_ITEM_NONE,
+                   ui::ITEM_R_TEXT_BUT_LABEL_STYLE |
+                       (sock->in_out == SOCK_OUT ? ui::ITEM_R_TEXT_RIGHT : UI_ITEM_NONE),
                    "",
                    ICON_NONE);
       return;
@@ -1378,7 +1379,7 @@ static void std_node_socket_draw(
         }
       }
       else if (default_value->has_conflict()) {
-        layout->label(IFACE_("Menu Error"), ICON_ERROR);
+        layout->label(IFACE_("Menu Error"), ICON_STATUS_ERROR);
       }
       else {
         layout->label(IFACE_("Menu Undefined"), ICON_QUESTION);
@@ -1577,7 +1578,9 @@ static void std_node_socket_interface_draw(ID *id,
   if (interface_socket->flag & NODE_INTERFACE_SOCKET_INPUT &&
       ELEM(node_tree->type, NTREE_GEOMETRY, NTREE_COMPOSIT))
   {
-    if (ELEM(type, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_MATRIX)) {
+    if (ELEM(type, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR, SOCK_MATRIX) ||
+        (node_tree->type == NTREE_GEOMETRY && type == SOCK_OBJECT))
+    {
       col->prop(&ptr, "default_input", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     }
   }
@@ -1781,10 +1784,10 @@ static std::array<float2, 4> node_link_bezier_points(const bNodeLink &link)
 
 static bool node_link_draw_is_visible(const View2D &v2d, const std::array<float2, 4> &points)
 {
-  if (min_ffff(points[0].x, points[1].x, points[2].x, points[3].x) > v2d.cur.xmax) {
+  if (std::min({points[0].x, points[1].x, points[2].x, points[3].x}) > v2d.cur.xmax) {
     return false;
   }
-  if (max_ffff(points[0].x, points[1].x, points[2].x, points[3].x) < v2d.cur.xmin) {
+  if (std::max({points[0].x, points[1].x, points[2].x, points[3].x}) < v2d.cur.xmin) {
     return false;
   }
   return true;
