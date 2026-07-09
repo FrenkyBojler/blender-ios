@@ -3425,6 +3425,8 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
       return {IndexMask(), std::nullopt, std::nullopt};
     }
 
+    tilt_apply_to_normal(sculpt_normal, *ss.cache, brush.tilt_strength_factor);
+
     float4x4 brush_local_mat;
     float4x4 brush_local_mat_inv;
 
@@ -3439,7 +3441,7 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
     return {
         pbvh_gather_generic_cube(ob, brush, brush_local_mat, use_original, memory),
         std::nullopt,
-        std::nullopt,
+        sculpt_normal,
     };
   }
 
