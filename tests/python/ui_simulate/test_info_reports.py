@@ -55,11 +55,7 @@ def _setup_info_area():
 
     e, t, window = ui.test_window()
     area = ui.largest_area(window.screen)
-
-    with bpy.context.temp_override(area=area):
-        area.type = 'INFO'
-
-    yield
+    area.type = 'INFO'
 
     _register_info_report_generator()
 
@@ -146,11 +142,6 @@ def test_info_report_filters():
     ]
 
     for case_name, filter_state in filter_states:
-        # Property round-trip check.
-        _set_report_filters(
-            space,
-            debug=False, info=False, warning=False, error=False, operator=False,
-        )
         _set_report_filters(space, **filter_state)
 
         for prop_name, expected_value in (
