@@ -11,7 +11,6 @@
 #include <cfloat>
 #include <climits>
 #include <cmath>
-#include <cstdio>
 #include <cstddef> /* `offsetof()` */
 #include <cstring>
 
@@ -2315,24 +2314,15 @@ void block_draw(const bContext *C, Block *block)
     GPU_scissor(rect.xmin, ymin, BLI_rcti_size_x(&rect), ymax - ymin);
   }
 
-  int xr_buttons_total = 0;
-  int xr_buttons_hidden = 0;
-  int xr_buttons_out_of_view = 0;
-  int xr_buttons_too_wide = 0;
-  int xr_buttons_invalid = 0;
-  int xr_buttons_drawn = 0;
   /* widgets */
   for (Button &but : block->buttons()) {
-    xr_buttons_total++;
     if (but.flag & (UI_HIDDEN | UI_SCROLLED)) {
-      xr_buttons_hidden++;
       continue;
     }
 
     button_to_pixelrect(&rect, region, block, &but);
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!but_pixelrect_in_view(region, &rect)) {
-      xr_buttons_out_of_view++;
       continue;
     }
 
@@ -2343,7 +2333,6 @@ void block_draw(const bContext *C, Block *block)
         panel_width -= int(floor(UI_PANEL_MARGIN_X / block->aspect * 2.0f));
       }
       if (BLI_rcti_size_x(&rect) > int(float(panel_width) * 1.2f)) {
-        xr_buttons_too_wide++;
         continue;
       }
     }
@@ -2352,10 +2341,6 @@ void block_draw(const bContext *C, Block *block)
     /* and material preview is redrawn in main window (temp fix for bug #23848) */
     if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
       draw_button(C, region, &style, &but, &rect);
-      xr_buttons_drawn++;
-    }
-    else {
-      xr_buttons_invalid++;
     }
   }
 

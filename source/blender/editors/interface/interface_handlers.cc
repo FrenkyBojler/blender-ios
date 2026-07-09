@@ -10,7 +10,6 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <optional>

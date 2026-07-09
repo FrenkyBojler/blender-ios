@@ -136,14 +136,6 @@ void ED_region_panels_layout(const bContext *C, ARegion *region);
 void ED_region_panels_draw(const bContext *C, ARegion *region);
 void ED_region_panels_exit_active_state(const bContext *C, ARegion *region);
 
-/**
- * Draws a panel list on a world space panel in the 3D viewport.
- */
-void ED_region_panels_draw_world_space(bContext *C,
-                                       ARegion *region,
-                                       RegionView3D *rv3d,
-                                       const float obmat[4][4]);
-
 /* Expose world-space panel building blocks for reuse (e.g. XR paths). */
 struct GPUOffScreen;
 void ED_region_panels_draw_offscreen(const bContext *C,

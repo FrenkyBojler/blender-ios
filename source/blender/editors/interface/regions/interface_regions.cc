@@ -10,8 +10,6 @@
  * \note Most logic is now in 'interface_region_*.c'
  */
 
-#include <cstdio>
-
 #include "BLI_listbase.hh"
 
 #include "BKE_context.hh"
