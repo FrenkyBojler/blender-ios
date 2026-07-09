@@ -504,6 +504,7 @@ class _defs_view3d_select:
 
 
 ToolDefaults = namedtuple("ToolDefaults", ["origin_base", "aspect_base", "origin_depth", "aspect_depth"])
+TrianglesConeFillType = 2
 
 
 class _defs_view3d_add:
@@ -634,9 +635,17 @@ class _defs_view3d_add:
                 return
 
             props = tool.operator_properties("mesh.primitive_cone_add")
-            layout.prop(props, "rings")
+            if context.mode == 'SCULPT':
+                layout.prop(props, "rings")
+                layout.prop(props, "fill_segments")
+
+                if not props.is_property_set("end_fill_type"):
+                    props.end_fill_type = 'TRIFAN'
+
+            elif not props.is_property_set("end_fill_type"):
+                props.end_fill_type = 'NGON'
+
             layout.prop(props, "vertices")
-            layout.prop(props, "fill_segments")
             layout.prop(props, "end_fill_type")
 
             if show_extra:
@@ -664,9 +673,17 @@ class _defs_view3d_add:
                 return
 
             props = tool.operator_properties("mesh.primitive_cylinder_add")
-            layout.prop(props, "rings")
+            if context.mode == 'SCULPT':
+                layout.prop(props, "rings")
+                layout.prop(props, "fill_segments")
+
+                if not props.is_property_set("end_fill_type"):
+                    props.end_fill_type = 'TRIFAN'
+
+            elif not props.is_property_set("end_fill_type"):
+                props.end_fill_type = 'NGON'
+
             layout.prop(props, "vertices")
-            layout.prop(props, "fill_segments")
             layout.prop(props, "end_fill_type")
 
             if show_extra:

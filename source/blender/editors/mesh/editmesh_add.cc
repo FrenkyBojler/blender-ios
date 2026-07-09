@@ -25,6 +25,7 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "DNA_windowmanager_types.h"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -39,6 +40,9 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -314,6 +318,35 @@ void MESH_OT_primitive_plane_add(wmOperatorType *ot)
   ed::object::add_generic_props(ot, true);
 }
 
+static void primitive_add_common_ui(blender::ui::Layout &layout, PointerRNA *ptr)
+{
+  layout.prop(ptr, "calc_uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "align", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "location", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
+static void primitive_cube_add_ui(bContext *C, wmOperator *op)
+{
+  using namespace blender::ui;
+
+  Layout &layout = *op->layout;
+  PointerRNA *ptr = op->ptr;
+
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+
+  layout.prop(ptr, "size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  if (mode == CTX_MODE_SCULPT) {
+    layout.prop(ptr, "subdivisions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  primitive_add_common_ui(layout, ptr);
+}
+
 static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
 {
   MakePrimitiveData creation_data;
@@ -391,6 +424,9 @@ void MESH_OT_primitive_cube_add(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = add_primitive_cube_exec;
   ot->poll = ED_operator_scene_editable;
+
+  /* UI overrides */
+  ot->ui = primitive_cube_add_ui;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -477,6 +513,31 @@ void MESH_OT_primitive_circle_add(wmOperatorType *ot)
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
+}
+
+static void primitive_cylinder_add_ui(bContext *C, wmOperator *op)
+{
+  using namespace blender::ui;
+
+  Layout &layout = *op->layout;
+  PointerRNA *ptr = op->ptr;
+
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+
+  layout.prop(ptr, "vertices", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "end_fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  if (mode == CTX_MODE_SCULPT) {
+    layout.prop(ptr, "rings", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "fill_segments", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  primitive_add_common_ui(layout, ptr);
 }
 
 static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
@@ -571,6 +632,9 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
   ot->exec = add_primitive_cylinder_exec;
   ot->poll = ED_operator_scene_editable;
 
+  /* UI overrides */
+  ot->ui = primitive_cylinder_add_ui;
+
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -587,6 +651,32 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
 
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
+}
+
+static void primitive_cone_add_ui(bContext *C, wmOperator *op)
+{
+  using namespace blender::ui;
+
+  Layout &layout = *op->layout;
+  PointerRNA *ptr = op->ptr;
+
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+
+  layout.prop(ptr, "vertices", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "radius1", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "radius2", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "end_fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  if (mode == CTX_MODE_SCULPT) {
+    layout.prop(ptr, "rings", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "fill_segments", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  primitive_add_common_ui(layout, ptr);
 }
 
 static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
@@ -679,6 +769,9 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = add_primitive_cone_exec;
   ot->poll = ED_operator_scene_editable;
+
+  /* UI overrides */
+  ot->ui = primitive_cone_add_ui;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
