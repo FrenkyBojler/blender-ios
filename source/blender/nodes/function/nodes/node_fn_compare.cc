@@ -199,7 +199,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
 
-  if (type != SOCK_STRING || is_supported_data_block_type(&ntree, type)) {
+  if (type == SOCK_STRING || is_supported_data_block_type(&ntree, type)) {
     return;
   }
 
