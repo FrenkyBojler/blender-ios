@@ -225,7 +225,20 @@ bool ED_curve_active_center(Curve *cu, float center[3])
 
   if (nu->type == CU_BEZIER) {
     BezTriple *bezt = static_cast<BezTriple *>(vert);
-    copy_v3_v3(center, bezt->vec[1]);
+    /* Prefer a uniquely selected handle over the control point so the
+     * active center matches the handle being transformed (#161215). */
+    const bool left_selected = BEZT_ISSEL_IDX(bezt, 0);
+    const bool knot_selected = BEZT_ISSEL_IDX(bezt, 1);
+    const bool right_selected = BEZT_ISSEL_IDX(bezt, 2);
+    if (left_selected && !knot_selected && !right_selected) {
+      copy_v3_v3(center, bezt->vec[0]);
+    }
+    else if (right_selected && !knot_selected && !left_selected) {
+      copy_v3_v3(center, bezt->vec[2]);
+    }
+    else {
+      copy_v3_v3(center, bezt->vec[1]);
+    }
   }
   else {
     BPoint *bp = static_cast<BPoint *>(vert);
