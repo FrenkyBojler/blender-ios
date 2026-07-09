@@ -200,7 +200,7 @@ TEST_F(DepsgraphTest, evaluate_animated_object)
   EXPECT_FALSE(has_to_read_from_main(depsgraph_));
 
   evaluate_at_frame(1);
-  /* The evaluation  */
+  /* The evaluation updates the evaluated object in place. */
   EXPECT_FLOAT_EQ(eval_ob->loc[0], 1);
 }
 
