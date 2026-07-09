@@ -704,6 +704,7 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
               /* Factors along each edge for intersection. */
               const float t = math::safe_divide(d1, (d1 - d2));
               const float u = math::safe_divide(d3, (d3 - d4));
+              BLI_assert(t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f);
 
               /* Weights of each point contributing to the intersection. */
               const float w1 = (1.0f - t) / 2.0f;
