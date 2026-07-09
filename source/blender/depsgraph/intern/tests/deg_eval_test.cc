@@ -61,6 +61,7 @@ class DepsgraphTest : public bke::BlenderGTestBase {
   void SetUp() override
   {
     bmain_ = BKE_main_new();
+    G_MAIN = bmain_;
 
     scene_ = BKE_scene_add(bmain_, "DEG_TEST_Scene");
     view_layer_ = BKE_view_layer_default_view(scene_);
@@ -78,6 +79,7 @@ class DepsgraphTest : public bke::BlenderGTestBase {
       BKE_main_free(bmain_);
       bmain_ = nullptr;
     }
+    G_MAIN = nullptr;
   }
 
   /* Adds mesh object and tags the depsgraph for an update. */
