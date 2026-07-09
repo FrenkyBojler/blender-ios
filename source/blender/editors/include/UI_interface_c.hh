@@ -1054,6 +1054,8 @@ void popup_block_close(bContext *C, wmWindow *win, Block *block);
 
 bool popup_block_name_exists(const bScreen *screen, StringRef name);
 
+void popup_block_auto_width_layout_enable(const bContext *C,Block*block);
+
 /* Blocks
  *
  * Functions for creating, drawing and freeing blocks. A Block is a

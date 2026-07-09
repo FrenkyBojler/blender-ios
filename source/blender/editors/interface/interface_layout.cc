@@ -5730,8 +5730,8 @@ static int item_estimate_fit_text_extra_width(Item &item)
 static std::optional<int> layout_estimate_popup_fit_width(Layout *layout)
 {
   Block *block = layout->block();
-  block->popup_auto_width.width = layout->width();
-  block->popup_auto_width.oldwidth = layout->width();
+  block->popup_auto_width->width = layout->width();
+  block->popup_auto_width->oldwidth = layout->width();
 
   if (!(block_is_popup_any(block) && !block_is_menu(block) && !block_is_pie_menu(block))) {
     return std::nullopt;
@@ -5741,9 +5741,9 @@ static std::optional<int> layout_estimate_popup_fit_width(Layout *layout)
     return std::nullopt;
   }
   else {
-    const int old_width = block->popup_auto_width.oldwidth;
+    const int old_width = block->popup_auto_width->oldwidth;
     int new_width = std::max<float>(old_width, extra_width + layout->width());
-    const int min_width = block->popup_auto_width.min_width;
+    const int min_width = block->popup_auto_width->min_width;
     new_width = std::clamp(new_width, min_width, min_width * 2);
     if (new_width > old_width) {
       return new_width;
@@ -5785,12 +5785,7 @@ static int2 layout_end(Layout *layout)
   Vector<ItemSourceState> items_source_states;
   Block *block = layout->block();
   /* Some popups tags blocks as popups before using #block_layout, check again now. */
-  if (block_is_popup_any(block)) {
-    if (block->popup_auto_width.min_width == 0) {
-      block->popup_auto_width.min_width = layout->width();
-    }
-  }
-  if (block_is_popup_any(block) && !block_is_menu(block) && !block_is_pie_menu(block)) {
+  if (block->popup_auto_width) {
     backup_item_source_state_recursive(items_source_states, *layout);
   }
 
@@ -5800,13 +5795,13 @@ static int2 layout_end(Layout *layout)
   /* Redo layout for popup that can get widen to properly show text content, usually this is done
    * just once. */
   while (std::optional<int> popop_fit_width = layout_estimate_popup_fit_width(layout)) {
-    block->popup_auto_width.width = *popop_fit_width;
-    block->popup_auto_width.oldwidth = *popop_fit_width;
+    block->popup_auto_width->width = *popop_fit_width;
+    block->popup_auto_width->oldwidth = *popop_fit_width;
     if (block->panel) {
       block->panel->runtime->layout_panels.bodies.clear();
       block->panel->runtime->layout_panels.headers.clear();
     }
-    items_source_states[0].size.x = block->popup_auto_width.width;
+    items_source_states[0].size.x = block->popup_auto_width->width;
     for (ItemSourceState &source_state : items_source_states) {
       item_position(source_state.item,
                     source_state.pos.x,
@@ -5865,13 +5860,13 @@ Layout &block_layout(Block *block,
                      const uiStyle *style)
 {
   /* Reuse last popup auto width, this makes elements to fit on redraws. */
-  if (block_is_popup_any(block)) {
-    if (block->popup_auto_width.min_width == 0) {
-      block->popup_auto_width.min_width = size;
+  if (block->popup_auto_width) {
+    if (block->popup_auto_width->min_width == 0) {
+      block->popup_auto_width->min_width = size;
     }
-    size = std::max(block->popup_auto_width.width, size);
-    block->popup_auto_width.width = size;
-    block->popup_auto_width.oldwidth = size;
+    size = std::max(block->popup_auto_width->width, size);
+    block->popup_auto_width->width = size;
+    block->popup_auto_width->oldwidth = size;
   }
   LayoutRoot *root = MEM_new_zeroed<LayoutRoot>(__func__);
   root->type = type;
