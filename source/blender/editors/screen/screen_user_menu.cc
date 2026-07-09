@@ -106,7 +106,8 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBaseT<bUserMenuItem
   for (bUserMenuItem &umi : *lb) {
     if (umi.type == USER_MENU_TYPE_OPERATOR) {
       bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(&umi);
-      const bool ok_idprop = IDP_EqualsProperties_ex(prop, umi_op->prop, false);
+      const bool is_strict = prop && umi_op->prop;
+      const bool ok_idprop = IDP_EqualsProperties_ex(prop, umi_op->prop, is_strict);
       const bool ok_prop_enum = (umi_op->op_prop_enum[0] != '\0') ?
                                     STREQ(umi_op->op_prop_enum, op_prop_enum) :
                                     true;
@@ -234,7 +235,7 @@ static void handle_operator_asset_reference_props(const bContext &C,
   if (ed::asset::operator_asset_reference_props_is_set(opptr)) {
     const bool loading_finished = all_loading_finished();
     if (!loading_finished) {
-      row.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
+      row.label(IFACE_("Loading Asset Libraries"), ICON_STATUS_INFO);
       r_add_operator = false;
     }
     else {

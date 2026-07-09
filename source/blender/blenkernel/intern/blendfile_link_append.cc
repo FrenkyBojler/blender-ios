@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BKE_node_tree_update.hh"
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -374,6 +375,16 @@ void BKE_blendfile_link_append_context_finalize(BlendfileLinkAppendContext *lapp
                   BlendfileLinkAppendContext::ProcessStage::Instantiating));
   lapp_context->process_stage = BlendfileLinkAppendContext::ProcessStage::Done;
 
+  /* Tag node trees to update generated RNA with potentially updated session uid values from
+   * data-block defaults in interfaces. This is only necessary because RNA types were already
+   * generated before these data-blocks were local; theoretically that shouldn't be necessary. */
+  for (ID *id : lapp_context->new_id_to_item.keys()) {
+    if (GS(id->name) == ID_NT) {
+      bNodeTree *ntree = id_cast<bNodeTree *>(id);
+      BKE_ntree_update_tag_all(ntree);
+    }
+  }
+
   BKE_main_ensure_invariants(*lapp_context->params->bmain);
 
   PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_BlendImportContext, lapp_context);
@@ -477,20 +488,31 @@ static void loose_data_instantiate_ensure_active_collection(
   /* Find or add collection as needed. When `active_collection` is non-null, it is assumed to be
    * editable. */
   if (instantiate_context->active_collection == nullptr) {
+    auto add_instantiating_collection =
+        [&bmain, &lapp_context](Collection *parent_collection) -> Collection * {
+      if (lapp_context->params->flag & FILE_LINK) {
+        return BKE_collection_add(bmain, parent_collection, DATA_("Linked Data"));
+      }
+      return BKE_collection_add(bmain, parent_collection, DATA_("Appended Data"));
+    };
+
     if (lapp_context->params->flag & FILE_ACTIVE_COLLECTION) {
       LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
       instantiate_context->active_collection = BKE_collection_parent_editable_find_recursive(
           view_layer, lc->collection);
+      /* In all 'sane' cases, `BKE_collection_parent_editable_find_recursive` should find a valid
+       * parent collection. This is only a minimal backup in case the link/append operation happens
+       * in a very weird, broken context. */
+      if (!instantiate_context->active_collection) {
+        instantiate_context->active_collection = add_instantiating_collection(nullptr);
+      }
     }
     else {
-      if (lapp_context->params->flag & FILE_LINK) {
-        instantiate_context->active_collection = BKE_collection_add(
-            bmain, scene->master_collection, DATA_("Linked Data"));
-      }
-      else {
-        instantiate_context->active_collection = BKE_collection_add(
-            bmain, scene->master_collection, DATA_("Appended Data"));
-      }
+      Collection *parent_collection = BKE_collection_is_content_editable(
+                                          scene->master_collection) ?
+                                          scene->master_collection :
+                                          nullptr;
+      instantiate_context->active_collection = add_instantiating_collection(parent_collection);
     }
   }
 }

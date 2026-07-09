@@ -824,7 +824,7 @@ bool WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
       }
       default:
         if ((do_update == false) || (RNA_property_is_set(ptr, prop) == false)) {
-          if (RNA_property_reset(ptr, prop, -1)) {
+          if (RNA_property_reset(nullptr, ptr, prop, -1)) {
             changed = true;
           }
         }
@@ -1209,16 +1209,16 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
     case ICON_NONE:
       alert_icon = ui::AlertIcon::None;
       break;
-    case ICON_ERROR:
+    case ICON_STATUS_WARNING_FILLED:
       alert_icon = ui::AlertIcon::Warning;
       break;
     case ICON_QUESTION:
       alert_icon = ui::AlertIcon::Question;
       break;
-    case ICON_CANCEL:
+    case ICON_STATUS_ERROR_FILLED:
       alert_icon = ui::AlertIcon::Error;
       break;
-    case ICON_INFO:
+    case ICON_STATUS_INFO_FILLED:
       alert_icon = ui::AlertIcon::Info;
       break;
   }
@@ -1912,7 +1912,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 
   /* Operator is stored and kept alive in the window manager. So passing a pointer to the UI is
    * fine, it will remain valid. */
-  ui::popup_block_invoke(C, wm_block_create_redo, op, nullptr);
+  ui::popup_block_invoke(C, wm_block_create_redo, op, nullptr, op->type->srna);
 
   return OPERATOR_CANCELLED;
 }
@@ -2033,7 +2033,7 @@ static ui::Block *wm_block_search_menu(bContext *C, ARegion *region, void *userd
   }
   else if (init_data->search_type == SEARCH_TYPE_SINGLE_MENU) {
     button_func_menu_search(but, init_data->single_menu_idname.c_str());
-    button_flag2_enable(but, ui::BUT2_ACTIVATE_ON_INIT_NO_SELECT);
+    button_flag_enable(but, ui::BUT_ACTIVATE_ON_INIT_NO_SELECT);
   }
   else {
     BLI_assert_unreachable();
@@ -3800,7 +3800,7 @@ static wmOperatorStatus redraw_timer_exec(bContext *C, wmOperator *op)
 
     if (type == eRTAnimationPlay) {
       WorkspaceStatus status(C);
-      status.item(fmt::format("{} / {} {}", a + 1, iter, infostr), ICON_INFO);
+      status.item(fmt::format("{} / {} {}", a + 1, iter, infostr), ICON_STATUS_INFO);
     }
 
     redraw_timer_step(C, scene, depsgraph, win, area, region, type, cfra, a, iter);
