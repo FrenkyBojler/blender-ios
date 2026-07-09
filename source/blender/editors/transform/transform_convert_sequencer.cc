@@ -785,6 +785,8 @@ static void view2d_edge_pan_loc_compensate(TransInfo *t, float r_offset[2])
   }
 }
 
+// TODO: see EDGE-PAN-BUG-TEST-CASE.blend (move selected right so edge pan gets triggered)
+// not sure if this is new or in main
 static void get_strip_offsets(TransInfo *t,
                               TransData *td,
                               const float edge_pan_offset[2],
@@ -891,6 +893,30 @@ static void flush_transition_transforms(TransInfo *t,
   }
 }
 
+// TODO: quite a mouthful
+// This needs to be for the left (or right) input to stay sane since one strip can have a
+// transition on each side
+static Strip *get_adjacent_selection_transition_for_left_input(Editing *ed, const Strip *strip)
+{
+  auto valid_selection{[](const Strip *strip, eStripFlag valid_side) -> bool {
+    const bool left = (strip->flag & SEQ_LEFTSEL) != 0;
+    const bool right = (strip->flag & SEQ_RIGHTSEL) != 0;
+    const bool select = (strip->flag & SEQ_SELECT) != 0;
+    const bool invalid_only_side = valid_side == SEQ_LEFTSEL ? right : left;
+    return (left && right) || (select && !invalid_only_side);
+  }};
+  Span<Strip *> effect_strips = seq::lookup_effects_by_strip(ed, strip);
+  for (Strip *effect : effect_strips) {
+    if (seq::strip_is_transition(effect) && effect->input1 == strip &&
+        valid_selection(effect->input1, SEQ_RIGHTSEL) &&
+        valid_selection(effect->input2, SEQ_LEFTSEL))
+    {
+      return effect;
+    }
+  }
+  return nullptr;
+}
+
 /* Flushes the translation and channel updates. Possible updates to the handle locations are
  * returned and handled outside this function. This is to avoid unexpected handle clamping when
  * both handles are selected and the `new_frame` is right of the old one. See #126191. */
@@ -915,61 +941,47 @@ static void flush_strip_transforms(TransInfo *t,
   /* Clamped offset from #x_old. */
   const int x_offset = round_fl_to_int(offset_clamped[0]);
 
-  if (tdsq->sel_flag == SEQ_SELECT) {
-    const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
-    const int delta_x = (x_old + x_offset) - strip->left_handle();
+  int transition_delta_x = 0;
+  int new_channel = strip->channel;
 
-    strip->channel_set(new_channel);
+  switch (tdsq->sel_flag) {
+    case SEQ_SELECT: {
+      new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
+      const int delta_x = (x_old + x_offset) - strip->left_handle();
 
-    if (!seq::transform_strip_can_be_translated(strip)) {
-      return;
-    }
+      strip->channel_set(new_channel);
 
-    seq::transform_translate_strip(scene, strip, delta_x);
-
-    // TODO: i think this doesn't respect the modifications to the flag tho
-    // really you need to iterate again like this
-    // for (int a = 0; a < tc->data_len; a++, td++) {
-    // rather than with a lookup.
-    // Though, check.
-    /* Move attached transitions with the strips if both transition inputs are selected. */
-    Span<Strip *> effects = seq::lookup_effects_by_strip(seq::editing_get(scene), strip);
-    for (Strip *e : effects) {
-      /* Only the transitions' second input moves the transitions. This is to prevent moving
-       * them twice. */
-      if (e->input2 == strip && seq::strip_is_transition(e)) {
-        // TODO: well, could be both right and left handles selected. should still do the same
-        // move. though if simultaneous strip + handle selection is removed later, this won't
-        // be an issue
-        if (e->input1->flag & SEQ_SELECT) {
-          seq::transform_translate_strip(scene, e, delta_x);
-          e->channel_set(new_channel);
-        }
+      if (!seq::transform_strip_can_be_translated(strip)) {
+        break;
       }
+
+      seq::transform_translate_strip(scene, strip, delta_x);
+      transition_delta_x = delta_x;
+      break;
+    }
+    case SEQ_LEFTSEL: {
+      r_left_new = x_old + x_offset;
+      break;
+    }
+    case SEQ_RIGHTSEL: {
+      r_right_new = x_old + x_offset;
+      /* Only update transition delta from right handle to avoid moving it twice. */
+      transition_delta_x = *r_right_new - strip->right_handle(scene);
+      break;
     }
   }
-  else if (tdsq->sel_flag == SEQ_LEFTSEL) {
-    r_left_new = x_old + x_offset;
-  }
-  else if (tdsq->sel_flag == SEQ_RIGHTSEL) {
-    r_right_new = x_old + x_offset;
 
-    /* Move the transition with the cut point if adjacent handles are selected. This is only done
-     * for the right handle to avoid moving it twice. */
-    // TODO: those two can be moved out and done in one place. Just store the x_offset and new
-    // channel from each branch
-    const int delta_x = *r_right_new - strip->right_handle(scene);
-    Span<Strip *> effects = seq::lookup_effects_by_strip(seq::editing_get(scene), strip);
-    for (Strip *e : effects) {
-      if (seq::strip_is_transition(e)) {
-        // TODO: eh, these should be kept in the right order, but anyway
-        if ((e->input1 == strip && (e->input2->flag & SEQ_LEFTSEL)) ||
-            (e->input2 == strip && (e->input1->flag & SEQ_LEFTSEL)))
-        {
-          seq::transform_translate_strip(scene, e, delta_x);
-        }
-      }
-    }
+  // TODO: i think this doesn't respect the modifications to the flag tho
+  // really you need to iterate again like this
+  // for (int a = 0; a < tc->data_len; a++, td++) {
+  // rather than with a lookup.
+  // Or move it to the runtime data like mentioned elsewhere
+  /* Move attached transitions with the strips if both transition inputs are selected. */
+  Editing *ed = seq::editing_get(scene);
+  Strip *transition = get_adjacent_selection_transition_for_left_input(ed, strip);
+  if (transition) {
+    seq::transform_translate_strip(scene, transition, transition_delta_x);
+    transition->channel_set(new_channel);
   }
 }
 
