@@ -785,8 +785,6 @@ static void view2d_edge_pan_loc_compensate(TransInfo *t, float r_offset[2])
   }
 }
 
-// TODO: see EDGE-PAN-BUG-TEST-CASE.blend (move selected right so edge pan gets triggered)
-// not sure if this is new or in main
 static void get_strip_offsets(TransInfo *t,
                               TransData *td,
                               const float edge_pan_offset[2],
@@ -794,7 +792,8 @@ static void get_strip_offsets(TransInfo *t,
                               float r_offset_clamped[2])
 {
   /* Apply extra offset caused by edge panning. */
-  add_v2_v2(td->loc, edge_pan_offset);
+  float loc[2];
+  add_v2_v2v2(loc, td->loc, edge_pan_offset);
 
   sub_v2_v2v2(r_offset, td->loc, td->iloc);
   copy_v2_v2(r_offset_clamped, r_offset);
@@ -808,6 +807,7 @@ static void get_strip_offsets(TransInfo *t,
 // then checked each time to make sure each offset is the same, and a flag would be set if they
 // aren't the same. If the flag is set, the animation data wouldn't be offset at all. This can be
 // the case if the user has eg. added a keymap for "scaling" strips.
+// AH! get_strip_offsets added to td->loc, so it would get added twice.
 static int get_delta_offset(TransInfo *t, TransData *td, const float edge_pan_offset[2])
 {
   Scene *scene = CTX_data_sequencer_scene(t->context);
@@ -936,10 +936,7 @@ static void flush_strip_transforms(TransInfo *t,
     return;
   }
 
-  /* Location before the start of the transform. */
-  const int x_old = round_fl_to_int(td->iloc[0]);
-  /* Clamped offset from #x_old. */
-  const int x_offset = round_fl_to_int(offset_clamped[0]);
+  const int new_frame = round_fl_to_int(td->iloc[0] + offset_clamped[0]);
 
   int transition_delta_x = 0;
   int new_channel = strip->channel;
@@ -947,7 +944,7 @@ static void flush_strip_transforms(TransInfo *t,
   switch (tdsq->sel_flag) {
     case SEQ_SELECT: {
       new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
-      const int delta_x = (x_old + x_offset) - strip->left_handle();
+      const int delta_x = new_frame - strip->left_handle();
 
       strip->channel_set(new_channel);
 
@@ -960,11 +957,11 @@ static void flush_strip_transforms(TransInfo *t,
       break;
     }
     case SEQ_LEFTSEL: {
-      r_left_new = x_old + x_offset;
+      r_left_new = new_frame;
       break;
     }
     case SEQ_RIGHTSEL: {
-      r_right_new = x_old + x_offset;
+      r_right_new = new_frame;
       /* Only update transition delta from right handle to avoid moving it twice. */
       transition_delta_x = *r_right_new - strip->right_handle(scene);
       break;
@@ -1000,8 +997,8 @@ static void flushTransSeq(TransInfo *t)
   /* Update animation for effects. This must be done before the strip positions are flushed. */
   if (tc->data_len != 0) {
     TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
-    /* Offset the animation data based on the first strip's delta offset. The offset is assumed to
-     * be the same for all strips because of the clamping. */
+    /* Offset the animation data based on the first strip's delta offset. The offset is assumed
+     * to be the same for all strips because of the clamping. */
     const int delta = get_delta_offset(t, tc->data, edge_pan_offset);
     for (Strip *strip : ts->time_dependent_strips) {
       seq::offset_animdata(scene, strip, delta);
