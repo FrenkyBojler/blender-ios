@@ -425,16 +425,16 @@ struct TransSeq {
   /* Maximum delta allowed along x and y before clamping selected strips/handles. Always active. */
   rcti hard_clamp;
   /* Maximum delta before clamping handles to the bounds of underlying content. May be disabled. */
-  int content_clamp_min = INT_MIN;
-  int content_clamp_max = INT_MAX;
+  int soft_clamp_min = INT_MIN;
+  int soft_clamp_max = INT_MAX;
 
   /* Maximum x-axis delta allowed for transitions when symmetric handle mode is enabled.*/
   int symmetric_hard_clamp_min = INT_MIN;
   int symmetric_hard_clamp_max = INT_MAX;
   /* Maximum x-axis delta before clamping transitions to the bounds of underlying content when
    * symmetric handle mode is enabled. May be disabled. */
-  int symmetric_content_clamp_min = INT_MIN;
-  int symmetric_content_clamp_max = INT_MAX;
+  int symmetric_soft_clamp_min = INT_MIN;
+  int symmetric_soft_clamp_max = INT_MAX;
 
   /* Initial rect of the view2d, used for computing offset during edge panning. */
   rctf initial_v2d_cur;

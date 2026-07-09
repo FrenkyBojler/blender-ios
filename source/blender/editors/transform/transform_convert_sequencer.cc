@@ -503,7 +503,7 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
 
       if (can_clamp_holds) {
         /* Ensure that the left handle's frame is greater than or equal to the content start. */
-        ts->content_clamp_min = max_ii(ts->content_clamp_min, -strip->startofs);
+        ts->soft_clamp_min = max_ii(ts->soft_clamp_min, -strip->startofs);
       }
     }
     if (right_sel) {
@@ -515,7 +515,7 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
 
       if (can_clamp_holds) {
         /* Ensure that the right handle's frame is less than or equal to the content end. */
-        ts->content_clamp_max = min_ii(ts->content_clamp_max, strip->endofs);
+        ts->soft_clamp_max = min_ii(ts->soft_clamp_max, strip->endofs);
       }
     }
     return true;
@@ -554,13 +554,12 @@ static void create_transition_clamp_data(TransInfo *t, const Scene *scene, Strip
   if (left_sel) {
     ts->hard_clamp.xmin = max_ii(ts->hard_clamp.xmin, left_edge_offset);
     ts->hard_clamp.xmax = min_ii(ts->hard_clamp.xmax, left_cutpoint_offset);
-    ts->content_clamp_min = max_ii(ts->content_clamp_min, left_content_offset);
+    ts->soft_clamp_min = max_ii(ts->soft_clamp_min, left_content_offset);
   }
   else if (right_sel) {
     ts->symmetric_hard_clamp_max = min_ii(ts->symmetric_hard_clamp_max, -left_edge_offset);
     ts->symmetric_hard_clamp_min = max_ii(ts->symmetric_hard_clamp_min, -left_cutpoint_offset);
-    ts->symmetric_content_clamp_max = min_ii(ts->symmetric_content_clamp_max,
-                                             -left_content_offset);
+    ts->symmetric_soft_clamp_max = min_ii(ts->symmetric_soft_clamp_max, -left_content_offset);
   }
 
   const int right_edge_offset = right_input->right_handle(scene) - strip->right_handle(scene);
@@ -569,13 +568,12 @@ static void create_transition_clamp_data(TransInfo *t, const Scene *scene, Strip
   if (right_sel) {
     ts->hard_clamp.xmax = min_ii(ts->hard_clamp.xmax, right_edge_offset);
     ts->hard_clamp.xmin = max_ii(ts->hard_clamp.xmin, right_cutpoint_offset);
-    ts->content_clamp_max = min_ii(ts->content_clamp_max, right_content_offset);
+    ts->soft_clamp_max = min_ii(ts->soft_clamp_max, right_content_offset);
   }
   else if (left_sel) {
     ts->symmetric_hard_clamp_min = max_ii(ts->symmetric_hard_clamp_min, -right_edge_offset);
     ts->symmetric_hard_clamp_max = min_ii(ts->symmetric_hard_clamp_max, -right_cutpoint_offset);
-    ts->symmetric_content_clamp_min = max_ii(ts->symmetric_content_clamp_min,
-                                             -right_content_offset);
+    ts->symmetric_soft_clamp_min = max_ii(ts->symmetric_soft_clamp_min, -right_content_offset);
   }
 }
 
@@ -609,13 +607,13 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
   /* Try to clamp handles by default. */
   t->modifiers |= MOD_STRIP_CLAMP_HOLDS;
-  ts->content_clamp_min = INT_MIN;
-  ts->content_clamp_max = INT_MAX;
+  ts->soft_clamp_min = INT_MIN;
+  ts->soft_clamp_max = INT_MAX;
 
   ts->symmetric_hard_clamp_min = INT_MIN;
   ts->symmetric_hard_clamp_max = INT_MAX;
-  ts->symmetric_content_clamp_min = INT_MIN;
-  ts->symmetric_content_clamp_max = INT_MAX;
+  ts->symmetric_soft_clamp_min = INT_MIN;
+  ts->symmetric_soft_clamp_max = INT_MAX;
 
   bool only_handles_selected = true;
 
@@ -1125,7 +1123,7 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
 
   /* Optional clamping of handles to underlying holds. Can be disabled by the user. */
   if (t->modifiers & MOD_STRIP_CLAMP_HOLDS) {
-    clamp_x(ts->content_clamp_min, ts->content_clamp_max);
+    clamp_x(ts->soft_clamp_min, ts->soft_clamp_max);
   }
 
   // TODO: I think that should rather be MOD_STRIP_SYMMETRIC with the logic switched around
@@ -1134,7 +1132,7 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
     clamp_x(ts->symmetric_hard_clamp_min, ts->symmetric_hard_clamp_max);
     /* Optional clamping of handles to content range of inputs. Can be disabled by the user. */
     if (t->modifiers & MOD_STRIP_CLAMP_HOLDS) {
-      clamp_x(ts->symmetric_content_clamp_min, ts->symmetric_content_clamp_max);
+      clamp_x(ts->symmetric_soft_clamp_min, ts->symmetric_soft_clamp_max);
     }
   }
 
