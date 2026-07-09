@@ -643,7 +643,7 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
             const int src_face_offset = edge % face_edge_offset;
             const IndexRange face_range = cdt_faces[src_face];
             const Span<int> face = cdt_face_vert_indices.as_span().slice(face_range);
-            return {face[src_face_offset], (face[src_face_offset] + 1) % face_range.size()};
+            return {face[src_face_offset], face[(src_face_offset + 1) % face_range.size()]};
           };
 
           if (intersections_start != -1) {
