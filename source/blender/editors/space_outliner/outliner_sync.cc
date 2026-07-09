@@ -530,7 +530,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
       tselem->flag &= ~(TSE_SELECTED | TSE_ACTIVE);
     }
     const bool is_active_new = (tselem->flag & TSE_ACTIVE) && (tselem->flag & TSE_SELECTED);
-     if (is_active_new && !is_active_old) {
+    if (is_active_new && !is_active_old) {
       *r_any_new_active = true;
       idcode = te.idcode;
     }

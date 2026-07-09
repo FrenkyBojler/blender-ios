@@ -298,11 +298,11 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
 
   tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
     TreeStoreElem *tselem = TREESTORE(te);
-      if (Collection *collection = outliner_collection_from_tree_element(te)) {
-        if (new_collection == collection) {
-          tselem->flag |= TSE_TEXTBUT;
-        }
+    if (Collection *collection = outliner_collection_from_tree_element(te)) {
+      if (new_collection == collection) {
+        tselem->flag |= TSE_TEXTBUT;
       }
+    }
   });
   DEG_id_tag_update(&data.collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
