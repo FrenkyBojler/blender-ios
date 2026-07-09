@@ -78,6 +78,7 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
     'ambient_occlusion.*.blend',
     'bake_bevel.blend',
     'bevel.blend',
+    'osl_camera_bevel.blend',
     'raycast.*.blend',
     'principled_bsdf_bevel_emission_137420.blend',
     # Dicing tests use wireframe node which doesn't appear to be supported with OptiX OSL
@@ -108,6 +109,11 @@ if platform.system() == "Darwin":
             "underwater_caustics.blend",
         ]
 
+
+BLOCKLIST_HIPRT = [
+    # Light leaking fireflies due to HIP-RT intersection precision issue.
+    "normal_mapping_light_leak.blend",
+]
 
 BLOCKLIST_HIP_NORT = [
     # MNEE not supported on HIP without HIP-RT
@@ -225,6 +231,10 @@ def get_arguments(filepath, output_filepath, use_hwrt, osl, extra_args):
     if osl:
         args.extend(["--python-expr", "import bpy; bpy.context.scene.cycles.shading_system = True"])
 
+        # Workaround for #152968, issue with OSL and Vulkan on Windows.
+        if sys.platform == "win32":
+            args.extend(["--gpu-backend", "opengl"])
+
     args.extend(extra_args)
 
     if subject.startswith('bake'):
@@ -311,6 +321,8 @@ def main():
 
     if device == 'HIP':
         blocklist += BLOCKLIST_HIP_NORT
+    if device == 'HIP-RT':
+        blocklist += BLOCKLIST_HIPRT
 
     test_dir_name = Path(args.testdir).name
     report = CyclesReport('Cycles', test_dir_name, args.outdir, args.oiiotool, device, blocklist, args.osl == 'all')

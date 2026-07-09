@@ -85,6 +85,7 @@ set(SRC
   intern/gpu_pass.cc
   intern/gpu_platform.cc
   intern/gpu_query.cc
+  intern/gpu_ray_tracing.cc
   intern/gpu_select.cc
   intern/gpu_select_next.cc
   intern/gpu_select_pick.cc
@@ -149,6 +150,7 @@ set(SRC
   GPU_platform.hh
   GPU_platform_backend_enum.h
   GPU_primitive.hh
+  GPU_ray_tracing.hh
   GPU_select.hh
   GPU_shader.hh
   GPU_shader_builtin.hh
@@ -274,6 +276,7 @@ set(VULKAN_SRC
   vulkan/vk_pixel_buffer.cc
   vulkan/vk_push_constants.cc
   vulkan/vk_query.cc
+  vulkan/vk_ray_tracing.cc
   vulkan/render_graph/nodes/vk_pipeline_data.cc
   vulkan/render_graph/vk_command_buffer_wrapper.cc
   vulkan/render_graph/vk_command_builder.cc
@@ -299,6 +302,7 @@ set(VULKAN_SRC
   vulkan/vk_to_string.cc
   vulkan/vk_uniform_buffer.cc
   vulkan/vk_vertex_attribute_object.cc
+  vulkan/vk_vertex_attribute_object_cache.cc
   vulkan/vk_vertex_buffer.cc
   vulkan/vk_work_in_flight.cc
 
@@ -328,8 +332,10 @@ set(VULKAN_SRC
   vulkan/vk_pixel_buffer.hh
   vulkan/vk_push_constants.hh
   vulkan/vk_query.hh
+  vulkan/vk_ray_tracing.hh
   vulkan/render_graph/nodes/vk_begin_query_node.hh
   vulkan/render_graph/nodes/vk_begin_rendering_node.hh
+  vulkan/render_graph/nodes/vk_build_acceleration_structure_node.hh
   vulkan/render_graph/nodes/vk_blit_image_node.hh
   vulkan/render_graph/nodes/vk_clear_attachments_node.hh
   vulkan/render_graph/nodes/vk_clear_color_image_node.hh
@@ -378,6 +384,7 @@ set(VULKAN_SRC
   vulkan/vk_to_string.hh
   vulkan/vk_uniform_buffer.hh
   vulkan/vk_vertex_attribute_object.hh
+  vulkan/vk_vertex_attribute_object_cache.hh
   vulkan/vk_vertex_buffer.hh
   vulkan/vk_vertex_input_description.hh
   vulkan/vk_work_in_flight.hh
@@ -469,6 +476,14 @@ endif()
 
 
 if(WITH_VULKAN_BACKEND)
+  list(APPEND INC
+    ../../../extern/volk
+    ../../../extern/vulkan_memory_allocator
+  )
+  list(APPEND INC_SYS
+    ${VULKAN_INCLUDE_DIRS}
+    ${SHADERC_INCLUDE_DIRS}
+  )
   list(APPEND SRC
     ${VULKAN_SRC}
   )
@@ -477,6 +492,9 @@ if(WITH_VULKAN_BACKEND)
     PRIVATE bf::extern::xxhash
     PRIVATE bf::dependencies::optional::vulkan
     PRIVATE bf::dependencies::optional::shaderc
+    ${SHADERC_LIBRARIES}
+    extern_volk
+    extern_vulkan_memory_allocator
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
@@ -648,6 +666,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_bevel.glsl
   shaders/material/gpu_shader_material_wavelength.glsl
   shaders/material/gpu_shader_material_blackbody.glsl
+  shaders/material/gpu_shader_material_bit_math.glsl
   shaders/material/gpu_shader_material_boolean_math.glsl
   shaders/material/gpu_shader_material_bright_contrast.glsl
   shaders/material/gpu_shader_material_bump.glsl
@@ -681,6 +700,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_light_path.glsl
   shaders/material/gpu_shader_material_mapping.glsl
   shaders/material/gpu_shader_material_map_range.glsl
+  shaders/material/gpu_shader_material_matrix_svd.glsl
   shaders/material/gpu_shader_material_metallic.glsl
   shaders/material/gpu_shader_material_mix_color.glsl
   shaders/material/gpu_shader_material_mix_shader.glsl
@@ -780,6 +800,7 @@ set(GLSL_TEST_SRC
   tests/shaders/gpu_framebuffer_layer_viewport_test.glsl
   tests/shaders/gpu_framebuffer_subpass_input_test.glsl
   tests/shaders/gpu_push_constants_test.glsl
+  tests/shaders/gpu_ray_query_test.glsl
   tests/shaders/gpu_texture_test.glsl
   tests/shaders/gpu_texture_atomic_test.glsl
 )
@@ -958,6 +979,7 @@ if(WITH_GTESTS)
       tests/immediate_test.cc
       tests/index_buffer_test.cc
       tests/push_constants_test.cc
+      tests/ray_tracing_test.cc
       tests/shader_create_info_test.cc
       tests/shader_preprocess_test.cc
       tests/shader_test.cc
