@@ -796,10 +796,10 @@ void linearrgb_to_srgb_v3_v3(float srgb[3], const float linear[3])
 
 #endif /* BLI_HAVE_SSE2 */
 
-void linearrgb_to_srgb_uchar4_n(uchar (*srgb)[4],
-                                const float (*linear)[4],
+void linearrgb_to_srgb_uchar4_n(uchar (*__restrict srgb)[4],
+                                const float (*__restrict linear)[4],
                                 const int size,
-                                const float (*matrix)[3])
+                                const float (*__restrict matrix)[3])
 {
 #if BLI_HAVE_SSE2
   if (size >= 4) {
@@ -809,7 +809,7 @@ void linearrgb_to_srgb_uchar4_n(uchar (*srgb)[4],
       const __m128i bytes = linearrgb_to_srgb_uchar4_block(&linear[i], matrix);
       _mm_storeu_si128(reinterpret_cast<__m128i *>(srgb[i]), bytes);
     }
-    /* Remainder with SIMD too, knowing we can safetly overwrite already process pixels again. */
+    /* Remainder with SIMD too, knowing we can safely overwrite already processed pixels again. */
     if (i < size) {
       const int remainder = size - 4;
       const __m128i bytes = linearrgb_to_srgb_uchar4_block(&linear[remainder], matrix);
@@ -835,25 +835,6 @@ void linearrgb_to_srgb_uchar4_n(uchar (*srgb)[4],
       linearrgb_to_srgb_v3_v3(s, linear[i]);
       s[3] = linear[i][3];
       rgba_float_to_uchar(srgb[i], s);
-    }
-  }
-}
-
-void srgb_to_linearrgb_uchar4_n(float (*linear)[4],
-                                const uchar (*srgb)[4],
-                                const int size,
-                                const float (*matrix)[3])
-{
-  /* Already quite fast due to table lookups, no special SIMD instructions currently. */
-  if (matrix) {
-    for (int i = 0; i < size; i++) {
-      srgb_to_linearrgb_uchar4(linear[i], srgb[i]);
-      mul_m3_v3(matrix, linear[i]);
-    }
-  }
-  else {
-    for (int i = 0; i < size; i++) {
-      srgb_to_linearrgb_uchar4(linear[i], srgb[i]);
     }
   }
 }
