@@ -22,10 +22,14 @@ def vr_actionset_active_update(context):
 
     scene = context.scene
 
-    if scene.vr_actions_use_gamepad and session_state.actionmaps.find(session_state, defaults.VRDefaultActionmaps.GAMEPAD.value):
-        session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GAMEPAD.value)
-    if scene.vr_actions_use_nextlab and session_state.actionmaps.find(session_state, defaults.VRDefaultActionmaps.NEXTLAB.value):
+    if scene.vr_actions_use_nextlab and session_state.actionmaps.find(
+            session_state,
+            defaults.VRDefaultActionmaps.NEXTLAB.value):
         session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.NEXTLAB.value)
+    elif scene.vr_actions_use_gamepad and session_state.actionmaps.find(
+            session_state,
+            defaults.VRDefaultActionmaps.GAMEPAD.value):
+        session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GAMEPAD.value)
     else:
         # Use first action map.
         session_state.active_action_set_set(context, session_state.actionmaps[0].name)

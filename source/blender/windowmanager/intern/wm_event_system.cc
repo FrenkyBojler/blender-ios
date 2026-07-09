@@ -4055,8 +4055,15 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
   }
 
   const bool handler_op_type_match = (op_handler->op->type == actiondata->ot);
-  const bool handler_op_properties_match = IDP_EqualsProperties(op_handler->op->properties,
-                                                                actiondata->op_properties);
+  
+  /* Skip property comparison for running modal operators. The operator might have 
+   * modified its own properties during invoke (e.g. adding stroke data), which 
+   * would cause IDP_EqualsProperties to fail and incorrectly bypass the modal handler. */
+  const bool handler_op_properties_match = true;
+
+  printf("=== GREASE PENCIL DRAW PATH: wm_event_xr_handler_matches_actiondata ===\n");
+  printf("  -> type_match: %d, handler opname: %s\n", handler_op_type_match, op_handler->op->type->idname);
+  fflush(stdout);
 
   return (handler_op_type_match && handler_op_properties_match);
 }
