@@ -30,7 +30,6 @@ DEPS_PACKAGES=(
   texinfo        # makeinfo
 
   # Required for 'external_ssl'
-  # perl-Net-Curl # Cannot find "WWW::Curl::Easy" in podpath: cannot find suitable replacement path, cannot resolve link
   perl-IPC-Cmd
   perl-Time-Piece
   perl-Pod-Html
@@ -43,39 +42,23 @@ DEPS_PACKAGES=(
   patch
 
   # Required for 'external_epoxy'
-  libX11-devel   # for <X11/Xlib.h>
-  libglvnd-devel # for <EGL/eglplatform.h>
+  libX11-devel
+  libglvnd-devel
 
   # Required for 'external_sdl'
   # Source: https://wiki.libsdl.org/SDL3/README-linux#build-dependencies
   alsa-lib-devel
-  # fribidi-devel
   pulseaudio-libs-devel
-  # pipewire-devel
   libX11-devel
-  # libXext-devel
   libXrandr-devel
   libXcursor-devel
-  # libXfixes-devel
   libXi-devel
-  # libXScrnSaver-devel
-  # libXtst-devel
-  # dbus-devel
-  # ibus-devel
   systemd-devel
   mesa-libGL-devel
   libxkbcommon-devel
-  # mesa-libGLES-devel
   mesa-libEGL-devel
-  # vulkan-devel
-  # wayland-devel
-  # wayland-protocols-devel
   libdrm-devel
   mesa-libgbm-devel
-  # libusb1-devel
-  # libdecor-devel
-  # jack-audio-connection-kit-devel
-  # libthai-devel
 
   # Required for 'external_materialx'
   libXt-devel
