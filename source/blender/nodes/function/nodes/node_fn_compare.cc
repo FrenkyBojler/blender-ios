@@ -205,7 +205,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
 
-  const UString socket_name = is_input ? "A"_ustr : "Result"_ustr;
   if (!is_input) {
     if (can_link_to_result) {
       for (const EnumPropertyItem *item = rna_enum_node_compare_operation_items;
@@ -217,7 +216,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         }
         const NodeCompareOperation operation = NodeCompareOperation(item->value);
         const eNodeSocketDatatype type = op_type_to_socket_type(operation);
-        params.add_item(IFACE_(item->name), SocketSearchOp{socket_name, type, operation});
+        params.add_item(IFACE_(item->name), SocketSearchOp{"Result"_ustr, type, operation});
       }
     }
     return;
@@ -232,7 +231,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       if (const std::optional<eNodeSocketDatatype> fixed_type = get_compare_type_for_operation(
               ntree, type, operation))
       {
-        params.add_item(IFACE_(item->name), SocketSearchOp{socket_name, *fixed_type, operation});
+        params.add_item(IFACE_(item->name), SocketSearchOp{"A"_ustr, *fixed_type, operation});
       }
     }
   }
