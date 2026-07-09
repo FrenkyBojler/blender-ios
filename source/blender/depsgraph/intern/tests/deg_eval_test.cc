@@ -186,18 +186,24 @@ TEST_F(DepsgraphTest, evaluate_animated_object)
   EXPECT_TRUE(success);
   animrig::Channelbag &channelbag = animrig::action_channelbag_ensure(*action, ob->id);
   FCurve *fcu = channelbag.fcurve_create_unique(bmain_, {"location", 0});
+  animrig::insert_vert_fcurve(fcu, {0, 0}, {}, INSERTKEY_NOFLAGS);
+  animrig::insert_vert_fcurve(fcu, {1, 1}, {}, INSERTKEY_NOFLAGS);
 
   DEG_graph_build_from_view_layer(depsgraph_);
   DEG_graph_relations_update(depsgraph_);
-
-  animrig::insert_vert_fcurve(fcu, {0, 0}, {}, INSERTKEY_NOFLAGS);
-  animrig::insert_vert_fcurve(fcu, {1, 1}, {}, INSERTKEY_NOFLAGS);
 
   evaluate_at_frame(0);
   Object *eval_ob = DEG_get_evaluated(depsgraph_, ob);
   EXPECT_FLOAT_EQ(eval_ob->loc[0], 0);
 
+  Depsgraph *dg = reinterpret_cast<Depsgraph *>(depsgraph_);
+  /* This is what DEG_evaluate_on_framechange calls internally. */
+  dg->tag_time_source();
+  /* Changing the time should not trigger a read from Main. */
+  EXPECT_FALSE(has_to_read_from_main(depsgraph_));
+
   evaluate_at_frame(1);
+  /* The evaluation  */
   EXPECT_FLOAT_EQ(eval_ob->loc[0], 1);
 }
 
