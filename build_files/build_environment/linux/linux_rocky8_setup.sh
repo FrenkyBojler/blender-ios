@@ -80,42 +80,19 @@ DEPS_PACKAGES=(
   # Required for 'external_materialx'
   libXt-devel
 
-  # bzip2
-  # make
-  # autoconf
-  # automake
-  # libtool
-  # patchelf
-  # mesa-libGL-devel
-  # mesa-libGLU-devel
-  # zlib-devel
-  # tcl
-  # python3
-  # python3-mako
-  # python3-pyyaml
-  # bison
-  # flex
-  # ncurses-devel
-  # libstdc++-static
-  # cairo-devel
-  # libdrm-devel
-  # pixman-devel
-  # libffi-devel
-  # libinput-devel
-  # libevdev-devel
-  # mesa-libgbm-devel
-  # systemd-devel
-  # mesa-dri-drivers
-  # mesa-libEGL
-  # mesa-libGL
-  # libxkbcommon-devel
-  # libX11-devel
-  # libXcursor-devel
-  # libXi-devel
-  # libXinerama-devel
-  # libXrandr-devel
-  # libXt-devel
-  # libXxf86vm-devel
+  # Required for 'external_harfbuzz'
+  freetype-devel
+
+  # Required for 'external_igc'
+  python3-pyyaml
+  python3-mako
+
+  # Required for 'external_wayland_weston'
+  libffi-devel
+  pixman-devel
+  libinput-devel
+  libevdev-devel
+  cairo-devel
 )
 
 ASSUME_YES="${ASSUME_YES:-0}"
@@ -209,12 +186,12 @@ dnf_config() {
   echo "[dnf_config]: Installing versionlock subcommand"
   dnf -y install 'dnf-command(versionlock)'
 
-  # Packages `ninja-build` and `meson` are not available unless CBR or PowerTools repositories are enabled.
+  # Required for certain packages (e.g. ninja-build)
   # See: https://wiki.rockylinux.org/rocky/repo/#notes-on-unlisted-repositories
   echo "[dnf_config]: Enable PowerTools repository"
   dnf config-manager --set-enabled powertools
 
-  # Required by epel-release has the patchelf and rubygem-asciidoctor packages
+  # Required for certain packages (e.g. patchelf)
   echo "[dnf_config]: Enable EPEL repository"
   dnf -y install epel-release
 
