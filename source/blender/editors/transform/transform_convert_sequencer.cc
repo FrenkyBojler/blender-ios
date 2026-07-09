@@ -518,8 +518,10 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
         ts->soft_clamp_min = max_ii(ts->soft_clamp_min, -strip->startofs);
       }
 
+      /* Prevent transitions from going past strip bounds. */
       transitions_for_each(seq::editing_get(scene), strip, [&](Strip *transition) {
-        if (transition->input2 == strip && (transition->input1->flag & SEQ_RIGHTSEL)) {
+        if (!right_sel && transition->input2 == strip && (transition->input1->flag & SEQ_RIGHTSEL))
+        {
           int offset = strip->right_handle(scene) - transition->right_handle(scene);
           ts->soft_clamp_max = min_ii(ts->soft_clamp_max, offset);
         }
@@ -537,10 +539,9 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
         ts->soft_clamp_max = min_ii(ts->soft_clamp_max, strip->endofs);
       }
 
-      // TODO: make a function like adjacent_handle_transition_for_each. use it in flush code as
-      // well
+      /* Prevent transitions from going past strip bounds. */
       transitions_for_each(seq::editing_get(scene), strip, [&](Strip *transition) {
-        if (transition->input1 == strip && (transition->input2->flag & SEQ_LEFTSEL)) {
+        if (!left_sel && transition->input1 == strip && (transition->input2->flag & SEQ_LEFTSEL)) {
           int offset = strip->left_handle() - transition->left_handle();
           ts->soft_clamp_min = max_ii(ts->soft_clamp_min, offset);
         }
