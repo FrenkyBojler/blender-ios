@@ -744,7 +744,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 
 #  include "MOV_util.hh"
 
-#  include "BKE_animsys.h"
+#  include "BKE_animsys.hh"
 #  include "BKE_armature.hh"
 #  include "BKE_bake_geometry_nodes_modifier.hh"
 #  include "BKE_brush.hh"
@@ -1372,7 +1372,7 @@ static std::optional<std::string> rna_ImageFormatSettings_path(
 
                 const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(
                     item);
-                const std::string escaped_identifier = BLI_str_escape(identifier.c_str());
+                const std::string escaped_identifier = BLI_str_escape(identifier);
                 return fmt::format("nodes[\"{}\"].file_output_items[\"{}\"].format",
                                    node_name_esc,
                                    escaped_identifier.c_str());
@@ -4876,6 +4876,21 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Distance", "Distance of object that contribute to the ambient occlusion effect");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "denoising_store_passes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "denoising_pass_flags", EEVEE_DENOISING_PASS_STORE);
+  RNA_def_property_ui_text(prop, "Denoising Data", "Deliver denoising passes");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
+  prop = RNA_def_property(
+      srna, "denoising_pass_use_albedo_roughness_weighting", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "denoising_pass_flags", EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING);
+  RNA_def_property_ui_text(
+      prop,
+      "Denoising Pass Albedo Roughness Weighting",
+      "Use roughness-based weighting of the albedo for the denoising feature passes");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
 static void rna_def_view_layer_aovs(BlenderRNA *brna, PropertyRNA *cprop)
@@ -7790,6 +7805,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "compositor_device", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, compositor_device_items);
   RNA_def_property_ui_text(prop, "Compositor Device", "Set how compositing is executed");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
+
+  prop = RNA_def_property(srna, "use_compositor_frames_cache", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "compositor_cache_flags", SCE_COMPOSITOR_CACHE_FRAMES);
+  RNA_def_property_ui_text(prop,
+                           "Compositor Frames Cache",
+                           "Cache the result of the interactive compositor across frames");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
   prop = RNA_def_property(srna, "compositor_precision", PROP_ENUM, PROP_NONE);

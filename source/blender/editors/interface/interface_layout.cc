@@ -2346,7 +2346,10 @@ void Layout::prop(PointerRNA *ptr,
       button_placeholder_set(but, *placeholder);
     }
     if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)) {
-      button_flag2_enable(but, BUT2_FORCE_SEMI_MODAL_ACTIVE);
+      button_flag_enable(but, BUT_FORCE_SEMI_MODAL_ACTIVE);
+    }
+    if (ELEM(but->type, ButtonType::Text) && (flag & ITEM_R_TEXT_BUT_LABEL_STYLE)) {
+      static_cast<ButtonText *>(but)->use_label_style = true;
     }
   }
 
@@ -2763,10 +2766,13 @@ void button_configure_search(Button *but,
 void Layout::textbox(const bContext *C,
                      PointerRNA *ptr,
                      StringRefNull propname,
-                     std::optional<StringRefNull> placeholder)
+                     std::optional<StringRefNull> placeholder,
+                     const int initial_visible_lines)
 {
   TextboxState *textbox_state = textbox_ensure_state(
-      CTX_wm_region(C), fmt::format("{}.{}", RNA_struct_identifier(ptr->type), propname));
+      CTX_wm_region(C),
+      fmt::format("{}.{}", RNA_struct_identifier(ptr->type), propname),
+      initial_visible_lines);
   this->textbox_with_state(ptr, propname, textbox_state, placeholder);
 }
 
@@ -5561,7 +5567,7 @@ static void item_align(Layout *litem, short nr)
   }
 }
 
-static void item_flag(Layout *litem, int flag)
+static void item_flag(Layout *litem, int64_t flag)
 {
   for (Item *item : litem->items()) {
     if (item->type() == ItemType::Button) {

@@ -3779,11 +3779,12 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_POINTER: {
       PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
       fprintf(f,
-              "\t\t%s, %s, %s, %s,",
+              "\t\t%s, %s, %s, %s, %d,",
               rna_function_string(pprop->get),
               rna_function_string(pprop->set),
               rna_function_string(pprop->type_fn),
-              rna_function_string(pprop->poll));
+              rna_function_string(pprop->poll),
+              0);
       if (pprop->pointer_type) {
         fprintf(f, "RNA_%s\n", reinterpret_cast<const char *>(pprop->pointer_type));
       }
@@ -4076,6 +4077,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
     {"rna_volume.cc", nullptr, RNA_def_volume},
     {"rna_wm.cc", "rna_wm_api.cc", RNA_def_wm},
     {"rna_wm_gizmo.cc", "rna_wm_gizmo_api.cc", RNA_def_wm_gizmo},
+    {"rna_wm_undo.cc", nullptr, RNA_def_undo},
     {"rna_workspace.cc", "rna_workspace_api.cc", RNA_def_workspace},
     {"rna_world.cc", nullptr, RNA_def_world},
     {"rna_movieclip.cc", nullptr, RNA_def_movieclip},
