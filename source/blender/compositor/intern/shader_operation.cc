@@ -233,15 +233,45 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
 
   /* Create a constant link with some zero value. The value is arbitrary and ignored. See the
    * method description. */
-  zero_v4(stack.vec);
-  GPUNodeLink *link = GPU_constant(stack.vec);
-
   const ResultType type = get_node_socket_result_type(&input);
+  GPUNodeLink *link;
+
+  switch (input.type) {
+    case SOCK_INT:
+    case SOCK_MENU:
+      link = GPU_constant(0);
+      break;
+    case SOCK_BOOLEAN:
+      link = GPU_constant(false);
+      break;
+    case SOCK_INT_VECTOR: {
+      const bNodeSocketValueIntVector *storage =
+          input.default_value_typed<bNodeSocketValueIntVector>();
+      switch (storage->dimensions) {
+        case 2:
+          link = GPU_constant(GPUValue(int2(0)));
+          break;
+        case 3:
+          link = GPU_constant(GPUValue(int3(0)));
+          break;
+        default:
+          BLI_assert_unreachable();
+          link = GPU_constant(GPUValue(int3(0)));
+          break;
+      }
+      break;
+    }
+    default:
+      zero_v4(stack.vec);
+      link = GPU_constant(stack.vec);
+      break;
+  }
+
   GPU_link(material_, get_set_function_name(type), link, &stack.link);
 }
 
 /* Initializes the vector value of the given GPU node stack from the default value of the given
- * input socket. */
+ * input socket. Used for float sockets that pass values through stack.vec. */
 static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack &stack)
 {
   switch (input.type) {
@@ -250,35 +280,14 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
       stack.vec[0] = value;
       break;
     }
-    case SOCK_INT: {
-      const int value = input.default_value_typed<bNodeSocketValueInt>()->value;
-      memcpy(&stack.vec[0], &value, sizeof(int));
-      break;
-    }
-    case SOCK_BOOLEAN: {
-      const bool value = input.default_value_typed<bNodeSocketValueBoolean>()->value;
-      const int ival = int(value);
-      memcpy(&stack.vec[0], &ival, sizeof(int));
-      break;
-    }
     case SOCK_VECTOR: {
       const float4 value = float4(input.default_value_typed<bNodeSocketValueVector>()->value);
       copy_v4_v4(stack.vec, value);
       break;
     }
-    case SOCK_INT_VECTOR: {
-      const int3 value = int3(input.default_value_typed<bNodeSocketValueIntVector>()->value);
-      memcpy(&stack.vec, &value, sizeof(int3));
-      break;
-    }
     case SOCK_RGBA: {
       const Color value = Color(input.default_value_typed<bNodeSocketValueRGBA>()->value);
       copy_v4_v4(stack.vec, value);
-      break;
-    }
-    case SOCK_MENU: {
-      const int32_t value = input.default_value_typed<bNodeSocketValueMenu>()->value;
-      memcpy(&stack.vec[0], &value, sizeof(int32_t));
       break;
     }
     case SOCK_ROTATION: {
@@ -304,12 +313,56 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
       BLI_assert(Result::is_single_value_only_type(get_node_socket_result_type(&input)));
       BLI_assert_unreachable();
       break;
+    case SOCK_INT:
+    case SOCK_INT_VECTOR:
+    case SOCK_BOOLEAN:
+    case SOCK_MENU:
+      /* These types should skip stack initialization and be handled by
+       * create_constant_or_uniform_link. */
+      BLI_assert_unreachable();
     default:
       BLI_assert_unreachable();
       break;
   }
 }
 
+static GPUNodeLink *create_constant_or_uniform_link(const bNodeSocket &input,
+                                                    const bool use_as_constant)
+{
+  switch (input.type) {
+    case SOCK_INT: {
+      const int value = input.default_value_typed<bNodeSocketValueInt>()->value;
+      return use_as_constant ? GPU_constant(value) : GPU_uniform(value);
+    }
+    case SOCK_INT_VECTOR: {
+      const bNodeSocketValueIntVector *storage =
+          input.default_value_typed<bNodeSocketValueIntVector>();
+      switch (storage->dimensions) {
+        case 2: {
+          const int2 value = int2(storage->value);
+          return use_as_constant ? GPU_constant(GPUValue(value)) : GPU_uniform(GPUValue(value));
+        }
+        case 3: {
+          const int3 value = int3(storage->value);
+          return use_as_constant ? GPU_constant(GPUValue(value)) : GPU_uniform(GPUValue(value));
+        }
+        default:
+          BLI_assert_unreachable();
+          return nullptr;
+      }
+    }
+    case SOCK_BOOLEAN: {
+      const bool value = input.default_value_typed<bNodeSocketValueBoolean>()->value;
+      return use_as_constant ? GPU_constant(value) : GPU_uniform(value);
+    }
+    case SOCK_MENU: {
+      const int value = input.default_value_typed<bNodeSocketValueMenu>()->value;
+      return use_as_constant ? GPU_constant(value) : GPU_uniform(value);
+    }
+    default:
+      return nullptr;
+  }
+}
 void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
 {
   ShaderNode &node = *shader_nodes_.lookup(&input.owner_node());
@@ -324,9 +377,12 @@ void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
   /* Create a constant or a uniform link that carry the value of the input. Use a constant for
    * socket types that rarely change like booleans and menus, while use a uniform for socket type
    * that might change a lot to avoid excessive shader recompilation. */
-  initialize_input_stack_value(input, stack);
   const bool use_as_constant = ELEM(input.type, SOCK_BOOLEAN, SOCK_MENU);
-  GPUNodeLink *link = use_as_constant ? GPU_constant(stack.vec) : GPU_uniform(stack.vec);
+  GPUNodeLink *link = create_constant_or_uniform_link(input, use_as_constant);
+  if (link == nullptr) {
+    initialize_input_stack_value(input, stack);
+    link = use_as_constant ? GPU_constant(stack.vec) : GPU_uniform(stack.vec);
+  }
 
   const ResultType type = get_node_socket_result_type(&input);
   const char *function_name = get_set_function_name(type);

@@ -8,12 +8,16 @@
 
 #pragma once
 
+#include <array>
 #include <string>
+#include <variant>
 
 #include "BLI_assert.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_math_base_c.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
+#include "BLI_span.hh"
 
 #include "DNA_customdata_types.h" /* for eCustomDataType */
 #include "DNA_image_types.h"
@@ -309,6 +313,63 @@ constexpr GPUType gpu_int_type_from_element_count(const int count)
   return GPU_NONE;
 }
 
+constexpr bool gpu_type_is_ubo_supported(const GPUType type)
+{
+  switch (type) {
+    case GPU_FLOAT:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
+    case GPU_MAT4:
+      return true;
+    case GPU_NONE:
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+    case GPU_BOOL:
+    case GPU_MAT3:
+    case GPU_TEX1D_ARRAY:
+    case GPU_TEX2D:
+    case GPU_TEX2D_ARRAY:
+    case GPU_TEX3D:
+    case GPU_CLOSURE:
+    case GPU_ATTR:
+      return false;
+  }
+
+  BLI_assert_unreachable();
+  return false;
+}
+
+/* Typed storage for GPU node constant and uniform values. */
+using GPUValueData = std::
+    variant<float, float2, float3, float4, std::array<float, 16>, int, int2, int3, int4, bool>;
+
+struct GPUValue {
+  GPUType type = GPU_NONE;
+  GPUValueData data;
+
+  GPUValue() = default;
+
+  explicit GPUValue(const float value) : type(GPU_FLOAT), data(value) {}
+  explicit GPUValue(const float2 &value) : type(GPU_VEC2), data(value) {}
+  explicit GPUValue(const float3 &value) : type(GPU_VEC3), data(value) {}
+  explicit GPUValue(const float4 &value) : type(GPU_VEC4), data(value) {}
+  explicit GPUValue(const std::array<float, 16> &value) : type(GPU_MAT4), data(value) {}
+  explicit GPUValue(const int value) : type(GPU_INT), data(value) {}
+  explicit GPUValue(const int2 &value) : type(GPU_INT2), data(value) {}
+  explicit GPUValue(const int3 &value) : type(GPU_INT3), data(value) {}
+  explicit GPUValue(const int4 &value) : type(GPU_INT4), data(value) {}
+  explicit GPUValue(const bool value) : type(GPU_BOOL), data(value) {}
+
+  Span<float> as_float_span() const;
+  Span<int> as_int_span() const;
+  bool as_bool() const;
+};
+
+GPUValue gpu_value_from_float_data(GPUType gpu_type, const float *src);
+
 enum GPUDefaultValue {
   GPU_DEFAULT_0 = 0,
   GPU_DEFAULT_1,
@@ -458,6 +519,12 @@ struct GPUCodegenOutput {
 
 GPUNodeLink *GPU_constant(const float *num);
 GPUNodeLink *GPU_uniform(const float *num);
+GPUNodeLink *GPU_constant(const GPUValue &value);
+GPUNodeLink *GPU_uniform(const GPUValue &value);
+GPUNodeLink *GPU_constant(const int value);
+GPUNodeLink *GPU_uniform(const int value);
+GPUNodeLink *GPU_constant(const bool value);
+GPUNodeLink *GPU_uniform(const bool value);
 GPUNodeLink *GPU_attribute(GPUMaterial *mat, eCustomDataType type, const char *name);
 /**
  * Add a GPU attribute that refers to the default color attribute on a geometry.
