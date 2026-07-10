@@ -21,7 +21,7 @@ BLOCKLIST_ALL = [
     "principled_hair_directcoloring.blend",
     "visibility_particles.blend",
     # High noise variance between platforms
-    "many_lights.blend"
+    "many_lights.blend",
     # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
     "raytrace_backface_on.blend",
     "raytrace_backface_off.blend",
