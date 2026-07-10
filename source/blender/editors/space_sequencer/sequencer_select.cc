@@ -2966,8 +2966,10 @@ static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *o
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
   if (!extend) {
-    deselect_all_strips(scene);
-    changed = true;
+    changed |= deselect_all_strips(scene);
+  }
+  else {
+    changed |= deselect_transition_handles(scene);
   }
 
   const int type = RNA_enum_get(op->ptr, "type");
