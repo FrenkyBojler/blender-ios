@@ -29,7 +29,7 @@
 #include "COM_node_group_operation.hh"
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_result.hh"
-#include "COM_scene_compositor_modifiers_operation.hh"
+#include "COM_scene_compositor_effects_operation.hh"
 #include "COM_utilities.hh"
 
 #include "GPU_context.hh"
@@ -332,8 +332,8 @@ class Context : public compositor::Context {
   void evaluate()
   {
     const compositor::NodeGroupOutputTypes needed_outputs = this->needed_outputs();
-    compositor::SceneCompositorModifiersOperation operation =
-        compositor::SceneCompositorModifiersOperation(*this, needed_outputs);
+    compositor::SceneCompositorEffectsOperation operation =
+        compositor::SceneCompositorEffectsOperation(*this, needed_outputs);
 
     const int active_view_layer_index = BLI_findstringindex(
         &scene_->view_layers, DRW_context_get()->view_layer->name, offsetof(ViewLayer, name));

@@ -2185,15 +2185,15 @@ static void rna_CompositorNodeTree_is_strip_modifier_set(PointerRNA *ptr, bool v
   compositor_node_asset_trait_flag_set(ptr, COMPOSIT_NODE_ASSET_STRIP_MODIFIER, value);
 }
 
-static bool rna_CompositorNodeTree_allow_usage_in_scene_compositor_modifier_get(PointerRNA *ptr)
+static bool rna_CompositorNodeTree_allow_usage_in_scene_compositor_effect_get(PointerRNA *ptr)
 {
-  return compositor_node_asset_trait_flag_get(ptr, COMPOSIT_NODE_ASSET_SCENE_MODIFIER);
+  return compositor_node_asset_trait_flag_get(ptr, COMPOSIT_NODE_ASSET_SCENE_EFFECT);
 }
 
-static void rna_CompositorNodeTree_allow_usage_in_scene_compositor_modifier_set(PointerRNA *ptr,
-                                                                                bool value)
+static void rna_CompositorNodeTree_allow_usage_in_scene_compositor_effect_set(PointerRNA *ptr,
+                                                                              bool value)
 {
-  compositor_node_asset_trait_flag_set(ptr, COMPOSIT_NODE_ASSET_SCENE_MODIFIER, value);
+  compositor_node_asset_trait_flag_set(ptr, COMPOSIT_NODE_ASSET_SCENE_EFFECT, value);
 }
 
 static const EnumPropertyItem *itemf_function_check(
@@ -10125,16 +10125,14 @@ static void rna_def_composite_nodetree(BlenderRNA *brna)
                                  "rna_CompositorNodeTree_is_strip_modifier_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 
-  prop = RNA_def_property(
-      srna, "allow_usage_in_scene_compositor_modifier", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "allow_usage_in_scene_compositor_effect", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop,
-                           "Scene Compositor Modifier",
-                           "The node group can be used as a scene compositor modifier");
+  RNA_def_property_ui_text(
+      prop, "Scene Compositor Effect", "The node group can be used as a scene compositor effect");
   RNA_def_property_boolean_funcs(
       prop,
-      "rna_CompositorNodeTree_allow_usage_in_scene_compositor_modifier_get",
-      "rna_CompositorNodeTree_allow_usage_in_scene_compositor_modifier_set");
+      "rna_CompositorNodeTree_allow_usage_in_scene_compositor_effect_get",
+      "rna_CompositorNodeTree_allow_usage_in_scene_compositor_effect_set");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_NodeTree_update_asset");
 }
 

@@ -1956,11 +1956,10 @@ void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name New Scene Compositor Modifier Node Group Operator.
+/** \name New Scene Compositor Effect Node Group Operator.
  * \{ */
 
-static void initialize_scene_compositor_modifier_node_group(const bContext *C,
-                                                            bNodeTree &node_tree)
+static void initialize_scene_compositor_effect_node_group(const bContext *C, bNodeTree &node_tree)
 {
   node_tree.tree_interface.add_socket(
       "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
@@ -2005,65 +2004,64 @@ static void initialize_scene_compositor_modifier_node_group(const bContext *C,
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), node_tree);
 }
 
-static wmOperatorStatus new_scene_compositor_modifier_node_group_exec(bContext *C,
-                                                                      wmOperator * /*op*/)
+static wmOperatorStatus new_scene_compositor_effect_node_group_exec(bContext *C,
+                                                                    wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bNodeTree *node_group = bke::node_tree_add_tree(
-      bmain, "Scene Compositor Modifier", "CompositorNodeTree");
-  initialize_scene_compositor_modifier_node_group(C, *node_group);
+      bmain, "Scene Compositor Effect", "CompositorNodeTree");
+  initialize_scene_compositor_effect_node_group(C, *node_group);
 
   if (!node_group->compositor_node_asset_traits) {
     node_group->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
   }
-  node_group->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_MODIFIER;
+  node_group->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_EFFECT;
   bke::node_update_asset_metadata(*node_group);
 
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *active_modifier = bke::compositor::get_active_modifier(*scene);
-  if (!active_modifier) {
-    SceneCompositorModifier &modifier = bke::compositor::new_modifier(*scene,
-                                                                      "Scene Compositor Modifier");
-    modifier.flags |= SceneCompositorModifierFlags::IsActive;
-    active_modifier = &modifier;
+  SceneCompositorEffect *active_effect = bke::compositor::get_active_effect(*scene);
+  if (!active_effect) {
+    SceneCompositorEffect &effect = bke::compositor::new_effect(*scene, "Scene Compositor Effect");
+    effect.flags |= SceneCompositorEffectFlags::IsActive;
+    active_effect = &effect;
   }
-  active_modifier->node_group = node_group;
+  active_effect->node_group = node_group;
 
   // TODO: Updates.
   DEG_relations_tag_update(bmain);
-  BKE_main_ensure_invariants(*bmain, active_modifier->node_group->id);
+  BKE_main_ensure_invariants(*bmain, active_effect->node_group->id);
   WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_new_scene_compositor_modifier_node_group(wmOperatorType *operator_type)
+void NODE_OT_new_scene_compositor_effect_node_group(wmOperatorType *ot)
 {
-  operator_type->name = "New Scene Compositor Modifier Node Group";
-  operator_type->idname = "NODE_OT_new_scene_compositor_modifier_node_group";
-  operator_type->description =
-      "Create a new compositor node group and assign it to the active scene compositor modifier";
+  ot->name = "New Scene Compositor Effect Node Group";
+  ot->idname = "NODE_OT_new_scene_compositor_effect_node_group";
+  ot->description =
+      "Create a new compositor node group and assign it to the active scene compositor effect";
 
-  operator_type->exec = new_scene_compositor_modifier_node_group_exec;
+  ot->exec = new_scene_compositor_effect_node_group_exec;
 
-  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Duplicate Scene Compositor Modifier Node Group Operator.
+/** \name Duplicate Scene Compositor Effect Node Group Operator.
  * \{ */
 
-static wmOperatorStatus duplicate_scene_compositor_modifier_node_group_exec(bContext *C,
-                                                                            wmOperator * /*op*/)
+static wmOperatorStatus duplicate_scene_compositor_effect_node_group_exec(bContext *C,
+                                                                          wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
-  if (!modifier) {
+  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
+  if (!effect) {
     return OPERATOR_CANCELLED;
   }
 
-  bNodeTree *original_node_group = modifier->node_group;
+  bNodeTree *original_node_group = effect->node_group;
   if (!original_node_group || ID_MISSING(original_node_group)) {
     return OPERATOR_CANCELLED;
   }
@@ -2072,9 +2070,9 @@ static wmOperatorStatus duplicate_scene_compositor_modifier_node_group_exec(bCon
   bNodeTree *node_tree = id_cast<bNodeTree *>(
       BKE_id_copy_ex(main, &original_node_group->id, nullptr, LIB_ID_COPY_ACTIONS));
 
-  modifier->flags |= SceneCompositorModifierFlags::ShowNodeGroupSelector;
+  effect->flags |= SceneCompositorEffectFlags::ShowNodeGroupSelector;
 
-  modifier->node_group = node_tree;
+  effect->node_group = node_tree;
   id_us_min(&original_node_group->id);
 
   // TODO: Updates.
@@ -2082,17 +2080,17 @@ static wmOperatorStatus duplicate_scene_compositor_modifier_node_group_exec(bCon
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_duplicate_scene_compositor_modifier_node_group(wmOperatorType *operator_type)
+void NODE_OT_duplicate_scene_compositor_effect_node_group(wmOperatorType *ot)
 {
-  operator_type->name = "Duplicate Scene Compositor Modifier Node Group";
-  operator_type->idname = "NODE_OT_duplicate_scene_compositor_modifier_node_group";
-  operator_type->description =
-      "Duplicate the active scene compositor modifier node group and assign the new node group to "
-      "the modifier";
+  ot->name = "Duplicate Scene Compositor Effect Node Group";
+  ot->idname = "NODE_OT_duplicate_scene_compositor_effect_node_group";
+  ot->description =
+      "Duplicate the active scene compositor effect node group and assign the new node group to "
+      "the effect";
 
-  operator_type->exec = duplicate_scene_compositor_modifier_node_group_exec;
+  ot->exec = duplicate_scene_compositor_effect_node_group_exec;
 
-  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */

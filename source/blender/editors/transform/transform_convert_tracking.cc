@@ -604,8 +604,7 @@ static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
     }
   }
 
-  if (bke::compositor::has_any_enabled_modifier(*t->scene,
-                                                bke::compositor::ExecutionMode::Preview))
+  if (bke::compositor::has_any_enabled_effect(*t->scene, bke::compositor::ExecutionMode::Preview))
   {
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.

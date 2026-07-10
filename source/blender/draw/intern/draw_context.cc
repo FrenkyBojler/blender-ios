@@ -2261,8 +2261,8 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!bke::compositor::has_any_enabled_modifier(*this->scene,
-                                                 bke::compositor::ExecutionMode::Preview))
+  if (!bke::compositor::has_any_enabled_effect(*this->scene,
+                                               bke::compositor::ExecutionMode::Preview))
   {
     return false;
   }

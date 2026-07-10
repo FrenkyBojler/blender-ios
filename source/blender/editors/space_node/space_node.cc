@@ -398,12 +398,12 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
   return object_and_modifier->nmd->modifier.persistent_uid == nmd.modifier.persistent_uid;
 }
 
-struct SceneAndCompositorModifier {
+struct SceneAndCompositorEffect {
   const Scene *scene = nullptr;
-  const SceneCompositorModifier *modifier = nullptr;
+  const SceneCompositorEffect *effect = nullptr;
 };
 
-static std::optional<SceneAndCompositorModifier> get_scene_compositor_modifier_for_node_editor(
+static std::optional<SceneAndCompositorEffect> get_scene_compositor_effect_for_node_editor(
     const SpaceNode &space_node)
 {
   if (space_node.node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
@@ -420,15 +420,15 @@ static std::optional<SceneAndCompositorModifier> get_scene_compositor_modifier_f
 
   const Scene *scene = id_cast<Scene *>(space_node.id);
   if (space_node.flag & SNODE_PIN) {
-    for (const SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-      if (modifier.node_group == space_node.nodetree) {
-        return SceneAndCompositorModifier(scene, &modifier);
+    for (const SceneCompositorEffect &effect : scene->compositor_effects) {
+      if (effect.node_group == space_node.nodetree) {
+        return SceneAndCompositorEffect(scene, &effect);
       }
     }
     return std::nullopt;
   }
 
-  return SceneAndCompositorModifier(scene, bke::compositor::get_active_modifier(*scene));
+  return SceneAndCompositorEffect(scene, bke::compositor::get_active_effect(*scene));
 }
 
 const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
@@ -548,15 +548,15 @@ static const ComputeContext *get_node_editor_root_compute_context(
   if (snode.nodetree->type == NTREE_COMPOSIT) {
     switch (SpaceNodeCompositorNodesType(snode.node_tree_sub_type)) {
       case SNODE_COMPOSITOR_SCENE: {
-        std::optional<SceneAndCompositorModifier> scene_and_modifier =
-            ed::space_node::get_scene_compositor_modifier_for_node_editor(snode);
-        if (!scene_and_modifier) {
+        std::optional<SceneAndCompositorEffect> scene_and_effect =
+            ed::space_node::get_scene_compositor_effect_for_node_editor(snode);
+        if (!scene_and_effect) {
           return nullptr;
         }
         const bke::DataBlockComputeContext &scene_context = compute_context_cache.for_data_block(
-            nullptr, scene_and_modifier->scene->id);
-        return &compute_context_cache.for_scene_compositor_modifier(&scene_context,
-                                                                    *scene_and_modifier->modifier);
+            nullptr, scene_and_effect->scene->id);
+        return &compute_context_cache.for_scene_compositor_effect(&scene_context,
+                                                                  *scene_and_effect->effect);
       }
       case SNODE_COMPOSITOR_SEQUENCER: {
         return nullptr;

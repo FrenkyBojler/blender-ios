@@ -15,9 +15,6 @@
 
 #include "DNA_node_types.h"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.hh"
-
 #include "BKE_compositor.hh"
 #include "BKE_cryptomatte.hh"
 #include "BKE_global.hh"
@@ -42,8 +39,7 @@
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_render_context.hh"
 #include "COM_result.hh"
-#include "COM_scene_compositor_modifiers_operation.hh"
-#include "COM_scheduler.hh"
+#include "COM_scene_compositor_effects_operation.hh"
 
 #include "NOD_dependencies.hh"
 #include "NOD_eval_log.hh"
@@ -245,14 +241,13 @@ class Context : public compositor::Context {
       return false;
     }
 
-    /* Only cache if any of the modifiers are time dependent. */
-    for (const SceneCompositorModifier &modifier : input_data_.scene.compositor_modifiers) {
-      if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Preview))
-      {
+    /* Only cache if any of the effects are time dependent. */
+    for (const SceneCompositorEffect &effect : input_data_.scene.compositor_effects) {
+      if (!bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Preview)) {
         continue;
       }
 
-      const bNodeTree *original_node_tree = DEG_get_original(modifier.node_group);
+      const bNodeTree *original_node_tree = DEG_get_original(effect.node_group);
       if (original_node_tree->runtime->eval_dependencies->time_dependent) {
         return true;
       }
@@ -731,8 +726,8 @@ class Context : public compositor::Context {
         std::make_unique<nodes::eval_log::NodesEvalLog>();
 
     const compositor::NodeGroupOutputTypes needed_outputs = this->needed_outputs();
-    compositor::SceneCompositorModifiersOperation operation =
-        compositor::SceneCompositorModifiersOperation(*this, needed_outputs);
+    compositor::SceneCompositorEffectsOperation operation =
+        compositor::SceneCompositorEffectsOperation(*this, needed_outputs);
     compositor::Result combined_pass = this->get_pass(&this->get_scene(), 0, RE_PASSNAME_COMBINED);
     operation.map_input_to_result(&combined_pass);
     operation.evaluate();

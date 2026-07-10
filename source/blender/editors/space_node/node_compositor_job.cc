@@ -176,8 +176,7 @@ static bool is_compositing_possible(const Scene *scene)
     return false;
   }
 
-  if (!bke::compositor::has_any_enabled_modifier(*scene, bke::compositor::ExecutionMode::Preview))
-  {
+  if (!bke::compositor::has_any_enabled_effect(*scene, bke::compositor::ExecutionMode::Preview)) {
     return false;
   }
 

@@ -75,21 +75,21 @@ void DepsgraphRelationBuilder::build_scene_compositor(Scene *scene)
   }
 
   ComponentKey compositor_key(&scene->id, NodeType::COMPOSITOR);
-  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-    if (!modifier.node_group) {
+  for (SceneCompositorEffect &effect : scene->compositor_effects) {
+    if (!effect.node_group) {
       continue;
     }
 
     const OperationKey node_output_key(
-        &modifier.node_group->id, NodeType::NTREE_OUTPUT, OperationCode::NTREE_OUTPUT);
+        &effect.node_group->id, NodeType::NTREE_OUTPUT, OperationCode::NTREE_OUTPUT);
     this->add_relation(node_output_key, compositor_key, "NTree Output -> Compositor");
 
     /* TODO(sergey): Trace as a scene compositor. */
-    build_nodetree(modifier.node_group);
+    build_nodetree(effect.node_group);
 
     DepsNodeHandle handle = this->create_node_handle(node_output_key);
     bke::compositor::add_depsgraph_relations(
-        *scene, *modifier.node_group, reinterpret_cast<blender::DepsNodeHandle *>(&handle));
+        *scene, *effect.node_group, reinterpret_cast<blender::DepsNodeHandle *>(&handle));
   }
 }
 

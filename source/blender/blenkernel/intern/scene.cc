@@ -367,12 +367,12 @@ static void scene_copy_data(Main *bmain,
 
   BKE_scene_copy_data_eevee(scene_dst, scene_src);
 
-  scene_dst->compositor_modifiers.clear_no_delete();
-  for (const SceneCompositorModifier &modifier : scene_src->compositor_modifiers) {
-    SceneCompositorModifier *new_modifier = MEM_dupalloc(&modifier);
-    BLI_addtail(&scene_dst->compositor_modifiers, new_modifier);
-    if (modifier.system_properties) {
-      new_modifier->system_properties = IDP_CopyProperty_ex(modifier.system_properties, flag);
+  scene_dst->compositor_effects.clear_no_delete();
+  for (const SceneCompositorEffect &effect : scene_src->compositor_effects) {
+    SceneCompositorEffect *new_effect = MEM_dupalloc(&effect);
+    BLI_addtail(&scene_dst->compositor_effects, new_effect);
+    if (effect.system_properties) {
+      new_effect->system_properties = IDP_CopyProperty_ex(effect.system_properties, flag);
     }
   }
 
@@ -452,12 +452,12 @@ static void scene_free_data(ID *id)
     scene->display.shading.prop = nullptr;
   }
 
-  for (const SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-    if (modifier.system_properties) {
-      IDP_FreeProperty_ex(modifier.system_properties, false);
+  for (const SceneCompositorEffect &effect : scene->compositor_effects) {
+    if (effect.system_properties) {
+      IDP_FreeProperty_ex(effect.system_properties, false);
     }
   }
-  scene->compositor_modifiers.free_no_destruct();
+  scene->compositor_effects.free_no_destruct();
 
   /* These are freed on `do_versions`. */
   BLI_assert(scene->layer_properties == nullptr);
@@ -880,13 +880,13 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IDWALK_CB_USER);
 
-  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, modifier.node_group, IDWALK_CB_USER);
-    if (modifier.system_properties) {
+  for (SceneCompositorEffect &effect : scene->compositor_effects) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, effect.node_group, IDWALK_CB_USER);
+    if (effect.system_properties) {
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
           data,
           IDP_foreach_property(
-              modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+              effect.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
                 BKE_lib_query_idpropertiesForeachIDLink_callback(property, data);
               }));
     }
@@ -1325,10 +1325,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   BKE_screen_view3d_shading_blend_write(writer, &sce->display.shading);
 
-  writer->write_struct_list(&sce->compositor_modifiers);
-  for (const SceneCompositorModifier &modifier : sce->compositor_modifiers) {
-    if (modifier.system_properties) {
-      IDP_BlendWrite(writer, modifier.system_properties);
+  writer->write_struct_list(&sce->compositor_effects);
+  for (const SceneCompositorEffect &effect : sce->compositor_effects) {
+    if (effect.system_properties) {
+      IDP_BlendWrite(writer, effect.system_properties);
     }
   }
 
@@ -1574,10 +1574,10 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, IDProperty, &sce->layer_properties);
   IDP_BlendDataRead(reader, &sce->layer_properties);
 
-  BLO_read_struct_list(reader, SceneCompositorModifier, &sce->compositor_modifiers);
-  for (SceneCompositorModifier &modifier : sce->compositor_modifiers) {
-    BLO_read_struct(reader, IDProperty, &modifier.system_properties);
-    IDP_BlendDataRead(reader, &modifier.system_properties);
+  BLO_read_struct_list(reader, SceneCompositorEffect, &sce->compositor_effects);
+  for (SceneCompositorEffect &effect : sce->compositor_effects) {
+    BLO_read_struct(reader, IDProperty, &effect.system_properties);
+    IDP_BlendDataRead(reader, &effect.system_properties);
   }
 }
 
@@ -2019,9 +2019,9 @@ Scene *BKE_scene_duplicate(Main *bmain,
    * compositing node tree with a Render Layers node that referred to the new scene.
    * To preserve this behavior, we make a full copy when creating a linked copy as well as a full
    * copy of the scene.*/
-  for (SceneCompositorModifier &modifier : sce->compositor_modifiers) {
+  for (SceneCompositorEffect &effect : sce->compositor_effects) {
     BKE_id_copy_for_duplicate(
-        bmain, reinterpret_cast<ID *>(modifier.node_group), duplicate_flags, copy_flags);
+        bmain, reinterpret_cast<ID *>(effect.node_group), duplicate_flags, copy_flags);
   }
 
   if (type == SCE_COPY_FULL) {

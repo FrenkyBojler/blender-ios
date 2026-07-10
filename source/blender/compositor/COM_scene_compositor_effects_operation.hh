@@ -18,14 +18,14 @@ class Context;
 enum class NodeGroupOutputTypes : uint8_t;
 
 /* ------------------------------------------------------------------------------------------------
- * Scene Compositor Modifiers Operation
+ * Scene Compositor Effects Operation
  *
- * An operation that creates a node group operation for each enabled scene compositor modifier in
+ * An operation that creates a node group operation for each enabled scene compositor effect in
  * the scene and evaluates them serially. The fits node group takes the input of the operation as
  * an input. The has_output() and has_viewer_output() methods can be queried after evaluation to
  * identify of the operation has computed an output or a viewer output. In all cases, the output
  * will be allocated, albeit with a default value in case has_output() is false. */
-class SceneCompositorModifiersOperation : public SimpleOperation {
+class SceneCompositorEffectsOperation : public SimpleOperation {
  private:
   /* The outputs that the operation should compute. */
   NodeGroupOutputTypes needed_outputs_;
@@ -36,7 +36,7 @@ class SceneCompositorModifiersOperation : public SimpleOperation {
 
  public:
   /* Declares an input of type color and an output of type color. */
-  SceneCompositorModifiersOperation(Context &context, NodeGroupOutputTypes needed_outputs);
+  SceneCompositorEffectsOperation(Context &context, NodeGroupOutputTypes needed_outputs);
 
   /* Compile and evaluate the node group. */
   void execute() override;

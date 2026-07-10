@@ -12,7 +12,7 @@ struct bNodeTree;
 
 namespace nodes {
 
-std::shared_ptr<GeneratedTreeSrnaData> create_scene_compositor_modifier_inputs_srna(
+std::shared_ptr<GeneratedTreeSrnaData> create_scene_compositor_effect_inputs_srna(
     const bNodeTree &tree);
 
 }  // namespace nodes

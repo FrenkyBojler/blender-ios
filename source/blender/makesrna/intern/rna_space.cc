@@ -614,11 +614,11 @@ const EnumPropertyItem buttons_context_items[] = {
      ICON_SEQ_STRIP_MODIFIER,
      "Strip Modifiers",
      "Strip Modifier Properties"},
-    {BCONTEXT_SCENE_COMPOSITOR_MODIFIERS,
-     "SCENE_COMPOSITOR_MODIFIERS",
+    {BCONTEXT_SCENE_COMPOSITOR_EFFECTS,
+     "SCENE_COMPOSITOR_EFFECTS",
      ICON_NODE_COMPOSITING,
-     "Scene Compositor Modifiers",
-     "Scene Compositor Modifiers Properties"},
+     "Scene Compositor Effects",
+     "Scene Compositor Effects Properties"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2531,8 +2531,8 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
   ConsoleLine *ci = static_cast<ConsoleLine *>(ptr->data);
   size_t len = strlen(value);
 
-  if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
-  { /* allocate a new string */
+  if ((len >= size_t(ci->len_alloc)) ||
+      (len * 2 < size_t(ci->len_alloc))) { /* allocate a new string */
     MEM_delete(ci->line);
     ci->line = MEM_new_array_uninitialized<char>(len + 1, "rna_consoleline");
     ci->len_alloc = int(len + 1);
@@ -2931,7 +2931,7 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
        "SCENE",
        ICON_SCENE_DATA,
        N_("Scene"),
-       N_("Edit compositing node group for the current scene")},
+       N_("Edit compositor node group for the active scene compositor effect")},
       {SNODE_COMPOSITOR_SEQUENCER,
        "SEQUENCER",
        ICON_SEQUENCE,
@@ -6183,7 +6183,7 @@ static void rna_def_space_properties_filter(StructRNA *srna)
       "show_properties_effects",
       "show_properties_strip",
       "show_properties_strip_modifier",
-      "show_properties_scene_compositor_modifiers",
+      "show_properties_scene_compositor_effects",
   };
 
   for (const int i : IndexRange(BCONTEXT_TOT)) {

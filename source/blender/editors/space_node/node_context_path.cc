@@ -209,14 +209,13 @@ static void get_context_path_node_compositor(const bContext &C,
 
   Scene *scene = CTX_data_scene(&C);
   ui::context_path_add_generic(path, *RNA_Scene, scene);
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
-  if (!modifier) {
+  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
+  if (!effect) {
     context_path_add_node_tree_and_node_groups(snode, path);
     return;
   }
 
-  ui::context_path_add_generic(
-      path, *RNA_SceneCompositorModifier, modifier, ICON_NODE_COMPOSITING);
+  ui::context_path_add_generic(path, *RNA_SceneCompositorEffect, effect, ICON_NODE_COMPOSITING);
   context_path_add_node_tree_and_node_groups(snode, path);
 }
 

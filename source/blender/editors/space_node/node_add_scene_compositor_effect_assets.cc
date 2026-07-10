@@ -50,8 +50,7 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C)
     }
     const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
         &meta_data, "compositor_node_asset_traits_flag");
-    if (traits_flag == nullptr || !(IDP_int_get(traits_flag) & COMPOSIT_NODE_ASSET_SCENE_MODIFIER))
-    {
+    if (traits_flag == nullptr || !(IDP_int_get(traits_flag) & COMPOSIT_NODE_ASSET_SCENE_EFFECT)) {
       return false;
     }
     return true;
@@ -96,17 +95,17 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     }
   };
 
-  wmOperatorType *operator_type = WM_operatortype_find(
-      "NODE_OT_add_scene_compositor_modifier_node_group_asset", true);
+  wmOperatorType *ot = WM_operatortype_find("NODE_OT_add_scene_compositor_effect_node_group_asset",
+                                            true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     ensure_separator();
-    asset::draw_asset_menu_item(asset, operator_type->idname, layout);
+    asset::draw_asset_menu_item(asset, ot->idname, layout);
   }
 
   catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {
     ensure_separator();
     asset::draw_menu_for_catalog(
-        item, "NODE_MT_add_scene_compositor_modifier_catalog_assets", layout);
+        item, "NODE_MT_add_scene_compositor_effect_catalog_assets", layout);
   });
 }
 
@@ -118,7 +117,7 @@ static bool unassigned_local_poll(const Main &bmain)
       continue;
     }
     if (!group.compositor_node_asset_traits ||
-        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_SCENE_MODIFIER))
+        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_SCENE_EFFECT))
     {
       continue;
     }
@@ -132,8 +131,8 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   Main &bmain = *CTX_data_main(C);
   asset::AssetItemTree &tree = *get_static_item_tree();
   ui::Layout &layout = *menu->layout;
-  wmOperatorType *ot = WM_operatortype_find(
-      "NODE_OT_add_scene_compositor_modifier_node_group_asset", true);
+  wmOperatorType *ot = WM_operatortype_find("NODE_OT_add_scene_compositor_effect_node_group_asset",
+                                            true);
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
     asset::draw_asset_menu_item(asset, ot->idname, layout);
   }
@@ -146,7 +145,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
       continue;
     }
     if (!group.compositor_node_asset_traits ||
-        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_SCENE_MODIFIER))
+        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_SCENE_EFFECT))
     {
       continue;
     }
@@ -182,20 +181,20 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
     }
 
     tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-      asset::draw_menu_for_catalog(item, "SEQUENCER_MT_add_modifier_catalog_assets", layout);
+      asset::draw_menu_for_catalog(item, "SEQUENCER_MT_add_effect_catalog_assets", layout);
     });
   }
 
   if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(C))) {
     layout.separator();
-    layout.menu("NODE_MT_add_scene_compositor_modifier_unassigned_assets",
+    layout.menu("NODE_MT_add_scene_compositor_effect_unassigned_assets",
                 IFACE_("Unassigned"),
                 ICON_FILE_HIDDEN);
   }
 }
 
 /* --------------------------------------------------------------------
- * Add Scene Compositor Modifier Node Group Asset Operator.
+ * Add Scene Compositor Effect Node Group Asset Operator.
  */
 
 static bNodeTree *get_asset_or_local_node_group(const bContext &C,
@@ -234,8 +233,8 @@ static bNodeTree *get_node_group(const bContext &C,
   return node_group;
 }
 
-static wmOperatorStatus add_scene_compositor_modifier_node_group_asset_exec(bContext *C,
-                                                                            wmOperator *op)
+static wmOperatorStatus add_scene_compositor_effect_node_group_asset_exec(bContext *C,
+                                                                          wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   bNodeTree *node_group = get_node_group(*C, *op->ptr, op->reports);
@@ -243,20 +242,20 @@ static wmOperatorStatus add_scene_compositor_modifier_node_group_asset_exec(bCon
     return OPERATOR_CANCELLED;
   }
 
-  SceneCompositorModifier &modifier = bke::compositor::new_modifier(
-      *scene, DATA_(node_group->id.name + 2));
-  modifier.node_group = node_group;
+  SceneCompositorEffect &effect = bke::compositor::new_effect(*scene,
+                                                              DATA_(node_group->id.name + 2));
+  effect.node_group = node_group;
   id_us_plus(&node_group->id);
-  modifier.flags &= ~SceneCompositorModifierFlags::ShowNodeGroupSelector;
+  effect.flags &= ~SceneCompositorEffectFlags::ShowNodeGroupSelector;
 
-  bke::compositor::update_modifier_node_group_interface(*scene, modifier);
+  bke::compositor::update_effect_node_group_interface(*scene, effect);
 
   // TODO: Updates.
   return OPERATOR_FINISHED;
 }
 
-static std::string add_scene_compositor_modifier_node_group_asset_get_description(
-    bContext *C, wmOperatorType * /*operator_type*/, PointerRNA *properties_ptr)
+static std::string add_scene_compositor_effect_node_group_asset_get_description(
+    bContext *C, wmOperatorType * /*ot*/, PointerRNA *properties_ptr)
 {
   const asset_system::AssetRepresentation *asset =
       asset::operator_asset_reference_props_get_asset_from_all_library(
@@ -270,30 +269,29 @@ static std::string add_scene_compositor_modifier_node_group_asset_get_descriptio
   return TIP_(asset->get_metadata().description);
 }
 
-static void NODE_OT_add_scene_compositor_modifier_node_group_asset(wmOperatorType *operator_type)
+static void NODE_OT_add_scene_compositor_effect_node_group_asset(wmOperatorType *ot)
 {
-  operator_type->name = "Add Scene Compositor Modifier Node Group Asset";
-  operator_type->description =
-      "Add a scene compositor modifier to the scene with a node group asset";
-  operator_type->idname = "NODE_OT_add_scene_compositor_modifier_node_group_asset";
+  ot->name = "Add Scene Compositor Effect Node Group Asset";
+  ot->description = "Add a scene compositor effect to the scene with a node group asset";
+  ot->idname = "NODE_OT_add_scene_compositor_effect_node_group_asset";
 
-  operator_type->exec = add_scene_compositor_modifier_node_group_asset_exec;
-  operator_type->get_description = add_scene_compositor_modifier_node_group_asset_get_description;
+  ot->exec = add_scene_compositor_effect_node_group_asset_exec;
+  ot->get_description = add_scene_compositor_effect_node_group_asset_get_description;
 
-  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  asset::operator_asset_reference_props_register(*operator_type->srna);
-  WM_operator_properties_id_lookup(operator_type, false);
+  asset::operator_asset_reference_props_register(*ot->srna);
+  WM_operator_properties_id_lookup(ot, false);
 }
 
 static MenuType unassigned_assets_menu_type()
 {
   MenuType type{};
-  STRNCPY_UTF8(type.idname, "NODE_MT_add_scene_compositor_modifier_unassigned_assets");
+  STRNCPY_UTF8(type.idname, "NODE_MT_add_scene_compositor_effect_unassigned_assets");
   type.draw = unassigned_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
   type.description = N_(
-      "Modifier node group assets not assigned to a catalog.\n"
+      "Effect node group assets not assigned to a catalog.\n"
       "Catalogs can be assigned in the Asset Browser");
   return type;
 }
@@ -301,7 +299,7 @@ static MenuType unassigned_assets_menu_type()
 static MenuType catalog_assets_menu_type()
 {
   MenuType type{};
-  STRNCPY_UTF8(type.idname, "NODE_MT_add_scene_compositor_modifier_catalog_assets");
+  STRNCPY_UTF8(type.idname, "NODE_MT_add_scene_compositor_effect_catalog_assets");
   type.draw = catalog_assets_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
   type.flag = MenuTypeFlag::ContextDependent;
@@ -311,19 +309,19 @@ static MenuType catalog_assets_menu_type()
 static MenuType root_catalogs_menu_type()
 {
   MenuType type{};
-  STRNCPY_UTF8(type.idname, "NODE_MT_add_scene_compositor_modifier_root_catalogs");
+  STRNCPY_UTF8(type.idname, "NODE_MT_add_scene_compositor_effect_root_catalogs");
   type.draw = root_catalogs_draw;
   type.listener = asset::list::asset_reading_region_listen_fn;
   type.flag = MenuTypeFlag::ContextDependent;
   return type;
 }
 
-void node_scene_compositor_modifier_add_asset_register()
+void node_scene_compositor_effect_add_asset_register()
 {
   WM_menutype_add(MEM_new<MenuType>(__func__, catalog_assets_menu_type()));
   WM_menutype_add(MEM_new<MenuType>(__func__, unassigned_assets_menu_type()));
   WM_menutype_add(MEM_new<MenuType>(__func__, root_catalogs_menu_type()));
-  WM_operatortype_append(NODE_OT_add_scene_compositor_modifier_node_group_asset);
+  WM_operatortype_append(NODE_OT_add_scene_compositor_effect_node_group_asset);
 }
 
 }  // namespace blender::ed::space_node

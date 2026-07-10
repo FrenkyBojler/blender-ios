@@ -194,7 +194,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, ui::Layout *layout, void * /*arg*
       "show_properties_texture",
       "show_properties_strip",
       "show_properties_strip_modifier",
-      "show_properties_scene_compositor_modifiers"};
+      "show_properties_scene_compositor_effects"};
 
   for (StringRefNull item : filter_items) {
     layout->prop(&ptr, item, ui::ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
@@ -234,7 +234,7 @@ Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
   add_tab(BCONTEXT_VIEW_LAYER);
   add_tab(BCONTEXT_SCENE);
   add_tab(BCONTEXT_WORLD);
-  add_tab(BCONTEXT_SCENE_COMPOSITOR_MODIFIERS);
+  add_tab(BCONTEXT_SCENE_COMPOSITOR_EFFECTS);
 
   add_spacer();
 
@@ -308,8 +308,8 @@ static const char *buttons_main_region_context_string(const short mainb)
       return "strip";
     case BCONTEXT_STRIP_MODIFIER:
       return "strip_modifier";
-    case BCONTEXT_SCENE_COMPOSITOR_MODIFIERS:
-      return "scene_compositor_modifiers";
+    case BCONTEXT_SCENE_COMPOSITOR_EFFECTS:
+      return "scene_compositor_effect";
   }
 
   /* All the cases should be handled. */
@@ -778,7 +778,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           ED_area_tag_redraw(area);
           break;
         case ND_MODIFIER:
-          buttons_area_redraw(area, BCONTEXT_SCENE_COMPOSITOR_MODIFIERS);
+          buttons_area_redraw(area, BCONTEXT_SCENE_COMPOSITOR_EFFECTS);
         case ND_MODE:
         case ND_LAYER:
         default:
@@ -1154,7 +1154,7 @@ void ED_spacetype_buttons()
     }
   }
 
-  ui::register_scene_compositor_modifiers_panel(art);
+  ui::register_scene_compositor_effects_panel(art);
 
   /* regions: header */
   art = MEM_new_zeroed<ARegionType>("spacetype buttons region");

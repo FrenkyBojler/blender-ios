@@ -78,8 +78,8 @@ void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
                         * considered a no-op. */
                      });
 
-  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-    build_nodetree(modifier.node_group);
+  for (SceneCompositorEffect &effect : scene->compositor_effects) {
+    build_nodetree(effect.node_group);
   }
 }
 

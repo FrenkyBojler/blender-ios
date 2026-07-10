@@ -24,7 +24,7 @@ struct Scene;
 struct ViewLayer;
 struct ImBuf;
 struct bContext;
-struct SceneCompositorModifier;
+struct SceneCompositorEffect;
 struct DepsNodeHandle;
 struct bNodeTree;
 struct PointerRNA;
@@ -85,7 +85,7 @@ struct Cache {
 };
 
 /* --------------------------------------------------------------------
- * Scene Compositor Modifiers.
+ * Scene Compositor Effects.
  */
 
 enum class ExecutionMode : uint8_t {
@@ -96,46 +96,46 @@ enum class ExecutionMode : uint8_t {
   Preview,
 };
 
-/* Returns true if the given scene has any enabled modifier for the given execution mode. */
-bool has_any_enabled_modifier(const Scene &scene, ExecutionMode mode);
+/* Returns true if the given scene has any enabled effect for the given execution mode. */
+bool has_any_enabled_effect(const Scene &scene, ExecutionMode mode);
 
-/* Gets the compositor modifier with the given name in the given scene. */
-SceneCompositorModifier *get_modifier(const Scene &scene, StringRef name);
+/* Gets the compositor effect with the given name in the given scene. */
+SceneCompositorEffect *get_effect(const Scene &scene, StringRef name);
 
-/* Gets the active compositor modifier in the given scene. */
-SceneCompositorModifier *get_active_modifier(const Scene &scene);
+/* Gets the active compositor effect in the given scene. */
+SceneCompositorEffect *get_active_effect(const Scene &scene);
 
-/* Returns true if the given modifier is enabled for the given execution mode. */
-bool is_modifier_enabled(const SceneCompositorModifier &modifier, ExecutionMode mode);
+/* Returns true if the given effect is enabled for the given execution mode. */
+bool is_effect_enabled(const SceneCompositorEffect &effect, ExecutionMode mode);
 
-/* Sets the given compositor modifier in the given scene to be the active one. */
-void set_active_modifier(const Scene &scene, SceneCompositorModifier &modifier);
+/* Sets the given compositor effect in the given scene to be the active one. */
+void set_active_effect(const Scene &scene, SceneCompositorEffect &effect);
 
-/* Rename the given compositor modifier in the given scene to the given name. Animation data paths
+/* Rename the given compositor effect in the given scene to the given name. Animation data paths
  * may be updated if update_animation_data is true. */
-void rename_modifier(Scene &scene,
-                     SceneCompositorModifier &modifier,
-                     StringRef new_name,
-                     bool update_animation_data = true);
+void rename_effect(Scene &scene,
+                   SceneCompositorEffect &effect,
+                   StringRef new_name,
+                   bool update_animation_data = true);
 
-/* Adds a new compositor modifier of the given name to the given scene. */
-SceneCompositorModifier &new_modifier(Scene &scene, StringRef name);
+/* Adds a new compositor effect of the given name to the given scene. */
+SceneCompositorEffect &new_effect(Scene &scene, StringRef name);
 
-/* Copy the given compositor modifier in the given scene. */
-SceneCompositorModifier &copy_modifier(Scene &scene, SceneCompositorModifier &source_modifier);
+/* Copy the given compositor effect in the given scene. */
+SceneCompositorEffect &copy_effect(Scene &scene, SceneCompositorEffect &source_effect);
 
-/* Removes the given compositor modifier from the given scene. */
-void remove_modifier(Scene &scene, SceneCompositorModifier &modifier);
+/* Removes the given compositor effect from the given scene. */
+void remove_effect(Scene &scene, SceneCompositorEffect &effect);
 
-/* Removes all compositor modifiers from the given scene. */
-void clear_modifiers(Scene &scene);
+/* Removes all compositor effects from the given scene. */
+void clear_effects(Scene &scene);
 
-/* Gets the modifier that the given property belongs to. */
-const SceneCompositorModifier *get_modifier_from_property(const PointerRNA &property_ptr);
+/* Gets the effect that the given property belongs to. */
+const SceneCompositorEffect *get_effect_from_property(const PointerRNA &property_ptr);
 
-/* Update the system properties of the modifier. Should be call whenever the node group of the
- * modifier changes or the interface of the assigned node group changes. */
-void update_modifier_node_group_interface(Scene &scene, SceneCompositorModifier &modifier);
+/* Update the system properties of the effect. Should be call whenever the node group of the
+ * effect changes or the interface of the assigned node group changes. */
+void update_effect_node_group_interface(Scene &scene, SceneCompositorEffect &effect);
 
 /* --------------------------------------------------------------------
  * Query.

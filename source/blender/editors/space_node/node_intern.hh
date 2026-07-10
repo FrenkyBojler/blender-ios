@@ -502,21 +502,21 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
 void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
-void NODE_OT_new_scene_compositor_modifier_node_group(wmOperatorType *operator_type);
-void NODE_OT_duplicate_scene_compositor_modifier_node_group(wmOperatorType *operator_type);
+void NODE_OT_new_scene_compositor_effect_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_scene_compositor_effect_node_group(wmOperatorType *ot);
 
-/* `node_scene_compositor_modifiers.cc` */
+/* `node_scene_compositor_effects.cc` */
 
-void NODE_OT_add_scene_compositor_modifier(wmOperatorType *operator_type);
-void NODE_OT_remove_scene_compositor_modifier(wmOperatorType *operator_type);
-void NODE_OT_move_scene_compositor_modifier(wmOperatorType *operator_type);
-void NODE_OT_duplicate_scene_compositor_modifier(wmOperatorType *operator_type);
-void NODE_OT_scene_compositor_modifier_move_to_index(wmOperatorType *operator_type);
-void NODE_OT_set_active_scene_compositor_modifier(wmOperatorType *operator_type);
+void NODE_OT_add_scene_compositor_effect(wmOperatorType *ot);
+void NODE_OT_remove_scene_compositor_effect(wmOperatorType *ot);
+void NODE_OT_move_scene_compositor_effect(wmOperatorType *ot);
+void NODE_OT_duplicate_scene_compositor_effect(wmOperatorType *ot);
+void NODE_OT_scene_compositor_effect_move_to_index(wmOperatorType *ot);
+void NODE_OT_set_active_scene_compositor_effect(wmOperatorType *ot);
 
-/* `node_add_scene_compositor_modifier_assets.cc` */
+/* `node_add_scene_compositor_effect_assets.cc` */
 
-void node_scene_compositor_modifier_add_asset_register();
+void node_scene_compositor_effect_add_asset_register();
 
 /* `node_group.cc` */
 

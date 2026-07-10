@@ -28,7 +28,7 @@ set(SRC
   drawnode.cc
   link_drag_search.cc
   node_add.cc
-  node_add_scene_compositor_modifier_assets.cc
+  node_add_scene_compositor_effect_assets.cc
   node_bundle_type_search.cc
   node_compositor_job.cc
   node_context_path.cc
@@ -42,7 +42,7 @@ set(SRC
   node_group.cc
   node_ops.cc
   node_relationships.cc
-  node_scene_compositor_modifiers.cc
+  node_scene_compositor_effects.cc
   node_select.cc
   node_shader_preview.cc
   node_socket_tooltip.cc

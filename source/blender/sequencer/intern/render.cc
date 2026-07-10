@@ -1455,7 +1455,7 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
       context->render ? bke::compositor::ExecutionMode::Render :
                         bke::compositor::ExecutionMode::Preview;
   const bool have_comp = (scene->r.scemode & R_DOCOMP) &&
-                         bke::compositor::has_any_enabled_modifier(*scene, execution_mode);
+                         bke::compositor::has_any_enabled_effect(*scene, execution_mode);
 
   ViewLayer *view_layer = get_view_layer_for_scene_strip(scene, strip);
   Depsgraph *depsgraph = get_depsgraph_for_scene_strip(context->bmain, scene, view_layer);

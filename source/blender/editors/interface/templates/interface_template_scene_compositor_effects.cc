@@ -5,7 +5,7 @@
 /** \file
  * \ingroup edinterface
  *
- * Template for building the panel layout for the scene compositor modifiers.
+ * Template for building the panel layout for the scene compositor effects.
  */
 
 #include "BLI_listbase.hh"
@@ -35,64 +35,64 @@
 
 namespace blender::ui {
 
-static void draw_modifier_extra_menu(bContext *C, ui::Layout *layout, void *modifier_v)
+static void draw_effect_extra_menu(bContext *C, ui::Layout *layout, void *effect_v)
 {
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *modifier = static_cast<SceneCompositorModifier *>(modifier_v);
+  SceneCompositorEffect *effect = static_cast<SceneCompositorEffect *>(effect_v);
 
   {
-    PointerRNA operator_ptr = layout->op("NODE_OT_duplicate_scene_compositor_modifier",
+    PointerRNA operator_ptr = layout->op("NODE_OT_duplicate_scene_compositor_effect",
                                          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
                                          ICON_DUPLICATE);
-    RNA_string_set(&operator_ptr, "name", modifier->name);
+    RNA_string_set(&operator_ptr, "name", effect->name);
   }
 
   layout->separator();
 
   {
     ui::Layout &row = layout->row(false);
-    PointerRNA operator_ptr = row.op("NODE_OT_scene_compositor_modifier_move_to_index",
+    PointerRNA operator_ptr = row.op("NODE_OT_scene_compositor_effect_move_to_index",
                                      IFACE_("Move to First"),
                                      ICON_TRIA_UP,
                                      wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
-    RNA_string_set(&operator_ptr, "name", modifier->name);
+    RNA_string_set(&operator_ptr, "name", effect->name);
     RNA_int_set(&operator_ptr, "index", 0);
-    row.enabled_set(modifier->previous != nullptr);
+    row.enabled_set(effect->previous != nullptr);
   }
 
   {
     ui::Layout &row = layout->row(false);
-    PointerRNA operator_ptr = row.op("NODE_OT_scene_compositor_modifier_move_to_index",
+    PointerRNA operator_ptr = row.op("NODE_OT_scene_compositor_effect_move_to_index",
                                      IFACE_("Move to Last"),
                                      ICON_TRIA_DOWN,
                                      wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
-    RNA_string_set(&operator_ptr, "name", modifier->name);
-    RNA_int_set(&operator_ptr, "index", scene->compositor_modifiers.count() - 1);
-    row.enabled_set(modifier->next != nullptr);
+    RNA_string_set(&operator_ptr, "name", effect->name);
+    RNA_int_set(&operator_ptr, "index", scene->compositor_effects.count() - 1);
+    row.enabled_set(effect->next != nullptr);
   }
 
   layout->separator();
 
-  PointerRNA modifier_ptr = RNA_pointer_create_discrete(
-      &scene->id, RNA_SceneCompositorModifier, modifier);
-  layout->prop(&modifier_ptr, "show_node_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  PointerRNA effect_ptr = RNA_pointer_create_discrete(
+      &scene->id, RNA_SceneCompositorEffect, effect);
+  layout->prop(&effect_ptr, "show_node_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static void draw_modifier_panel_header(const bContext * /*C*/, Panel *panel)
+static void draw_effect_panel_header(const bContext * /*C*/, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
 
-  PointerRNA *modifier_ptr = ui::panel_custom_data_get(panel);
-  ui::panel_context_pointer_set(panel, "modifier", modifier_ptr);
-  SceneCompositorModifier *modifier = modifier_ptr->data_as<SceneCompositorModifier>();
+  PointerRNA *effect_ptr = ui::panel_custom_data_get(panel);
+  ui::panel_context_pointer_set(panel, "effect", effect_ptr);
+  SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
 
   ui::Layout &icon_row = layout.row(true);
   icon_row.emboss_set(ui::EmbossType::None);
   PointerRNA set_active_operator_ptr = icon_row.op(
-      "NODE_OT_set_active_scene_compositor_modifier", "", RNA_struct_ui_icon(modifier_ptr->type));
-  RNA_string_set(&set_active_operator_ptr, "name", modifier->name);
+      "NODE_OT_set_active_scene_compositor_effect", "", RNA_struct_ui_icon(effect_ptr->type));
+  RNA_string_set(&set_active_operator_ptr, "name", effect->name);
 
   ui::Layout &buttons_row = layout.row(true);
   ui::Layout &name_row = buttons_row.row(true);
@@ -101,56 +101,56 @@ static void draw_modifier_panel_header(const bContext * /*C*/, Panel *panel)
   const int available_space_for_name = (panel->sizex / UI_UNIT_X) - number_of_buttons;
   const bool is_panel_drawn_for_first_time = panel->sizex == 0;
   if (is_panel_drawn_for_first_time || available_space_for_name > 5) {
-    name_row.prop(modifier_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+    name_row.prop(effect_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
     buttons_row.alignment_set(ui::LayoutAlign::Right);
   }
 
   ui::Layout &enable_for_preview_row = buttons_row.row(true);
-  enable_for_preview_row.prop(modifier_ptr, "enable_for_preview", UI_ITEM_NONE, "", ICON_NONE);
+  enable_for_preview_row.prop(effect_ptr, "enable_for_preview", UI_ITEM_NONE, "", ICON_NONE);
 
   ui::Layout &enable_for_render_row = buttons_row.row(true);
-  enable_for_render_row.prop(modifier_ptr, "enable_for_render", UI_ITEM_NONE, "", ICON_NONE);
+  enable_for_render_row.prop(effect_ptr, "enable_for_render", UI_ITEM_NONE, "", ICON_NONE);
 
-  buttons_row.menu_fn("", ICON_DOWNARROW_HLT, draw_modifier_extra_menu, modifier);
+  buttons_row.menu_fn("", ICON_DOWNARROW_HLT, draw_effect_extra_menu, effect);
 
   ui::Layout &remove_row = buttons_row.row(false);
   remove_row.emboss_set(ui::EmbossType::None);
   PointerRNA remove_operator_ptr = remove_row.op(
-      "NODE_OT_remove_scene_compositor_modifier", "", ICON_X);
-  RNA_string_set(&remove_operator_ptr, "name", modifier->name);
+      "NODE_OT_remove_scene_compositor_effect", "", ICON_X);
+  RNA_string_set(&remove_operator_ptr, "name", effect->name);
 
   layout.separator();
 }
 
-static void reorder_modifier(bContext *C, Panel *panel, const int new_index)
+static void reorder_effect(bContext *C, Panel *panel, const int new_index)
 {
-  PointerRNA *modifier_ptr = ui::panel_custom_data_get(panel);
-  SceneCompositorModifier *modifier = modifier_ptr->data_as<SceneCompositorModifier>();
+  PointerRNA *effect_ptr = ui::panel_custom_data_get(panel);
+  SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
 
   wmOperatorType *operator_type = WM_operatortype_find(
-      "NODE_OT_scene_compositor_modifier_move_to_index", false);
+      "NODE_OT_scene_compositor_effect_move_to_index", false);
   PointerRNA properties_ptr = WM_operator_properties_create_ptr(operator_type);
-  RNA_string_set(&properties_ptr, "name", modifier->name);
+  RNA_string_set(&properties_ptr, "name", effect->name);
   RNA_int_set(&properties_ptr, "index", new_index);
   WM_operator_name_call_ptr(
       C, operator_type, wm::OpCallContext::InvokeDefault, &properties_ptr, nullptr);
   WM_operator_properties_free(&properties_ptr);
 }
 
-static short get_modifier_expand_flag(const bContext * /*C*/, Panel *panel)
+static short get_effect_expand_flag(const bContext * /*C*/, Panel *panel)
 {
-  PointerRNA *modifier_ptr = ui::panel_custom_data_get(panel);
-  SceneCompositorModifier *modifier = modifier_ptr->data_as<SceneCompositorModifier>();
-  return modifier->ui_panel_data_expansion;
+  PointerRNA *effect_ptr = ui::panel_custom_data_get(panel);
+  SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
+  return effect->ui_panel_data_expansion;
 }
 
-static void set_modifier_expand_flag(const bContext * /*C*/, Panel *panel, short expand_flag)
+static void set_effect_expand_flag(const bContext * /*C*/, Panel *panel, short expand_flag)
 {
-  PointerRNA *modifier_ptr = ui::panel_custom_data_get(panel);
-  SceneCompositorModifier *modifier = modifier_ptr->data_as<SceneCompositorModifier>();
-  modifier->ui_panel_data_expansion = uiPanelDataExpansion(expand_flag);
+  PointerRNA *effect_ptr = ui::panel_custom_data_get(panel);
+  SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
+  effect->ui_panel_data_expansion = uiPanelDataExpansion(expand_flag);
 }
 
 /* Drawing the properties manually with #ui::Layout::prop instead of #uiDefAutoButsRNA allows using
@@ -177,7 +177,7 @@ static void draw_property_for_socket(
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
 
-  if (!typeinfo->make_scene_compositor_modifier_input_srna) {
+  if (!typeinfo->make_scene_compositor_effect_input_srna) {
     return;
   }
 
@@ -228,19 +228,18 @@ static void draw_property_for_socket(
   }
 }
 
-static void draw_modifier_inputs(const bContext &C, PointerRNA &modifier_ptr, ui::Layout &layout)
+static void draw_effect_inputs(const bContext &C, PointerRNA &effect_ptr, ui::Layout &layout)
 {
-  SceneCompositorModifier &modifier = *modifier_ptr.data_as<SceneCompositorModifier>();
-  PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+  SceneCompositorEffect &effect = *effect_ptr.data_as<SceneCompositorEffect>();
+  PointerRNA properties_ptr = RNA_pointer_get(&effect_ptr, "properties");
 
-  modifier.node_group->ensure_interface_cache();
+  effect.node_group->ensure_interface_cache();
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
-  input_usages.reinitialize(modifier.node_group->interface_inputs().size());
+  input_usages.reinitialize(effect.node_group->interface_inputs().size());
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *modifier.node_group, properties_ptr, input_usages);
+      *effect.node_group, properties_ptr, input_usages);
 
-  for (const bNodeTreeInterfaceItem *item : modifier.node_group->tree_interface.root_panel.items())
-  {
+  for (const bNodeTreeInterfaceItem *item : effect.node_group->tree_interface.root_panel.items()) {
     switch (item->item_type) {
       case NodeTreeInterfaceItemType::Panel: {
         const auto &sub_interface_panel = *reinterpret_cast<const bNodeTreeInterfacePanel *>(item);
@@ -250,30 +249,30 @@ static void draw_modifier_inputs(const bContext &C, PointerRNA &modifier_ptr, ui
             &properties_ptr,
             sub_interface_panel,
             [&](const bNodeTreeInterfaceSocket &socket) {
-              return input_usages[modifier.node_group->interface_input_index(socket)].is_visible;
+              return input_usages[effect.node_group->interface_input_index(socket)].is_visible;
             },
             [&](const bNodeTreeInterfaceSocket &socket) {
-              return input_usages[modifier.node_group->interface_input_index(socket)].is_used;
+              return input_usages[effect.node_group->interface_input_index(socket)].is_used;
             },
             [&](ui::Layout &layout,
                 const bNodeTreeInterfaceSocket &socket,
                 PointerRNA *input_ptr,
                 const std::optional<StringRef> /*parent_name*/) {
               draw_property_for_socket(
-                  C, layout, socket, *input_ptr, *modifier.node_group, input_usages);
+                  C, layout, socket, *input_ptr, *effect.node_group, input_usages);
             });
         break;
       }
       case NodeTreeInterfaceItemType::Socket: {
         const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
         if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-          if (&socket == modifier.node_group->interface_inputs().first()) {
+          if (&socket == effect.node_group->interface_inputs().first()) {
           }
           else if (!(socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
             PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
             PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, socket.identifier);
             draw_property_for_socket(
-                C, layout, socket, input_ptr, *modifier.node_group, input_usages);
+                C, layout, socket, input_ptr, *effect.node_group, input_usages);
           }
         }
         break;
@@ -282,31 +281,31 @@ static void draw_modifier_inputs(const bContext &C, PointerRNA &modifier_ptr, ui
   }
 }
 
-static void draw_modifier_panel(const bContext *C, Panel *panel)
+static void draw_effect_panel(const bContext *C, Panel *panel)
 {
-  PointerRNA *modifier_ptr = ui::panel_custom_data_get(panel);
-  ui::panel_context_pointer_set(panel, "modifier", modifier_ptr);
+  PointerRNA *effect_ptr = ui::panel_custom_data_get(panel);
+  ui::panel_context_pointer_set(panel, "effect", effect_ptr);
 
-  SceneCompositorModifier &modifier = *modifier_ptr->data_as<SceneCompositorModifier>();
+  SceneCompositorEffect &effect = *effect_ptr->data_as<SceneCompositorEffect>();
 
   ui::Layout &layout = *panel->layout;
   layout.use_property_split_set(true);
 
-  if (flag_is_set(modifier.flags, SceneCompositorModifierFlags::ShowNodeGroupSelector)) {
-    const char *operator_name = (modifier.node_group == nullptr) ?
-                                    "node.new_scene_compositor_modifier_node_group" :
-                                    "node.duplicate_scene_compositor_modifier_node_group";
-    template_id(&layout, C, modifier_ptr, "node_group", operator_name, nullptr, nullptr);
+  if (flag_is_set(effect.flags, SceneCompositorEffectFlags::ShowNodeGroupSelector)) {
+    const char *operator_name = (effect.node_group == nullptr) ?
+                                    "node.new_scene_compositor_effect_node_group" :
+                                    "node.duplicate_scene_compositor_effect_node_group";
+    template_id(&layout, C, effect_ptr, "node_group", operator_name, nullptr, nullptr);
   }
 
-  if (modifier.node_group && !ID_MISSING(modifier.node_group)) {
-    draw_modifier_inputs(*C, *modifier_ptr, layout);
+  if (effect.node_group && !ID_MISSING(effect.node_group)) {
+    draw_effect_inputs(*C, *effect_ptr, layout);
   }
 }
 
 static constexpr char SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME[] = "SCENE_COMPOSITOR_MODIFIER_PT";
 
-void register_scene_compositor_modifiers_panel(ARegionType *region_type)
+void register_scene_compositor_effects_panel(ARegionType *region_type)
 {
   PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
 
@@ -314,64 +313,62 @@ void register_scene_compositor_modifiers_panel(ARegionType *region_type)
   STRNCPY_UTF8(panel_type->label, "");
   STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   STRNCPY_UTF8(panel_type->active_property, "is_active");
-  STRNCPY_UTF8(panel_type->context, "scene_compositor_modifiers");
+  STRNCPY_UTF8(panel_type->context, "scene_compositor_effects");
 
-  panel_type->draw_header = draw_modifier_panel_header;
-  panel_type->draw = draw_modifier_panel;
+  panel_type->draw_header = draw_effect_panel_header;
+  panel_type->draw = draw_effect_panel;
 
   /* Give the panel the special flag that says it was built here and corresponds to a
-   * modifier rather than a #PanelType. */
+   * effect rather than a #PanelType. */
   panel_type->flag = PANEL_TYPE_HEADER_EXPAND | PANEL_TYPE_INSTANCED;
-  panel_type->reorder = reorder_modifier;
-  panel_type->get_list_data_expand_flag = get_modifier_expand_flag;
-  panel_type->set_list_data_expand_flag = set_modifier_expand_flag;
+  panel_type->reorder = reorder_effect;
+  panel_type->get_list_data_expand_flag = get_effect_expand_flag;
+  panel_type->set_list_data_expand_flag = set_effect_expand_flag;
 
   BLI_addtail(&region_type->paneltypes, panel_type);
 }
 
-static void modifier_panel_id(void * /*modifier_link*/, char *r_name)
+static void effect_panel_id(void * /*effect_link*/, char *r_name)
 {
   BLI_strncpy(r_name, SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME, MAX_NAME);
 }
 
-void template_scene_compositor_modifiers(Layout * /*layout*/, bContext *C)
+void template_scene_compositor_effects(Layout * /*layout*/, bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   if (!scene) {
     return;
   }
-  ListBaseT<SceneCompositorModifier> *modifiers = &scene->compositor_modifiers;
+  ListBaseT<SceneCompositorEffect> *effects = &scene->compositor_effects;
 
   ARegion *region = CTX_wm_region(C);
-  const bool panels_match = panel_list_matches_data(region, modifiers, modifier_panel_id);
+  const bool panels_match = panel_list_matches_data(region, effects, effect_panel_id);
 
   if (!panels_match) {
     panels_free_instanced(C, region);
-    for (SceneCompositorModifier &modifier : *modifiers) {
+    for (SceneCompositorEffect &effect : *effects) {
       /* Create custom data RNA pointer. */
-      PointerRNA *modifier_ptr = MEM_new<PointerRNA>(__func__);
-      *modifier_ptr = RNA_pointer_create_discrete(
-          &scene->id, RNA_SceneCompositorModifier, &modifier);
+      PointerRNA *effect_ptr = MEM_new<PointerRNA>(__func__);
+      *effect_ptr = RNA_pointer_create_discrete(&scene->id, RNA_SceneCompositorEffect, &effect);
 
       panel_add_instanced(
-          C, region, &region->panels, SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME, modifier_ptr);
+          C, region, &region->panels, SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME, effect_ptr);
     }
   }
   else {
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = static_cast<Panel *>(region->panels.first);
-    for (SceneCompositorModifier &modifier : *modifiers) {
-      /* Move to the next instanced panel corresponding to the next modifier. */
+    for (SceneCompositorEffect &effect : *effects) {
+      /* Move to the next instanced panel corresponding to the next effect. */
       while ((panel->type == nullptr) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
         panel = panel->next;
-        /* There shouldn't be fewer panels than modifiers with UIs. */
+        /* There shouldn't be fewer panels than effects with UIs. */
         BLI_assert(panel != nullptr);
       }
 
-      PointerRNA *modifier_ptr = MEM_new<PointerRNA>(__func__);
-      *modifier_ptr = RNA_pointer_create_discrete(
-          &scene->id, RNA_SceneCompositorModifier, &modifier);
-      panel_custom_data_set(panel, modifier_ptr);
+      PointerRNA *effect_ptr = MEM_new<PointerRNA>(__func__);
+      *effect_ptr = RNA_pointer_create_discrete(&scene->id, RNA_SceneCompositorEffect, &effect);
+      panel_custom_data_set(panel, effect_ptr);
 
       panel = panel->next;
     }

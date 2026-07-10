@@ -42,7 +42,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_srna.hh"
 #include "NOD_node_declaration.hh"
-#include "NOD_scene_compositor_modifier_inputs_srna.hh"
+#include "NOD_scene_compositor_effect_inputs_srna.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_sync_sockets.hh"
@@ -221,7 +221,7 @@ using TreeNodePair = std::pair<bNodeTree *, bNode *>;
 using ObjectModifierPair = std::pair<Object *, ModifierData *>;
 using NodeSocketPair = std::pair<bNode *, bNodeSocket *>;
 using StripModifierPair = std::pair<Scene *, StripModifierData *>;
-using SceneCompositorModifierPair = std::pair<Scene *, SceneCompositorModifier *>;
+using SceneCompositorEffectPair = std::pair<Scene *, SceneCompositorEffect *>;
 
 /**
  * Cache common data about node trees from the #Main database that is expensive to retrieve on
@@ -234,8 +234,8 @@ struct NodeTreeRelations {
   std::optional<MultiValueMap<bNodeTree *, TreeNodePair>> group_node_users_;
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
   std::optional<MultiValueMap<bNodeTree *, StripModifierPair>> strip_modifier_users_;
-  std::optional<MultiValueMap<bNodeTree *, SceneCompositorModifierPair>>
-      scene_compositor_modifier_users_;
+  std::optional<MultiValueMap<bNodeTree *, SceneCompositorEffectPair>>
+      scene_compositor_effects_users_;
 
  public:
   NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
@@ -334,20 +334,20 @@ struct NodeTreeRelations {
     }
   }
 
-  void ensure_scene_compositor_modifier_users()
+  void ensure_scene_compositor_effects_users()
   {
-    if (scene_compositor_modifier_users_.has_value()) {
+    if (scene_compositor_effects_users_.has_value()) {
       return;
     }
-    scene_compositor_modifier_users_.emplace();
+    scene_compositor_effects_users_.emplace();
     if (bmain_ == nullptr) {
       return;
     }
 
     for (Scene &scene : bmain_->scenes) {
-      for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
-        if (modifier.node_group && !ID_MISSING(modifier.node_group)) {
-          scene_compositor_modifier_users_->add(modifier.node_group, {&scene, &modifier});
+      for (SceneCompositorEffect &effect : scene.compositor_effects) {
+        if (effect.node_group && !ID_MISSING(effect.node_group)) {
+          scene_compositor_effects_users_->add(effect.node_group, {&scene, &effect});
         }
       }
     }
@@ -365,10 +365,10 @@ struct NodeTreeRelations {
     return strip_modifier_users_->lookup(ntree);
   }
 
-  Span<SceneCompositorModifierPair> get_scene_compositor_modifier_users(bNodeTree *ntree)
+  Span<SceneCompositorEffectPair> get_scene_compositor_effects_users(bNodeTree *ntree)
   {
-    BLI_assert(scene_compositor_modifier_users_.has_value());
-    return scene_compositor_modifier_users_->lookup(ntree);
+    BLI_assert(scene_compositor_effects_users_.has_value());
+    return scene_compositor_effects_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
@@ -491,11 +491,11 @@ class NodeTreeMainUpdater {
             }
           }
 
-          relations_.ensure_scene_compositor_modifier_users();
-          for (const SceneCompositorModifierPair &pair :
-               relations_.get_scene_compositor_modifier_users(ntree))
+          relations_.ensure_scene_compositor_effects_users();
+          for (const SceneCompositorEffectPair &pair :
+               relations_.get_scene_compositor_effects_users(ntree))
           {
-            compositor::update_modifier_node_group_interface(*pair.first, *pair.second);
+            compositor::update_effect_node_group_interface(*pair.first, *pair.second);
           }
         }
       }
@@ -682,8 +682,8 @@ class NodeTreeMainUpdater {
       else if (ntree.type == NTREE_COMPOSIT) {
         ntree.runtime->compositor_nodes_srna_data =
             nodes::create_compositor_nodes_rna_for_strip_modifier(ntree);
-        ntree.runtime->scene_compositor_modifier_srna_data =
-            nodes::create_scene_compositor_modifier_inputs_srna(ntree);
+        ntree.runtime->scene_compositor_effect_srna_data =
+            nodes::create_scene_compositor_effect_inputs_srna(ntree);
       }
     }
 

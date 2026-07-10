@@ -164,8 +164,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
   /** Contains RNA types generated for the compositor strip modifier interface. */
   std::shared_ptr<nodes::GeneratedTreeSrnaData> compositor_nodes_srna_data;
-  /** Contains RNA types generated for the scene compositor modifier interface. */
-  std::shared_ptr<nodes::GeneratedTreeSrnaData> scene_compositor_modifier_srna_data;
+  /** Contains RNA types generated for the scene compositor effect interface. */
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> scene_compositor_effect_srna_data;
 
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;

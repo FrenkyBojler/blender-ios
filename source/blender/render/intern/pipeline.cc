@@ -657,8 +657,8 @@ void RE_FreeUnusedGPUResources()
 
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
-      if (!(bke::compositor::has_any_enabled_modifier(*scene,
-                                                      bke::compositor::ExecutionMode::Preview) &&
+      if (!(bke::compositor::has_any_enabled_effect(*scene,
+                                                    bke::compositor::ExecutionMode::Preview) &&
             scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU))
       {
         continue;
@@ -1109,11 +1109,11 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
 }
 
 /* Get the scene referenced by the given node if the node uses its render. The main pipeline scene
- * is given. If the node is in the first enabled compositor modifier, is_first_modifier will be
- * true. Returns nullptr if no scene render is referenced by the node. */
+ * is given. If the node is in the first enabled compositor effect, is_first_effect will be true.
+ * Returns nullptr if no scene render is referenced by the node. */
 static Scene *get_scene_referenced_by_node(const bNode *node,
                                            Scene *pipeline_scene,
-                                           const bool is_first_enabled_modifier)
+                                           const bool is_first_enabled_effect)
 {
   if (node->is_muted()) {
     return nullptr;
@@ -1128,8 +1128,8 @@ static Scene *get_scene_referenced_by_node(const bNode *node,
     return reinterpret_cast<Scene *>(node->id);
   }
 
-  /* The Group Input node gives the combined pass if it is in the first enabled modifier. */
-  if (is_first_enabled_modifier && node->type_legacy == NODE_GROUP_INPUT) {
+  /* The Group Input node gives the combined pass if it is in the first enabled effect. */
+  if (is_first_enabled_effect && node->type_legacy == NODE_GROUP_INPUT) {
     return pipeline_scene;
   }
 
@@ -1145,20 +1145,20 @@ static bool compositor_needs_render(Scene &scene)
     return true;
   }
 
-  bool is_first_enabled_modifier = true;
-  for (SceneCompositorModifier &modifier : scene.compositor_modifiers) {
-    if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render)) {
+  bool is_first_enabled_effect = true;
+  for (SceneCompositorEffect &effect : scene.compositor_effects) {
+    if (!bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
       continue;
     }
 
-    for (const bNode *node : modifier.node_group->all_nodes()) {
-      Scene *node_scene = get_scene_referenced_by_node(node, &scene, is_first_enabled_modifier);
+    for (const bNode *node : effect.node_group->all_nodes()) {
+      Scene *node_scene = get_scene_referenced_by_node(node, &scene, is_first_enabled_effect);
       if (node_scene && node_scene == &scene) {
         return true;
       }
     }
 
-    is_first_enabled_modifier = false;
+    is_first_enabled_effect = false;
   }
 
   return false;
@@ -1167,15 +1167,15 @@ static bool compositor_needs_render(Scene &scene)
 /* Checks if the given scene has a compositor output. */
 static bool scene_has_compositor_output(const Scene &scene)
 {
-  /* The last enabled modifier determines if the compositor has an output, depending on if it has
+  /* The last enabled effect determines if the compositor has an output, depending on if it has
    * an active Group Output or not. */
-  for (const SceneCompositorModifier &modifier : scene.compositor_modifiers.items_reversed()) {
-    if (!is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render)) {
+  for (const SceneCompositorEffect &effect : scene.compositor_effects.items_reversed()) {
+    if (!is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
       continue;
     }
 
-    modifier.node_group->ensure_topology_cache();
-    for (const bNode *node : modifier.node_group->nodes_by_type("NodeGroupOutput"_ustr)) {
+    effect.node_group->ensure_topology_cache();
+    for (const bNode *node : effect.node_group->nodes_by_type("NodeGroupOutput"_ustr)) {
       if (node->flag & NODE_DO_OUTPUT && !node->is_muted()) {
         return true;
       }
@@ -1221,12 +1221,12 @@ static bool node_tree_has_linked_file_output(const bNodeTree *node_tree)
 /* Checks if the given scene has any active compositor file outputs. */
 static bool scene_has_compositor_file_output(const Scene &scene)
 {
-  for (const SceneCompositorModifier &modifier : scene.compositor_modifiers) {
-    if (!is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render)) {
+  for (const SceneCompositorEffect &effect : scene.compositor_effects) {
+    if (!is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
       continue;
     }
 
-    if (node_tree_has_linked_file_output(modifier.node_group)) {
+    if (node_tree_has_linked_file_output(effect.node_group)) {
       return true;
     }
   }
@@ -1251,14 +1251,14 @@ static void do_render_compositor_scenes(Render *re)
   /* For each node that requires a scene we do a full render. Results are stored in a way
    * compositor will find it. */
   Set<Scene *> scenes_rendered;
-  bool is_first_enabled_modifier = true;
-  for (SceneCompositorModifier &modifier : re->scene->compositor_modifiers) {
-    if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render)) {
+  bool is_first_enabled_effect = true;
+  for (SceneCompositorEffect &effect : re->scene->compositor_effects) {
+    if (!bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
       continue;
     }
 
-    for (bNode *node : modifier.node_group->all_nodes()) {
-      Scene *node_scene = get_scene_referenced_by_node(node, re->scene, is_first_enabled_modifier);
+    for (bNode *node : effect.node_group->all_nodes()) {
+      Scene *node_scene = get_scene_referenced_by_node(node, re->scene, is_first_enabled_effect);
       if (!node_scene) {
         continue;
       }
@@ -1280,11 +1280,11 @@ static void do_render_compositor_scenes(Render *re)
       scenes_rendered.add_new(node_scene);
       do_render_compositor_scene(re, node_scene, re->scene->r.cfra);
       if (node->typeinfo->updatefunc) {
-        node->typeinfo->updatefunc(modifier.node_group, node);
+        node->typeinfo->updatefunc(effect.node_group, node);
       }
     }
 
-    is_first_enabled_modifier = false;
+    is_first_enabled_effect = false;
   }
 
   /* If another scene was rendered, switch back to the current scene. */
@@ -1339,8 +1339,8 @@ static void do_render_compositor(Render *re)
 
   if (!re->display->test_break()) {
     if (re->r.scemode & R_DOCOMP &&
-        bke::compositor::has_any_enabled_modifier(*re->pipeline_scene_eval,
-                                                  bke::compositor::ExecutionMode::Render))
+        bke::compositor::has_any_enabled_effect(*re->pipeline_scene_eval,
+                                                bke::compositor::ExecutionMode::Render))
     {
       /* checks if there are render-result nodes that need scene */
       if ((re->r.scemode & R_SINGLE_LAYER) == 0) {
@@ -1620,15 +1620,14 @@ static bool check_valid_compositing_camera(const Main &bmain,
                                            ReportList *reports)
 {
   if (scene->r.scemode & R_DOCOMP &&
-      bke::compositor::has_any_enabled_modifier(*scene, bke::compositor::ExecutionMode::Render))
+      bke::compositor::has_any_enabled_effect(*scene, bke::compositor::ExecutionMode::Render))
   {
-    for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-      if (!bke::compositor::is_modifier_enabled(modifier, bke::compositor::ExecutionMode::Render))
-      {
+    for (SceneCompositorEffect &effect : scene->compositor_effects) {
+      if (!bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
         continue;
       }
 
-      for (bNode *node : modifier.node_group->all_nodes()) {
+      for (bNode *node : effect.node_group->all_nodes()) {
         if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
           Scene *sce = node->id ? id_cast<Scene *>(node->id) : scene;
           if (sce->camera == nullptr) {
@@ -1819,8 +1818,8 @@ bool RE_is_rendering_allowed(const Main &bmain,
       return false;
     }
   }
-  else if (scemode & R_DOCOMP && bke::compositor::has_any_enabled_modifier(
-                                     *scene, bke::compositor::ExecutionMode::Render))
+  else if (scemode & R_DOCOMP &&
+           bke::compositor::has_any_enabled_effect(*scene, bke::compositor::ExecutionMode::Render))
   {
     /* Compositor */
     if (!scene_has_compositor_any_output(*scene)) {

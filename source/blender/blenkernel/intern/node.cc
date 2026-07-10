@@ -230,8 +230,8 @@ static void ntree_copy_data(Main * /*bmain*/,
   }
   dst_runtime.geometry_nodes_srna_data = ntree_src->runtime->geometry_nodes_srna_data;
   dst_runtime.compositor_nodes_srna_data = ntree_src->runtime->compositor_nodes_srna_data;
-  dst_runtime.scene_compositor_modifier_srna_data =
-      ntree_src->runtime->scene_compositor_modifier_srna_data;
+  dst_runtime.scene_compositor_effect_srna_data =
+      ntree_src->runtime->scene_compositor_effect_srna_data;
 
   if (ntree_src->geometry_node_asset_traits) {
     ntree_dst->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(
@@ -2345,9 +2345,9 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
       const auto &value = node_interface::get_socket_data_as<bNodeSocketValueMenu>(socket);
       if (value.enum_items) {
         if (create_default_value_properties) {
-          if (std::ranges::any_of(value.enum_items->items, [&](const RuntimeNodeEnumItem &item) {
-                return item.identifier == value.value;
-              }))
+          if (std::ranges::any_of(
+                  value.enum_items->items,
+                  [&](const RuntimeNodeEnumItem &item) { return item.identifier == value.value; }))
           {
             /* Only add the default value property if it's contained in the enum items. */
             IDP_AddToGroup(socket_prop.get(),

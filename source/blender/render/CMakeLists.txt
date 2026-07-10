@@ -15,9 +15,6 @@ set(INC
   ../simulation
   ../../../intern/mikktspace
   ../../../intern/mantaflow/extern
-
-  # RNA_prototypes.hh
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -97,6 +94,3 @@ endif()
 
 blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::render ALIAS bf_render)
-
-# RNA_prototypes.hh
-add_dependencies(bf_render bf_rna)

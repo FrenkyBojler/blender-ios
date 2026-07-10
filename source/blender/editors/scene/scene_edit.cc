@@ -217,11 +217,11 @@ static void view_layer_remove_unset_nodetrees(const Main *bmain, Scene *scene, V
   for (Scene *sce = static_cast<Scene *>(bmain->scenes.first); sce;
        sce = static_cast<Scene *>(sce->id.next))
   {
-    for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-      if (!modifier.node_group) {
+    for (SceneCompositorEffect &effect : scene->compositor_effects) {
+      if (!effect.node_group) {
         continue;
       }
-      bke::node_tree_remove_layer_n(modifier.node_group, scene, act_layer_index);
+      bke::node_tree_remove_layer_n(effect.node_group, scene, act_layer_index);
     }
   }
 }

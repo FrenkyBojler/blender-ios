@@ -869,8 +869,7 @@ static bool possibly_using_gpu_compositor(const Render *re)
    * but no compositing is performed for it so we can return false. */
   const Scene *scene = re->pipeline_scene_eval;
   return scene &&
-         bke::compositor::has_any_enabled_modifier(*scene,
-                                                   bke::compositor::ExecutionMode::Render) &&
+         bke::compositor::has_any_enabled_effect(*scene, bke::compositor::ExecutionMode::Render) &&
          (scene->r.scemode & R_DOCOMP);
 }
 

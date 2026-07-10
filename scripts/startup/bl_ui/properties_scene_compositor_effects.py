@@ -7,8 +7,8 @@ from bpy.types import (
 )
 
 
-class NODE_MT_add_scene_compositor_modifier(Menu):
-    bl_label = "Add Modifier"
+class NODE_MT_add_scene_compositor_effect(Menu):
+    bl_label = "Add Effect"
     bl_options = {'SEARCH_ON_KEY_PRESS'}
 
     def draw(self, context):
@@ -20,34 +20,34 @@ class NODE_MT_add_scene_compositor_modifier(Menu):
                 "WM_OT_search_single_menu",
                 text="Search...",
                 icon='VIEWZOOM',
-            ).menu_idname = "NODE_MT_add_scene_compositor_modifier_add"
+            ).menu_idname = "NODE_MT_add_scene_compositor_effect_add"
             layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("node.add_scene_compositor_modifier", text="Add Modifier", icon='ADD')
-        layout.menu_contents("NODE_MT_add_scene_compositor_modifier_root_catalogs")
+        layout.operator("node.add_scene_compositor_effect", text="Add Effect", icon='ADD')
+        layout.menu_contents("NODE_MT_add_scene_compositor_effect_root_catalogs")
 
 
-class SCENE_PT_compositor_modifiers(Panel):
+class SCENE_PT_compositor_effects(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = "scene_compositor_modifiers"
-    bl_label = "Modifiers"
+    bl_context = "scene_compositor_effects"
+    bl_label = "Effects"
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
 
-        layout.operator("wm.call_menu", text="Add Modifier", icon='ADD').name = "NODE_MT_add_scene_compositor_modifier"
+        layout.operator("wm.call_menu", text="Add Effect", icon='ADD').name = "NODE_MT_add_scene_compositor_effect"
 
-        layout.template_scene_compositor_modifiers()
+        layout.template_scene_compositor_effects()
 
 
 classes = (
-    SCENE_PT_compositor_modifiers,
-    NODE_MT_add_scene_compositor_modifier,
+    SCENE_PT_compositor_effects,
+    NODE_MT_add_scene_compositor_effect,
 )
 
 if __name__ == "__main__":  # only for live edit.

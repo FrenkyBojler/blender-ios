@@ -582,13 +582,13 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
   return false;
 }
 
-static bool buttons_context_path_scene_compositor_modifier(ButsContextPath *path)
+static bool buttons_context_path_scene_compositor_effect(ButsContextPath *path)
 {
   Scene *scene = path->ptr[path->len - 1].data_as<Scene>();
 
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
-  if (modifier) {
-    path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, RNA_StripModifier, modifier);
+  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
+  if (effect) {
+    path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, RNA_StripModifier, effect);
     path->len++;
   }
   return true;
@@ -661,7 +661,7 @@ static bool buttons_context_path(
               BCONTEXT_WORLD,
               BCONTEXT_STRIP,
               BCONTEXT_STRIP_MODIFIER,
-              BCONTEXT_SCENE_COMPOSITOR_MODIFIERS))
+              BCONTEXT_SCENE_COMPOSITOR_EFFECTS))
     {
       path->ptr[path->len] = RNA_pointer_create_discrete(nullptr, RNA_ViewLayer, view_layer);
       path->len++;
@@ -736,8 +736,8 @@ static bool buttons_context_path(
     case BCONTEXT_STRIP_MODIFIER:
       found = buttons_context_path_strip_modifier(sequencer_scene, path);
       break;
-    case BCONTEXT_SCENE_COMPOSITOR_MODIFIERS:
-      found = buttons_context_path_scene_compositor_modifier(path);
+    case BCONTEXT_SCENE_COMPOSITOR_EFFECTS:
+      found = buttons_context_path_scene_compositor_effect(path);
       break;
     default:
       found = false;
@@ -949,7 +949,7 @@ const char *buttons_context_dir[] = {
     "volume",
     "strip",
     "strip_modifier",
-    "scene_compositor_modifiers",
+    "scene_compositor_effect",
     nullptr,
 };
 
@@ -1281,8 +1281,8 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, RNA_StripModifier);
     return CTX_RESULT_OK;
   }
-  if (CTX_data_equals(member, "scene_compositor_modifiers")) {
-    set_pointer_type(path, result, RNA_SceneCompositorModifier);
+  if (CTX_data_equals(member, "scene_compositor_effect")) {
+    set_pointer_type(path, result, RNA_SceneCompositorEffect);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_MEMBER_NOT_FOUND;
@@ -1321,7 +1321,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
               BCONTEXT_WORLD,
               BCONTEXT_STRIP,
               BCONTEXT_STRIP_MODIFIER,
-              BCONTEXT_SCENE_COMPOSITOR_MODIFIERS) &&
+              BCONTEXT_SCENE_COMPOSITOR_EFFECTS) &&
         ptr->type == RNA_Scene)
     {
       continue;

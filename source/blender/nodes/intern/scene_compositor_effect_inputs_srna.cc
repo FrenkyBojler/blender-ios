@@ -21,23 +21,22 @@
 
 namespace blender::nodes {
 
-static std::optional<std::string> rna_CompositorNodesModifierProperty_path(
+static std::optional<std::string> rna_CompositorNodesEffectProperty_path(
     const PointerRNA *property_ptr, const StringRef properties_path)
 {
   const char *identifier = RNA_struct_identifier(property_ptr->type);
-  const SceneCompositorModifier *modifier = bke::compositor::get_modifier_from_property(
-      *property_ptr);
+  const SceneCompositorEffect *effect = bke::compositor::get_effect_from_property(*property_ptr);
 
-  return fmt::format("modifiers[\"{}\"].properties.{}.{}",
-                     BLI_str_escape(modifier->name),
+  return fmt::format("effects[\"{}\"].properties.{}.{}",
+                     BLI_str_escape(effect->name),
                      properties_path,
                      identifier);
 }
 
-static std::optional<std::string> rna_CompositorNodesModifierPropertyInput_path(
+static std::optional<std::string> rna_CompositorNodesEffectPropertyInput_path(
     const PointerRNA *property_ptr)
 {
-  return rna_CompositorNodesModifierProperty_path(property_ptr, "inputs");
+  return rna_CompositorNodesEffectProperty_path(property_ptr, "inputs");
 }
 
 static StructRNA *get_input_socket_struct_rna(const bNodeTree &node_group,
@@ -53,9 +52,9 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &node_group,
 
   StructRNA *srna = RNA_def_struct_ptr(
       r_generated.generated_rna, srna_identifier.c_str(), RNA_PropertyGroup);
-  RNA_def_struct_path_func_runtime(srna, rna_CompositorNodesModifierPropertyInput_path);
-  if (stype->make_scene_compositor_modifier_input_srna) {
-    stype->make_scene_compositor_modifier_input_srna(node_group, *srna, socket, r_generated);
+  RNA_def_struct_path_func_runtime(srna, rna_CompositorNodesEffectPropertyInput_path);
+  if (stype->make_scene_compositor_effect_input_srna) {
+    stype->make_scene_compositor_effect_input_srna(node_group, *srna, socket, r_generated);
   }
 
   return srna;
@@ -65,7 +64,7 @@ static StructRNA *create_inputs_srna(const bNodeTree &node_group,
                                      GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(r_generated.generated_rna,
-                                       "SceneCompositorModifierNodeGroupInterfaceInputs",
+                                       "SceneCompositorEffectNodeGroupInterfaceInputs",
                                        RNA_PropertyGroup);
 
   node_group.ensure_interface_cache();
@@ -85,7 +84,7 @@ static StructRNA *create_panels_srna(const bNodeTree &node_group,
                                      GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(r_generated.generated_rna,
-                                       "SceneCompositorModifierNodeGroupInterfacePanels",
+                                       "SceneCompositorEffectNodeGroupInterfacePanels",
                                        RNA_PropertyGroup);
 
   LinearAllocator<> &allocator = r_generated.scope.allocator();
@@ -109,14 +108,14 @@ static StructRNA *create_panels_srna(const bNodeTree &node_group,
   return srna;
 }
 
-std::shared_ptr<GeneratedTreeSrnaData> create_scene_compositor_modifier_inputs_srna(
+std::shared_ptr<GeneratedTreeSrnaData> create_scene_compositor_effect_inputs_srna(
     const bNodeTree &node_group)
 {
   std::unique_ptr<GeneratedTreeSrnaData> generated = std::make_unique<GeneratedTreeSrnaData>();
 
   StructRNA *srna = RNA_def_struct_ptr(generated->generated_rna,
-                                       "SceneCompositorModifierNodeGroupInterface",
-                                       RNA_SceneCompositorModifierProperties);
+                                       "SceneCompositorEffectNodeGroupInterface",
+                                       RNA_SceneCompositorEffectProperties);
   generated->properties_struct = srna;
 
   StructRNA *inputs_srna = create_inputs_srna(node_group, *generated);

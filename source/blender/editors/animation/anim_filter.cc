@@ -549,7 +549,8 @@ bool ANIM_animdata_can_have_greasepencil(const eAnimCont_Types type)
   { \
     if ((id)->adt) { \
       if (!(filter_mode & ANIMFILTER_CURVE_VISIBLE) || \
-          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) { \
+          !((id)->adt->flag & ADT_CURVES_NOT_VISIBLE)) \
+      { \
         if (filter_mode & ANIMFILTER_ANIMDATA) { \
           adtOk \
         } \
@@ -3455,12 +3456,12 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
 
     /* nodetree */
     if (!(ac->filters.flag & ADS_FILTER_NONTREE)) {
-      for (SceneCompositorModifier &modifier : sce->compositor_modifiers) {
-        if (!modifier.node_group) {
+      for (SceneCompositorEffect &effect : sce->compositor_effects) {
+        if (!effect.node_group) {
           continue;
         }
         tmp_items += animdata_filter_ds_nodetree(
-            ac, &tmp_data, reinterpret_cast<ID *>(sce), modifier.node_group, filter_mode);
+            ac, &tmp_data, reinterpret_cast<ID *>(sce), effect.node_group, filter_mode);
       }
     }
 

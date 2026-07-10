@@ -2774,33 +2774,33 @@ struct TransformOrientationSlot {
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Scene Compositor Modifier
+/** \name Scene Compositor Effect
  * \{ */
 
-enum class SceneCompositorModifierFlags : uint8_t {
+enum class SceneCompositorEffectFlags : uint8_t {
   None = 0,
-  /* The modifier is enabled for final render compositing. */
+  /* The effect is enabled for final render compositing. */
   EnableForRender = (1 << 0),
-  /* The modifier is enabled for preview compositing, like the interactive compositor or the
+  /* The effect is enabled for preview compositing, like the interactive compositor or the
    * viewport compositor. */
   EnableForPreview = (1 << 1),
-  /* The modifier is the currently active one in the modifier stack. Only one modifier can be
-     marked as active in the stack. One modifier is guaranteed to be active at all time. */
+  /* The effect is the currently active one in the effects stack. Only one effect can be
+     marked as active in the stack. One effect is guaranteed to be active at all time. */
   IsActive = (1 << 2),
-  /* Show the node group selector in the modifier, this can be disabled for assets for instance to
-   * make the modifier look more like a built-in modifier. */
+  /* Show the node group selector in the effect, this can be disabled for assets for instance to
+   * make the effect look more like a built-in effect. */
   ShowNodeGroupSelector = (1 << 3),
 };
-ENUM_OPERATORS(SceneCompositorModifierFlags);
+ENUM_OPERATORS(SceneCompositorEffectFlags);
 
-struct SceneCompositorModifier {
-  struct SceneCompositorModifier *next = nullptr, *previous = nullptr;
+struct SceneCompositorEffect {
+  struct SceneCompositorEffect *next = nullptr, *previous = nullptr;
   char name[/*MAX_NAME*/ 64] = "";
   struct bNodeTree *node_group = nullptr;
   struct IDProperty *system_properties = nullptr;
-  SceneCompositorModifierFlags flags = SceneCompositorModifierFlags::EnableForRender |
-                                       SceneCompositorModifierFlags::EnableForPreview |
-                                       SceneCompositorModifierFlags::ShowNodeGroupSelector;
+  SceneCompositorEffectFlags flags = SceneCompositorEffectFlags::EnableForRender |
+                                     SceneCompositorEffectFlags::EnableForPreview |
+                                     SceneCompositorEffectFlags::ShowNodeGroupSelector;
   char _pad0[1];
   uiPanelDataExpansion ui_panel_data_expansion = UI_PANEL_DATA_EXPAND_ROOT;
   char _pad1[4];
@@ -2879,7 +2879,7 @@ struct Scene {
   DNA_DEPRECATED struct bNodeTree *nodetree = nullptr;
   DNA_DEPRECATED struct bNodeTree *compositing_node_group = nullptr;
 
-  ListBaseT<SceneCompositorModifier> compositor_modifiers = {nullptr, nullptr};
+  ListBaseT<SceneCompositorEffect> compositor_effects = {nullptr, nullptr};
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed = nullptr;

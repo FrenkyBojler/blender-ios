@@ -288,11 +288,11 @@ static void buttons_texture_users_from_context(ListBaseT<ButsTextureUser> *users
   /* fill users */
   users->clear_no_delete();
 
-  for (SceneCompositorModifier &modifier : scene->compositor_modifiers) {
-    if (!modifier.node_group) {
+  for (SceneCompositorEffect &effect : scene->compositor_effects) {
+    if (!effect.node_group) {
       continue;
     }
-    buttons_texture_users_find_nodetree(users, &scene->id, modifier.node_group, N_("Compositor"));
+    buttons_texture_users_find_nodetree(users, &scene->id, effect.node_group, N_("Compositor"));
   }
 
   if (linestyle && !limited_mode) {

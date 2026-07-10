@@ -27,7 +27,7 @@ namespace blender {
 struct bNode;
 struct bNodeTree;
 struct NodesModifierData;
-struct SceneCompositorModifier;
+struct SceneCompositorEffect;
 struct ID;
 
 namespace nodes {
@@ -88,18 +88,18 @@ class GeometryNodesModifierComputeContext : public ComputeContext {
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-class SceneCompositorModifierComputeContext : public ComputeContext {
+class SceneCompositorEffectComputeContext : public ComputeContext {
  private:
-  /** The modifier data that this context is for. */
-  const SceneCompositorModifier &modifier_;
+  /** The effect data that this context is for. */
+  const SceneCompositorEffect &effect_;
 
  public:
-  SceneCompositorModifierComputeContext(const ComputeContext *parent,
-                                        const SceneCompositorModifier &modifier);
+  SceneCompositorEffectComputeContext(const ComputeContext *parent,
+                                      const SceneCompositorEffect &effect);
 
-  const SceneCompositorModifier &modifier() const
+  const SceneCompositorEffect &effect() const
   {
-    return modifier_;
+    return effect_;
   }
 
  private:

@@ -41,7 +41,7 @@ set(SRC
   COM_realize_on_domain_operation.hh
   COM_render_context.hh
   COM_result.hh
-  COM_scene_compositor_modifiers_operation.hh
+  COM_scene_compositor_effects_operation.hh
   COM_scheduler.hh
   COM_shader_node.hh
   COM_shader_operation.hh
@@ -68,7 +68,7 @@ set(SRC
   intern/realize_on_domain_operation.cc
   intern/render_context.cc
   intern/result.cc
-  intern/scene_compositor_modifiers_operation.cc
+  intern/scene_compositor_effects_operation.cc
   intern/scheduler.cc
   intern/shader_node.cc
   intern/shader_operation.cc

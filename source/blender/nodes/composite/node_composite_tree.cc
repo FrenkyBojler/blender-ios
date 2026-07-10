@@ -78,14 +78,14 @@ static void composite_get_from_context(const bContext *C,
   }
 
   Scene *scene = CTX_data_scene(C);
-  SceneCompositorModifier *modifier = bke::compositor::get_active_modifier(*scene);
-  if (!modifier || !modifier->node_group || ID_MISSING(modifier->node_group)) {
+  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
+  if (!effect || !effect->node_group || ID_MISSING(effect->node_group)) {
     return;
   }
 
   *r_from = &scene->id;
   *r_id = &scene->id;
-  *r_ntree = modifier->node_group;
+  *r_ntree = effect->node_group;
 }
 
 static void foreach_nodeclass(void *calldata, bke::bNodeClassCallback func)
@@ -202,11 +202,11 @@ void ntreeCompositTagRender(Scene *scene)
   for (Scene *sce_iter = static_cast<Scene *>(G_MAIN->scenes.first); sce_iter;
        sce_iter = static_cast<Scene *>(sce_iter->id.next))
   {
-    for (const SceneCompositorModifier &modifier : sce_iter->compositor_modifiers) {
-      if (modifier.node_group) {
-        for (bNode *node : modifier.node_group->all_nodes()) {
+    for (const SceneCompositorEffect &effect : sce_iter->compositor_effects) {
+      if (effect.node_group) {
+        for (bNode *node : effect.node_group->all_nodes()) {
           if (node->id == (ID *)scene) {
-            BKE_ntree_update_tag_node_property(modifier.node_group, node);
+            BKE_ntree_update_tag_node_property(effect.node_group, node);
           }
         }
       }
