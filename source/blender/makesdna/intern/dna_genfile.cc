@@ -285,6 +285,7 @@ static T sdna_data_pointer_read(T &data,
 {
   BLI_STATIC_ASSERT(std::is_pointer_v<T> && std::is_const_v<std::remove_pointer_t<T>>,
                     "Data type for this util must be a pointer to const data")
+  BLI_assert_msg(num >= 0, "Caller should ensure read size is always >= 0");
   if ((data + num) > data_pointer_end) [[unlikely]] {
     *r_error_message = "Invalid data in SDNA file";
     return nullptr;
@@ -313,6 +314,7 @@ static const StringRef sdna_data_pointer_read_string(const char *&data,
                                                      const void *const data_pointer_end,
                                                      const char **r_error_message)
 {
+  BLI_assert(static_cast<const char *>(data_pointer_end) > data);
   const char *str_end = std::char_traits<const char>::find(
       data, size_t(static_cast<const char *>(data_pointer_end) - data), '\0');
   if (!str_end) [[unlikely]] {
@@ -320,6 +322,7 @@ static const StringRef sdna_data_pointer_read_string(const char *&data,
     return nullptr;
   }
   const int64_t string_size = str_end - data;
+  BLI_assert(string_size >= 0);
   StringRef ret = StringRef(data, string_size);
   data += (string_size + 1); /* String size + null terminator. */
   return ret;
