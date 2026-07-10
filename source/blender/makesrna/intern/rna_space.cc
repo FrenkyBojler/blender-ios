@@ -565,6 +565,21 @@ static const EnumPropertyItem rna_enum_view3dshading_render_pass_type_items[] = 
     {EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET, "CryptoAsset", 0, "CryptoAsset", ""},
     {EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL, "CryptoMaterial", 0, "CryptoMaterial", ""},
 
+    RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_RENDER_LAYER, "Denoising Data"), nullptr),
+    {EEVEE_RENDER_PASS_DENOISING_DEPTH, "DENOISING_DEPTH", 0, "Denoising Depth", ""},
+    {EEVEE_RENDER_PASS_DENOISING_NORMAL, "DENOISING_NORMAL", 0, "Denoising Normal", ""},
+    {EEVEE_RENDER_PASS_DENOISING_ROUGHNESS, "DENOISING_ROUGHNESS", 0, "Denoising Roughness", ""},
+    {EEVEE_RENDER_PASS_DENOISING_DIFFUSE_ALBEDO,
+     "DIFFUSE_ALBEDO",
+     0,
+     "Denoising Diffuse Albedo",
+     ""},
+    {EEVEE_RENDER_PASS_DENOISING_SPECULAR_ALBEDO,
+     "SPECULAR_ALBEDO",
+     0,
+     "Denoising Specular Albedo",
+     ""},
+
     RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_RENDER_LAYER, "Shader AOV"), nullptr),
     {EEVEE_RENDER_PASS_AOV, "AOV", 0, "AOV", ""},
 
@@ -3076,11 +3091,7 @@ static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,
                                                      Scene * /*scene*/,
                                                      PointerRNA *space_node_ptr)
 {
-  const SpaceNode *space_node = space_node_ptr->data_as<SpaceNode>();
-  if (space_node->nodetree && space_node->nodetree->type == NTREE_COMPOSIT) {
-    DEG_id_tag_update(&space_node->nodetree->id, ID_RECALC_NTREE_OUTPUT);
-  }
-
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_main_add_notifier(NC_NODE | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_NODES, nullptr);
 }

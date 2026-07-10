@@ -1985,13 +1985,13 @@ void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *
 
 void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *scene_ptr)
 {
-  Scene *scene = id_cast<Scene *>(scene_ptr->owner_id);
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
 
   Vector<ID *> node_groups;
   for (const SceneCompositorEffect &effect : scene->compositor_effects) {
     if (bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Preview)) {
       node_groups.append(&effect.node_group->id);
-      DEG_id_tag_update(&effect.node_group->id, ID_RECALC_NTREE_OUTPUT);
       WM_main_add_notifier(NC_NODE | NA_EDITED, &effect.node_group->id);
       WM_main_add_notifier(NC_SCENE | ND_NODES, &effect.node_group->id);
     }
@@ -5054,6 +5054,21 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1, 3);
   RNA_def_property_ui_text(
       prop, "Distance", "Distance of object that contribute to the ambient occlusion effect");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "denoising_store_passes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "denoising_pass_flags", EEVEE_DENOISING_PASS_STORE);
+  RNA_def_property_ui_text(prop, "Denoising Data", "Deliver denoising passes");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
+  prop = RNA_def_property(
+      srna, "denoising_pass_use_albedo_roughness_weighting", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "denoising_pass_flags", EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING);
+  RNA_def_property_ui_text(
+      prop,
+      "Denoising Pass Albedo Roughness Weighting",
+      "Use roughness-based weighting of the albedo for the denoising feature passes");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
