@@ -13,9 +13,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNodeTree *ntree = b.tree_or_null();
   const bool is_gpu_internal = ntree && (ntree->flag & NTREE_IS_GPU_SHADER_INTERNAL);
 
-  b.add_input<decl::Color>("Diffuse"_ustr);
-  b.add_input<decl::Color>("Glossy"_ustr);
-  b.add_input<decl::Color>("Transmission"_ustr);
+  b.add_input<decl::Color>("Diffuse"_ustr).default_value({0.0f, 0.0f, 0.0f, 1.0f}).hide_value();
+  b.add_input<decl::Color>("Glossy"_ustr).default_value({0.0f, 0.0f, 0.0f, 1.0f}).hide_value();
+  b.add_input<decl::Color>("Transmission"_ustr)
+      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+      .hide_value();
   b.add_input<decl::Float>("Weight"_ustr).available(is_gpu_internal);
   b.add_output<decl::Shader>("Shader"_ustr);
 }

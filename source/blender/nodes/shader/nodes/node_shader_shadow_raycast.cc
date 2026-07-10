@@ -10,8 +10,8 @@ namespace nodes::node_shader_shadow_raycast_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Position"_ustr);
-  b.add_input<decl::Float>("Spread"_ustr);
+  b.add_input<decl::Vector>("Position"_ustr).hide_value();
+  b.add_input<decl::Float>("Spread"_ustr).default_value(1.0f);
   b.add_output<decl::Color>("Color"_ustr);
 }
 
@@ -21,6 +21,10 @@ static int node_shader_gpu_shadow_raycast(GPUMaterial *mat,
                                           GPUNodeStack *in,
                                           GPUNodeStack *out)
 {
+  if (!in[0].link) {
+    GPU_link(mat, "world_position_get", &in[0].link);
+  }
+
   return GPU_stack_link(mat, node, "node_shadow_raycast", in, out);
 }
 

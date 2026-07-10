@@ -10,9 +10,9 @@ namespace nodes::node_shader_light_evaluation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Position"_ustr);
-  b.add_input<decl::Vector>("Normal"_ustr);
-  b.add_input<decl::Float>("Roughness"_ustr);
+  b.add_input<decl::Vector>("Position"_ustr).hide_value();
+  b.add_input<decl::Vector>("Normal"_ustr).hide_value();
+  b.add_input<decl::Float>("Roughness"_ustr).default_value(1.0f);
   b.add_output<decl::Color>("Color"_ustr);
   b.add_output<decl::Float>("Factor"_ustr);
 }
@@ -23,6 +23,12 @@ static int node_shader_gpu_light_evaluation(GPUMaterial *mat,
                                             GPUNodeStack *in,
                                             GPUNodeStack *out)
 {
+  if (!in[0].link) {
+    GPU_link(mat, "world_position_get", &in[0].link);
+  }
+  if (!in[1].link) {
+    GPU_link(mat, "world_normals_get", &in[1].link);
+  }
   return GPU_stack_link(mat, node, "node_light_evaluation", in, out);
 }
 
