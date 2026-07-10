@@ -379,18 +379,30 @@ static bool buttons_context_path_material(ButsContextPath *path)
   return false;
 }
 
-static bool buttons_context_path_bone(ButsContextPath *path, const char *pin_bonename)
+static void reset_bone_pin_context(SpaceProperties *sbuts)
+{
+  sbuts->pinid = nullptr;
+  sbuts->pin_bone_name[0] = '\0';
+  sbuts->flag &= ~SB_PIN_CONTEXT;
+}
+
+static bool buttons_context_path_bone(ButsContextPath *path, SpaceProperties *sbuts)
 {
   /* if we have an armature, get the active bone */
   if (buttons_context_path_data(path, OB_ARMATURE)) {
     bArmature *arm = static_cast<bArmature *>(path->ptr[path->len - 1].data);
+    const char *pin_bone_name = (sbuts->flag & SB_PIN_CONTEXT) ? sbuts->pin_bone_name : nullptr;
 
     if (arm->edbo) {
       EditBone *edbo = nullptr;
-      if (pin_bonename && pin_bonename[0]) {
-        edbo = ED_armature_ebone_find_name(arm->edbo, pin_bonename);
+      if (pin_bone_name && pin_bone_name[0]) {
+        edbo = ED_armature_ebone_find_name(arm->edbo, pin_bone_name);
+        if (!edbo) {
+          /* No available pinned bone when deleted or undo rename, return false. */
+          reset_bone_pin_context(sbuts);
+        }
       }
-      if (!edbo) {
+      else if (arm->act_edbone) {
         edbo = arm->act_edbone;
       }
 
@@ -402,10 +414,13 @@ static bool buttons_context_path_bone(ButsContextPath *path, const char *pin_bon
     }
     else {
       Bone *bone = nullptr;
-      if (pin_bonename && pin_bonename[0]) {
-        bone = BKE_armature_find_bone_name(arm, pin_bonename);
+      if (pin_bone_name && pin_bone_name[0]) {
+        bone = BKE_armature_find_bone_name(arm, pin_bone_name);
+        if (!bone) {
+          reset_bone_pin_context(sbuts);
+        }
       }
-      if (!bone) {
+      else if (arm->act_bone) {
         bone = arm->act_bone;
       }
 
@@ -421,7 +436,7 @@ static bool buttons_context_path_bone(ButsContextPath *path, const char *pin_bon
   return false;
 }
 
-static bool buttons_context_path_pose_bone(ButsContextPath *path, const char *pin_bonename)
+static bool buttons_context_path_pose_bone(ButsContextPath *path, SpaceProperties *sbuts)
 {
   PointerRNA *ptr = &path->ptr[path->len - 1];
 
@@ -432,6 +447,8 @@ static bool buttons_context_path_pose_bone(ButsContextPath *path, const char *pi
 
   /* if we have an armature, get the active bone */
   if (buttons_context_path_object(path)) {
+    const char *pin_bone_name = (sbuts->flag & SB_PIN_CONTEXT) ? sbuts->pin_bone_name : nullptr;
+
     Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
     if (ob->type != OB_ARMATURE) {
       return false;
@@ -442,21 +459,21 @@ static bool buttons_context_path_pose_bone(ButsContextPath *path, const char *pi
       return false;
     }
 
-    const char *bonename = nullptr;
-    if (pin_bonename && pin_bonename[0]) {
-      bonename = pin_bonename;
+    bPoseChannel *pchan = nullptr;
+    if (pin_bone_name && pin_bone_name[0]) {
+      pchan = BKE_pose_channel_find_name(ob->pose, pin_bone_name);
+      if (!pchan) {
+        reset_bone_pin_context(sbuts);
+      }
     }
     else if (arm->act_bone) {
-      bonename = arm->act_bone->name;
+      pchan = BKE_pose_channel_find_name(ob->pose, arm->act_bone->name);
     }
 
-    if (bonename) {
-      bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bonename);
-      if (pchan) {
-        path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, RNA_PoseBone, pchan);
-        path->len++;
-        return true;
-      }
+    if (pchan) {
+      path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, RNA_PoseBone, pchan);
+      path->len++;
+      return true;
     }
   }
 
@@ -643,7 +660,6 @@ static bool buttons_context_path(
 
   *path = {};
   path->flag = flag;
-  const char *pin_bonename = (sbuts->flag & SB_PIN_CONTEXT) ? sbuts->pin_bonename : nullptr;
 
   /* If some ID datablock is pinned, set the root pointer. */
   if (sbuts->pinid) {
@@ -734,13 +750,13 @@ static bool buttons_context_path(
           C, path, static_cast<ButsContextTexture *>(sbuts->texuser));
       break;
     case BCONTEXT_BONE:
-      found = buttons_context_path_bone(path, pin_bonename);
+      found = buttons_context_path_bone(path, sbuts);
       if (!found) {
         found = buttons_context_path_data(path, OB_ARMATURE);
       }
       break;
     case BCONTEXT_BONE_CONSTRAINT:
-      found = buttons_context_path_pose_bone(path, pin_bonename);
+      found = buttons_context_path_pose_bone(path, sbuts);
       break;
     case BCONTEXT_STRIP:
       found = buttons_context_path_strip(path);

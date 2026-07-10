@@ -2359,7 +2359,7 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
                                             const bool setTarget)
 {
   Main *bmain = CTX_data_main(C);
-  bPoseChannel *pchan;
+  bPoseChannel *pchan = nullptr;
   bConstraint *con;
 
   if (list == &ob->constraints) {
@@ -2367,9 +2367,11 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
   }
   else {
     /* In the Properties editor, first use pinned bone as the target.
-     * Otherwise, fall back to the scene's active bone.*/
-    pchan = static_cast<bPoseChannel *>(
-        CTX_data_pointer_get_type(C, "pose_bone", RNA_PoseBone).data);
+     * Otherwise, fall back to the scene's active bone. */
+    if (CTX_wm_space_properties(C)) {
+      pchan = static_cast<bPoseChannel *>(
+          CTX_data_pointer_get_type(C, "pose_bone", RNA_PoseBone).data);
+    }
     if (!pchan) {
       pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
     }

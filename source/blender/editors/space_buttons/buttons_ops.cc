@@ -139,18 +139,18 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 
     if (ptr.data) {
       char namebuf[MAXBONENAME];
-      const char *bonename = RNA_struct_name_get_alloc(&ptr, namebuf, sizeof(namebuf), nullptr);
-      if (bonename) {
-        STRNCPY(sbuts->pin_bonename, bonename);
+      const char *bone_name = RNA_struct_name_get_alloc(&ptr, namebuf, sizeof(namebuf), nullptr);
+      if (bone_name) {
+        STRNCPY(sbuts->pin_bone_name, bone_name);
 
-        if (bonename != namebuf) {
-          MEM_delete(bonename);
+        if (bone_name != namebuf) {
+          MEM_delete(bone_name);
         }
       }
     }
   }
   else {
-    sbuts->pin_bonename[0] = '\0';
+    sbuts->pin_bone_name[0] = '\0';
   }
 
   ED_area_tag_redraw(CTX_wm_area(C));

@@ -370,7 +370,7 @@ void ED_armature_bone_rename(Main *bmain,
     BKE_animdata_fix_paths_rename_all(&arm->id, "bones", oldname, newname);
   }
 
-  /* correct view locking */
+  /* correct view locking and properties editor bone pinning */
   {
     bScreen *screen;
     for (screen = static_cast<bScreen *>(bmain->screens.first); screen;
@@ -379,13 +379,23 @@ void ED_armature_bone_rename(Main *bmain,
       /* add regions */
       for (ScrArea &area : screen->areabase) {
         for (SpaceLink &sl : area.spacedata) {
-          if (sl.spacetype != SPACE_VIEW3D) {
-            continue;
+          if (sl.spacetype == SPACE_VIEW3D) {
+            View3D *v3d = reinterpret_cast<View3D *>(&sl);
+            if (v3d->ob_center && v3d->ob_center->data == id_cast<const ID *>(arm)) {
+              if (STREQ(v3d->ob_center_bone, oldname)) {
+                STRNCPY_UTF8(v3d->ob_center_bone, newname);
+              }
+            }
           }
-          View3D *v3d = reinterpret_cast<View3D *>(&sl);
-          if (v3d->ob_center && v3d->ob_center->data == id_cast<const ID *>(arm)) {
-            if (STREQ(v3d->ob_center_bone, oldname)) {
-              STRNCPY_UTF8(v3d->ob_center_bone, newname);
+          else if (sl.spacetype == SPACE_PROPERTIES) {
+            /* Keep the properties editor bone pin valid across renames. */
+            SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(&sl);
+            if (sbuts->flag & SB_PIN_CONTEXT && sbuts->pinid && GS(sbuts->pinid->name) == ID_OB &&
+                STREQ(sbuts->pin_bone_name, oldname))
+            {
+              if (&arm->id == reinterpret_cast<Object *>(sbuts->pinid)->data) {
+                STRNCPY_UTF8(sbuts->pin_bone_name, newname);
+              }
             }
           }
         }
