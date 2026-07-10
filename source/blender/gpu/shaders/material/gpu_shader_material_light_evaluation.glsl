@@ -6,5 +6,5 @@
 void node_light_evaluation(
     float3 position, float3 normal, float roughness, float4 &color, float &factor)
 {
-  node_light_evaluation_impl(position, normal, roughness, &color, &factor);
+  node_light_evaluation_impl(position, normal, roughness, color, factor);
 }

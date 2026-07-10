@@ -828,10 +828,8 @@ void node_light_info_impl(float4 &color,
   /*TODO*/
 }
 
-void node_light_accumulation_impl(float4 diffuse,
-                                  float4 glossy,
-                                  float4 transmission,
-                                  Closure &result)
+void node_light_accumulation_impl(
+    float4 diffuse, float4 glossy, float4 transmission, float weight, Closure &result)
 {
   /*TODO*/
 }
@@ -842,7 +840,7 @@ void node_light_evaluation_impl(
   /*TODO*/
 }
 
-void node_shadow_raycast_impl(float3 position, float spread, float &color)
+void node_shadow_raycast_impl(float3 position, float spread, float4 &color)
 {
   /*TODO*/
 }

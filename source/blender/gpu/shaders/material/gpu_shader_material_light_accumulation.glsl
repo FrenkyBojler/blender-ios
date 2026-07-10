@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 [[node]]
-void node_light_accumulation(float4 diffuse, float4 glossy, float4 transmission, Closure &result)
+void node_light_accumulation(
+    float4 diffuse, float4 glossy, float4 transmission, float weight, Closure &result)
 {
-  node_light_accumulation_impl(diffuse, glossy, transmission, result);
+  node_light_accumulation_impl(diffuse, glossy, transmission, weight, result);
 }

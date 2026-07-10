@@ -12,7 +12,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Vector>("Position"_ustr);
   b.add_input<decl::Float>("Spread"_ustr);
-  b.add_output<decl::Vector>("Color"_ustr);
+  b.add_output<decl::Color>("Color"_ustr);
 }
 
 static int node_shader_gpu_shadow_raycast(GPUMaterial *mat,
