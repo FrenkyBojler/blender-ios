@@ -486,8 +486,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
                                                 ListBaseT<TreeElement> *tree,
                                                 SyncSelectActiveData *active_data,
                                                 const SyncSelectTypes *sync_types,
-                                                bool *r_any_new_active,
-                                                short &idcode)
+                                                bool *r_any_new_active)
 {
   for (TreeElement &te : *tree) {
     TreeStoreElem *tselem = TREESTORE(&te);
@@ -530,10 +529,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
       tselem->flag &= ~(TSE_SELECTED | TSE_ACTIVE);
     }
     const bool is_active_new = (tselem->flag & TSE_ACTIVE) && (tselem->flag & TSE_SELECTED);
-    if (is_active_new && !is_active_old) {
-      *r_any_new_active = true;
-      idcode = te.idcode;
-    }
+    *r_any_new_active |= is_active_new && !is_active_old;
     /* Sync subtree elements */
     outliner_sync_selection_to_outliner(bmain,
                                         scene,
@@ -543,8 +539,7 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
                                         &te.subtree,
                                         active_data,
                                         sync_types,
-                                        r_any_new_active,
-                                        idcode);
+                                        r_any_new_active);
   }
 }
 
@@ -564,8 +559,7 @@ static void get_sync_select_active_data(const bContext *C, SyncSelectActiveData 
 
 bool outliner_sync_selection(const bContext *C,
                              const TreeViewContext &tvc,
-                             SpaceOutliner *space_outliner,
-                             short &idcode)
+                             SpaceOutliner *space_outliner)
 {
   /* Set which types of data to sync from sync dirty flag and outliner display mode */
   SyncSelectTypes sync_types;
@@ -586,8 +580,7 @@ bool outliner_sync_selection(const bContext *C,
                                         &space_outliner->runtime->tree,
                                         &active_data,
                                         &sync_types,
-                                        &r_any_new_active,
-                                        idcode);
+                                        &r_any_new_active);
 
     /* Keep any un-synced data in the dirty flag. */
     if (sync_types.object) {

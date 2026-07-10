@@ -465,7 +465,10 @@ void outliner_set_coordinates(const ARegion *region, SpaceOutliner *space_outlin
  */
 void outliner_item_openclose(TreeElement *te, bool open, bool toggle_all);
 
-void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, short &idcode);
+void outliner_scroll_to_active(const bContext *C,
+                               SpaceOutliner *space_outliner,
+                               ARegion *region,
+                               TreeViewContext *tvc);
 
 /* `outliner_dragdrop.cc` */
 
@@ -688,8 +691,7 @@ void outliner_tag_redraw_avoid_rebuild_on_open_change(const SpaceOutliner *space
  */
 bool outliner_sync_selection(const bContext *C,
                              const TreeViewContext &tvc,
-                             SpaceOutliner *space_outliner,
-                             short &idcode);
+                             SpaceOutliner *space_outliner);
 
 /* `outliner_context.cc` */
 
