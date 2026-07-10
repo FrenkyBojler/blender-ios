@@ -130,8 +130,6 @@ namespace ed::sculpt_paint::undo {
  *
  * End of dynamic topology and symmetrize in this mode are handled in a special manner as well. */
 
-#define NO_ACTIVE_LAYER bke::AttrDomain::Auto
-
 struct Node {
   Array<float3, 0> position;
   Array<float3, 0> orig_position;
@@ -167,9 +165,9 @@ struct Node {
 };
 
 struct SculptAttrRef {
-  bke::AttrDomain domain;
-  eCustomDataType type;
-  char name[MAX_CUSTOMDATA_LAYER_NAME];
+  std::optional<bke::AttrDomain> domain;
+  bke::AttrType type;
+  std::string name;
   bool was_set;
 };
 
@@ -1945,7 +1943,7 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
 {
   Mesh *mesh = BKE_object_get_original_mesh(&object);
   attr->was_set = true;
-  attr->domain = NO_ACTIVE_LAYER;
+  attr->domain = std::nullopt;
   attr->name[0] = 0;
   if (!mesh) {
     return;
@@ -1957,8 +1955,8 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
     return;
   }
   attr->domain = meta_data->domain;
-  STRNCPY_UTF8(attr->name, name);
-  attr->type = *bke::attr_type_to_custom_data_type(meta_data->data_type);
+  attr->name = name;
+  attr->type = meta_data->data_type;
 }
 
 /**
@@ -2137,7 +2135,7 @@ void push_end(Object &ob)
 
 static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
 {
-  if (attr_ref->domain == bke::AttrDomain::Auto) {
+  if (!attr_ref->domain) {
     return;
   }
 
@@ -2159,14 +2157,14 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
    */
   if (const bke::GAttributeReader attr = attributes.lookup(attr_ref->name)) {
     if (attr.domain != attr_ref->domain ||
-        bke::cpp_type_to_custom_data_type(attr.varray.type()) != attr_ref->type)
+        bke::cpp_type_to_attribute_type(attr.varray.type()) != attr_ref->type)
     {
       AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
       if (ed::geometry::convert_attribute(owner,
                                           mesh->attributes_for_write(),
                                           attr_ref->name,
-                                          attr_ref->domain,
-                                          *bke::custom_data_type_to_attr_type(attr_ref->type),
+                                          *attr_ref->domain,
+                                          attr_ref->type,
                                           nullptr))
       {
       }
@@ -2175,10 +2173,8 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
 
   if (!attributes.contains(attr_ref->name)) {
     /* Memfile undo killed the layer; re-create it. */
-    mesh->attributes_for_write().add(attr_ref->name,
-                                     attr_ref->domain,
-                                     *bke::custom_data_type_to_attr_type(attr_ref->type),
-                                     bke::AttributeInitDefaultValue());
+    mesh->attributes_for_write().add(
+        attr_ref->name, *attr_ref->domain, attr_ref->type, bke::AttributeInitDefaultValue());
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
