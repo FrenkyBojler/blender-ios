@@ -1775,9 +1775,13 @@ static void draw_seq_transitions(const TimelineDrawContext &ctx,
   }
   strips_batch.flush_batch();
 
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Draw is_connected icon. */
+  draw_strip_icons(ctx, strips);
+
   /* Draw text. */
   ui::view2d_view_ortho(ctx.v2d);
-  GPU_blend(GPU_BLEND_ALPHA);
   for (const StripDrawContext &strip_ctx : strips) {
     draw_seq_text_overlay(ctx, strip_ctx);
   }
