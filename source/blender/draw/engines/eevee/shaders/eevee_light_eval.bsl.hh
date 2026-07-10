@@ -81,7 +81,14 @@ void eval_single_closure(sampler2DArray util_tx,
   if (attenuation < 1e-30f) {
     return;
   }
-  float ltc_result = light_ltc(util_tx, light, cl.N, V, lv, cl.ltc_mat, vertices);
+
+  /* TODO(not_mark): remove, and update tests as this causes precision change. */
+  /* Load LTC matrix and rotate into orthonormal basis around N. */
+  LTCData ltc_data = LTCData::unpack_from(cl);
+  float3x3 T = detail::tangent_basis(cl.N, V);
+  ltc_data.Minv = ltc_data.Minv * transpose(T);
+  float ltc_result = light_ltc(util_tx, light, ltc_data, lv, vertices);
+
   float3 out_radiance = light.color * ltc_result;
   float visibility = shadow * attenuation;
   cl.light_shadowed += visibility * out_radiance;
