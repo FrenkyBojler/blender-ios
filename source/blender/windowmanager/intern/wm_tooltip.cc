@@ -28,11 +28,6 @@ double WM_tooltip_time_closed()
   return g_tooltip_time_closed;
 }
 
-static const wmEvent *wm_tooltip_eventstate_source_get(const wmWindow *win)
-{
-  return win->runtime->eventstate;
-}
-
 void WM_tooltip_immediate_init(
     bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init)
 {
@@ -65,7 +60,7 @@ void WM_tooltip_timer_init_ex(
 
   /* Mouse position will be updated when the tooltip is shown, but save now
    * because we cancel the showing if there is movement before timer expiry. */
-  copy_v2_v2_int(screen->tool_tip->event_xy, wm_tooltip_eventstate_source_get(win)->xy);
+  copy_v2_v2_int(screen->tool_tip->event_xy, win->runtime->eventstate->xy);
 }
 
 void WM_tooltip_timer_init(
@@ -126,7 +121,7 @@ void WM_tooltip_init(bContext *C, wmWindow *win)
     CTX_wm_region_set(C, region_prev);
   }
 
-  copy_v2_v2_int(screen->tool_tip->event_xy, wm_tooltip_eventstate_source_get(win)->xy);
+  copy_v2_v2_int(screen->tool_tip->event_xy, win->runtime->eventstate->xy);
   if (pass_prev != screen->tool_tip->pass) {
     /* The pass changed, add timer for next pass. */
     wmWindowManager *wm = CTX_wm_manager(C);

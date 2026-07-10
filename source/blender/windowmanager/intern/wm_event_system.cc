@@ -203,28 +203,27 @@ wmEvent *WM_event_add_simulate(wmWindow *win, const wmEvent *event_to_add)
     BLI_assert_unreachable();
     return nullptr;
   }
-
   wmEvent *event = WM_event_add(win, event_to_add);
 
   /* Logic for setting previous value is documented on the #wmEvent struct,
    * see #wm_event_add_ghostevent for the implementation of logic this follows. */
+  copy_v2_v2_int(win->runtime->eventstate->xy, event->xy);
+
   if (event->type == MOUSEMOVE) {
     copy_v2_v2_int(win->runtime->eventstate->prev_xy, win->runtime->eventstate->xy);
     copy_v2_v2_int(event->prev_xy, win->runtime->eventstate->xy);
-    copy_v2_v2_int(win->runtime->eventstate->xy, event->xy);
   }
   else if (ISKEYBOARD_OR_BUTTON(event->type)) {
-    copy_v2_v2_int(win->runtime->eventstate->xy, event->xy);
     /* Dummy time for simulated events. */
+    const uint64_t event_time_ms = UINT64_MAX;
     uint64_t eventstate_prev_press_time_ms = 0;
     wm_event_state_update_and_click_set_ex(event,
-                                           UINT64_MAX,
+                                           event_time_ms,
                                            win->runtime->eventstate,
                                            &eventstate_prev_press_time_ms,
                                            ISKEYBOARD(event->type),
                                            false);
   }
-
   return event;
 }
 
@@ -4223,8 +4222,10 @@ void wm_event_do_handlers(bContext *C)
 
   wm->runtime->break_events_handling = false;
 
+  /* Begin GPU render boundary - Certain event handlers require GPU usage. */
   GPU_render_begin();
 
+  /* Update key configuration before handling events. */
   WM_keyconfig_update(wm);
   WM_gizmoconfig_update(CTX_data_main(C));
 
@@ -4418,10 +4419,10 @@ void wm_event_do_handlers(bContext *C)
                   C, event, static_cast<ListBaseT<wmEventHandler> *>(&area->handlers));
             }
             CTX_wm_area_set(C, nullptr);
-          }
 
-          /* NOTE: do not escape on #WM_HANDLER_BREAK,
-           * mouse-move needs handled for previous area. */
+            /* NOTE: do not escape on #WM_HANDLER_BREAK,
+             * mouse-move needs handled for previous area. */
+          }
         }
 
         if ((action & WM_HANDLER_BREAK) == 0) {
@@ -4471,6 +4472,7 @@ void wm_event_do_handlers(bContext *C)
     /* Only add mouse-move when the event queue was read entirely. */
     if (win.addmousemove && win.runtime->eventstate) {
       wmEvent tevent = *(win.runtime->eventstate);
+      // printf("adding MOUSEMOVE %d %d\n", tevent.xy[0], tevent.xy[1]);
       tevent.type = MOUSEMOVE;
       tevent.val = KM_NOTHING;
       tevent.prev_xy[0] = tevent.xy[0];
@@ -4483,9 +4485,11 @@ void wm_event_do_handlers(bContext *C)
     CTX_wm_window_set(C, nullptr);
   }
 
+  /* Update key configuration after handling events. */
   WM_keyconfig_update(wm);
   WM_gizmoconfig_update(CTX_data_main(C));
 
+  /* End GPU render boundary. Certain event handlers require GPU usage. */
   GPU_render_end();
 }
 

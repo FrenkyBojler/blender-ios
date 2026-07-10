@@ -737,6 +737,10 @@ void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win)
 
 void WM_window_dpi_set_userdef(const wmWindow *win)
 {
+  if (win == nullptr || win->runtime == nullptr || win->runtime->ghostwin == nullptr) {
+    return;
+  }
+
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
   float auto_dpi = ghost_window->getDPIHint();
 
@@ -1453,12 +1457,7 @@ wmWindow *WM_window_open(bContext *C,
 wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
-  wmWindow *context_win = CTX_wm_window(C);
-  if (context_win != nullptr && context_win->runtime != nullptr &&
-      context_win->runtime->ghostwin != nullptr)
-  {
-    WM_window_dpi_set_userdef(context_win);
-  }
+  WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
   rctf *stored_bounds = stored_window_bounds(eSpace_Type(space_type));
   const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
@@ -2241,8 +2240,6 @@ void wm_window_events_process(const bContext *C)
   int sleep_us = has_event ? 0 : sleep_us_default;
   has_event |= wm_window_timers_process(C, &sleep_us);
 #ifdef WITH_XR_OPENXR
-  /* XR input is polled from the runtime here and enqueued onto the XR UI window like normal
-   * window events. */
   has_event |= wm_xr_events_handle(CTX_wm_manager(C));
 #endif
   GPU_render_end();
