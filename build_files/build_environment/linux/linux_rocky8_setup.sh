@@ -244,5 +244,5 @@ export LANG=en_US.UTF-8
 PROFEOF
   chmod +x /etc/profile.d/enablegcc11_exports.sh
 
-  source /etc/profile
+  echo "Run 'source /etc/profile' to let the profile script take effect."
 }
