@@ -1085,7 +1085,6 @@ static void node_geo_exec(GeoNodeExecParams params)
         mesh_by_layer[layer_index] = cdts_to_mesh(geometry_results,
                                                   nullptr,
                                                   &curves,
-
                                                   nullptr,
                                                   dst_intersection_points_attribute_id,
                                                   attribute_filter);
