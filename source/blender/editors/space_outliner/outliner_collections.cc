@@ -298,12 +298,12 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   bool is_textbut_set = false;
   tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
     TreeStoreElem *tselem = TREESTORE(te);
-      if (Collection *collection = outliner_collection_from_tree_element(te)) {
-        if ((new_collection == collection) && !is_textbut_set) {
-          tselem->flag |= TSE_TEXTBUT;
-          is_textbut_set = true;
-        }
+    if (Collection *collection = outliner_collection_from_tree_element(te)) {
+      if ((new_collection == collection) && !is_textbut_set) {
+        tselem->flag |= TSE_TEXTBUT;
+        is_textbut_set = true;
       }
+    }
   });
   DEG_id_tag_update(&data.collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
