@@ -506,7 +506,8 @@ struct ButtonLabel : public Button {
   bool is_multiline = false;
   /** Wrap cache from last redraw. */
   std::shared_ptr<TextWrapCache> wrap_cache;
-  int max_lines = -1;
+  /* Maximum lines to be drawn in multiline labels, 0 means all. */
+  int max_lines = 0;
   FontStyleAlign text_align = UI_STYLE_TEXT_LEFT;
 };
 
