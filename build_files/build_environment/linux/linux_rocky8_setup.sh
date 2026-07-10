@@ -103,10 +103,10 @@ PACKAGES_FOR_LIBS=(
     # Commands from:
     # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#environment-setup
     # Can be added to `~/.bash_profile`.
-    # `export LD_LIBRARY_PATH=/usr/local/cuda-12.5/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`
-    # `export PATH=/usr/local/cuda-12.5/bin${PATH:+:${PATH}}`
+    # `export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`
+    # `export PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}}`
     # Required by `external_openimagedenoise` (`nvcc` command)
-    cuda-toolkit
+    cuda-toolkit-12-8
 
     # Required by: `external_ispc`.
     zlib-devel
@@ -203,7 +203,7 @@ yum -y install jack-audio-connection-kit-devel
 # - "Install kernel driver".
 
 # Register ROCm packages
-sudo rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
+rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
 rm -f /etc/yum.repos.d/amdgpu-6.3.1.repo
 rm -f /etc/yum.repos.d/rocm-6.3.1.repo
 tee --append /etc/yum.repos.d/amdgpu-6.3.1.repo <<EOF
@@ -225,5 +225,24 @@ exclude=rock-dkms
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
 yum -y update
-sudo yum install -y hipcc6.3.1 hip-devel6.3.1 rocm-llvm6.3.1 rocm-core6.3.1 rocm-device-libs6.3.1
-sudo update-alternatives --set rocm /opt/rocm-6.3.1
+yum install -y hipcc6.3.1 hip-devel6.3.1 rocm-llvm6.3.1 rocm-core6.3.1 rocm-device-libs6.3.1
+update-alternatives --set rocm /opt/rocm-6.3.1
+
+read -r -p "Create profile script for GCC11 and export fixes? [y/N] " CONFIRM
+[[ "${CONFIRM}" =~ ^[Yy]$ ]] && {
+  tee /etc/profile.d/enablegcc11_exports.sh > /dev/null <<'PROFEOF'
+#!/bin/bash
+# Enable GCC 11 toolset
+source scl_source enable gcc-toolset-11
+
+# Fix cuda build error for oidn
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}
+
+# Fix flac extract error
+export LANG=en_US.UTF-8
+PROFEOF
+  chmod +x /etc/profile.d/enablegcc11_exports.sh
+
+  source /etc/profile
+}
