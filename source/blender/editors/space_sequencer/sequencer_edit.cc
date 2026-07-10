@@ -3393,6 +3393,7 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
   StripElem *se = nullptr;
+  bool needs_free = false;
 
   if (active_strip == nullptr || active_strip->data == nullptr) {
     return OPERATOR_CANCELLED;
@@ -3404,6 +3405,14 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
       break;
     case STRIP_TYPE_MOVIE:
       se = active_strip->data->stripdata;
+      break;
+    case STRIP_TYPE_SCENE:
+      if (active_strip->scene != nullptr) {
+        se = MEM_new<StripElem>("stripelem_tmp_for_scenestrip");
+        se->orig_width = active_strip->scene->r.xsch;
+        se->orig_height = active_strip->scene->r.ysch;
+        needs_free = true;
+      }
       break;
     default:
       return OPERATOR_CANCELLED;
@@ -3420,6 +3429,10 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
 
   scene->r.xsch = se->orig_width;
   scene->r.ysch = se->orig_height;
+
+  if (needs_free) {
+    MEM_delete(se);
+  }
 
   active_strip->data->transform->scale_x = active_strip->data->transform->scale_y = 1.0f;
   active_strip->data->transform->xofs = active_strip->data->transform->yofs = 0.0f;
