@@ -57,7 +57,6 @@ static wmWindow *wm_xr_session_virtual_window_create(bContext *C, wmWindowManage
 
   Main *bmain = CTX_data_main(C);
   wmWindow *xr_win = wm_window_new(bmain, wm, nullptr, false);
-  xr_win->runtime->is_virtual = true;
   xr_win->scene = root_win->scene;
   xr_win->posx = root_win->posx;
   xr_win->posy = root_win->posy;

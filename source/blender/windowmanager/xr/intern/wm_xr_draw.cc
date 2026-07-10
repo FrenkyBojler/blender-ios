@@ -280,7 +280,7 @@ static bool wm_xr_temp_region_rect_update(const wmWindow *win, wmXrTempRegion *t
   }
 
   rcti clipped_rect = temp_region->region->winrct;
-  if (win->runtime != nullptr && win->runtime->is_virtual) {
+  if (win->runtime != nullptr && win->runtime->ghostwin == nullptr) {
     if (BLI_rcti_size_x(&clipped_rect) <= 0 || BLI_rcti_size_y(&clipped_rect) <= 0) {
       temp_region->valid = false;
       return false;

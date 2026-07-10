@@ -147,9 +147,6 @@ struct WindowRuntime {
   /** Don't want to include gpu stuff. */
   void *gpuctx = nullptr;
 
-  /** Internal offscreen/virtual window without native GHOST backing. */
-  bool is_virtual = false;
-
   /** Window+screen handlers, handled last. */
   ListBaseT<wmEventHandler> handlers = {nullptr, nullptr};
 
