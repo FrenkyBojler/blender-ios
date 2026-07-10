@@ -6722,7 +6722,6 @@ ScrubResumeState ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
   if (play_screen && play_screen->animtimer) {
     const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
     if (sad != nullptr) {
-      resume.was_playing = true;
       resume.play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
                                                                PlaybackDirection::FORWARDS;
       resume.play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
@@ -6732,6 +6731,9 @@ ScrubResumeState ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
       stop_playback(C);
     }
   }
+  else {
+    resume = nullptr;
+  }
   screen->scrubbing = true;
   return resume;
 }
@@ -6739,7 +6741,7 @@ ScrubResumeState ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
 void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState &resume)
 {
 
-  if (resume.was_playing) {
+  if (resume) {
     ED_screen_animation_play(C, int(resume.play_sync), int(resume.play_mode));
   }
   screen->scrubbing = false;

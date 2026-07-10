@@ -77,7 +77,6 @@ enum class PlaySyncMode : int8_t {
  * by #ED_screen_scrubbing_enable and consumed by #ED_screen_scrubbing_disable.
  */
 struct ScrubResumeState {
-  bool was_playing = false;
   PlaySyncMode play_sync = PlaySyncMode::UNCHANGED;
   PlaybackDirection play_mode = PlaybackDirection::FORWARDS;
 };

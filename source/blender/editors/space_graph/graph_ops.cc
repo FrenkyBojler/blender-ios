@@ -206,12 +206,6 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
   return OPERATOR_RUNNING_MODAL;
 }
 
-/* Called when the modal operation is interrupted (e.g. window focus lost). */
-static void graphview_cursor_cancel(bContext *C, wmOperator *op)
-{
-  graphview_cursor_exit(C, op);
-}
-
 static void GRAPH_OT_cursor_set(wmOperatorType *ot)
 {
   /* identifiers */
@@ -223,7 +217,6 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   ot->exec = graphview_cursor_exec;
   ot->invoke = graphview_cursor_invoke;
   ot->modal = graphview_cursor_modal;
-  ot->cancel = graphview_cursor_cancel;
   ot->poll = graphview_cursor_poll;
 
   /* flags */
