@@ -2778,9 +2778,8 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
   int sccisors_ymin = sccissors[1];
   int sccisors_ymax = sccisors_ymin + sccissors[3];
 
-  for (const StringRef line :
-       multiline_button->wrap_cache->wrapped_lines.as_span().take_front(lines))
-  {
+  for (const int i : multiline_button->wrap_cache->wrapped_lines.index_range().take_front(lines)) {
+    StringRef line = multiline_button->wrap_cache->wrapped_lines[i];
     line_rect.ymax = ymax;
     ymax -= line_height;
     line_rect.ymin = ymax;
@@ -2792,15 +2791,41 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
     if (line_rect.ymin > sccisors_ymax) {
       continue;
     }
+    if (i < (lines - 1) || total_lines == lines) {
+      fontstyle_draw_ex(fstyle,
+                        &line_rect,
+                        line.begin(),
+                        line.size(),
+                        wcol->text,
+                        &params,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+      continue;
+    }
+    /* Add ellipsis when not all lines are drawn.  */
+    float strwidth = BLF_width(fstyle->uifont_id, line.begin(), line.size(), nullptr);
+
+    const int border = UI_TEXT_CLIP_MARGIN + 1;
+    const int okwidth = max_ii(BLI_rcti_size_x(&line_rect) - border, 0);
+    std::string str = line;
+    if (strwidth > okwidth) {
+      int drawstr_len = BLF_width_to_strlen(
+          fstyle->uifont_id, line.begin(), line.size(), okwidth, &strwidth);
+      str = str.substr(0, drawstr_len);
+    }
+    StringRef ellipsis = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+    str += ellipsis;
     fontstyle_draw_ex(fstyle,
                       &line_rect,
-                      line.begin(),
-                      line.size(),
+                      str.data(),
+                      str.size(),
                       wcol->text,
                       &params,
                       nullptr,
                       nullptr,
                       nullptr);
+    break;
   }
 }
 
