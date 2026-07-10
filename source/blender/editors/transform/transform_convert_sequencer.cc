@@ -549,9 +549,6 @@ static bool create_non_transition_clamp_data(TransInfo *t, const Scene *scene, S
     }
     return true;
   }
-  /* No handles are selected. Update y-axis channel clamping data. */
-  ts->hard_clamp.ymin = max_ii(ts->hard_clamp.ymin, 1 - strip->channel);
-  ts->hard_clamp.ymax = min_ii(ts->hard_clamp.ymax, seq::MAX_CHANNELS - strip->channel);
   return false;
 }
 
@@ -608,55 +605,36 @@ static void create_transition_clamp_data(TransInfo *t, const Scene *scene, Strip
 
 static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 {
-  TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
+  TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+  TransSeq *ts = static_cast<TransSeq *>(tc->custom.type.data);
   const Editing *ed = seq::editing_get(scene);
 
   /* Prevent snaps and change in `values` past `hard_clamp` for all selected strips. */
   BLI_rcti_init(&ts->hard_clamp, INT_MIN, INT_MAX, -seq::MAX_CHANNELS, seq::MAX_CHANNELS);
 
-  // TODO: this could be merged into the lower loop, right?
-  // TODO: maybe #seq_transform_collection_from_transdata here?
-  VectorSet<Strip *> strips = seq::query_selected_strips(seq::active_seqbase_get(ed));
-  for (Strip *strip : strips) {
-    if (!strip->is_effect_with_inputs()) {
-      continue;
-    }
-    if (seq::strip_is_transition(strip)) {
-      continue;
-    }
-    /* If there is an effect strip without its inputs selected, prevent any x-direction movement,
-     * since these strips are tied to their inputs and can only move up and down. */
-    if (!(strip->input1->flag & SEQ_SELECT) &&
-        (!strip->input2 || !(strip->input2->flag & SEQ_SELECT)))
-    {
-      ts->hard_clamp.xmin = 0;
-      ts->hard_clamp.xmax = 0;
-    }
-  }
+  VectorSet<Strip *> strips = seq_transform_collection_from_transdata(tc);
 
   /* Try to clamp handles by default. */
   t->modifiers |= MOD_STRIP_CLAMP_HOLDS;
-  ts->soft_clamp_min = INT_MIN;
-  ts->soft_clamp_max = INT_MAX;
-
-  ts->symmetric_hard_clamp_min = INT_MIN;
-  ts->symmetric_hard_clamp_max = INT_MAX;
-  ts->symmetric_soft_clamp_min = INT_MIN;
-  ts->symmetric_soft_clamp_max = INT_MAX;
 
   bool only_handles_selected = true;
   bool valid_transition_input_selection = true;
 
   bool has_transition_handles = false;
   bool has_non_transition = false;
+
   for (Strip *strip : strips) {
-    if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
-      continue;
-    }
-    /* Early break if everything is hard clamped to 0. */
+    /* Early break if both x and y are hard clamped to 0. */
     if (has_non_transition && has_transition_handles) {
       break;
     }
+    if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
+      continue;
+    }
+    /* Limit y-axis clamping to at least the channel bounds. */
+    ts->hard_clamp.ymin = max_ii(ts->hard_clamp.ymin, 1 - strip->channel);
+    ts->hard_clamp.ymax = min_ii(ts->hard_clamp.ymax, seq::MAX_CHANNELS - strip->channel);
+
     if (seq::strip_is_transition(strip)) {
       if ((strip->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
         has_transition_handles = true;
@@ -668,6 +646,19 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
         break;
       }
       create_transition_clamp_data(t, scene, strip);
+    }
+    else if (strip->is_effect_with_inputs()) {
+      /* Non-transition effects with inputs don't have handles. */
+      only_handles_selected = false;
+      has_non_transition = true;
+      /* If there is an effect strip without its inputs selected, prevent any x-direction movement,
+       * since these strips are tied to their inputs and can only move up and down. */
+      if (!(strip->input1->flag & SEQ_SELECT) &&
+          (!strip->input2 || !(strip->input2->flag & SEQ_SELECT)))
+      {
+        ts->hard_clamp.xmin = 0;
+        ts->hard_clamp.xmax = 0;
+      }
     }
     else {
       has_non_transition = true;
