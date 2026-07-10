@@ -1217,6 +1217,12 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
   }
 
   for (wmWindow &win : wm->windows) {
+    if (win.runtime->ghostwin == nullptr) {
+      const bScreen *screen = WM_window_get_active_screen(&win);
+      if (screen != nullptr && screen->temp) {
+        continue;
+      }
+    }
     wm_window_ghostwindow_ensure(wm, &win, false);
   }
 }
@@ -1227,6 +1233,10 @@ void wm_window_ghostwindows_remove_invalid(bContext *C, wmWindowManager *wm)
 
   for (wmWindow &win : wm->windows.items_mutable()) {
     if (win.runtime->ghostwin == nullptr) {
+      const bScreen *screen = WM_window_get_active_screen(&win);
+      if (screen != nullptr && screen->temp) {
+        continue;
+      }
       wm_window_close(C, wm, &win);
     }
   }
@@ -2231,8 +2241,8 @@ void wm_window_events_process(const bContext *C)
   int sleep_us = has_event ? 0 : sleep_us_default;
   has_event |= wm_window_timers_process(C, &sleep_us);
 #ifdef WITH_XR_OPENXR
-  /* XR events don't use the regular window queues. So here we don't only trigger
-   * processing/dispatching but also handling. */
+  /* XR input is polled from the runtime here and enqueued onto the XR UI window like normal
+   * window events. */
   has_event |= wm_xr_events_handle(CTX_wm_manager(C));
 #endif
   GPU_render_end();

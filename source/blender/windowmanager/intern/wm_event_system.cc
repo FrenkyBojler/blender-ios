@@ -4430,16 +4430,6 @@ static bool wm_event_do_handlers_window_process(bContext *C, wmWindowManager *wm
   return true;
 }
 
-void wm_event_do_handlers_window(bContext *C, wmWindow *win)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  if (wm == nullptr || win == nullptr) {
-    return;
-  }
-  BLI_assert(ED_undo_is_state_valid(C));
-  wm_event_do_handlers_window_process(C, wm, win);
-}
-
 void wm_event_do_handlers(bContext *C)
 {
   PRF_scope(ProfileCategory::Core);
