@@ -1944,11 +1944,14 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
   Mesh *mesh = BKE_object_get_original_mesh(&object);
   attr->was_set = true;
   attr->domain = std::nullopt;
-  attr->name[0] = 0;
+  attr->name = "";
   if (!mesh) {
     return;
   }
   const char *name = mesh->active_color_attribute;
+  if (!name) {
+    return;
+  }
   const bke::AttributeAccessor attributes = mesh->attributes();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
   if (!bke::mesh::is_color_attribute(meta_data)) {
@@ -2187,6 +2190,8 @@ static void step_encode_init(bContext * /*C*/, UndoStep *us_p)
 {
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
   new (&us->data) StepData();
+  new (&us->active_color_start) SculptAttrRef();
+  new (&us->active_color_end) SculptAttrRef();
 }
 
 static bool step_encode(bContext * /*C*/, Main *bmain, UndoStep *us_p)
@@ -2336,6 +2341,8 @@ static void step_free(UndoStep *us_p)
 {
   SculptUndoStep *us = reinterpret_cast<SculptUndoStep *>(us_p);
   free_step_data(us->data);
+  us->active_color_start.~SculptAttrRef();
+  us->active_color_end.~SculptAttrRef();
 }
 
 void geometry_begin(const Scene &scene, Object &ob, const wmOperator *op)
