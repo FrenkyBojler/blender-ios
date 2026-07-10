@@ -163,14 +163,6 @@ template<bool is_transmission> struct EvalCtx {
                            ray_step_count);
     }
 
-    if (is_translucent_with_thickness) {
-      /* This makes the LTC compute the solid angle of the light (still with the cosine term
-       * applied but that still works great enough in practice). */
-      stack.cl[0].N = lv.L;
-      /* Adjust power because of the second lambertian distribution. */
-      attenuation *= M_1_PI;
-    }
-
     LightVertices light_shape_vertices = light_shape_corners(light, lv);
 
     [[resource_table]] const UtilityTexture &util = srt.utility_tx;

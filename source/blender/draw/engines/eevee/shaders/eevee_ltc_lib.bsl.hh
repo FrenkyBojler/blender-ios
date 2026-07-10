@@ -176,7 +176,17 @@ float evaluate_quad(sampler2DArray util_tx, LTCData ltc_data, float3 corners[4])
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
 
-  return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
+  switch (ltc_data.form_factor_type) {
+    case LTCFormFactorType::OnesidedCosineSphereClipped:
+      /* TODO(not_mark): apply attenuation here as LTC bleed fix. */
+      form_factor *= detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
+      break;
+    default: /* LTCFormFactorType::TwosidedCosineSphere */
+      form_factor *= M_1_PI;
+      break;
+  }
+
+  return form_factor;
 }
 
 /**
@@ -271,9 +281,7 @@ float evaluate_disk(sampler2DArray util_tx, LTCData ltc_data, float3 disk_points
    * `a * x0 / (a - b * e2)` simplifies to `a/b * x0 / (a/b - e2)`,
    * `b * y0 / (b - b * e2)` simplifies to `y0 / (1.0f - e2)`. */
   float3 avg_dir = float3(ab * x0 / (ab - e2), y0 / (1.0f - e2), 1.0f);
-
   float3x3 rotate = float3x3(V1, V2, V3);
-
   avg_dir = rotate * avg_dir;
   avg_dir = normalize(avg_dir);
 
@@ -283,7 +291,18 @@ float evaluate_disk(sampler2DArray util_tx, LTCData ltc_data, float3 disk_points
   float form_factor = saturate(L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
   /* The form factor should always be finite. Check that the previous saturate works as filter. */
   // assert(!isnan(form_factor) && !isinf(form_factor));
-  return form_factor * detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
+
+  switch (ltc_data.form_factor_type) {
+    case LTCFormFactorType::OnesidedCosineSphereClipped:
+      /* TODO(not_mark): apply attenuation here as LTC bleed fix. */
+      form_factor *= detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
+      break;
+    default: /* LTCFormFactorType::TwosidedCosineSphere */
+      form_factor *= M_1_PI;
+      break;
+  }
+
+  return form_factor;
 }
 
 }  // namespace eevee::ltc
