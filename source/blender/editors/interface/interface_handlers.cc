@@ -1077,7 +1077,14 @@ static void apply_but_undo(Button *but, bool use_undo_grouped = false)
 
   /* Optionally override undo when undo system doesn't support storing properties. */
   if (but->rnapoin.owner_id) {
-    if (but->rnaprop) {
+    /* Exception for renaming ID data, we always need undo pushes in this case,
+     * because undo systems track data by their ID, see: #67002. */
+    /* Exception for active shape-key, since changing this in edit-mode updates
+     * the shape key from object mode data. */
+    if (ELEM(but->rnaprop, &rna_ID_name, &rna_Object_active_shape_key_index)) {
+      /* pass */
+    }
+    else if (but->rnaprop) {
       ID *id = but->rnapoin.owner_id;
       if (!ED_undo_is_legacy_compatible_for_property(
               static_cast<bContext *>(but->block->evil_C), id, but->rnapoin, *but->rnaprop))

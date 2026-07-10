@@ -491,8 +491,8 @@ enum PropertyFlag {
   PROP_FORCE_GEOMETRY_EVAL = (1 << 3),
 
   /**
-   * When true, this property always performs an undo,
-   * even when #STRUCT_UNDO is set on the struct it contains.
+   * When set, this property always performs an undo,
+   * even when #STRUCT_UNDO is unset on the struct it contains.
    */
   PROP_FORCE_UNDO = (1 << 13),
 
@@ -990,7 +990,8 @@ enum StructFlag {
   /**
    * Defaults on, indicates when changes in members of a StructRNA should trigger undo steps.
    *
-   * \note This can be overridden by a properties #PROP_FORCE_UNDO flag.
+   * \note When unset (disabling undo)
+   * this can still be overridden per-property using the #PROP_FORCE_UNDO flag.
    */
   STRUCT_UNDO = (1 << 2),
 

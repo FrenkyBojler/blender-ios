@@ -1768,9 +1768,6 @@ static void rna_def_ID_properties(BlenderRNA *brna)
    */
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
-  /* Exception for renaming ID data, we always need undo pushes in this case,
-   * because undo systems track data by their ID, see: #67002. */
-  RNA_def_property_flag(prop, PROP_FORCE_UNDO);
   // RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Name",
