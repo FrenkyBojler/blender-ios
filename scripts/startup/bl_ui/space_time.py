@@ -48,7 +48,6 @@ class TIME_PT_frame_range_sync(Panel):
         col = layout.column()
         # col.active = context.sequencer_scene
         # todo(habib): show this in storyboard template only?
-        # todo(habib): gray out two topics
         col.prop(scene, "use_preview_range_scene_strip")
 
 
@@ -150,6 +149,7 @@ def playback_controls(layout, context):
         else:
             sub.prop(scene, "frame_preview_start", text="Start")
             sub.prop(scene, "frame_preview_end", text="End")
+            sub.active = not scene.use_preview_range_scene_strip
 
 
 class TIME_MT_view(Menu):
