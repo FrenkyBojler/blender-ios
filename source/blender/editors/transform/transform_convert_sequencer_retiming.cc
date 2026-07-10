@@ -21,6 +21,7 @@
 #include "ED_sequencer.hh"
 
 #include "SEQ_edit.hh"
+#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
@@ -37,11 +38,25 @@ namespace {
 /** Used for sequencer retiming transform. */
 struct TransDataSeq {
   Strip *strip;
+  /* Transition to be moved when retiming keys for the same frame are selected in adjacent strips.
+   * Mirrors the behavior of strip handle moving. Initially set null by MEM_new_array_zeroed. */
+  Strip *attached_transition;
   int orig_timeline_frame;
   int key_index; /* Some actions may need to destroy original data, use index to access it. */
 };
 
 }  // namespace
+
+static Strip *get_left_inputs_transition(Editing *ed, const Strip *strip)
+{
+  Span<Strip *> effect_strips = seq::lookup_effects_by_strip(ed, strip);
+  for (Strip *effect : effect_strips) {
+    if (seq::strip_is_transition(effect) && effect->input1 == strip) {
+      return effect;
+    }
+  }
+  return nullptr;
+}
 
 static TransData *SeqToTransData(const Scene *scene,
                                  Strip *strip,
@@ -65,6 +80,23 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->strip = strip;
   tdseq->orig_timeline_frame = seq::retiming_key_frame_get(scene, strip, key);
   tdseq->key_index = seq::retiming_key_index_get(strip, key);
+
+  /* Move transitions when retiming keys for the same frame are selected in adjacent strips. */
+  const bool key_moves_right_handle = tdseq->orig_timeline_frame == strip->right_handle(scene) &&
+                                      !seq::retiming_key_is_transition_type(key);
+  if (key_moves_right_handle) {
+    Strip *transition = get_left_inputs_transition(seq::editing_get(scene), strip);
+    if (transition) {
+      SeqRetimingKey *right_input_key = seq::retiming_key_get_by_frame(
+          scene, transition->input2, tdseq->orig_timeline_frame);
+      const bool key_moves_left_handle = right_input_key &&
+                                         flag_is_set(right_input_key->flag, SEQ_KEY_SELECTED) &&
+                                         !seq::retiming_key_is_transition_type(right_input_key);
+      if (key_moves_left_handle) {
+        tdseq->attached_transition = transition;
+      }
+    }
+  }
 
   td->extra = static_cast<void *>(tdseq);
   td->flag |= TD_SELECTED;
@@ -91,6 +123,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
   seq::iterator_set_expand(ed, transformed_strips, seq::query_strip_direct_effect_chain);
 
   /* First remove the marked strips from #transformed_strips to prevent dangling pointers.  */
+  // TODO: Hmm, no retimed strips should get deleted. Only transitions which aren't retimed.
   transformed_strips.remove_if([&](Strip *strip) {
     return flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete);
   });
@@ -168,8 +201,9 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
         /* Ensure that this key cannot pass the next key. */
         ts->hard_clamp.xmax = min_ii(key_next->strip_frame_index - key->strip_frame_index - 1,
                                      ts->hard_clamp.xmax);
-        /* TODO(john): There is an off-by-one error for the last "fake" key's `strip_frame_index`,
-         * which is 1 less than it should be. This is not an immediate issue but should be fixed.
+        /* TODO(john): There is an off-by-one error for the last "fake" key's
+         * `strip_frame_index`, which is 1 less than it should be. This is not an immediate issue
+         * but should be fixed.
          */
       }
       if (key->strip_frame_index != 0) {
@@ -247,6 +281,8 @@ static void recalcData_sequencer_retiming(TransInfo *t)
     const MutableSpan keys = seq::retiming_keys_get(strip);
     SeqRetimingKey *key = &keys[tdseq->key_index];
 
+    const int delta_x = new_frame - seq::retiming_key_frame_get(t->scene, strip, key);
+
     if (seq::retiming_key_is_transition_type(key) &&
         !seq::retiming_selection_has_whole_transition(seq::editing_get(t->scene), key))
     {
@@ -254,6 +290,11 @@ static void recalcData_sequencer_retiming(TransInfo *t)
     }
     else {
       seq::retiming_key_frame_set(t->scene, strip, key, new_frame);
+    }
+
+    /* Move transitions when retiming keys for the same frame are selected in adjacent strips. */
+    if (tdseq->attached_transition) {
+      seq::transform_translate_strip(t->scene, tdseq->attached_transition, delta_x);
     }
 
     seq::relations_invalidate_cache(t->scene, strip);
