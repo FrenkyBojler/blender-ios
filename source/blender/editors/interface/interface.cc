@@ -999,6 +999,7 @@ static void but_update_old_active_from_new(Button *oldbut, Button *but)
     ButtonLabel *label_oldbut = static_cast<ButtonLabel *>(oldbut);
     ButtonLabel *label_but = static_cast<ButtonLabel *>(but);
     std::swap(label_oldbut->wrap_cache, label_but->wrap_cache);
+    std::swap(label_oldbut->max_lines, label_but->max_lines);
   }
 
   /* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
