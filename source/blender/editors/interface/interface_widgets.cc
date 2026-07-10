@@ -2759,6 +2759,10 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
 {
   /* Draw multiline text. */
   ButtonLabel *multiline_button = static_cast<ButtonLabel *>(but);
+  const int total_lines = multiline_button->wrap_cache->wrapped_lines.size();
+  const int lines = multiline_button->max_lines > 0 ?
+                        std::min(multiline_button->max_lines, total_lines) :
+                        total_lines;
 
   const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET) / but->block->aspect;
   const float padding = (std::max(UI_UNIT_Y - line_height, 0.0f) / 2.0f) / but->block->aspect;
@@ -2774,7 +2778,9 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
   int sccisors_ymin = sccissors[1];
   int sccisors_ymax = sccisors_ymin + sccissors[3];
 
-  for (const StringRef line : multiline_button->wrap_cache->wrapped_lines) {
+  for (const StringRef line :
+       multiline_button->wrap_cache->wrapped_lines.as_span().take_front(lines))
+  {
     line_rect.ymax = ymax;
     ymax -= line_height;
     line_rect.ymin = ymax;

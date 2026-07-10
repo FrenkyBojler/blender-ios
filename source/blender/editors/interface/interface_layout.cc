@@ -3340,7 +3340,7 @@ void Layout::label(const StringRef name, int icon)
   uiItem_simple(this, name, icon);
 }
 
-void Layout::label_multiline(StringRefNull text, int icon, FontStyleAlign align)
+void Layout::label_multiline(StringRefNull text, int icon, FontStyleAlign align, int max_lines)
 {
   block_layout_set_current(this->block(), this);
   Button *button = nullptr;
@@ -3376,6 +3376,7 @@ void Layout::label_multiline(StringRefNull text, int icon, FontStyleAlign align)
   ButtonLabel *label = static_cast<ButtonLabel *>(button);
   label->text_align = align;
   label->is_multiline = true;
+  label->max_lines = max_lines;
 }
 
 void Layout::link(const StringRef url, const StringRef name, int icon)
@@ -5727,8 +5728,11 @@ static void resolve_label_multiline(ButtonLabel *button)
   const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET);
   /* Top and bottom Text text padding. */
   const float padding = std::max(UI_UNIT_Y - line_height, 0.0f);
-  const float height = padding + line_height * button->wrap_cache->wrapped_lines.size();
-
+  int lines = button->wrap_cache->wrapped_lines.size();
+  if (button->max_lines > 0) {
+    lines = std::min(button->max_lines, lines);
+  }
+  const float height = padding + line_height * lines;
   button->rect.ymin = button->rect.ymax - std::max<float>(UI_UNIT_Y, height);
 }
 

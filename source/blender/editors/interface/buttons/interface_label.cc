@@ -35,9 +35,7 @@ void label_multiline_wrap_lines(ButtonLabel *button, int icon_pad)
   }
   if (!button->wrap_cache && button->block->oldblock) {
     int i = 0;
-    for (std::shared_ptr<blender::ui::TextWrapCache> &cache_ptr :
-         button->block->oldblock->text_wrap_cache)
-    {
+    for (std::shared_ptr<TextWrapCache> &cache_ptr : button->block->oldblock->text_wrap_cache) {
       TextWrapCache &cache = *cache_ptr;
       if (cache.aspect == aspect && cache.wrap_width == width && cache.text == text) {
         button->wrap_cache = cache_ptr;
