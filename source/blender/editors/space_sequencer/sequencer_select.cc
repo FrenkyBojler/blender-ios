@@ -95,18 +95,20 @@ bool deselect_all_strips(const Scene *scene)
   return changed;
 }
 
-void deselect_transition_handles(const Scene *scene)
+bool deselect_transition_handles(const Scene *scene)
 {
   Editing *ed = seq::editing_get(scene);
   if (ed == nullptr) {
-    return;
+    return false;
   }
 
   for (Strip &strip : *seq::active_seqbase_get(ed)) {
-    if (seq::strip_is_transition(&strip)) {
+    if (seq::strip_is_transition(&strip) && (strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL))) {
       strip.flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
+      return true;
     }
   }
+  return false;
 }
 
 static void deselect_non_transitions(ListBaseT<Strip> *seqbase)
@@ -1329,9 +1331,11 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   }
 
+  bool changed = false;
+
   /* We should only reach here if no transition selection is happening.
    * Transition handles and normal strips must not be selected at the same time. */
-  deselect_transition_handles(scene);
+  changed |= deselect_transition_handles(scene);
 
   const bool deselect = RNA_boolean_get(op->ptr, "deselect");
   const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
@@ -1402,7 +1406,6 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     copy_to.remove_if([](Strip *strip) { return strip->is_effect_with_inputs(); });
   }
 
-  bool changed = false;
   /* Deselect everything for now. NOTE that this condition runs for almost every click with no
    * modifiers. `sequencer_select_strip_impl` expects this and will re-select any strips in
    * `selection`. */

@@ -43,7 +43,7 @@ void select_strip_single(Scene *scene, Strip *strip, bool deselect_all);
  * \return true if any strips were deselected; false otherwise.
  */
 bool deselect_all_strips(const Scene *scene);
-void deselect_transition_handles(const Scene *scene);
+bool deselect_transition_handles(const Scene *scene);
 
 bool maskedit_mask_poll(bContext *C);
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene);
