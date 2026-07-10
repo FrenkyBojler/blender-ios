@@ -232,11 +232,11 @@ static void wm_xr_session_draw_data_populate(wmXrData *xr_data, wmXrDrawData *r_
   wm_xr_session_base_pose_calc(scene, settings, &r_draw_data->base_pose, &r_draw_data->base_scale);
 }
 
-wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
+wmWindow *wm_xr_desktop_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data)
 {
   /* Try to obtain the XR root window (the window the XR session was started in). */
-  wmWindow *xr_win = runtime_data->session_root_win ? runtime_data->session_root_win :
+  wmWindow *xr_win = runtime_data->desktop_root_win ? runtime_data->desktop_root_win :
                                                       CTX_wm_window(runtime_data->b_context);
   if (xr_win && BLI_findindex(&wm->windows, xr_win) != -1) {
     /* Root XR window is still valid, use it. */
@@ -458,16 +458,16 @@ bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm)
     return nullptr;
   }
 
-  wmWindow *xr_win = xr->runtime->session_win ? xr->runtime->session_win :
-                                                wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+  wmWindow *xr_win = xr->runtime->xr_ui_window ? xr->runtime->xr_ui_window :
+                                                wm_xr_desktop_root_window_or_fallback_get(wm, xr->runtime);
   CTX_wm_window_set(xr->runtime->b_context, xr_win);
-  CTX_wm_screen_set(xr->runtime->b_context, xr->runtime->offscreen_screen);
+  CTX_wm_screen_set(xr->runtime->b_context, xr->runtime->xr_ui_screen);
 
   /* Unique offscreen XR area. */
-  CTX_wm_area_set(xr->runtime->b_context, xr->runtime->offscreen_area);
+  CTX_wm_area_set(xr->runtime->b_context, xr->runtime->xr_ui_area);
 
   /* Region for XR operator execution and modal handling. */
-  ARegion *xr_region = BKE_area_find_region_type(xr->runtime->offscreen_area, RGN_TYPE_WINDOW);
+  ARegion *xr_region = BKE_area_find_region_type(xr->runtime->xr_ui_area, RGN_TYPE_WINDOW);
   CTX_wm_region_set(xr->runtime->b_context, xr_region);
 
   /* Register XR world-space panel hosts once the XR context has both a host area and surface. */
@@ -1639,15 +1639,15 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
 
     /* Set XR offscreen area View3D object type flags for operators. */
     bContext *xr_context = WM_xr_session_context_ensure(xr, wm);
-    ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
+    ScrArea *xr_ui_area = CTX_wm_area(xr_context);
 
-    View3D *v3d = static_cast<View3D *>(xr_offscreen_area->spacedata.first);
+    View3D *v3d = static_cast<View3D *>(xr_ui_area->spacedata.first);
     v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
     wm_xr_surface_interaction_update(xr_context, xr);
 
-    wmWindow *xr_win = xr->runtime->session_win ? xr->runtime->session_win :
-                                                  wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+    wmWindow *xr_win = xr->runtime->xr_ui_window ? xr->runtime->xr_ui_window :
+                                                  wm_xr_desktop_root_window_or_fallback_get(wm, xr->runtime);
     wm_xr_session_events_dispatch(xr, xr_context, ghost_xr_context, active_action_set, state, xr_win);
   }
 }

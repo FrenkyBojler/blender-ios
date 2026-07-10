@@ -148,22 +148,22 @@ struct wmXrRuntimeData {
   bContext *b_context;
 
   /* Desktop window that XR session was started from. */
-  wmWindow *session_root_win;
-  /* Virtual offscreen window that owns XR interaction state. */
-  wmWindow *session_win;
-  /* Dedicated XR temp screen/layout owned by the virtual window. */
-  bScreen *offscreen_screen;
-  WorkSpaceLayout *offscreen_layout;
+  wmWindow *desktop_root_win;
+  /* Private XR window that owns world-space UI interaction state. */
+  wmWindow *xr_ui_window;
+  /* Dedicated XR UI screen/layout owned by the private window. */
+  bScreen *xr_ui_screen;
+  WorkSpaceLayout *xr_ui_layout;
 
-  /* Owning pointer to the XR offscreen area. Must be freed on XR session exit. */
-  ScrArea *offscreen_area;
-  bool offscreen_area_initialized;
+  /* Owning pointer to the XR UI area. Must be freed on XR session exit. */
+  ScrArea *xr_ui_area;
+  bool xr_ui_area_initialized;
 
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
   eWMXrPanelMountPoint panel_mount_point;
-  eWMXrPanelMountPoint offscreen_area_mount_point;
+  eWMXrPanelMountPoint xr_ui_area_mount_point;
 
   ListBaseT<XrActionMap> actionmaps;
   short actactionmap;
@@ -336,7 +336,7 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime);
 /* `wm_xr_session.cc` */
 
 void wm_xr_session_data_free(wmXrSessionState *state);
-wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
+wmWindow *wm_xr_desktop_root_window_or_fallback_get(const wmWindowManager *wm,
                                                     const wmXrRuntimeData *runtime_data);
 void wm_xr_session_draw_data_update(wmXrSessionState *state,
                                     const XrSessionSettings *settings,

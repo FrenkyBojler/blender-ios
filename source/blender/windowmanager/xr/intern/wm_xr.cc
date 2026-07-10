@@ -113,7 +113,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   wmWindowManager *wm = handler_data->wm;
   wmWindow *xr_root_win = nullptr;
   if (wm->xr.runtime != nullptr) {
-    xr_root_win = wm->xr.runtime->session_root_win ? wm->xr.runtime->session_root_win :
+    xr_root_win = wm->xr.runtime->desktop_root_win ? wm->xr.runtime->desktop_root_win :
                                                      CTX_wm_window(wm->xr.runtime->b_context);
   }
 
@@ -206,9 +206,9 @@ bool wm_xr_init(bContext *C)
 
       /* Create a minimal XR-specific context. */
       wm->xr.runtime->b_context = CTX_create();
-      wm->xr.runtime->session_root_win = CTX_wm_window(C);
-      wm->xr.runtime->session_win = wm_xr_session_virtual_window_create(C, wm);
-      if (wm->xr.runtime->session_win == nullptr) {
+      wm->xr.runtime->desktop_root_win = CTX_wm_window(C);
+      wm->xr.runtime->xr_ui_window = wm_xr_session_virtual_window_create(C, wm);
+      if (wm->xr.runtime->xr_ui_window == nullptr) {
         CTX_free(wm->xr.runtime->b_context);
         MEM_SAFE_DELETE(wm->xr.runtime);
         GHOST_XrContextDestroy(ghost_context);
@@ -216,50 +216,48 @@ bool wm_xr_init(bContext *C)
       }
       /* XR owns this virtual window privately; don't make it participate as a normal desktop
        * window in generic WM loops. */
-      BLI_remlink(&wm->windows, wm->xr.runtime->session_win);
+      BLI_remlink(&wm->windows, wm->xr.runtime->xr_ui_window);
 
       /* Base Main and WM pointers. */
       CTX_wm_manager_set(wm->xr.runtime->b_context, CTX_wm_manager(C));
       CTX_data_main_set(wm->xr.runtime->b_context, CTX_data_main(C));
 
       /* Create the XR offscreen area (independent of any bScreen). */
-      wm->xr.runtime->offscreen_area = ED_area_offscreen_create(wm->xr.runtime->session_win,
-                                                                SPACE_VIEW3D);
-      if (wm->xr.runtime->offscreen_area != nullptr) {
-        wm->xr.runtime->offscreen_screen = wm_xr_session_virtual_screen_create(
-            wm->xr.runtime->session_win,
-            wm->xr.runtime->offscreen_area,
-            &wm->xr.runtime->offscreen_layout);
+      wm->xr.runtime->xr_ui_area = ED_area_offscreen_create(wm->xr.runtime->xr_ui_window,
+                                                            SPACE_VIEW3D);
+      if (wm->xr.runtime->xr_ui_area != nullptr) {
+        wm->xr.runtime->xr_ui_screen = wm_xr_session_virtual_screen_create(
+            wm->xr.runtime->xr_ui_window, wm->xr.runtime->xr_ui_area, &wm->xr.runtime->xr_ui_layout);
       }
-      if (wm->xr.runtime->offscreen_area == nullptr || wm->xr.runtime->offscreen_screen == nullptr ||
-          wm->xr.runtime->offscreen_layout == nullptr)
+      if (wm->xr.runtime->xr_ui_area == nullptr || wm->xr.runtime->xr_ui_screen == nullptr ||
+          wm->xr.runtime->xr_ui_layout == nullptr)
       {
-        if (wm->xr.runtime->offscreen_layout != nullptr) {
-          MEM_delete(wm->xr.runtime->offscreen_layout);
-          wm->xr.runtime->offscreen_layout = nullptr;
+        if (wm->xr.runtime->xr_ui_layout != nullptr) {
+          MEM_delete(wm->xr.runtime->xr_ui_layout);
+          wm->xr.runtime->xr_ui_layout = nullptr;
         }
-        if (wm->xr.runtime->offscreen_screen != nullptr) {
-          MEM_delete(wm->xr.runtime->offscreen_screen);
-          wm->xr.runtime->offscreen_screen = nullptr;
+        if (wm->xr.runtime->xr_ui_screen != nullptr) {
+          MEM_delete(wm->xr.runtime->xr_ui_screen);
+          wm->xr.runtime->xr_ui_screen = nullptr;
         }
-        ED_area_offscreen_free(wm, wm->xr.runtime->session_win, wm->xr.runtime->offscreen_area);
-        wm->xr.runtime->offscreen_area = nullptr;
-        wm_window_free(wm->xr.runtime->b_context, wm, wm->xr.runtime->session_win);
-        wm->xr.runtime->session_win = nullptr;
+        ED_area_offscreen_free(wm, wm->xr.runtime->xr_ui_window, wm->xr.runtime->xr_ui_area);
+        wm->xr.runtime->xr_ui_area = nullptr;
+        wm_window_free(wm->xr.runtime->b_context, wm, wm->xr.runtime->xr_ui_window);
+        wm->xr.runtime->xr_ui_window = nullptr;
         CTX_free(wm->xr.runtime->b_context);
         MEM_SAFE_DELETE(wm->xr.runtime);
         GHOST_XrContextDestroy(ghost_context);
         return false;
       }
-      if (WorkSpace *workspace = WM_window_get_active_workspace(wm->xr.runtime->session_root_win)) {
-        BKE_workspace_active_set(wm->xr.runtime->session_win->workspace_hook, workspace);
+      if (WorkSpace *workspace = WM_window_get_active_workspace(wm->xr.runtime->desktop_root_win)) {
+        BKE_workspace_active_set(wm->xr.runtime->xr_ui_window->workspace_hook, workspace);
       }
-      wm->xr.runtime->session_win->workspace_hook->act_layout = wm->xr.runtime->offscreen_layout;
-      if (wm->xr.runtime->offscreen_area != nullptr) {
-        ARegion *xr_region = BKE_area_find_region_type(wm->xr.runtime->offscreen_area, RGN_TYPE_UI);
+      wm->xr.runtime->xr_ui_window->workspace_hook->act_layout = wm->xr.runtime->xr_ui_layout;
+      if (wm->xr.runtime->xr_ui_area != nullptr) {
+        ARegion *xr_region = BKE_area_find_region_type(wm->xr.runtime->xr_ui_area, RGN_TYPE_UI);
         if (xr_region != nullptr) {
           xr_region->regiontype = RGN_TYPE_XR;
-          xr_region->runtime->type = BKE_regiontype_from_id(wm->xr.runtime->offscreen_area->type,
+          xr_region->runtime->type = BKE_regiontype_from_id(wm->xr.runtime->xr_ui_area->type,
                                                             RGN_TYPE_XR);
           ui::region_handlers_add(&xr_region->runtime->handlers);
         }
@@ -290,7 +288,7 @@ bool wm_xr_events_handle(wmWindowManager *wm)
     /* Process OpenXR action events. */
     if (WM_xr_session_is_ready(&wm->xr)) {
       wm_xr_session_actions_update(wm);
-      wm_event_do_handlers_window(wm->xr.runtime->b_context, wm->xr.runtime->session_win);
+      wm_event_do_handlers_window(wm->xr.runtime->b_context, wm->xr.runtime->xr_ui_window);
     }
 
     /* #wm_window_events_process() uses the return value to determine if it can put the main thread
@@ -327,19 +325,19 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
 
   /* Free remaining runtime data. */
   if (*runtime != nullptr) {
-    ScrArea *xr_offscreen_area = (*runtime)->offscreen_area;
-    bScreen *xr_offscreen_screen = (*runtime)->offscreen_screen;
-    WorkSpaceLayout *xr_offscreen_layout = (*runtime)->offscreen_layout;
-    BLI_assert(xr_offscreen_area);
+    ScrArea *xr_ui_area = (*runtime)->xr_ui_area;
+    bScreen *xr_ui_screen = (*runtime)->xr_ui_screen;
+    WorkSpaceLayout *xr_ui_layout = (*runtime)->xr_ui_layout;
+    BLI_assert(xr_ui_area);
 
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    wmWindow *xr_win = (*runtime)->session_win ? (*runtime)->session_win :
-                                               wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+    wmWindow *xr_win = (*runtime)->xr_ui_window ? (*runtime)->xr_ui_window :
+                                                  wm_xr_desktop_root_window_or_fallback_get(wm, (*runtime));
     bContext *xr_context = (*runtime)->b_context;
 
     CTX_wm_window_set(xr_context, xr_win);
-    CTX_wm_area_set(xr_context, xr_offscreen_area);
-    for (ARegion *region = static_cast<ARegion *>(xr_offscreen_area->regionbase.first); region != nullptr;
+    CTX_wm_area_set(xr_context, xr_ui_area);
+    for (ARegion *region = static_cast<ARegion *>(xr_ui_area->regionbase.first); region != nullptr;
          region = region->next)
     {
       CTX_wm_region_set(xr_context, region);
@@ -351,26 +349,26 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     }
     CTX_wm_region_set(xr_context, nullptr);
 
-    WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_offscreen_area);
-    if (xr_offscreen_screen != nullptr) {
-      CTX_wm_screen_set(xr_context, xr_offscreen_screen);
+    WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, xr_ui_area);
+    if (xr_ui_screen != nullptr) {
+      CTX_wm_screen_set(xr_context, xr_ui_screen);
       WM_tooltip_clear(xr_context, xr_win);
-      BLI_remlink(&xr_offscreen_screen->areabase, xr_offscreen_area);
+      BLI_remlink(&xr_ui_screen->areabase, xr_ui_area);
     }
-    ED_area_offscreen_free(wm, xr_win, xr_offscreen_area);
-    (*runtime)->offscreen_area = nullptr;
+    ED_area_offscreen_free(wm, xr_win, xr_ui_area);
+    (*runtime)->xr_ui_area = nullptr;
 
-    if ((*runtime)->session_win != nullptr) {
-      wm_window_free(xr_context, wm, (*runtime)->session_win);
-      (*runtime)->session_win = nullptr;
+    if ((*runtime)->xr_ui_window != nullptr) {
+      wm_window_free(xr_context, wm, (*runtime)->xr_ui_window);
+      (*runtime)->xr_ui_window = nullptr;
     }
-    if (xr_offscreen_layout != nullptr) {
-      MEM_delete(xr_offscreen_layout);
-      (*runtime)->offscreen_layout = nullptr;
+    if (xr_ui_layout != nullptr) {
+      MEM_delete(xr_ui_layout);
+      (*runtime)->xr_ui_layout = nullptr;
     }
-    if (xr_offscreen_screen != nullptr) {
-      MEM_delete(xr_offscreen_screen);
-      (*runtime)->offscreen_screen = nullptr;
+    if (xr_ui_screen != nullptr) {
+      MEM_delete(xr_ui_screen);
+      (*runtime)->xr_ui_screen = nullptr;
     }
 
     CTX_free((*runtime)->b_context);

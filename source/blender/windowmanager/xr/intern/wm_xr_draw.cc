@@ -1524,17 +1524,17 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
                             (panel->panel_last_rebuild_tag != panel->panel_frame_tag) ||
                             (xr_region->runtime->do_draw & RGN_REFRESH_UI) ||
                             BLI_listbase_is_empty(&xr_region->runtime->uiblocks) ||
-                            (CTX_wm_manager(C)->xr.runtime->offscreen_area_mount_point != panel->mount_point);
+                            (CTX_wm_manager(C)->xr.runtime->xr_ui_area_mount_point != panel->mount_point);
   if (needs_layout) {
     wm_xr_region_ensure_layout_rect(xr_region);
   }
   xr_region->runtime->visible = true;
-  if (!CTX_wm_manager(C)->xr.runtime->offscreen_area_initialized) {
+  if (!CTX_wm_manager(C)->xr.runtime->xr_ui_area_initialized) {
     if (xr_region->runtime->type->init != nullptr) {
       xr_region->runtime->type->init(CTX_wm_manager(C), xr_region);
     }
     xr_region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
-    CTX_wm_manager(C)->xr.runtime->offscreen_area_initialized = true;
+    CTX_wm_manager(C)->xr.runtime->xr_ui_area_initialized = true;
     XR_PANELS_TRACE("panels_ws: initialized xr panel region region=%p", xr_region);
   }
   XR_PANELS_TRACE("panels_ws: ensure layout rect xr_region=%p winrct=(%d,%d)-(%d,%d) size=%dx%d",
@@ -1647,7 +1647,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   panel->panel_host_win = CTX_wm_window(C);
   panel->panel_host_area = area;
   panel->panel_host_region = xr_region;
-  CTX_wm_manager(C)->xr.runtime->offscreen_area_mount_point = panel->mount_point;
+  CTX_wm_manager(C)->xr.runtime->xr_ui_area_mount_point = panel->mount_point;
   xr_region->runtime->do_draw &= ~RGN_REFRESH_UI;
 
   xr_region->runtime->visible = prev_visible;
