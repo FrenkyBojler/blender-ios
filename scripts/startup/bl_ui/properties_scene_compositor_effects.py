@@ -7,7 +7,7 @@ from bpy.types import (
 )
 
 
-class NODE_MT_add_scene_compositor_effect(Menu):
+class SCENE_MT_add_compositor_effect(Menu):
     bl_label = "Add Effect"
     bl_options = {'SEARCH_ON_KEY_PRESS'}
 
@@ -26,7 +26,7 @@ class NODE_MT_add_scene_compositor_effect(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
 
         layout.operator("scene.add_compositor_effect", text="Add Effect", icon='ADD')
-        layout.menu_contents("NODE_MT_add_scene_compositor_effect_root_catalogs")
+        layout.menu_contents("SCENE_MT_add_compositor_effect_root_catalogs")
 
 
 class SCENE_PT_compositor_effects(Panel):
@@ -40,14 +40,14 @@ class SCENE_PT_compositor_effects(Panel):
         layout = self.layout
         layout.use_property_split = True
 
-        layout.operator("wm.call_menu", text="Add Effect", icon='ADD').name = "NODE_MT_add_scene_compositor_effect"
+        layout.operator("wm.call_menu", text="Add Effect", icon='ADD').name = "SCENE_MT_add_compositor_effect"
 
         layout.template_scene_compositor_effects()
 
 
 classes = (
     SCENE_PT_compositor_effects,
-    NODE_MT_add_scene_compositor_effect,
+    SCENE_MT_add_compositor_effect,
 )
 
 if __name__ == "__main__":  # only for live edit.
