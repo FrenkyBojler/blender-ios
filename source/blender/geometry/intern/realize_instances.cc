@@ -1999,6 +1999,9 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     Mesh *new_mesh = BKE_mesh_copy_for_eval(*task.mesh_info->mesh);
     if (!skip_transform(task.transform)) {
       bke::mesh_transform(*new_mesh, task.transform, false);
+      if (math::is_negative(task.transform)) {
+        bke::mesh_flip_faces(*new_mesh, IndexMask(new_mesh->faces_num));
+      }
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_mesh->attributes_for_write());
@@ -2140,6 +2143,18 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   }
   vert_ids.finish();
   custom_normals.finish();
+
+  Vector<IndexMask::Initializer> face_ranges_to_flip;
+  for (const RealizeMeshTask &task : tasks) {
+    if (math::is_negative(task.transform)) {
+      face_ranges_to_flip.append(
+          IndexRange(task.start_indices.face, task.mesh_info->mesh->faces_num));
+    }
+  }
+  if (!face_ranges_to_flip.is_empty()) {
+    IndexMaskMemory memory;
+    bke::mesh_flip_faces(*dst_mesh, IndexMask::from_initializers(face_ranges_to_flip, memory));
+  }
 
   bke::mesh_ensure_default_uv_map(*dst_mesh);
 

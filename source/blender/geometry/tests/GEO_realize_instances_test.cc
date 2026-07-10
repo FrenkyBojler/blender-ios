@@ -9,9 +9,11 @@
 #include "BKE_gtest_base.hh"
 #include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_mesh.hh"
 
 #include "DNA_curves_types.h"
 
+#include "GEO_mesh_primitive_cuboid.hh"
 #include "GEO_realize_instances.hh"
 
 #include "testing/testing.h"
@@ -67,6 +69,64 @@ TEST_F(RealizeInstancesTest, InstanceAttributeToBuiltinCurvesAttribute)
   options.realize_instance_attributes = true;
   GeometrySet realized_geometry_set =
       geometry::realize_instances(instances_geometry, options).geometry;
+}
+
+static void expect_cube_face_normals_outward(const Mesh &mesh, const int expected_faces_num)
+{
+  EXPECT_EQ(mesh.faces_num, expected_faces_num);
+  const Span<float3> positions = mesh.vert_positions();
+  const Span<float3> normals = mesh.face_normals();
+  const OffsetIndices faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
+  for (const int face_i : faces.index_range()) {
+    float3 center(0.0f);
+    for (const int corner : faces[face_i]) {
+      center += positions[corner_verts[corner]];
+    }
+    center /= faces[face_i].size();
+    EXPECT_GT(math::dot(center, normals[face_i]), 0.0f);
+  }
+}
+
+TEST_F(RealizeInstancesTest, NegativeTransformMeshWindingSingleInstance)
+{
+  Mesh *cube = geometry::create_cuboid_mesh(float3(2.0f), 2, 2, 2);
+  bke::GeometrySet cube_geometry = GeometrySet::from_mesh(cube);
+
+  auto instances = std::make_unique<Instances>(1);
+  const int handle = instances->add_reference(bke::InstanceReference{cube_geometry});
+  instances->reference_handles_for_write().fill(handle);
+  instances->transforms_for_write().fill(math::from_scale<float4x4>(float3(-1.0f, 1.0f, 1.0f)));
+
+  bke::GeometrySet instances_geometry = GeometrySet::from_instances(std::move(instances));
+  geometry::RealizeInstancesOptions options;
+  bke::GeometrySet realized_geometry =
+      geometry::realize_instances(instances_geometry, options).geometry;
+  const Mesh *realized_mesh = realized_geometry.get_mesh();
+
+  ASSERT_NE(realized_mesh, nullptr);
+  expect_cube_face_normals_outward(*realized_mesh, 6);
+}
+
+TEST_F(RealizeInstancesTest, NegativeTransformMeshWindingMultipleInstances)
+{
+  Mesh *cube = geometry::create_cuboid_mesh(float3(2.0f), 2, 2, 2);
+  bke::GeometrySet cube_geometry = GeometrySet::from_mesh(cube);
+
+  auto instances = std::make_unique<Instances>(2);
+  const int handle = instances->add_reference(bke::InstanceReference{cube_geometry});
+  instances->reference_handles_for_write().fill(handle);
+  instances->transforms_for_write()[0] = float4x4::identity();
+  instances->transforms_for_write()[1] = math::from_scale<float4x4>(float3(-1.0f, 1.0f, 1.0f));
+
+  bke::GeometrySet instances_geometry = GeometrySet::from_instances(std::move(instances));
+  geometry::RealizeInstancesOptions options;
+  bke::GeometrySet realized_geometry =
+      geometry::realize_instances(instances_geometry, options).geometry;
+  const Mesh *realized_mesh = realized_geometry.get_mesh();
+
+  ASSERT_NE(realized_mesh, nullptr);
+  expect_cube_face_normals_outward(*realized_mesh, 12);
 }
 
 }  // namespace geometry::tests
