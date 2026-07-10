@@ -645,6 +645,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   ts->symmetric_soft_clamp_max = INT_MAX;
 
   bool only_handles_selected = true;
+  bool valid_transition_input_selection = true;
 
   bool has_transition_handles = false;
   bool has_non_transition = false;
@@ -652,26 +653,34 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
       continue;
     }
-    if (seq::strip_is_transition(strip) && (strip->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
-      has_transition_handles = true;
-      if (has_non_transition) {
+    /* Early break if everything is hard clamped to 0. */
+    if (has_non_transition && has_transition_handles) {
+      break;
+    }
+    if (seq::strip_is_transition(strip)) {
+      if ((strip->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
+        has_transition_handles = true;
+      }
+      else if (!flag_is_set(strip->input1->flag, SEQ_SELECT) ||
+               !flag_is_set(strip->input2->flag, SEQ_SELECT))
+      {
+        valid_transition_input_selection = false;
         break;
       }
       create_transition_clamp_data(t, scene, strip);
     }
     else {
       has_non_transition = true;
-      if (has_transition_handles) {
-        break;
-      }
       only_handles_selected &= create_non_transition_clamp_data(t, scene, strip);
     }
   }
 
-  /* Non-transitions and transition handles can't be selected at the same time. Other code should
-   * prevent this invalid selection state, but prevent movement in case it ends up in such state.
+  /* 1. Non-transitions and transition handles can't be selected at the same time. Other code
+   *    should prevent this invalid selection state, but prevent movement if in such state.
+   * 2. Transition inputs must be selected if the transition is selected but its handles aren't.
    */
-  const bool invalid_selection = has_transition_handles && has_non_transition;
+  const bool invalid_selection = (has_transition_handles && has_non_transition) ||
+                                 !valid_transition_input_selection;
   if (invalid_selection) {
     ts->hard_clamp.xmin = 0;
     ts->hard_clamp.xmax = 0;
@@ -680,7 +689,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   /* TODO(john): This ensures that y-axis movement is restricted only if all of the selected items
    * are handles, since currently it is possible to select whole strips and handles at the same
    * time. This should be removed for 5.0 when we make this behavior impossible. */
-  if (only_handles_selected || has_transition_handles) {
+  if (only_handles_selected || invalid_selection) {
     ts->hard_clamp.ymin = 0;
     ts->hard_clamp.ymax = 0;
   }
