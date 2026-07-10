@@ -166,8 +166,10 @@ void GList::ensure_owns_direct_data()
 {
   if (cpp_type_.is<BundlePtr>()) {
     this->typed<BundlePtr>().foreach_for_write([](BundlePtr &bundle_ptr) {
-      bundle_ptr.ensure_mutable_inplace();
-      const_cast<Bundle &>(*bundle_ptr).ensure_owns_direct_data();
+      if (bundle_ptr) {
+        bundle_ptr.ensure_mutable_inplace();
+        const_cast<Bundle &>(*bundle_ptr).ensure_owns_direct_data();
+      }
     });
   }
   else if (cpp_type_.is<bke::SocketValueVariant>()) {
@@ -190,7 +192,7 @@ bool GList::owns_direct_data() const
             const Span span = value.template typed<BundlePtr>();
             return std::all_of(span.begin(), span.end(), [](const BundlePtr &bundle_ptr) {
               if (!bundle_ptr) {
-                return false;
+                return true;
               }
               return bundle_ptr->owns_direct_data();
             });
@@ -198,7 +200,7 @@ bool GList::owns_direct_data() const
           else if constexpr (std::is_same_v<T, GPointer>) {
             const BundlePtr *value_ptr = value.template get<BundlePtr>();
             if (!value_ptr) {
-              return false;
+              return true;
             }
             return (*value_ptr)->owns_direct_data();
           }
