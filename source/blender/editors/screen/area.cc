@@ -648,7 +648,7 @@ void ED_region_activate_rna_prop(bContext *C,
   {
     return;
   }
-  region->runtime->post_block_layout_callbacks
+  region->runtime->post_block_layout_fns
       .lookup_or_add_cb_as(block_name,
                            []() { return Vector<std::function<void(const bContext &C)>>{}; })
       .append([data, prop_name = std::string(prop_name), block_name](const bContext &C) {
