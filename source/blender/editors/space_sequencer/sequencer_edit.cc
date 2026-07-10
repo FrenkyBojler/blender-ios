@@ -1471,6 +1471,21 @@ static wmOperatorStatus sequencer_connect_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* Transitions can only be connected to each other, not to other strips. */
+  bool has_transition = false;
+  bool has_non_transition = false;
+  for (Strip *strip : selected) {
+    if (seq::strip_is_transition(strip)) {
+      has_transition = true;
+    }
+    else {
+      has_non_transition = true;
+    }
+    if (has_transition && has_non_transition) {
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
   if (toggle && seq::are_strips_connected_together(selected)) {
     seq::disconnect(selected);
