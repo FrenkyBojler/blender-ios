@@ -191,6 +191,8 @@ static eNodeSocketDatatype op_type_to_socket_type(const NodeCompareOperation val
     case NODE_COMPARE_COLOR_DARKER:
       return SOCK_RGBA;
   }
+  BLI_assert_unreachable();
+  return SOCK_RGBA;
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
