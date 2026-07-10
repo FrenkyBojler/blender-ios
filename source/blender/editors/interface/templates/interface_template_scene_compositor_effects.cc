@@ -303,13 +303,13 @@ static void draw_effect_panel(const bContext *C, Panel *panel)
   }
 }
 
-static constexpr char SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME[] = "SCENE_COMPOSITOR_MODIFIER_PT";
+static constexpr char SCENE_COMPOSITOR_EFFECT_PANEL_IDNAME[] = "SCENE_COMPOSITOR_EFFECT_PT";
 
 void register_scene_compositor_effects_panel(ARegionType *region_type)
 {
   PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
 
-  STRNCPY_UTF8(panel_type->idname, SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME);
+  STRNCPY_UTF8(panel_type->idname, SCENE_COMPOSITOR_EFFECT_PANEL_IDNAME);
   STRNCPY_UTF8(panel_type->label, "");
   STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   STRNCPY_UTF8(panel_type->active_property, "is_active");
@@ -330,7 +330,7 @@ void register_scene_compositor_effects_panel(ARegionType *region_type)
 
 static void effect_panel_id(void * /*effect_link*/, char *r_name)
 {
-  BLI_strncpy(r_name, SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME, MAX_NAME);
+  BLI_strncpy(r_name, SCENE_COMPOSITOR_EFFECT_PANEL_IDNAME, MAX_NAME);
 }
 
 void template_scene_compositor_effects(Layout * /*layout*/, bContext *C)
@@ -352,7 +352,7 @@ void template_scene_compositor_effects(Layout * /*layout*/, bContext *C)
       *effect_ptr = RNA_pointer_create_discrete(&scene->id, RNA_SceneCompositorEffect, &effect);
 
       panel_add_instanced(
-          C, region, &region->panels, SCENE_COMPOSITOR_MODIFIER_PANEL_IDNAME, effect_ptr);
+          C, region, &region->panels, SCENE_COMPOSITOR_EFFECT_PANEL_IDNAME, effect_ptr);
     }
   }
   else {

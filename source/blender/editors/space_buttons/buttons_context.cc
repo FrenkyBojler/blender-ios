@@ -588,7 +588,8 @@ static bool buttons_context_path_scene_compositor_effect(ButsContextPath *path)
 
   SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
   if (effect) {
-    path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, RNA_StripModifier, effect);
+    path->ptr[path->len] = RNA_pointer_create_discrete(
+        &scene->id, RNA_SceneCompositorEffect, effect);
     path->len++;
   }
   return true;
