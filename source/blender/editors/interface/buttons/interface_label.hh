@@ -16,7 +16,7 @@ bool button_label_is_multiline(const Button *button);
 
 /**
  * Wraps button text, this will try to reuse text wrap cache form last redraws.
- * \param icon_pad: Space used for drawing the button icon. 
+ * \param icon_pad: Space used for drawing the button icon.
  */
 void label_multiline_wrap_lines(ButtonLabel *button, int icon_pad);
 

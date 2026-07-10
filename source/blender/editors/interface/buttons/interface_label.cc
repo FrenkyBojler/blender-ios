@@ -7,6 +7,7 @@
 #include "BLI_rect.hh"
 
 #include "interface_intern.hh"
+#include "interface_label.hh"
 
 namespace blender::ui {
 
