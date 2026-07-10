@@ -49,6 +49,8 @@ if [ "$CUDA_ARCH" = "aarch64" ]; then
 fi
 
 dnf config-manager --add-repo http://developer.download.nvidia.com/compute/cuda/repos/rhel8/$CUDA_ARCH/cuda-rhel8.repo
+dnf -y install 'dnf-command(versionlock)'
+dnf versionlock add "cuda-*-12-8*"
 
 # Install packages needed for Blender's dependencies.
 PACKAGES_FOR_LIBS=(
