@@ -248,7 +248,8 @@ static wmOperatorStatus add_scene_compositor_effect_node_group_asset_exec(bConte
   id_us_plus(&node_group->id);
   effect.flags &= ~SceneCompositorEffectFlags::ShowNodeGroupSelector;
 
-  bke::compositor::update_effect_node_group_interface(*scene, effect);
+  Main &main = *CTX_data_main(C);
+  bke::compositor::update_effect_node_group_interface(main, *scene, effect);
 
   // TODO: Updates.
   return OPERATOR_FINISHED;

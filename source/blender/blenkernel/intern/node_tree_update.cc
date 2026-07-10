@@ -496,7 +496,7 @@ class NodeTreeMainUpdater {
           for (const SceneCompositorEffectPair &pair :
                relations_.get_scene_compositor_effects_users(ntree))
           {
-            compositor::update_effect_node_group_interface(*pair.first, *pair.second);
+            compositor::update_effect_node_group_interface(*bmain_, *pair.first, *pair.second);
           }
         }
       }

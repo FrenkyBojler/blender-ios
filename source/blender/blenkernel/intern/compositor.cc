@@ -317,7 +317,7 @@ const SceneCompositorEffect *get_effect_from_property(const PointerRNA &property
   return nullptr;
 }
 
-void update_effect_node_group_interface(Scene &scene, SceneCompositorEffect &effect)
+void update_effect_node_group_interface(Main &main, Scene &scene, SceneCompositorEffect &effect)
 {
   if (!effect.system_properties) {
     effect.system_properties =
@@ -325,7 +325,7 @@ void update_effect_node_group_interface(Scene &scene, SceneCompositorEffect &eff
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &scene.id, RNA_SceneCompositorEffectProperties, &effect);
-  RNA_ensure_and_sync_system_properties(properties_ptr, *effect.system_properties);
+  RNA_ensure_and_sync_system_properties(main, properties_ptr, *effect.system_properties);
 
   if (effect.node_group) {
     DEG_id_tag_update(&effect.node_group->id, ID_RECALC_NTREE_OUTPUT);

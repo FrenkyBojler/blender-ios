@@ -21,6 +21,7 @@
 namespace blender {
 
 struct Scene;
+struct Main;
 struct ViewLayer;
 struct ImBuf;
 struct bContext;
@@ -135,7 +136,7 @@ const SceneCompositorEffect *get_effect_from_property(const PointerRNA &property
 
 /* Update the system properties of the effect. Should be call whenever the node group of the
  * effect changes or the interface of the assigned node group changes. */
-void update_effect_node_group_interface(Scene &scene, SceneCompositorEffect &effect);
+void update_effect_node_group_interface(Main &main, Scene &scene, SceneCompositorEffect &effect);
 
 /* --------------------------------------------------------------------
  * Query.

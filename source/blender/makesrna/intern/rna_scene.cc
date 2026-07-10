@@ -1985,7 +1985,7 @@ void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *
 
 void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *scene_ptr)
 {
-  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  Scene *scene = id_cast<Scene *>(scene_ptr->owner_id);
   DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
 
   Vector<ID *> node_groups;
@@ -3200,7 +3200,7 @@ static void rna_SceneCompositorEffect_node_group_update(Main *bmain,
   DEG_relations_tag_update(bmain);
 
   SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
-  bke::compositor::update_effect_node_group_interface(*scene, *effect);
+  bke::compositor::update_effect_node_group_interface(*bmain, *scene, *effect);
 }
 
 static SceneCompositorEffect *rna_SceneCompositorEffects_new(ID *scene_id, const char *name)
