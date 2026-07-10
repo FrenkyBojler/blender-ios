@@ -817,10 +817,6 @@ wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBaseT<wmEventHandler> *
 
 /* Mouse. */
 void WM_event_add_mousemove(wmWindow *win);
-void WM_event_add_simulate_region(
-    wmWindow *win, ScrArea *area, ARegion *region, const wmEvent *event);
-void WM_event_do_simulate_region(
-    bContext *C, wmWindow *win, ScrArea *area, ARegion *region, const wmEvent *event);
 
 #ifdef WITH_INPUT_NDOF
 /* 3D mouse. */

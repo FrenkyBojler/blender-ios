@@ -30,9 +30,6 @@ double WM_tooltip_time_closed()
 
 static const wmEvent *wm_tooltip_eventstate_source_get(const wmWindow *win)
 {
-  if (win->runtime->ghostwin == nullptr && win->runtime->eventstate_simulate != nullptr) {
-    return win->runtime->eventstate_simulate;
-  }
   return win->runtime->eventstate;
 }
 
@@ -129,8 +126,7 @@ void WM_tooltip_init(bContext *C, wmWindow *win)
     CTX_wm_region_set(C, region_prev);
   }
 
-  copy_v2_v2_int(screen->tool_tip->event_xy,
-                 wm_tooltip_eventstate_source_get(win)->xy);
+  copy_v2_v2_int(screen->tool_tip->event_xy, wm_tooltip_eventstate_source_get(win)->xy);
   if (pass_prev != screen->tool_tip->pass) {
     /* The pass changed, add timer for next pass. */
     wmWindowManager *wm = CTX_wm_manager(C);

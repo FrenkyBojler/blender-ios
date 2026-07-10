@@ -19,8 +19,8 @@
 #include "BKE_workspace.hh"
 
 #include "DNA_scene_types.h"
-#include "DNA_workspace_types.h"
 #include "DNA_windowmanager_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_listbase.hh"
 #include "BLI_string.hh"
@@ -227,7 +227,9 @@ bool wm_xr_init(bContext *C)
                                                             SPACE_VIEW3D);
       if (wm->xr.runtime->xr_ui_area != nullptr) {
         wm->xr.runtime->xr_ui_screen = wm_xr_session_virtual_screen_create(
-            wm->xr.runtime->xr_ui_window, wm->xr.runtime->xr_ui_area, &wm->xr.runtime->xr_ui_layout);
+            wm->xr.runtime->xr_ui_window,
+            wm->xr.runtime->xr_ui_area,
+            &wm->xr.runtime->xr_ui_layout);
       }
       if (wm->xr.runtime->xr_ui_area == nullptr || wm->xr.runtime->xr_ui_screen == nullptr ||
           wm->xr.runtime->xr_ui_layout == nullptr)
@@ -249,7 +251,8 @@ bool wm_xr_init(bContext *C)
         GHOST_XrContextDestroy(ghost_context);
         return false;
       }
-      if (WorkSpace *workspace = WM_window_get_active_workspace(wm->xr.runtime->desktop_root_win)) {
+      if (WorkSpace *workspace = WM_window_get_active_workspace(wm->xr.runtime->desktop_root_win))
+      {
         BKE_workspace_active_set(wm->xr.runtime->xr_ui_window->workspace_hook, workspace);
       }
       wm->xr.runtime->xr_ui_window->workspace_hook->act_layout = wm->xr.runtime->xr_ui_layout;
@@ -331,8 +334,9 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     BLI_assert(xr_ui_area);
 
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    wmWindow *xr_win = (*runtime)->xr_ui_window ? (*runtime)->xr_ui_window :
-                                                  wm_xr_desktop_root_window_or_fallback_get(wm, (*runtime));
+    wmWindow *xr_win = (*runtime)->xr_ui_window ?
+                           (*runtime)->xr_ui_window :
+                           wm_xr_desktop_root_window_or_fallback_get(wm, (*runtime));
     bContext *xr_context = (*runtime)->b_context;
 
     CTX_wm_window_set(xr_context, xr_win);

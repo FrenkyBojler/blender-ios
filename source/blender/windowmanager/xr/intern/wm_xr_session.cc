@@ -458,8 +458,9 @@ bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm)
     return nullptr;
   }
 
-  wmWindow *xr_win = xr->runtime->xr_ui_window ? xr->runtime->xr_ui_window :
-                                                wm_xr_desktop_root_window_or_fallback_get(wm, xr->runtime);
+  wmWindow *xr_win = xr->runtime->xr_ui_window ?
+                         xr->runtime->xr_ui_window :
+                         wm_xr_desktop_root_window_or_fallback_get(wm, xr->runtime);
   CTX_wm_window_set(xr->runtime->b_context, xr_win);
   CTX_wm_screen_set(xr->runtime->b_context, xr->runtime->xr_ui_screen);
 
@@ -1646,9 +1647,11 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     v3d->object_type_exclude_select = settings->object_type_exclude_select;
     wm_xr_surface_interaction_update(xr_context, xr);
 
-    wmWindow *xr_win = xr->runtime->xr_ui_window ? xr->runtime->xr_ui_window :
-                                                  wm_xr_desktop_root_window_or_fallback_get(wm, xr->runtime);
-    wm_xr_session_events_dispatch(xr, xr_context, ghost_xr_context, active_action_set, state, xr_win);
+    wmWindow *xr_win = xr->runtime->xr_ui_window ?
+                           xr->runtime->xr_ui_window :
+                           wm_xr_desktop_root_window_or_fallback_get(wm, xr->runtime);
+    wm_xr_session_events_dispatch(
+        xr, xr_context, ghost_xr_context, active_action_set, state, xr_win);
   }
 }
 

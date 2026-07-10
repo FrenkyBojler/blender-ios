@@ -305,20 +305,12 @@ static void wm_file_read_setup_wm_substitute_old_window(wmWindowManager *oldwm,
   oldwin->runtime->gpuctx = nullptr;
 
   win->runtime->eventstate = oldwin->runtime->eventstate;
-  win->runtime->eventstate_simulate = oldwin->runtime->eventstate_simulate;
   win->runtime->event_last_handled = oldwin->runtime->event_last_handled;
   win->runtime->eventstate_prev_press_time_ms = oldwin->runtime->eventstate_prev_press_time_ms;
-  win->runtime->eventstate_prev_press_time_ms_simulate =
-      oldwin->runtime->eventstate_prev_press_time_ms_simulate;
   win->event_queue_check_click = oldwin->event_queue_check_click;
   win->event_queue_check_drag = oldwin->event_queue_check_drag;
   win->event_queue_check_drag_handled = oldwin->event_queue_check_drag_handled;
-  win->runtime->event_queue_check_click_simulate = oldwin->runtime->event_queue_check_click_simulate;
-  win->runtime->event_queue_check_drag_simulate = oldwin->runtime->event_queue_check_drag_simulate;
-  win->runtime->event_queue_check_drag_handled_simulate =
-      oldwin->runtime->event_queue_check_drag_handled_simulate;
   oldwin->runtime->eventstate = nullptr;
-  oldwin->runtime->eventstate_simulate = nullptr;
   oldwin->runtime->event_last_handled = nullptr;
 
   /* Ensure proper screen re-scaling. */

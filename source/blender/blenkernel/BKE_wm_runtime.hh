@@ -191,18 +191,6 @@ struct WindowRuntime {
    */
   uint64_t eventstate_prev_press_time_ms = 0;
 
-  /**
-   * Separate state for targeted simulated input streams (for example XR panel ray events).
-   *
-   * This keeps synthetic pointer interaction from mutating the desktop window input state.
-   */
-  wmEvent *eventstate_simulate = nullptr;
-  uint64_t eventstate_prev_press_time_ms_simulate = 0;
-  char event_queue_check_click_simulate = 0;
-  char event_queue_check_drag_simulate = 0;
-  char event_queue_check_drag_handled_simulate = 0;
-  char _pad_simulate[5] = {};
-
   /** Private runtime info to show text in the status bar. */
   void *cursor_keymap_status = nullptr;
 

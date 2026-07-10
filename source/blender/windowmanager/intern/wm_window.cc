@@ -309,9 +309,6 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
   if (win->runtime->eventstate) {
     MEM_delete(win->runtime->eventstate);
   }
-  if (win->runtime->eventstate_simulate) {
-    MEM_delete(win->runtime->eventstate_simulate);
-  }
   if (win->runtime->event_last_handled) {
     MEM_delete(win->runtime->event_last_handled);
   }
@@ -502,8 +499,7 @@ static bool wm_window_is_last_main_window(wmWindowManager *wm, wmWindow *win)
   for (win_other = static_cast<wmWindow *>(wm->windows.first); win_other;
        win_other = win_other->next)
   {
-    if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other))
-    {
+    if (win_other != win && win_other->parent == nullptr && !WM_window_is_temp_screen(win_other)) {
       return false;
     }
   }
@@ -1548,8 +1544,7 @@ wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   wmWindow *win = CTX_wm_window(C);
-  if (win == nullptr || win->runtime == nullptr || win->runtime->ghostwin == nullptr)
-  {
+  if (win == nullptr || win->runtime == nullptr || win->runtime->ghostwin == nullptr) {
     return OPERATOR_CANCELLED;
   }
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
