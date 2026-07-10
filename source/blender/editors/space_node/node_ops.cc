@@ -100,15 +100,6 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_new_compositing_node_group);
   WM_operatortype_append(NODE_OT_duplicate_compositing_modifier_node_group);
   WM_operatortype_append(NODE_OT_new_compositor_sequencer_node_group);
-  WM_operatortype_append(NODE_OT_new_scene_compositor_effect_node_group);
-  WM_operatortype_append(NODE_OT_duplicate_scene_compositor_effect_node_group);
-
-  WM_operatortype_append(NODE_OT_add_scene_compositor_effect);
-  WM_operatortype_append(NODE_OT_remove_scene_compositor_effect);
-  WM_operatortype_append(NODE_OT_move_scene_compositor_effect);
-  WM_operatortype_append(NODE_OT_duplicate_scene_compositor_effect);
-  WM_operatortype_append(NODE_OT_scene_compositor_effect_move_to_index);
-  WM_operatortype_append(NODE_OT_set_active_scene_compositor_effect);
 
   WM_operatortype_append(NODE_OT_parent_set);
   WM_operatortype_append(NODE_OT_join);

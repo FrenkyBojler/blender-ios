@@ -25,7 +25,7 @@ class NODE_MT_add_scene_compositor_effect(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("node.add_scene_compositor_effect", text="Add Effect", icon='ADD')
+        layout.operator("scene.add_compositor_effect", text="Add Effect", icon='ADD')
         layout.menu_contents("NODE_MT_add_scene_compositor_effect_root_catalogs")
 
 

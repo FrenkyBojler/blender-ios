@@ -150,20 +150,20 @@ class NODE_HT_header(Header):
                 active_effect = scene.compositor_effects.active
                 if snode.pin:
                     row.enabled = False
-                    row.template_ID(snode, "node_tree", new="node.new_scene_compositor_effect_node_group")
+                    row.template_ID(snode, "node_tree", new="scene.new_compositor_effect_node_group")
                 elif active_effect:
                     if active_effect.node_group:
                         row.template_ID(
                             active_effect,
                             "node_group",
-                            new="node.duplicate_scene_compositor_effect_node_group")
+                            new="scene.duplicate_compositor_effect_node_group")
                     else:
                         row.template_ID(
                             active_effect,
                             "node_group",
-                            new="node.new_scene_compositor_effect_node_group")
+                            new="scene.new_compositor_effect_node_group")
                 else:
-                    row.template_ID(snode, "node_tree", new="node.new_scene_compositor_effect_node_group")
+                    row.template_ID(snode, "node_tree", new="scene.new_compositor_effect_node_group")
             elif snode.node_tree_sub_type == 'SEQUENCER':
                 row = layout.row()
                 sequencer_scene = context.workspace.sequencer_scene

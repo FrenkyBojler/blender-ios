@@ -54,6 +54,7 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
     ATTR_NONNULL(1, 2, 3);
 
 void ED_operatortypes_scene();
+void ED_operatortypes_scene_compositor();
 
 /* -------------------------------------------------------------------- */
 /** \name Scene FPS Management

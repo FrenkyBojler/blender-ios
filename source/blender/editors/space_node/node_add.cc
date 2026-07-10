@@ -1755,9 +1755,8 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Duplicate Compositing Modifier Node Tree Operator
+/** \name Duplicate Compositing Node Tree Operator
  * \{ */
-
 static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *source_node_tree)
 {
   Main *bmain = CTX_data_main(C);
@@ -1951,146 +1950,6 @@ void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
                  MAX_ID_NAME - 2,
                  "Name",
                  "");
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name New Scene Compositor Effect Node Group Operator.
- * \{ */
-
-static void initialize_scene_compositor_effect_node_group(const bContext *C, bNodeTree &node_tree)
-{
-  node_tree.tree_interface.add_socket(
-      "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-  node_tree.tree_interface.add_socket(
-      "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
-
-  bNode *output_node = bke::node_add_node(C, node_tree, "NodeGroupOutput"_ustr);
-  output_node->location[0] = 200.0f;
-  output_node->location[1] = 0.0f;
-
-  bNode *input_node = bke::node_add_node(C, node_tree, "NodeGroupInput"_ustr);
-  input_node->location[0] = -150.0f - input_node->width;
-  input_node->location[1] = 0.0f;
-  bke::node_set_active(node_tree, *input_node);
-
-  bNode *reroute_node = bke::node_add_node(C, node_tree, "NodeReroute"_ustr);
-  reroute_node->location[0] = 100.0f;
-  reroute_node->location[1] = -35.0f;
-
-  bNode *viewer_node = bke::node_add_node(C, node_tree, "CompositorNodeViewer"_ustr);
-  viewer_node->location[0] = 200.0f;
-  viewer_node->location[1] = -80.0f;
-
-  bke::node_add_link(node_tree,
-                     *input_node,
-                     *static_cast<bNodeSocket *>(input_node->outputs.first),
-                     *reroute_node,
-                     *static_cast<bNodeSocket *>(reroute_node->inputs.first));
-
-  bke::node_add_link(node_tree,
-                     *reroute_node,
-                     *static_cast<bNodeSocket *>(reroute_node->outputs.first),
-                     *output_node,
-                     *static_cast<bNodeSocket *>(output_node->inputs.first));
-
-  bke::node_add_link(node_tree,
-                     *reroute_node,
-                     *static_cast<bNodeSocket *>(reroute_node->outputs.first),
-                     *viewer_node,
-                     *static_cast<bNodeSocket *>(viewer_node->inputs.first));
-
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), node_tree);
-}
-
-static wmOperatorStatus new_scene_compositor_effect_node_group_exec(bContext *C,
-                                                                    wmOperator * /*op*/)
-{
-  Main *bmain = CTX_data_main(C);
-  bNodeTree *node_group = bke::node_tree_add_tree(
-      bmain, "Scene Compositor Effect", "CompositorNodeTree");
-  initialize_scene_compositor_effect_node_group(C, *node_group);
-
-  if (!node_group->compositor_node_asset_traits) {
-    node_group->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
-  }
-  node_group->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_EFFECT;
-  bke::node_update_asset_metadata(*node_group);
-
-  Scene *scene = CTX_data_scene(C);
-  SceneCompositorEffect *active_effect = bke::compositor::get_active_effect(*scene);
-  if (!active_effect) {
-    SceneCompositorEffect &effect = bke::compositor::new_effect(*scene, "Scene Compositor Effect");
-    effect.flags |= SceneCompositorEffectFlags::IsActive;
-    active_effect = &effect;
-  }
-  active_effect->node_group = node_group;
-
-  // TODO: Updates.
-  DEG_relations_tag_update(bmain);
-  BKE_main_ensure_invariants(*bmain, active_effect->node_group->id);
-  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_new_scene_compositor_effect_node_group(wmOperatorType *ot)
-{
-  ot->name = "New Scene Compositor Effect Node Group";
-  ot->idname = "NODE_OT_new_scene_compositor_effect_node_group";
-  ot->description =
-      "Create a new compositor node group and assign it to the active scene compositor effect";
-
-  ot->exec = new_scene_compositor_effect_node_group_exec;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Duplicate Scene Compositor Effect Node Group Operator.
- * \{ */
-
-static wmOperatorStatus duplicate_scene_compositor_effect_node_group_exec(bContext *C,
-                                                                          wmOperator * /*op*/)
-{
-  Scene *scene = CTX_data_scene(C);
-  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
-  if (!effect) {
-    return OPERATOR_CANCELLED;
-  }
-
-  bNodeTree *original_node_group = effect->node_group;
-  if (!original_node_group || ID_MISSING(original_node_group)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  Main *main = CTX_data_main(C);
-  bNodeTree *node_tree = id_cast<bNodeTree *>(
-      BKE_id_copy_ex(main, &original_node_group->id, nullptr, LIB_ID_COPY_ACTIONS));
-
-  effect->flags |= SceneCompositorEffectFlags::ShowNodeGroupSelector;
-
-  effect->node_group = node_tree;
-  id_us_min(&original_node_group->id);
-
-  // TODO: Updates.
-  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_duplicate_scene_compositor_effect_node_group(wmOperatorType *ot)
-{
-  ot->name = "Duplicate Scene Compositor Effect Node Group";
-  ot->idname = "NODE_OT_duplicate_scene_compositor_effect_node_group";
-  ot->description =
-      "Duplicate the active scene compositor effect node group and assign the new node group to "
-      "the effect";
-
-  ot->exec = duplicate_scene_compositor_effect_node_group_exec;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */

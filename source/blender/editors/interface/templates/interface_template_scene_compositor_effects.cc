@@ -41,7 +41,7 @@ static void draw_effect_extra_menu(bContext *C, ui::Layout *layout, void *effect
   SceneCompositorEffect *effect = static_cast<SceneCompositorEffect *>(effect_v);
 
   {
-    PointerRNA operator_ptr = layout->op("NODE_OT_duplicate_scene_compositor_effect",
+    PointerRNA operator_ptr = layout->op("SCENE_OT_duplicate_compositor_effect",
                                          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Duplicate"),
                                          ICON_DUPLICATE);
     RNA_string_set(&operator_ptr, "name", effect->name);
@@ -51,7 +51,7 @@ static void draw_effect_extra_menu(bContext *C, ui::Layout *layout, void *effect
 
   {
     ui::Layout &row = layout->row(false);
-    PointerRNA operator_ptr = row.op("NODE_OT_scene_compositor_effect_move_to_index",
+    PointerRNA operator_ptr = row.op("SCENE_OT_move_compositor_effect_to_index",
                                      IFACE_("Move to First"),
                                      ICON_TRIA_UP,
                                      wm::OpCallContext::InvokeDefault,
@@ -63,7 +63,7 @@ static void draw_effect_extra_menu(bContext *C, ui::Layout *layout, void *effect
 
   {
     ui::Layout &row = layout->row(false);
-    PointerRNA operator_ptr = row.op("NODE_OT_scene_compositor_effect_move_to_index",
+    PointerRNA operator_ptr = row.op("SCENE_OT_move_compositor_effect_to_index",
                                      IFACE_("Move to Last"),
                                      ICON_TRIA_DOWN,
                                      wm::OpCallContext::InvokeDefault,
@@ -91,7 +91,7 @@ static void draw_effect_panel_header(const bContext * /*C*/, Panel *panel)
   ui::Layout &icon_row = layout.row(true);
   icon_row.emboss_set(ui::EmbossType::None);
   PointerRNA set_active_operator_ptr = icon_row.op(
-      "NODE_OT_set_active_scene_compositor_effect", "", RNA_struct_ui_icon(effect_ptr->type));
+      "SCENE_OT_set_active_compositor_effect", "", RNA_struct_ui_icon(effect_ptr->type));
   RNA_string_set(&set_active_operator_ptr, "name", effect->name);
 
   ui::Layout &buttons_row = layout.row(true);
@@ -117,8 +117,7 @@ static void draw_effect_panel_header(const bContext * /*C*/, Panel *panel)
 
   ui::Layout &remove_row = buttons_row.row(false);
   remove_row.emboss_set(ui::EmbossType::None);
-  PointerRNA remove_operator_ptr = remove_row.op(
-      "NODE_OT_remove_scene_compositor_effect", "", ICON_X);
+  PointerRNA remove_operator_ptr = remove_row.op("SCENE_OT_remove_compositor_effect", "", ICON_X);
   RNA_string_set(&remove_operator_ptr, "name", effect->name);
 
   layout.separator();
@@ -129,8 +128,8 @@ static void reorder_effect(bContext *C, Panel *panel, const int new_index)
   PointerRNA *effect_ptr = ui::panel_custom_data_get(panel);
   SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
 
-  wmOperatorType *operator_type = WM_operatortype_find(
-      "NODE_OT_scene_compositor_effect_move_to_index", false);
+  wmOperatorType *operator_type = WM_operatortype_find("SCENE_OT_move_compositor_effect_to_index",
+                                                       false);
   PointerRNA properties_ptr = WM_operator_properties_create_ptr(operator_type);
   RNA_string_set(&properties_ptr, "name", effect->name);
   RNA_int_set(&properties_ptr, "index", new_index);
@@ -293,8 +292,8 @@ static void draw_effect_panel(const bContext *C, Panel *panel)
 
   if (flag_is_set(effect.flags, SceneCompositorEffectFlags::ShowNodeGroupSelector)) {
     const char *operator_name = (effect.node_group == nullptr) ?
-                                    "node.new_scene_compositor_effect_node_group" :
-                                    "node.duplicate_scene_compositor_effect_node_group";
+                                    "scene.new_compositor_effect_node_group" :
+                                    "scene.duplicate_compositor_effect_node_group";
     template_id(&layout, C, effect_ptr, "node_group", operator_name, nullptr, nullptr);
   }
 
