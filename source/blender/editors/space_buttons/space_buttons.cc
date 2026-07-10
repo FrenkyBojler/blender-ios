@@ -309,7 +309,7 @@ static const char *buttons_main_region_context_string(const short mainb)
     case BCONTEXT_STRIP_MODIFIER:
       return "strip_modifier";
     case BCONTEXT_SCENE_COMPOSITOR_EFFECTS:
-      return "scene_compositor_effect";
+      return "scene_compositor_effects";
   }
 
   /* All the cases should be handled. */
