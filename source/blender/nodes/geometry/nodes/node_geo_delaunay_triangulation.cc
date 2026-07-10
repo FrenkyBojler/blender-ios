@@ -1078,10 +1078,10 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (curves.is_empty()) {
           continue;
         }
-        bke::GreasePencilLayerFieldContext drawing_field_context(
+        bke::GreasePencilLayerFieldContext layer_field_context(
             grease_pencil, bke::AttrDomain::Curve, layer_index);
         Array<TriangulationResult> geometry_results = calc_triangulations(
-            nullptr, &curves, &drawing_field_context, nullptr, group_index, output_type);
+            nullptr, &curves, &layer_field_context, nullptr, group_index, output_type);
         mesh_by_layer[layer_index] = cdts_to_mesh(geometry_results,
                                                   nullptr,
                                                   &curves,
@@ -1115,7 +1115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
 
-    geometry.keep_only({GeometryComponent::Type::Mesh});
+    geometry.keep_only({GeometryComponent::Type::Mesh, GeometryComponent::Type::Instance});
   });
 
   params.set_output("Mesh"_ustr, std::move(geometry));
