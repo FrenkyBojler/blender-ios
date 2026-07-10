@@ -1049,20 +1049,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col.prop(sculpt, "use_sculpt_delay_updates")
         col.prop(sculpt, "use_deform_only")
 
-
-class VIEW3D_PT_sculpt_options_transform(Panel, View3DPaintPanel):
-    bl_context = ".sculpt_mode"  # dot on purpose (access from topbar)
-    bl_parent_id = "VIEW3D_PT_sculpt_options"
-    bl_label = "Transform"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        tool_settings = context.tool_settings
-
+        layout.label(text="Transform")
         col = layout.column(heading="Affect Only", align=True)
         col.prop(tool_settings, "use_transform_data_pivot", text="Sculpt Pivot")
 
@@ -2376,7 +2363,6 @@ classes = (
     VIEW3D_PT_sculpt_symmetry,
     VIEW3D_PT_sculpt_symmetry_for_topbar,
     VIEW3D_PT_sculpt_options,
-    VIEW3D_PT_sculpt_options_transform,
     VIEW3D_PT_sculpt_options_gravity,
 
     VIEW3D_PT_curves_sculpt_symmetry,
