@@ -471,8 +471,9 @@ static void query_time_dependent_strips_strips(TransInfo *t,
   }
 
   /* Remove all non-effects. */
-  time_dependent_strips.remove_if(
-      [&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
+  time_dependent_strips.remove_if([&](Strip *strip) {
+    return seq::transform_strip_can_be_translated(strip) || seq::strip_is_transition(strip);
+  });
 }
 
 static void transitions_for_each(Editing *ed,
