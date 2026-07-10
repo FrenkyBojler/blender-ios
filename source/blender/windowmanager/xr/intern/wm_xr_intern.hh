@@ -363,7 +363,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
                                             wmXrData *xr);
 void wm_xr_session_controller_data_clear(wmXrSessionState *state);
 
-/* `wm_xr_draw.cc` */
+/* `wm_xr_draw.cc` / `wm_xr_ui.cc` */
 
 void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4]);
 void wm_xr_pose_scale_to_mat(const GHOST_XrPose *pose, float scale, float r_mat[4][4]);
@@ -378,6 +378,10 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const bContext *C, ARegion *region, void *customdata);
 void wm_xr_draw_panels_world_space(const bContext *C, ARegion *region, void *customdata);
+void wm_xr_temp_region_draw_to_world_quad(const float viewmat[4][4],
+                                          const float winmat[4][4],
+                                          const wmXrPanel *panel,
+                                          const wmXrTempRegion *temp_region);
 void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr);
 bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                             wmXrData *xr,

@@ -198,6 +198,7 @@ if(WITH_XR_OPENXR)
     xr/intern/wm_xr_actionmap.cc
     xr/intern/wm_xr_draw.cc
     xr/intern/wm_xr_location_scouting.cc
+    xr/intern/wm_xr_ui.cc
     xr/intern/wm_xr_operators.cc
     xr/intern/wm_xr_session.cc
 

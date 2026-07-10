@@ -46,6 +46,7 @@
 #include "UI_interface_layout.hh"
 
 #include "interface_intern.hh"
+#include "interface_regions_intern.hh"
 
 namespace blender::ui {
 
