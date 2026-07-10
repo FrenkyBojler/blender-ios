@@ -1039,7 +1039,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.get_output_anonymous_attribute_id_if_needed("Intersection Points"_ustr);
 
   geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
-    {
+    if (geometry.has_mesh() || geometry.has_curves() || geometry.has_pointcloud()) {
       const Mesh *mesh = geometry.get_mesh();
       const Curves *curves_id = geometry.get_curves();
       const bke::CurvesGeometry *curves = curves_id ? &curves_id->geometry.wrap() : nullptr;
