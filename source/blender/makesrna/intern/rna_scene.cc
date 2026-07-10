@@ -18,8 +18,8 @@
 
 #include "MOV_enums.hh"
 
-#include "BLI_math_rotation.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"
 
@@ -38,7 +38,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "BLI_threads.h"
+#include "BLI_threads.hh"
 
 namespace blender {
 
@@ -119,7 +119,11 @@ const EnumPropertyItem rna_enum_proportional_falloff_curve_only_items[] = {
     {PROP_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", "Smooth falloff"},
     {PROP_SPHERE, "SPHERE", ICON_SPHERECURVE, "Sphere", "Spherical falloff"},
     {PROP_ROOT, "ROOT", ICON_ROOTCURVE, "Root", "Root falloff"},
-    {PROP_INVSQUARE, "INVERSE_SQUARE", ICON_ROOTCURVE, "Inverse Square", "Inverse Square falloff"},
+    {PROP_INVSQUARE,
+     "INVERSE_SQUARE",
+     ICON_INVERSESQUARECURVE,
+     "Inverse Square",
+     "Inverse Square falloff"},
     {PROP_SHARP, "SHARP", ICON_SHARPCURVE, "Sharp", "Sharp falloff"},
     {PROP_LIN, "LINEAR", ICON_LINCURVE, "Linear", "Linear falloff"},
     {0, nullptr, 0, nullptr, nullptr},
@@ -718,7 +722,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include <fmt/format.h>
 
 #  include "BLI_index_range.hh"
-#  include "BLI_string_utf8.h"
+#  include "BLI_string_utf8.hh"
 #  include "BLI_string_utils.hh"
 
 #  include "DNA_anim_types.h"
@@ -7788,6 +7792,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Compositor Device", "Set how compositing is executed");
   RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
 
+  prop = RNA_def_property(srna, "use_compositor_frames_cache", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "compositor_cache_flags", SCE_COMPOSITOR_CACHE_FRAMES);
+  RNA_def_property_ui_text(prop,
+                           "Compositor Frames Cache",
+                           "Cache the result of the interactive compositor across frames");
+  RNA_def_property_update(prop, NC_NODE | ND_DISPLAY, "rna_Scene_compositor_update");
+
   prop = RNA_def_property(srna, "compositor_precision", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "compositor_precision");
   RNA_def_property_enum_items(prop, compositor_precision_items);
@@ -8837,7 +8849,7 @@ void RNA_def_scene(BlenderRNA *brna)
        "INFINITE",
        0,
        "Infinite",
-       "After the last frame, jump back to the first and keep playing, inifinitely"},
+       "After the last frame, jump back to the first and keep playing, infinitely"},
       {SCE_LOOP_MODE_STOP_END_FRAME,
        "STOP_END_FRAME",
        0,

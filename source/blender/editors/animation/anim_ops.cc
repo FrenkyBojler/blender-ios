@@ -10,9 +10,9 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_ID.h"
@@ -294,18 +294,18 @@ static void seq_frame_snap_update_best(const float position,
   }
 }
 
-static void append_sequencer_strip_snap_target(Span<Strip *> strips,
-                                               const Scene *scene,
+static void append_sequencer_strip_snap_target(const Scene *scene,
                                                const float timeline_frame,
                                                Vector<SnapTarget> &r_targets)
 {
+  Editing *ed = seq::editing_get(scene);
   float best_frame = FLT_MAX;
   float best_distance = FLT_MAX;
 
-  for (Strip *strip : strips) {
-    seq_frame_snap_update_best(strip->left_handle(), timeline_frame, &best_frame, &best_distance);
+  for (Strip &strip : *seq::active_seqbase_get(ed)) {
+    seq_frame_snap_update_best(strip.left_handle(), timeline_frame, &best_frame, &best_distance);
     seq_frame_snap_update_best(
-        strip->right_handle(scene), timeline_frame, &best_frame, &best_distance);
+        strip.right_handle(scene), timeline_frame, &best_frame, &best_distance);
   }
 
   /* best_frame will be FLT_MAX if no target was found. */
@@ -377,9 +377,7 @@ static Vector<SnapTarget> seq_get_snap_targets(bContext *C,
   Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
-    append_sequencer_strip_snap_target(
-        seq::query_all_strips(seqbase), scene, timeline_frame, targets);
+    append_sequencer_strip_snap_target(scene, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
@@ -563,8 +561,11 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   const float old_subframe = scene->r.subframe;
 
   if (do_snap) {
-    FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
-    frame = apply_frame_snap(C, *op_data, frame);
+    /* Only valid when running modally, unlikely it's null
+     * but nothing prevents `snap` being enabled when running non-modally. */
+    if (FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata)) {
+      frame = apply_frame_snap(C, *op_data, frame);
+    }
   }
 
   /* set the new frame number */
@@ -576,11 +577,12 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
     scene->r.cfra = round_fl_to_int(frame);
     scene->r.subframe = 0.0f;
   }
-  bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C));
-  if (screen->animtimer) {
-    wmTimer *wt = screen->animtimer;
-    ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-    BKE_scene_frame_clamp_for_playback(scene, (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0);
+  if (bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C))) {
+    if (screen->animtimer) {
+      wmTimer *wt = screen->animtimer;
+      ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
+      BKE_scene_frame_clamp_for_playback(scene, (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0);
+    }
   }
   FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 
@@ -1073,7 +1075,7 @@ static void ANIM_OT_previewrange_set(wmOperatorType *ot)
   ot->modal = WM_gesture_box_modal;
   ot->cancel = WM_gesture_box_cancel;
 
-  ot->poll = ED_operator_animview_active;
+  ot->poll = ED_operator_region_animview_active;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1196,8 +1198,6 @@ static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
   ARegion *region = CTX_wm_region(C);
-  BLI_assert(region);
-
   View2D &v2d = region->v2d;
   const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
   v2d.cur.xmin = playback_range.start_frame;
@@ -1220,7 +1220,7 @@ static void ANIM_OT_scene_range_frame(wmOperatorType *ot)
       "account if it is active";
 
   ot->exec = scene_range_frame_exec;
-  ot->poll = ED_operator_animview_active;
+  ot->poll = ED_operator_region_animview_active;
 
   ot->flag = OPTYPE_REGISTER;
 }

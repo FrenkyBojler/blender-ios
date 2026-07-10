@@ -16,9 +16,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_threads.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_threads.hh"
 
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
@@ -59,8 +59,8 @@
 
 #include "DRW_engine.hh"
 
-#include "GPU_state.hh"
 #include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "image_intern.hh"
 
@@ -120,7 +120,8 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   simage->uv_face_opacity = 1.0f;
   simage->uv_edge_opacity = 1.0f;
   simage->stretch_opacity = 1.0f;
-  simage->overlay.flag = SI_OVERLAY_SHOW_OVERLAYS | SI_OVERLAY_SHOW_GRID_BACKGROUND | SI_OVERLAY_SHOW_COMPOSITION_GUIDES;
+  simage->overlay.flag = SI_OVERLAY_SHOW_OVERLAYS | SI_OVERLAY_SHOW_GRID_BACKGROUND |
+                         SI_OVERLAY_SHOW_COMPOSITION_GUIDES;
   simage->overlay.passepartout_alpha = 0.5f;
 
   BKE_imageuser_default(&simage->iuser);
@@ -701,9 +702,6 @@ static void image_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* image paint polls for mode */
-  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
-
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Paint Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
@@ -790,48 +788,48 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
 
   draw_image_main_helpers(C, region);
 
-/* Draw Composition Guides */
-if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
-  sima->overlay.flag & SI_OVERLAY_SHOW_COMPOSITION_GUIDES)
-{
-/* Convert the View2D normalized image boundaries (0.0 to 1.0) into Region 
- * pixel coordinates. This ensures the correct screen aspect ratio is passed 
- * into ED_draw_composition_guides so that the math for Golden Triangles 
- * yields mathematically true perpendicular drops instead of an "X".
- * Not sure if that's the right way to do that. */
-int xmin, ymin, xmax, ymax;
-ui::view2d_view_to_region(v2d, 0.0f, 0.0f, &xmin, &ymin);
-ui::view2d_view_to_region(v2d, 1.0f, 1.0f, &xmax, &ymax);
+  /* Draw Composition Guides */
+  if (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+      sima->overlay.flag & SI_OVERLAY_SHOW_COMPOSITION_GUIDES)
+  {
+    /* Convert the View2D normalized image boundaries (0.0 to 1.0) into Region
+     * pixel coordinates. This ensures the correct screen aspect ratio is passed
+     * into ED_draw_composition_guides so that the math for Golden Triangles
+     * yields mathematically true perpendicular drops instead of an "X".
+     * Not sure if that's the right way to do that. */
+    int xmin, ymin, xmax, ymax;
+    ui::view2d_view_to_region(v2d, 0.0f, 0.0f, &xmin, &ymin);
+    ui::view2d_view_to_region(v2d, 1.0f, 1.0f, &xmax, &ymax);
 
-rctf guide_rect;
-BLI_rctf_init(&guide_rect, (float)xmin, (float)xmax, (float)ymin, (float)ymax);
+    rctf guide_rect;
+    BLI_rctf_init(&guide_rect, (float)xmin, (float)xmax, (float)ymin, (float)ymax);
 
-/* Note: Because we are using region screen coordinates, we DO NOT call 
- * ui::view2d_view_ortho(v2d) here. We draw directly in Region space. */
+    /* Note: Because we are using region screen coordinates, we DO NOT call
+     * ui::view2d_view_ortho(v2d) here. We draw directly in Region space. */
 
-GPU_line_width(1.0f);
+    GPU_line_width(1.0f);
 
-const uint shdr_pos = GPU_vertformat_attr_add(
-    immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+    const uint shdr_pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
-immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
-float viewport_size[4];
-GPU_viewport_size_get_f(viewport_size);
-immUniform2f("viewport_size", viewport_size[2] / UI_SCALE_FAC, viewport_size[3] / UI_SCALE_FAC);
+    float viewport_size[4];
+    GPU_viewport_size_get_f(viewport_size);
+    immUniform2f(
+        "viewport_size", viewport_size[2] / UI_SCALE_FAC, viewport_size[3] / UI_SCALE_FAC);
 
-immUniform1i("colors_len", 0); /* Simple dashes. */
-immUniform1f("dash_width", 6.0f);
-immUniform1f("udash_factor", 0.5f);
+    immUniform1i("colors_len", 0); /* Simple dashes. */
+    immUniform1f("dash_width", 6.0f);
+    immUniform1f("udash_factor", 0.5f);
 
-ED_draw_composition_guides(
-    shdr_pos,
-    sima->overlay.composition_guide_flags,
-    &guide_rect,
-    sima->overlay.composition_guide_color);
+    ED_draw_composition_guides(shdr_pos,
+                               sima->overlay.composition_guide_flags,
+                               &guide_rect,
+                               sima->overlay.composition_guide_color);
 
-immUnbindProgram();
-}
+    immUnbindProgram();
+  }
 
   /* Draw Meta data of the image isn't added to the DrawManager as it is
    * used in other areas as well. */

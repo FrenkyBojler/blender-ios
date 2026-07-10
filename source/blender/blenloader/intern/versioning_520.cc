@@ -20,13 +20,16 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
+#include "DNA_xr_types.h"
 
 #include "BLI_listbase_iterator.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
+#include "BKE_anim_visualization.h"
 #include "BKE_animsys.h"
 #include "BKE_attribute.hh"
 #include "BKE_colortools.hh"
@@ -34,6 +37,7 @@
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_override.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
@@ -297,7 +301,7 @@ static void version_compositor_effect_initialized(Main &bmain)
 {
   /* A file with compositor effects that was saved, opened in
    * previous version and saved there, would have lost the
-   * compositor effect data since ealier versions would not
+   * compositor effect data since earlier versions would not
    * write it. Ensure the effect data is not null. */
   for (Scene &scene : bmain.scenes) {
     if (scene.ed) {
@@ -473,12 +477,51 @@ void do_versions_after_linking_520(FileData *fd, Main *bmain)
     version_node_socket_index_animdata(bmain, NTREE_SHADER, SH_NODE_BSDF_PRINCIPLED, 5, 1, 31);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 44)) {
+    /* We have to remove the invalid motion paths. Re-baking into clip space on file load would be
+     * very expensive. */
+    for (Object &object : bmain->objects) {
+      if (object.mpath && (object.avs.path_bakeflag & MOTIONPATH_BAKE_CAMERA_SPACE)) {
+        animviz_free_motionpath(object.mpath);
+        object.mpath = nullptr;
+        object.avs.path_bakeflag &= ~MOTIONPATH_BAKE_HAS_PATHS;
+      }
+      if (object.pose && (object.pose->avs.path_bakeflag & MOTIONPATH_BAKE_CAMERA_SPACE)) {
+        for (bPoseChannel &pose_bone : object.pose->chanbase) {
+          if (pose_bone.mpath) {
+            animviz_free_motionpath(pose_bone.mpath);
+            pose_bone.mpath = nullptr;
+          }
+        }
+        object.pose->avs.path_bakeflag &= ~MOTIONPATH_BAKE_HAS_PATHS;
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
+}
+
+static void version_solid_color_width_height_defaults(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed == nullptr) {
+      continue;
+    }
+    seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+      if (strip->type == STRIP_TYPE_COLOR && strip->effectdata != nullptr) {
+        SolidColorVars *data = static_cast<SolidColorVars *>(strip->effectdata);
+        data->width = scene.r.xsch;
+        data->height = scene.r.ysch;
+      }
+      return true;
+    });
+  }
 }
 
 void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
@@ -806,16 +849,28 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 40)) {
-    for (bScreen &screen : bmain->screens) {
-      for (ScrArea &area : screen.areabase) {
-        for (SpaceLink &sl : area.spacedata) {
-          if (sl.spacetype == SPACE_IMAGE) {
-            SpaceImage *sima = reinterpret_cast<SpaceImage *>(&sl);
-            sima->overlay.flag |= SI_OVERLAY_SHOW_COMPOSITION_GUIDES;
-            float default_col[4] = {0.5f, 0.5f, 0.5f, 1.0f};
-            copy_v4_v4(sima->overlay.composition_guide_color, default_col);
-          }
-        }
+    for (wmWindowManager &wm : bmain->wm) {
+      wm.xr.session_settings.viewfinder_enabled = false;
+      wm.xr.session_settings.viewfinder_crosshair_enabled = true;
+
+      wm.xr.session_settings.viewfinder_hand = XR_VIEWFINDER_HAND_RIGHT;
+      wm.xr.session_settings.viewfinder_scale = 1.0f;
+
+      wm.xr.session_settings.viewfinder_passepartout_overscan = 0.5f;
+      wm.xr.session_settings.viewfinder_passepartout_opacity = 0.5f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 41)) {
+    version_solid_color_width_height_defaults(*bmain);
+  }
+
+  /* Fix the fact that previously, making a linked data local and/or clearing a liboverride would
+   * not properly flag some sub-data like modifiers or constraints as local. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 43)) {
+    for (ID &id : MainAllIDsIterator{*bmain}) {
+      if (!ID_IS_LINKED(&id) && !ID_IS_OVERRIDE_LIBRARY(&id)) {
+        BKE_lib_override_flag_subdata_local(id);
       }
     }
   }

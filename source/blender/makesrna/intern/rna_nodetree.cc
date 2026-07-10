@@ -12,8 +12,8 @@
 #include <type_traits>
 
 #include "BLI_linear_allocator.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_string.h"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
@@ -334,12 +334,12 @@ const EnumPropertyItem rna_enum_node_integer_math_items[] = {
      "DIVIDE_FLOOR",
      0,
      "Divide Floor",
-     "Divide and floor result, the largest integer smaller than or equal A"},
+     "Divide and floor to the largest integer smaller than or equal to the result"},
     {NODE_INTEGER_MATH_DIVIDE_CEIL,
      "DIVIDE_CEIL",
      0,
      "Divide Ceiling",
-     "Divide and ceil result, the smallest integer greater than or equal A"},
+     "Divide and ceil to the smallest integer greater than or equal to the result"},
     RNA_ENUM_ITEM_SEPR,
     {NODE_INTEGER_MATH_FLOORED_MODULO,
      "FLOORED_MODULO",
@@ -616,8 +616,8 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 
 #  include <fmt/format.h>
 
-#  include "BLI_string.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_string.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "BKE_context.hh"
 #  include "BKE_cryptomatte.hh"
@@ -10607,6 +10607,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("FunctionNode", "FunctionNodeSeparateColor");
   define("FunctionNode", "FunctionNodeSeparateMatrix");
   define("FunctionNode", "FunctionNodeSeparateTransform");
+  define("FunctionNode", "FunctionNodeSetStringCase");
   define("FunctionNode", "FunctionNodeSliceString");
   define("FunctionNode", "FunctionNodeSplitString");
   define("FunctionNode", "FunctionNodeStringLength");
@@ -10689,13 +10690,20 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGizmoDial");
   define("GeometryNode", "GeometryNodeGizmoLinear");
   define("GeometryNode", "GeometryNodeGizmoTransform", rna_def_geo_gizmo_transform);
+  define("GeometryNode", "GeometryNodeGreasePencilColor");
+  define("GeometryNode", "GeometryNodeGreasePencilDrawTime");
+  define("GeometryNode", "GeometryNodeGreasePencilFillID");
+  define("GeometryNode", "GeometryNodeGreasePencilOpacity");
+  define("GeometryNode", "GeometryNodeGreasePencilStrokeSoftness");
+  define("GeometryNode", "GeometryNodeGreasePencilStrokeVisibility");
   define("GeometryNode", "GeometryNodeGreasePencilToCurves");
   define("GeometryNode", "GeometryNodeGridAdvect");
   define("GeometryNode", "GeometryNodeGridCurl");
+  define("GeometryNode", "GeometryNodeGridDeactivateVoxels");
+  define("GeometryNode", "GeometryNodeGridDilateAndErode");
   define("GeometryNode", "GeometryNodeGridDivergence");
   define("GeometryNode", "GeometryNodeGridGradient");
   define("GeometryNode", "GeometryNodeGridInfo");
-  define("GeometryNode", "GeometryNodeGridDilateAndErode");
   define("GeometryNode", "GeometryNodeGridLaplacian");
   define("GeometryNode", "GeometryNodeGridMean");
   define("GeometryNode", "GeometryNodeGridMedian");
@@ -10703,6 +10711,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGridClip");
   define("GeometryNode", "GeometryNodeGridToMesh");
   define("GeometryNode", "GeometryNodeGridToPoints");
+  define("GeometryNode", "GeometryNodeGridTopologyBoolean");
   define("GeometryNode", "GeometryNodeGridVoxelize");
   define("GeometryNode", "GeometryNodeImageInfo");
   define("GeometryNode", "GeometryNodeImageTexture", def_geo_image_texture);
@@ -10763,6 +10772,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeMergeByDistance");
   define("GeometryNode", "GeometryNodeMergeLayers");
   define("GeometryNode", "GeometryNodeMergePoints");
+  define("GeometryNode", "GeometryNodeMeshBevel");
   define("GeometryNode", "GeometryNodeMeshBoolean");
   define("GeometryNode", "GeometryNodeMeshCircle");
   define("GeometryNode", "GeometryNodeMeshCone");
@@ -10778,6 +10788,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeMeshToSDFGrid");
   define("GeometryNode", "GeometryNodeMeshToVolume");
   define("GeometryNode", "GeometryNodeMeshUVSphere");
+  define("GeometryNode", "GeometryNodeNURBSOrder");
+  define("GeometryNode", "GeometryNodeNURBSWeight");
   define("GeometryNode", "GeometryNodeObjectInfo");
   define("GeometryNode", "GeometryNodeOffsetCornerInFace");
   define("GeometryNode", "GeometryNodeOffsetPointInCurve");
@@ -10844,6 +10856,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSimulationInput", def_geo_simulation_input);
   define("GeometryNode", "GeometryNodeSimulationOutput", def_geo_simulation_output);
   define("GeometryNode", "GeometryNodeSortElements");
+  define("GeometryNode", "GeometryNodeSortList");
   define("GeometryNode", "GeometryNodeSplineLength");
   define("GeometryNode", "GeometryNodeSplineParameter");
   define("GeometryNode", "GeometryNodeSplitEdges");

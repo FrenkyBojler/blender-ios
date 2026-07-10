@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-25 07:25+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -619,16 +619,16 @@ msgid "Active Bone"
 msgstr "Aktivna kost"
 
 
+msgid "Custom"
+msgstr "Prilagođeno"
+
+
 msgid "Description"
 msgstr "Opis"
 
 
 msgid "Link"
 msgstr "Veza"
-
-
-msgid "Custom"
-msgstr "Prilagođeno"
 
 
 msgid "ID Name"
@@ -1520,6 +1520,10 @@ msgstr "Preciznost"
 
 msgid "Simplify"
 msgstr "Pojednostavljivanje"
+
+
+msgid "Pixel"
+msgstr "Piksel"
 
 
 msgid "Input Samples"
@@ -4757,6 +4761,10 @@ msgid "Grid"
 msgstr "Mreža"
 
 
+msgid "Dynamic"
+msgstr "Dinamičko"
+
+
 msgid "Items"
 msgstr "Stavke"
 
@@ -4935,10 +4943,6 @@ msgstr "Lokalno"
 
 msgid "Global"
 msgstr "Globalno"
-
-
-msgid "Dynamic"
-msgstr "Dinamičko"
 
 
 msgid "Add Color"
@@ -6585,10 +6589,6 @@ msgstr "Podešavanje čestica"
 
 msgid "Degrees"
 msgstr "Stepeni"
-
-
-msgid "Pixel"
-msgstr "Piksel"
 
 
 msgid "Angular Velocity"
@@ -8498,18 +8498,6 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Mirror"
-msgstr "Ogledalo"
-
-
-msgid "Snap"
-msgstr "Lepljenje"
-
-
-msgid "UV Mapping"
-msgstr "UV Mapiranje"
-
-
 msgid "Local View"
 msgstr "Lokalni pogled"
 
@@ -8522,12 +8510,12 @@ msgid "Align View"
 msgstr "Poravnaj pogled"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
 msgid "Select Linked"
 msgstr "Izaberi povezano"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Metaball"
@@ -8558,10 +8546,6 @@ msgid "Quick Effects"
 msgstr "Brzi efekti"
 
 
-msgid "Import"
-msgstr "Uvoz"
-
-
 msgid "Show/Hide"
 msgstr "Prikaži/sakrij"
 
@@ -8570,8 +8554,8 @@ msgid "Hooks"
 msgstr "Udice"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Import"
+msgstr "Uvoz"
 
 
 msgid "Clear Transform"
@@ -8584,6 +8568,10 @@ msgstr "U međuvremenu"
 
 msgid "Propagate"
 msgstr "Prenesi"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Names"
@@ -8618,12 +8606,28 @@ msgid "Bone Roll"
 msgstr "Rolna kostiju"
 
 
+msgid "Linked"
+msgstr "Povezano"
+
+
+msgid "Snap"
+msgstr "Lepljenje"
+
+
 msgid "Keying"
 msgstr "Zbirka tastera"
 
 
 msgid "Tracking"
 msgstr "Praćenje"
+
+
+msgid "Mirror"
+msgstr "Ogledalo"
+
+
+msgid "UV Mapping"
+msgstr "UV Mapiranje"
 
 
 msgid "Basic"
@@ -11092,10 +11096,6 @@ msgstr "Sakri utičnice"
 
 msgid "Hide Value"
 msgstr "Sakrij vrednost"
-
-
-msgid "Linked"
-msgstr "Povezano"
 
 
 msgid "Is Output"
@@ -19066,12 +19066,12 @@ msgid "Restrict"
 msgstr "Ograniči"
 
 
-msgid "Motion Tracking"
-msgstr "Praćenje pokreta"
-
-
 msgid "Transform Orientations"
 msgstr "Transformacija orijentacija"
+
+
+msgid "Motion Tracking"
+msgstr "Praćenje pokreta"
 
 
 msgid "Bone Constraints"
@@ -19296,10 +19296,6 @@ msgstr "Prostor teme"
 
 msgid "Shaded"
 msgstr "Senčeno"
-
-
-msgid "Styles"
-msgstr "Stilovi"
 
 
 msgid "User Interface"
@@ -19759,6 +19755,10 @@ msgstr "Standardna akcija za srednji taster miša"
 
 msgid "System & OpenGL"
 msgstr "Sistem i OpenGL"
+
+
+msgid "Styles"
+msgstr "Stilovi"
 
 
 msgid "View & Controls"
@@ -22335,6 +22335,10 @@ msgid "Operator Properties"
 msgstr "Osobine operatora"
 
 
+msgid "Cancel"
+msgstr "Odustani"
+
+
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Prozor"
@@ -22564,6 +22568,11 @@ msgid "Object Index"
 msgstr "Indeks objekta"
 
 
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Očisti"
+
+
 msgid "No output node"
 msgstr "Bez izlaznog čvora"
 
@@ -22785,11 +22794,6 @@ msgstr "Roditelj:"
 
 msgid "Transform:"
 msgstr "Transformacija:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Očisti"
 
 
 msgid "Date"
@@ -23916,10 +23920,6 @@ msgstr "Bez aktivne zbirke ključeva"
 
 msgid "Cannot remove built in keying set"
 msgstr "Ne mogu da uklonim ugrađenu zbirku ključeva"
-
-
-msgid "Cancel"
-msgstr "Odustani"
 
 
 msgid "No keyframes to slide between"

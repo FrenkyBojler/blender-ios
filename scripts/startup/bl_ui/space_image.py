@@ -42,6 +42,7 @@ from bl_ui.properties_data_camera import (
     DATA_PT_camera_display_composition_guides,
 )
 
+
 class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
@@ -235,8 +236,8 @@ class IMAGE_MT_image(Menu):
             del _ghost_backend
 
         if has_image_clipboard:
-            layout.operator("image.clipboard_copy", text="Copy")
-            layout.operator("image.clipboard_paste", text="Paste")
+            layout.operator("image.clipboard_copy", text="Copy", icon='COPYDOWN')
+            layout.operator("image.clipboard_paste", text="Paste", icon='PASTEDOWN')
             layout.separator()
 
         if ima:
@@ -499,8 +500,8 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
 
-        layout.operator("uv.copy")
-        layout.operator("uv.paste")
+        layout.operator("uv.copy", icon='COPYDOWN')
+        layout.operator("uv.paste", icon='PASTEDOWN')
 
         layout.separator()
 
@@ -1258,7 +1259,7 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
 
     @classmethod
     def poll(cls, context):
-        settings = cls.paint_settings(context)
+        settings = cls.paint_settings_from_active_tool(context)
         return settings and settings.brush is not None
 
     def draw(self, context):
@@ -1267,7 +1268,7 @@ class IMAGE_PT_paint_settings(Panel, ImagePaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        settings = self.paint_settings(context)
+        settings = self.paint_settings_from_active_tool(context)
         brush = settings.brush
 
         if brush:
@@ -1283,7 +1284,7 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
 
     @classmethod
     def poll(cls, context):
-        settings = cls.paint_settings(context)
+        settings = cls.paint_settings_from_active_tool(context)
         return settings and settings.brush is not None
 
     def draw(self, context):
@@ -1292,7 +1293,7 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        settings = self.paint_settings(context)
+        settings = self.paint_settings_from_active_tool(context)
         brush = settings.brush
         if brush:
             brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
@@ -1666,6 +1667,7 @@ class IMAGE_PT_overlay_guides(Panel):
         layout.use_property_split = False
         layout.prop(overlay, "show_composition_guides", text="Composition Guides")
 
+
 class IMAGE_PT_overlay_uv_stretch(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
@@ -1817,18 +1819,21 @@ class IMAGE_PT_overlay_mask(MASK_PT_display, Panel):
 
         return si.mode == 'MASK'
 
+
 class IMAGE_PT_view_composition_guides(Panel):
     bl_label = "Composition Guides"
     bl_options = {'DEFAULT_CLOSED'}
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "View"
-    
+
     def draw(self, context):
         overlay_settings = context.space_data.overlay
         DATA_PT_camera_display_composition_guides.draw_panel(self.layout, overlay_settings)
 
 # Grease Pencil properties
+
+
 class IMAGE_PT_annotation(AnnotationDataPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'

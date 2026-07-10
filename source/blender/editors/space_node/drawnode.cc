@@ -8,9 +8,9 @@
  */
 
 #include "BLI_color_types.hh"
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_threads.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_threads.hh"
 
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
@@ -1783,10 +1783,10 @@ static std::array<float2, 4> node_link_bezier_points(const bNodeLink &link)
 
 static bool node_link_draw_is_visible(const View2D &v2d, const std::array<float2, 4> &points)
 {
-  if (min_ffff(points[0].x, points[1].x, points[2].x, points[3].x) > v2d.cur.xmax) {
+  if (std::min({points[0].x, points[1].x, points[2].x, points[3].x}) > v2d.cur.xmax) {
     return false;
   }
-  if (max_ffff(points[0].x, points[1].x, points[2].x, points[3].x) < v2d.cur.xmin) {
+  if (std::max({points[0].x, points[1].x, points[2].x, points[3].x}) < v2d.cur.xmin) {
     return false;
   }
   return true;

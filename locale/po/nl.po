@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-25 07:25+0000\n"
+"POT-Creation-Date: 2026-06-22 07:24+0000\n"
 "PO-Revision-Date: 2026-02-14 01:12+0000\n"
 "Last-Translator: Timo Hoetmer <timo@timohoetmer.nl>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -1427,6 +1427,30 @@ msgid "Active EditBone"
 msgstr "Actieve EditBone"
 
 
+msgid "Is Editable"
+msgstr "Is Bewerkbaar"
+
+
+msgid "Show assets from all of the listed asset libraries"
+msgstr "Toon assets van alle vermelde asset bibliotheken"
+
+
+msgid "Show the assets currently available in this Blender session"
+msgstr "Toon de assets momenteel beschikbaar in deze Blender sessie"
+
+
+msgid "Essentials"
+msgstr "Essenties"
+
+
+msgid "Custom"
+msgstr "Aangepast"
+
+
+msgid "Show assets from the asset libraries configured in the Preferences"
+msgstr "Toon assets van de asset-bibliotheek ingesteld in Voorkeuren"
+
+
 msgid "User Asset Libraries"
 msgstr "Gebruiker Asset Bibliotheken"
 
@@ -1501,26 +1525,6 @@ msgstr "Regio's voor snelle toegang naar assets"
 
 msgid "Choose the asset library to display assets from"
 msgstr "Kies het asset-bibliotheek om assets van te tonen"
-
-
-msgid "Show assets from all of the listed asset libraries"
-msgstr "Toon assets van alle vermelde asset bibliotheken"
-
-
-msgid "Show the assets currently available in this Blender session"
-msgstr "Toon de assets momenteel beschikbaar in deze Blender sessie"
-
-
-msgid "Essentials"
-msgstr "Essenties"
-
-
-msgid "Custom"
-msgstr "Aangepast"
-
-
-msgid "Show assets from the asset libraries configured in the Preferences"
-msgstr "Toon assets van de asset-bibliotheek ingesteld in Voorkeuren"
 
 
 msgid "Activate Operator"
@@ -3309,10 +3313,6 @@ msgid "Index"
 msgstr "Index"
 
 
-msgid "Is Editable"
-msgstr "Is Bewerkbaar"
-
-
 msgid "Visible"
 msgstr "Zichtbaar"
 
@@ -4748,6 +4748,10 @@ msgid "Top (X-Y)"
 msgstr "Bovenkant (X-Y)"
 
 
+msgid "Dynamic"
+msgstr "Dynamisch"
+
+
 msgid "Show Value"
 msgstr "Toon Waarde"
 
@@ -4854,10 +4858,6 @@ msgstr "Lokaal"
 
 msgid "Global"
 msgstr "Globaal"
-
-
-msgid "Dynamic"
-msgstr "Dynamisch"
 
 
 msgid "Color Type"
@@ -5747,10 +5747,6 @@ msgid "Dots"
 msgstr "Stippen"
 
 
-msgid "Mirror"
-msgstr "Spiegel"
-
-
 msgid "Local View"
 msgstr "Lokale Scherm"
 
@@ -5787,10 +5783,6 @@ msgid "Quick Effects"
 msgstr "Snelle Effecten"
 
 
-msgid "Import"
-msgstr "Importeren"
-
-
 msgid "Show/Hide"
 msgstr "Toon/Verberg"
 
@@ -5803,6 +5795,10 @@ msgid "Hooks"
 msgstr "Haken"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
 msgid "Clear Transform"
 msgstr "Maak Transformatie Leeg"
 
@@ -5811,8 +5807,16 @@ msgid "Names"
 msgstr "Namen"
 
 
+msgid "Linked"
+msgstr "Gekoppeld"
+
+
 msgid "Layout"
 msgstr "Indeling"
+
+
+msgid "Mirror"
+msgstr "Spiegel"
 
 
 msgctxt "MovieClip"
@@ -6272,10 +6276,6 @@ msgstr "Verberg Waarde"
 
 msgid "Hide the socket input value"
 msgstr "Verberg de aansluiting invoer waarde"
-
-
-msgid "Linked"
-msgstr "Gekoppeld"
 
 
 msgid "Is Output"
@@ -10331,6 +10331,10 @@ msgid "Light"
 msgstr "Licht"
 
 
+msgid "Cancel"
+msgstr "Annuleren"
+
+
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Scherm"
@@ -10943,11 +10947,6 @@ msgid "Forward"
 msgstr "Vooruit"
 
 
-msgctxt "Operator"
-msgid "New Folder"
-msgstr "Nieuwe Map"
-
-
 msgid "When Appending"
 msgstr "Wanneer bij aan het voegen"
 
@@ -10970,6 +10969,11 @@ msgstr "Geluidsbestanden"
 
 msgid "Text Files"
 msgstr "Tekstbestanden"
+
+
+msgctxt "Operator"
+msgid "New Folder"
+msgstr "Nieuwe Map"
 
 
 msgctxt "Operator"
@@ -11814,10 +11818,6 @@ msgstr "Verwijder Aanpasser"
 
 msgid "Too many points selected: %d"
 msgstr "Teveel punten geselecteerd: %d"
-
-
-msgid "Cancel"
-msgstr "Annuleren"
 
 
 msgctxt "Curve"

@@ -206,7 +206,7 @@ principled_bsdf_emission(KernelGlobals kg,
   const Spectrum emission = rgb_to_spectrum(stack_load(stack, data.emission_color)) *
                             stack_load(stack, data.emission_strength);
   if (!is_zero(emission)) {
-    emission_setup(sd, rgb_to_spectrum(emission) * weight);
+    emission_setup(sd, emission * weight);
   }
 
   return weight;
@@ -363,9 +363,7 @@ ccl_device
       const float transmission_weight = saturatef(stack_load(stack, data.transmission_weight));
       if (transmission_weight > CLOSURE_WEIGHT_CUTOFF) {
         if (reflective_caustics || refractive_caustics) {
-          const bool backfacing = !thin_wall && (sd->flag & SD_BACKFACING);
-          const FresnelThinFilm thinfilm = {thinfilm_thickness,
-                                            backfacing ? thinfilm_ior / ior : thinfilm_ior};
+          FresnelThinFilm thinfilm = {thinfilm_thickness, thinfilm_ior};
 
           if (thin_wall) {
             Spectrum reflectance, transmittance;
@@ -381,7 +379,9 @@ ccl_device
                                   ior,
                                   thinfilm,
                                   &reflectance,
-                                  &transmittance);
+                                  &transmittance,
+                                  ray_visibility,
+                                  path_flag);
           }
           else {
             ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
@@ -392,11 +392,15 @@ ccl_device
                                     nullptr;
 
             if (bsdf && fresnel) {
+              const bool backfacing = (sd->flag & SD_BACKFACING);
               bsdf->N = valid_reflection_N;
               bsdf->T = zero_float3();
 
               bsdf->alpha_x = bsdf->alpha_y = sqr(roughness);
               bsdf->ior = backfacing ? 1.0f / ior : ior;
+              if (backfacing) {
+                adjust_thin_film_ior_at_backface(thinfilm.ior, bsdf->ior);
+              }
 
               *fresnel = generalized_schlick_setup(ior,
                                                    reflective_caustics,
@@ -1032,8 +1036,8 @@ ccl_device
             const int k0 = kcurve.first_key + PRIMITIVE_UNPACK_SEGMENT(sd->type);
             const int k1 = k0 + 1;
             const int position_offset = kernel_data_fetch(objects, sd->object).position_offset;
-            const float radius = mix(kernel_data_fetch(attributes_float4, position_offset + k0).w,
-                                     kernel_data_fetch(attributes_float4, position_offset + k1).w,
+            const float radius = mix(kernel_data_fetch(curve_keys, position_offset + k0).w,
+                                     kernel_data_fetch(curve_keys, position_offset + k1).w,
                                      sd->u);
 
             bsdf->extra->pixel_coverage = 0.5f * sd->dP / radius;
@@ -1253,7 +1257,8 @@ ccl_device_noinline void svm_node_volume_coefficients(
     ccl_private float *ccl_restrict stack,
     Spectrum scatter_coeffs,
     const ccl_global SVMNodeVolumeCoefficients &ccl_restrict node,
-    const PathRayVisibility path_visibility)
+    const PathRayVisibility path_visibility,
+    const uint32_t path_flag)
 {
 #ifdef __VOLUME__
   /* Only sum extinction for volumes, variable is shared with surface transparency. */
@@ -1278,13 +1283,13 @@ ccl_device_noinline void svm_node_volume_coefficients(
   const float3 absorption_coeffs = stack_load(stack, node.absorption_coeffs);
   volume_extinction_setup(sd, weight * (scatter_coeffs + absorption_coeffs));
 
-  const float3 emission_coeffs = stack_load(stack, node.emission_coeffs);
   /* Compute emission. */
-  if (path_visibility & PATH_RAY_VISIBILITY_SHADOW) {
-    /* Don't need emission for shadows. */
+  if ((path_visibility & PATH_RAY_VISIBILITY_SHADOW) || (path_flag & PATH_RAY_EXTINCTION)) {
+    /* Don't need emission for shadows and extinction. */
     return;
   }
 
+  const float3 emission_coeffs = stack_load(stack, node.emission_coeffs);
   if (is_zero(emission_coeffs)) {
     return;
   }
@@ -1300,7 +1305,8 @@ ccl_device_noinline void svm_node_principled_volume(
     ccl_private float *ccl_restrict stack,
     const Spectrum closure_weight,
     const ccl_global SVMNodePrincipledVolume &ccl_restrict node,
-    const PathRayVisibility path_visibility)
+    const PathRayVisibility path_visibility,
+    const uint32_t path_flag)
 {
 #ifdef __VOLUME__
   /* Only sum extinction for volumes, variable is shared with surface transparency. */
@@ -1359,8 +1365,8 @@ ccl_device_noinline void svm_node_principled_volume(
   }
 
   /* Compute emission. */
-  if (path_visibility & PATH_RAY_VISIBILITY_SHADOW) {
-    /* Don't need emission for shadows. */
+  if ((path_visibility & PATH_RAY_VISIBILITY_SHADOW) || (path_flag & PATH_RAY_EXTINCTION)) {
+    /* Don't need emission for shadows and extinction. */
     return;
   }
 
@@ -1404,7 +1410,9 @@ ccl_device_noinline void svm_node_closure_emission(
     ccl_private ShaderData *sd,
     ccl_private float *ccl_restrict stack,
     Spectrum closure_weight,
-    const ccl_global SVMNodeClosureEmission &ccl_restrict node)
+    const ccl_global SVMNodeClosureEmission &ccl_restrict node,
+    const PathRayVisibility path_visibility,
+    const uint32_t path_flag)
 {
   Spectrum weight = closure_weight;
 
@@ -1419,6 +1427,10 @@ ccl_device_noinline void svm_node_closure_emission(
   }
 
   if (sd->flag & SD_IS_VOLUME_SHADER_EVAL) {
+    if ((path_visibility & PATH_RAY_VISIBILITY_SHADOW) || (path_flag & PATH_RAY_EXTINCTION)) {
+      /* Don't need emission for shadows and extinction. */
+      return;
+    }
     weight *= object_volume_density(kg, sd->object);
   }
 
