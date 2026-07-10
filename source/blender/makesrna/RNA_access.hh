@@ -622,7 +622,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
                               PropertyRNA *prop,
                               PointerRNA ptr_value,
                               ReportList *reports) ATTR_NONNULL(1, 2);
-PointerRNA RNA_property_pointer_get_default(PointerRNA *ptr, PropertyRNA *prop) ATTR_NONNULL(1, 2);
+PointerRNA RNA_property_pointer_get_default(Main &bmain, PointerRNA &ptr, PropertyRNA &prop);
 
 void RNA_property_collection_begin(PointerRNA *ptr,
                                    PropertyRNA *prop,
@@ -692,7 +692,12 @@ RawPropertyType RNA_property_raw_type(PropertyRNA *prop);
  * Update the system properties (IDProperties) for a specific RNA type, converting so that
  * properties match the current RNA definition.
  */
-void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops);
+void RNA_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops);
+/**
+ * Similar to #RNA_sync_system_properties, but also creates backing properties for data
+ * that is un-set, rather than just correcting the values of out-of-sync properties.
+ */
+void RNA_ensure_and_sync_system_properties(Main &bmain, PointerRNA &ptr, IDProperty &idprops);
 
 /* to create ID property groups */
 void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop);
@@ -741,8 +746,11 @@ bool RNA_property_copy(Main *bmain,
                        IDOverrideLibraryPropertyOperation *removed_opop = nullptr);
 /**
  * Reset the given `ptr` data `prop` property to its RNA (or DNA) defined default value.
+ *
+ * \param bmain: If not null, used to retrieve default values for pointer properties.
+ * Otherwise, the property will be reset to a null pointer.
  */
-bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index);
+bool RNA_property_reset(Main *bmain, PointerRNA *ptr, PropertyRNA *prop, int index);
 /**
  * Define the given `ptr` data `prop` property RNA default value to its current value.
  *

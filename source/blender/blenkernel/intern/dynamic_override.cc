@@ -1011,7 +1011,7 @@ static void dynamic_override_update_rules_srna(Main & /*bmain*/, DynamicOverride
   }
 }
 
-static void dynamic_override_update_rules_system_idprops(Main & /*bmain*/,
+static void dynamic_override_update_rules_system_idprops(Main &bmain,
                                                          DynamicOverride &dynamic_override)
 {
   for (DynamicOverrideRule &rule : dynamic_override.rules) {
@@ -1026,7 +1026,7 @@ static void dynamic_override_update_rules_system_idprops(Main & /*bmain*/,
     StructRNA *srna = iddata_rule.runtime->rule_srna_data->override_values_struct;
     if (iddata_rule.override_values) {
       PointerRNA properties_ptr = RNA_pointer_create_discrete(&dynamic_override.id, srna, &rule);
-      RNA_sync_system_properties(properties_ptr, *iddata_rule.override_values);
+      RNA_sync_system_properties(bmain, properties_ptr, *iddata_rule.override_values);
     }
 
     DEG_id_tag_update(rule.target_filter.target_id, ID_RECALC_DYNAMIC_OVERRIDE);
