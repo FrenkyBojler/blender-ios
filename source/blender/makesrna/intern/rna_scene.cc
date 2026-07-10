@@ -26,6 +26,7 @@
 #include "BKE_paint.hh"
 
 #include "ED_object.hh"
+#include "ED_sequencer.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -1172,6 +1173,17 @@ static void rna_Scene_frame_update(Main * /*bmain*/, Scene * /*current_scene*/, 
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
   WM_main_add_notifier(NC_SCENE | ND_FRAME, scene);
+}
+
+static void rna_Scene_frame_range_update(bContext *C, PointerRNA *ptr)
+{
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Strip *strip = const_cast<Strip *>(ed::vse::get_scene_strip_for_time_sync(sequencer_scene));
+
+  seq::relations_invalidate_cache_raw(sequencer_scene, strip);
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO | ID_RECALC_SEQUENCER_STRIPS);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 }
 
 static PointerRNA rna_Scene_active_keying_set_get(PointerRNA *ptr)
@@ -8958,7 +8970,8 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_int_funcs(prop, nullptr, "rna_Scene_start_frame_set", nullptr);
   RNA_def_property_range(prop, MINFRAME, MAXFRAME);
   RNA_def_property_ui_text(prop, "Start Frame", "First frame of the playback/rendering range");
-  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE | ND_SEQUENCER, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, "rna_Scene_frame_range_update");
 
   prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -8966,7 +8979,8 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_int_funcs(prop, nullptr, "rna_Scene_end_frame_set", nullptr);
   RNA_def_property_range(prop, MINFRAME, MAXFRAME);
   RNA_def_property_ui_text(prop, "End Frame", "Final frame of the playback/rendering range");
-  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE | ND_SEQUENCER, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, "rna_Scene_frame_range_update");
 
   prop = RNA_def_property(srna, "frame_step", PROP_INT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);

@@ -555,8 +555,8 @@ struct Strip {
   /**
    * Frame distance from the right handle to the content end.
    */
-  float endoffset() const;
-  void endoffset_set(float new_endoffset);
+  float end_offset() const;
+  void end_offset_set(float new_end_offset);
 
 #endif
 };
