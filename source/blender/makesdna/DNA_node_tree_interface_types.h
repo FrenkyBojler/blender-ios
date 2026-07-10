@@ -20,6 +20,7 @@ namespace blender {
 namespace bke {
 class bNodeTreeInterfaceRuntime;
 struct bNodeSocketType;
+enum class AttrDomain : int8_t;
 }  // namespace bke
 
 struct bNodeSocket;
@@ -135,8 +136,8 @@ struct bNodeTreeInterfaceSocket {
   char *socket_type = nullptr;
   NodeTreeInterfaceSocketFlag flag = {};
 
-  /* AttrDomain */
-  int16_t attribute_domain = 0;
+  bke::AttrDomain attribute_domain = {};
+  char _pad2[1] = {};
   NodeDefaultInputType default_input = NODE_DEFAULT_INPUT_VALUE;
   char *default_attribute_name = nullptr;
 

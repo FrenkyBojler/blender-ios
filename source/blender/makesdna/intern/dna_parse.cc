@@ -595,14 +595,22 @@ static void skip_struct_body(TokenStream &stream)
 /** Parse an enum declaration with its underlying type. */
 [[nodiscard]] static bool parse_enum_declaration(TokenStream &stream,
                                                  const StringRefNull filepath,
+                                                 const Span<StringRef> namespace_stack,
                                                  Vector<ParsedEnum> &r_enums)
 {
   stream.consume_keyword("class");
   stream.consume_keyword("struct");
 
   std::string name;
+  for (const StringRef ns : namespace_stack) {
+    if (ns == "blender") {
+      continue;
+    }
+    name += ns;
+    name += "::";
+  }
   if (!stream.at_end() && stream.kind() == TOKEN_IDENTIFIER) {
-    name = stream.consume().text;
+    name += stream.consume().text;
   }
 
   std::string underlying_type;
@@ -646,6 +654,8 @@ static bool parse_dna_header(const StringRefNull filepath,
 
   bool skip_next_struct = false;
 
+  Vector<StringRef> namespace_stack;
+
   while (!stream.at_end()) {
     /* `# #` markers in the source flag the next struct definition to be skipped. */
     if (stream.kind() == '#' && stream.kind(1) == '#') {
@@ -655,8 +665,23 @@ static bool parse_dna_header(const StringRefNull filepath,
       continue;
     }
 
+    if (stream.consume_keyword("namespace")) {
+      if (stream.kind() == TOKEN_IDENTIFIER) {
+        namespace_stack.append(stream.consume().text);
+        if (stream.consume('{')) {
+          continue;
+        }
+      }
+      return false;
+    }
+    if (stream.consume('}')) {
+      if (!namespace_stack.is_empty()) {
+        namespace_stack.pop_last();
+      }
+      continue;
+    }
     if (stream.consume_keyword("enum")) {
-      if (!parse_enum_declaration(stream, filepath, r_enums)) {
+      if (!parse_enum_declaration(stream, filepath, namespace_stack, r_enums)) {
         return false;
       }
       continue;

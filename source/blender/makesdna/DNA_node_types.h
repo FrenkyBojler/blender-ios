@@ -1463,9 +1463,8 @@ struct bNodeSocket {
   int stack_index = 0;
   eNodeSocketDisplayShape display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
 
-  /* #AttrDomain used when the geometry nodes modifier creates an attribute for a group
-   * output. */
-  char attribute_domain = 0;
+  /** Used when the geometry nodes modifier creates an attribute for a group output. */
+  bke::AttrDomain attribute_domain = {};
 
   char _pad[2] = {};
 
@@ -3017,7 +3016,7 @@ struct NodeAccumulateField {
   /** #eCustomDataType. */
   uint8_t data_type = 0;
   /** #AttrDomain. */
-  uint8_t domain = 0;
+  bke::AttrDomain domain = {};
 };
 
 struct NodeInputBool {
@@ -3299,8 +3298,7 @@ struct NodeGeometryTransferAttribute {
 
   /** #eCustomDataType. */
   int8_t data_type = 0;
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
   GeometryNodeAttributeTransferMode mode = GEO_NODE_ATTRIBUTE_TRANSFER_NEAREST_FACE_INTERPOLATED;
   char _pad[1] = {};
 };
@@ -3310,8 +3308,7 @@ struct NodeGeometrySampleIndex {
 
   /** #eCustomDataType. */
   int8_t data_type = 0;
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
   int8_t clamp = 0;
   char _pad[1] = {};
 };
@@ -3372,8 +3369,7 @@ struct NodeGeometryAttributeCapture {
 
   /** #eCustomDataType. */
   int8_t data_type_legacy = 0;
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
   char _pad[2] = {};
   int next_identifier = 0;
   NodeGeometryAttributeCaptureItem *capture_items = nullptr;
@@ -3386,8 +3382,7 @@ struct NodeGeometryStoreNamedAttribute {
 
   /** #eCustomDataType. */
   int8_t data_type = 0;
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
 };
 
 struct NodeGeometryInputNamedAttribute {
@@ -3409,16 +3404,14 @@ struct NodeGeometryStringToCurves {
 struct NodeGeometryDeleteGeometry {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDeleteGeometry)
 
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
   GeometryNodeDeleteGeometryMode mode = GEO_NODE_DELETE_GEOMETRY_MODE_ALL;
 };
 
 struct NodeGeometryDuplicateElements {
   DNA_DEFINE_CXX_METHODS(NodeGeometryDuplicateElements)
 
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
 };
 
 struct NodeGeometryMergeLayers {
@@ -3431,8 +3424,7 @@ struct NodeGeometryMergeLayers {
 struct NodeGeometrySeparateGeometry {
   DNA_DEFINE_CXX_METHODS(NodeGeometrySeparateGeometry)
 
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
 };
 
 struct NodeGeometryImageTexture {
@@ -3464,8 +3456,7 @@ struct NodeGeometryViewer {
 
   /** #eCustomDataType. */
   int8_t data_type_legacy = 0;
-  /** #AttrDomain. */
-  int8_t domain = 0;
+  bke::AttrDomain domain = {};
 
   char _pad[2] = {};
 };
@@ -3479,8 +3470,8 @@ struct NodeGeometryUVUnwrap {
 struct NodeSimulationItem {
   char *name = nullptr;
   eNodeSocketDatatype socket_type = {};
-  /** #AttrDomain. */
-  short attribute_domain = 0;
+  bke::AttrDomain attribute_domain = {};
+  char _pad[1] = {};
   /**
    * Generates unique identifier for sockets which stays the same even when the item order or
    * names change.
@@ -3571,8 +3562,7 @@ struct NodeForeachGeometryElementMainItem {
 struct NodeForeachGeometryElementGenerationItem {
   char *name = nullptr;
   eNodeSocketDatatype socket_type = {};
-  /** #AttrDomain. */
-  uint8_t domain = 0;
+  bke::AttrDomain domain = {};
   char _pad[1] = {};
   /** Generated identifier that stays the same even when the name or order changes. */
   int identifier = 0;
@@ -3621,8 +3611,8 @@ struct NodeGeometryForeachGeometryElementOutput {
   NodeForeachGeometryElementGenerationItems generation_items;
   /** This index is used when displaying socket values or using the viewer node. */
   int inspection_index = 0;
-  /** #AttrDomain. This is the domain that is iterated over. */
-  uint8_t domain = 0;
+  /** This is the domain that is iterated over. */
+  bke::AttrDomain domain = {};
   char _pad[3] = {};
 };
 

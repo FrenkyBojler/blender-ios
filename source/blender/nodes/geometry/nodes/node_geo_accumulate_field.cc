@@ -84,7 +84,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeAccumulateField *data = MEM_new<NodeAccumulateField>(__func__);
   data->data_type = CD_PROP_FLOAT;
-  data->domain = int16_t(AttrDomain::Point);
+  data->domain = AttrDomain::Point;
   node->storage = data;
 }
 

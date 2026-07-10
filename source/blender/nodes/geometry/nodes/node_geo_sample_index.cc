@@ -55,7 +55,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometrySampleIndex *data = MEM_new<NodeGeometrySampleIndex>(__func__);
   data->data_type = CD_PROP_FLOAT;
-  data->domain = int8_t(AttrDomain::Point);
+  data->domain = AttrDomain::Point;
   data->clamp = 0;
   node->storage = data;
 }

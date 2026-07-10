@@ -736,7 +736,7 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
         NodeGeometrySampleIndex *sample_storage = static_cast<NodeGeometrySampleIndex *>(
             sample_index->storage);
         sample_storage->data_type = storage->data_type;
-        sample_storage->domain = int8_t(domain);
+        sample_storage->domain = domain;
         sample_index->parent = node.parent;
         sample_index->locx_legacy = node.locx_legacy + 25.0f;
         sample_index->locy_legacy = node.locy_legacy;
@@ -877,7 +877,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
     store_attribute_node->locy_legacy = node.locy_legacy;
     auto &storage = *MEM_new<NodeGeometryStoreNamedAttribute>(__func__);
     store_attribute_node->storage = &storage;
-    storage.domain = int8_t(bke::AttrDomain::Corner);
+    storage.domain = bke::AttrDomain::Corner;
     /* Intentionally use 3D instead of 2D vectors, because 2D vectors did not exist in older
      * releases and would make the file crash when trying to open it. */
     storage.data_type = CD_PROP_FLOAT3;
@@ -1013,7 +1013,7 @@ static void version_geometry_nodes_extrude_smooth_propagation(bNodeTree &ntree)
     auto *capture_node_storage = MEM_new<NodeGeometryAttributeCapture>(__func__);
     capture_node.storage = capture_node_storage;
     capture_node_storage->data_type_legacy = CD_PROP_BOOL;
-    capture_node_storage->domain = int8_t(bke::AttrDomain::Face);
+    capture_node_storage->domain = bke::AttrDomain::Face;
     bNodeSocket &capture_node_geo_in = version_node_add_socket(
         ntree, capture_node, SOCK_IN, "NodeSocketGeometry", "Geometry");
     bNodeSocket &capture_node_geo_out = version_node_add_socket(

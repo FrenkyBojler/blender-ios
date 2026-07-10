@@ -84,7 +84,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryAttributeCapture *data = MEM_new<NodeGeometryAttributeCapture>(__func__);
-  data->domain = int8_t(AttrDomain::Point);
+  data->domain = AttrDomain::Point;
   node->storage = data;
 }
 

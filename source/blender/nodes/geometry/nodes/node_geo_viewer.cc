@@ -308,7 +308,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryViewer *data = MEM_new<NodeGeometryViewer>(__func__);
   data->data_type_legacy = CD_PROP_FLOAT;
-  data->domain = int8_t(AttrDomain::Auto);
+  data->domain = AttrDomain::Auto;
   node->storage = data;
 }
 

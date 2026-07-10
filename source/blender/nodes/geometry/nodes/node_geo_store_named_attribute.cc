@@ -64,7 +64,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryStoreNamedAttribute *data = MEM_new<NodeGeometryStoreNamedAttribute>(__func__);
   data->data_type = CD_PROP_FLOAT;
-  data->domain = int8_t(AttrDomain::Point);
+  data->domain = AttrDomain::Point;
   node->storage = data;
 }
 
