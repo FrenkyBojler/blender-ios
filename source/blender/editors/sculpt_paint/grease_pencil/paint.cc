@@ -247,6 +247,9 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /** Used when hiding the fill while drawing. (#GP_BRUSH_DISSABLE_LASSO). */
   float start_opacity_;
 
+  /** Indicates if the stroke was drawn in XR (VR) mode. */
+  bool is_xr_ = false;
+
   friend struct PaintOperationExecutor;
 
   Brush *saved_active_brush_;
@@ -321,6 +324,9 @@ struct PaintOperationExecutor {
                             const bool use_fill)
   {
     printf("=== GREASE PENCIL DRAW PATH: PaintOperationExecutor::%s ===\n", __func__); fflush(stdout);
+    
+    self.is_xr_ = start_sample.is_xr;
+    
     const float2 start_coords = start_sample.mouse_position;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
@@ -1798,10 +1804,10 @@ void PaintOperation::on_stroke_done(const bContext &C)
     if (settings->draw_smoothfac > 0.0f && settings->draw_smoothlvl > 0) {
       smooth_stroke(drawing, settings->draw_smoothfac, settings->draw_smoothlvl, active_curve);
     }
-    if (settings->simplify_px > 0.0f) {
+    if (settings->simplify_px > 0.0f && !is_xr_) {
       simplify_stroke(drawing, settings->simplify_px, active_curve);
     }
-    if ((settings->flag & GP_BRUSH_TRIM_STROKE) != 0) {
+    if ((settings->flag & GP_BRUSH_TRIM_STROKE) != 0 && !is_xr_) {
       trim_stroke_ends(drawing, active_curve, on_back);
     }
     if ((scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_CREATE_WEIGHTS) != 0) {
