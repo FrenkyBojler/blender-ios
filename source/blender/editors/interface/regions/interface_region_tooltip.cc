@@ -87,14 +87,6 @@
 
 namespace blender::ui {
 
-static const wmEvent *ui_window_eventstate_source_get(const wmWindow *win)
-{
-  if (win == nullptr || win->runtime == nullptr) {
-    return nullptr;
-  }
-  return win->runtime->eventstate;
-}
-
 /* Portions of line height. */
 #define TIP_SPACER 0.3f
 #define TIP_PADDING_X 1.95f
@@ -768,7 +760,7 @@ static std::unique_ptr<TooltipData> tooltip_data_from_tool(bContext *C,
   /* Keymap */
 
   /* This is too handy not to expose somehow, let's be sneaky for now. */
-  const wmEvent *eventstate = ui_window_eventstate_source_get(CTX_wm_window(C));
+  const wmEvent *eventstate = window_eventstate_source_get(CTX_wm_window(C));
   if ((is_quick_tip == false) && eventstate != nullptr && (eventstate->modifier & KM_SHIFT)) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
@@ -1447,7 +1439,7 @@ static ARegion *tooltip_create_with_data(bContext *C,
   type.regionid = RGN_TYPE_TEMPORARY;
   region->runtime->type = &type;
   if (source_region != nullptr) {
-    WM_xr_temp_region_register(region, CTX_wm_window(C), CTX_wm_area(C), source_region);
+    region_temp_xr_register(C, region, source_region);
   }
   /* Move ownership to region data. The region type free callback puts it back into a unique
    * pointer for save freeing. */
@@ -1742,7 +1734,7 @@ ARegion *tooltip_create_from_button_or_extra_icon(
     BLI_rcti_rctf_copy_round(&init_rect, &overlap_rect_fl);
   }
   else if (but->type == ButtonType::Label && BLI_rctf_size_y(&but->rect) > UI_UNIT_Y) {
-    const wmEvent *eventstate = ui_window_eventstate_source_get(win);
+    const wmEvent *eventstate = window_eventstate_source_get(win);
     init_position[0] = eventstate ? eventstate->xy[0] : 0.0f;
     init_position[1] = (eventstate ? eventstate->xy[1] : 0.0f) - (UI_POPUP_MARGIN / 2);
   }
@@ -1751,7 +1743,7 @@ ARegion *tooltip_create_from_button_or_extra_icon(
     init_position[1] = but->rect.ymin;
     if (butregion) {
       block_to_window_fl(butregion, but->block, &init_position[0], &init_position[1]);
-      const wmEvent *eventstate = ui_window_eventstate_source_get(win);
+      const wmEvent *eventstate = window_eventstate_source_get(win);
       init_position[0] = eventstate ? eventstate->xy[0] : init_position[0];
     }
     init_position[1] -= (UI_POPUP_MARGIN / 2);
@@ -1777,7 +1769,7 @@ ARegion *tooltip_create_from_button(bContext *C,
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
 {
   wmWindow *win = CTX_wm_window(C);
-  const wmEvent *eventstate = ui_window_eventstate_source_get(win);
+  const wmEvent *eventstate = window_eventstate_source_get(win);
   float init_position[2] = {
       float(eventstate ? eventstate->xy[0] : 0), float(eventstate ? eventstate->xy[1] : 0)};
 
@@ -2041,7 +2033,7 @@ ARegion *tooltip_create_from_search_item_generic(bContext *C,
 
   const wmWindow *win = CTX_wm_window(C);
   float init_position[2];
-  const wmEvent *eventstate = ui_window_eventstate_source_get(win);
+  const wmEvent *eventstate = window_eventstate_source_get(win);
   init_position[0] = eventstate ? eventstate->xy[0] : 0.0f;
   init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);
 

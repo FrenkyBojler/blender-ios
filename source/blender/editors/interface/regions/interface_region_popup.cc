@@ -42,14 +42,6 @@ namespace blender::ui {
 /** \name Utility Functions
  * \{ */
 
-static const wmEvent *ui_window_eventstate_source_get(const wmWindow *win)
-{
-  if (win == nullptr || win->runtime == nullptr) {
-    return nullptr;
-  }
-  return win->runtime->eventstate;
-}
-
 void popup_translate(ARegion *region, const int mdiff[2])
 {
   BLI_rcti_translate(&region->winrct, UNPACK2(mdiff));
@@ -965,7 +957,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   handle->popup_create_vars.arg_free = arg_free;
   handle->popup_create_vars.but = but;
   handle->popup_create_vars.butregion = but ? butregion : nullptr;
-  if (const wmEvent *eventstate = ui_window_eventstate_source_get(window)) {
+  if (const wmEvent *eventstate = window_eventstate_source_get(window)) {
     copy_v2_v2_int(handle->popup_create_vars.event_xy, eventstate->xy);
   }
 
@@ -986,8 +978,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
                                       (CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) :
                                                                 CTX_wm_region(C));
   if (source_region != nullptr) {
-    blender::WM_xr_temp_region_register(
-        region, CTX_wm_window(C), CTX_wm_area(C), source_region);
+    region_temp_xr_register(C, region, source_region);
   }
 
   /* Note that this will be set in the code-path that typically calls refreshing

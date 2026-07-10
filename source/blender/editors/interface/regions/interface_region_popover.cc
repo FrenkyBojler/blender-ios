@@ -297,8 +297,7 @@ PopupBlockHandle *popover_panel_create(bContext *C,
 
   if (handle != nullptr && handle->region != nullptr && butregion != nullptr)
   {
-    blender::WM_xr_temp_region_register(
-        handle->region, CTX_wm_window(C), CTX_wm_area(C), butregion);
+    region_temp_xr_register(C, handle->region, butregion);
   }
 
   /* Add handlers. If attached to a button, the button will already

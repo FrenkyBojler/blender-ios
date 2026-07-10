@@ -35,6 +35,22 @@ ARegion *region_temp_add(bScreen *screen)
   return region;
 }
 
+const wmEvent *window_eventstate_source_get(const wmWindow *win)
+{
+  if (win == nullptr || win->runtime == nullptr) {
+    return nullptr;
+  }
+  return win->runtime->eventstate;
+}
+
+void region_temp_xr_register(bContext *C, ARegion *region, ARegion *source_region)
+{
+  if (region == nullptr || source_region == nullptr) {
+    return;
+  }
+  WM_xr_temp_region_register(region, CTX_wm_window(C), CTX_wm_area(C), source_region);
+}
+
 void region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
 {
   wmWindow *win = CTX_wm_window(C);

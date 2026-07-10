@@ -51,14 +51,6 @@ namespace blender::ui {
 /** \name Search Box Creation
  * \{ */
 
-static const wmEvent *ui_window_eventstate_source_get(const wmWindow *win)
-{
-  if (win == nullptr || win->runtime == nullptr) {
-    return nullptr;
-  }
-  return win->runtime->eventstate;
-}
-
 struct SearchItems {
   int maxitem, totitem, maxstrlen;
 
@@ -596,7 +588,7 @@ void searchbox_update(bContext *C, ARegion *region, Button *but, const bool rese
   if (data->active == -1) {
     wmWindow *win = CTX_wm_window(C);
     if (win && win->runtime && win->runtime->eventstate) {
-      const wmEvent *eventstate = ui_window_eventstate_source_get(win);
+      const wmEvent *eventstate = window_eventstate_source_get(win);
       const int cursor_x = eventstate ? eventstate->xy[0] : 0;
       const int cursor_y = eventstate ? eventstate->xy[1] : 0;
       if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
@@ -1012,7 +1004,7 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
   region->runtime->type = &type;
 
   if (butregion != nullptr) {
-    blender::WM_xr_temp_region_register(region, CTX_wm_window(C), CTX_wm_area(C), butregion);
+    region_temp_xr_register(C, region, butregion);
   }
 
   /* Create search-box data. */
