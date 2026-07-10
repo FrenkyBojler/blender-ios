@@ -290,10 +290,11 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         del context
         layout = self.layout
         self.draw_menu(layout, path="Utilities/Math")
+        self.draw_menu(layout, path="Utilities/Text")
         self.draw_menu(layout, path="Utilities/Vector")
+        layout.separator()
         self.draw_menu(layout, path="Utilities/Matrix")
         self.draw_menu(layout, path="Utilities/Rotation")
-        self.draw_menu(layout, path="Utilities/Text")
         layout.separator()
         self.node_operator(layout, "NodeImplicitConversion")
         self.node_operator(layout, "CompositorNodeLevels")
