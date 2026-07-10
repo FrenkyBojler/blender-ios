@@ -99,8 +99,6 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Random Per Island",
             ],
         )
-        self.node_operator(layout, "ShaderNodeLightEvaluation", poll=object_eevee_shader_nodes_poll(context))
-        self.node_operator(layout, "ShaderNodeLightInfo", poll=object_eevee_shader_nodes_poll(context))
         self.node_operator(layout, "ShaderNodeLayerWeight", poll=object_material_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context,
@@ -124,6 +122,8 @@ class NODE_MT_shader_node_input_base(node_add_menu.NodeMenu):
                 "Portal Depth"
             ],
         )
+        self.node_operator(layout, "ShaderNodeLightEvaluation", poll=object_eevee_shader_nodes_poll(context))
+        self.node_operator(layout, "ShaderNodeLightInfo", poll=object_eevee_shader_nodes_poll(context))
         self.node_operator_with_outputs(
             context, layout, "ShaderNodeObjectInfo",
             ["Location", "Color", "Alpha", "Object Index", "Material Index", "Random"],
@@ -270,6 +270,11 @@ class NODE_MT_shader_node_shader_base(node_add_menu.NodeMenu):
         )
         self.node_operator(
             layout,
+            "ShaderNodeLightAccumulation",
+            poll=object_eevee_shader_nodes_poll(context)
+        )
+        self.node_operator(
+            layout,
             "ShaderNodeBsdfMetallic",
             poll=object_material_shader_nodes_poll(context),
         )
@@ -302,11 +307,6 @@ class NODE_MT_shader_node_shader_base(node_add_menu.NodeMenu):
             layout,
             "ShaderNodeEeveeSpecular",
             poll=object_eevee_shader_nodes_poll(context),
-        )
-        self.node_operator(
-            layout,
-            "ShaderNodeLightAccumulation",
-            poll=object_eevee_shader_nodes_poll(context)
         )
         self.node_operator(
             layout,
