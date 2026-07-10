@@ -67,7 +67,7 @@ static void do_version_merge_layers_options_to_inputs(bNodeTree &ntree, bNode &n
 
 void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
     version_node_socket_index_animdata(
         bmain, NTREE_GEOMETRY, "GeometryNodeSetGreasePencilColor", 5, 1, 6);
   }
