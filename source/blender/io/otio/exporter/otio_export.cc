@@ -179,7 +179,7 @@ static void otio_export_recursive(Main *bmain,
     meta_video_track->set_enabled(is_enabled);
     meta_audio_track->set_enabled(is_enabled);
 
-    int last_strip_end = _last_strip_end;
+    int last_strip_end = 0;
 
     /* Append all the strips of this channel in the track. */
     for (Strip *strip : strips) {
@@ -212,22 +212,6 @@ static void otio_export_recursive(Main *bmain,
       else if (strip->type == STRIP_TYPE_META ||
                ((strip->type == STRIP_TYPE_SCENE) && (strip->flag & SEQ_SCENE_STRIPS)))
       {
-        if (inside_meta) {
-          StripExporter::add_gap_if_necessary(meta_video_track,
-                                              last_strip_end + 1,
-                                              strip->left_handle() - 1,
-                                              scene->frames_per_second());
-
-          StripExporter::add_gap_if_necessary(meta_audio_track,
-                                              last_strip_end + 1,
-                                              strip->left_handle() - 1,
-                                              scene->frames_per_second());
-        }
-        else {
-          StripExporter::add_gap_if_necessary(
-              track, last_strip_end + 1, strip->left_handle() - 1, scene->frames_per_second());
-        }
-
         int r_offset;
         ListBaseT<SeqTimelineChannel> *r_channels;
         ListBaseT<Strip> *seqbase = seq::get_seqbase_from_strip(strip, &r_channels, &r_offset);
@@ -256,25 +240,34 @@ static void otio_export_recursive(Main *bmain,
                                 &secondary_meta_stack,
                                 seqbase,
                                 strip->left_handle() - 1,
-                                strip->right_handle(scene),
+                                strip->right_handle(scene) - 1,
                                 r_channels);
-
-          last_strip_end = strip->right_handle(scene);
 
           if (!primary_meta_stack->children().empty()) {
             primary_meta_stack->set_enabled(!(strip->flag & SEQ_MUTE));
             add_strip_metadata(strip, primary_meta_stack);
             attach_foreign_metadata_strip(strip, primary_meta_stack);
             add_effects_to_clip(scene, strip, primary_meta_stack, single_input_effects);
+            StripExporter::add_gap_if_necessary(meta_video_track,
+                                                last_strip_end + 1,
+                                                strip->left_handle() - 1,
+                                                scene->frames_per_second());
             meta_video_track->append_child(primary_meta_stack);
           }
+
           if (!secondary_meta_stack->children().empty()) {
             secondary_meta_stack->set_enabled(!(strip->flag & SEQ_MUTE));
             add_strip_metadata(strip, secondary_meta_stack);
             attach_foreign_metadata_strip(strip, secondary_meta_stack);
             add_effects_to_clip(scene, strip, secondary_meta_stack, single_input_effects);
+            StripExporter::add_gap_if_necessary(meta_audio_track,
+                                                last_strip_end + 1,
+                                                strip->left_handle() - 1,
+                                                scene->frames_per_second());
             meta_audio_track->append_child(secondary_meta_stack);
           }
+
+          last_strip_end = strip->right_handle(scene) - 1;
         }
       }
       /* 3D Scene Strip. */

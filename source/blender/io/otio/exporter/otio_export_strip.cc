@@ -91,7 +91,7 @@ static TimeRange get_strip_source_range(const Strip *strip,
 {
   /* The strips could be moved left of the timeline start and could have negative left handle.
    * Most NLEs don't have the concept of moving a strip left of the timeline. */
-  int strip_timeline_start = max_ii(0, strip->left_handle());
+  int strip_timeline_start = max_ii(1, strip->left_handle());
   int left_offset = strip_timeline_start - strip->start;
 
   return TimeRange(RationalTime(left_offset, media_fps),
