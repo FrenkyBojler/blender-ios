@@ -2159,6 +2159,11 @@ static bke::bNodeSocketType *make_socket_type_object()
          nodes::GeneratedTreeSrnaData & /*r_generated*/) {
         PropertyRNA *property = RNA_def_pointer_runtime(
             &srna, "value", RNA_Object, socket.name, socket.description);
+        const auto *default_value = reinterpret_cast<const bNodeSocketValueObject *>(
+            socket.socket_data);
+        if (default_value->value) {
+          RNA_def_property_pointer_default_runtime(property, default_value->value->id.session_uid);
+        }
         set_scene_compositor_effect_property_update_function(property);
       };
   return socktype;
@@ -2414,6 +2419,11 @@ static bke::bNodeSocketType *make_socket_type_font()
          nodes::GeneratedTreeSrnaData & /*r_generated*/) {
         PropertyRNA *property = RNA_def_pointer_runtime(
             &srna, "value", RNA_VectorFont, socket.name, socket.description);
+        const auto *default_value = reinterpret_cast<const bNodeSocketValueFont *>(
+            socket.socket_data);
+        if (default_value->value) {
+          RNA_def_property_pointer_default_runtime(property, default_value->value->id.session_uid);
+        }
         set_scene_compositor_effect_property_update_function(property);
       };
   return socktype;
