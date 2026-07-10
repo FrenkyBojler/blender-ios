@@ -2288,7 +2288,6 @@ bool WM_platform_associate_set(bool do_register, bool all_users, char **r_error_
 bool WM_xr_temp_region_register(ARegion *region, wmWindow *win, ScrArea *area, ARegion *xr_region);
 void WM_xr_temp_region_unregister(ARegion *region);
 bool WM_xr_temp_region_is_registered(const ARegion *region);
-void WM_xr_temp_region_tag_dirty(ARegion *region);
 
 #ifdef WITH_XR_OPENXR
 /* `wm_xr_session.cc` */
