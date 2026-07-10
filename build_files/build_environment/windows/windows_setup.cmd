@@ -169,7 +169,7 @@ start /wait msiexec /quiet /norestart /i C:\install\Packages\Apps\ROCmSDKPackage
 setx HIP_PATH "C:\tools\rocm\%HIP_VER%" /M > nul
 setx HIP_PATH_71 "C:\tools\rocm\%HIP_VER%" /M > nul
 
-set VCVARS_PATH=C:\vs%VSBT_YEAR%bt\VC\Auxiliary\Build\vcvarsx64.bat
+set VCVARS_PATH=C:\vs%VSBT_YEAR%bt\VC\Auxiliary\Build\vcvars64.bat
 goto common
 
 :common
