@@ -34,7 +34,7 @@ static wmOperatorStatus add_scene_compositor_effect_exec(bContext *C, wmOperator
 {
   Scene *scene = CTX_data_scene(C);
   bke::compositor::new_effect(*scene, "Scene Compositor Effect");
-  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -66,7 +66,7 @@ static wmOperatorStatus remove_scene_compositor_effect_exec(bContext *C, wmOpera
   bke::compositor::remove_effect(*scene, *effect);
 
   // TODO: Updates.
-  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -124,7 +124,7 @@ static wmOperatorStatus move_scene_compositor_effect_exec(bContext *C, wmOperato
   }
 
   // TODO: Updates.
-  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -173,7 +173,7 @@ static wmOperatorStatus duplicate_scene_compositor_effect_exec(bContext *C, wmOp
   bke::compositor::copy_effect(*scene, *effect);
 
   // TODO: Updates.
-  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -219,7 +219,7 @@ static wmOperatorStatus move_scene_compositor_effect_to_index_exec(bContext *C, 
   }
 
   // TODO: Updates.
-  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -265,7 +265,7 @@ static wmOperatorStatus set_active_scene_compositor_effect_exec(bContext *C, wmO
   bke::compositor::set_active_effect(*scene, *effect);
 
   // TODO: Updates.
-  WM_event_add_notifier(C, NC_SCENE | ND_MODIFIER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
   return OPERATOR_FINISHED;
 }
 

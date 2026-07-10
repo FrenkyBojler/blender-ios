@@ -777,7 +777,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
         case ND_SEQUENCER:
           ED_area_tag_redraw(area);
           break;
-        case ND_MODIFIER:
+        case ND_COMPO_RESULT:
           buttons_area_redraw(area, BCONTEXT_SCENE_COMPOSITOR_EFFECTS);
         case ND_MODE:
         case ND_LAYER:

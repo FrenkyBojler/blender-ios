@@ -782,10 +782,6 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
           WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
           break;
         }
-        case ND_MODIFIER:
-          node_area_tag_tree_recalc(snode, area);
-          ED_area_tag_redraw(area);
-          break;
       }
       break;
 

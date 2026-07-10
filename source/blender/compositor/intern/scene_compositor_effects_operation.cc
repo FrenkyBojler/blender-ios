@@ -193,7 +193,7 @@ void SceneCompositorEffectsOperation::execute()
     }
 
     /* We need the output of the effect if we are rendering or do not have a viewer, in which
-     * case, the viewer will be in a later ffect which needs the output of this one, or the
+     * case, the viewer will be in a later effect which needs the output of this one, or the
      * viewer result will be the last operation. */
     const bool is_effect_output_needed = this->context().render_context() || !has_viewer_output_;
 

@@ -3145,7 +3145,7 @@ static void rna_SceneCompositorEffect_name_set(PointerRNA *ptr, const char *valu
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorEffect *effect = ptr->data_as<SceneCompositorEffect>();
   bke::compositor::rename_effect(*scene, *effect, value);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
 }
 
 static void rna_SceneCompositorEffect_is_active_set(PointerRNA *ptr, bool is_active)
@@ -3158,7 +3158,7 @@ static void rna_SceneCompositorEffect_is_active_set(PointerRNA *ptr, bool is_act
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorEffect *effect = ptr->data_as<SceneCompositorEffect>();
   bke::compositor::set_active_effect(*scene, *effect);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
 }
 
 static bool rna_SceneCompositorEffect_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
@@ -3184,7 +3184,7 @@ void rna_SceneCompositorEffect_compositor_update(Main *bmain,
 
   if (bke::compositor::is_effect_enabled(*effect, bke::compositor::ExecutionMode::Preview)) {
     DEG_id_tag_update(&effect->node_group->id, ID_RECALC_NTREE_OUTPUT);
-    WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+    WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
     BKE_main_ensure_invariants(*bmain, effect->node_group->id);
   }
 }
@@ -3207,7 +3207,7 @@ static SceneCompositorEffect *rna_SceneCompositorEffects_new(ID *scene_id, const
 {
   Scene *scene = id_cast<Scene *>(scene_id);
   SceneCompositorEffect &effect = bke::compositor::new_effect(*scene, name);
-  WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
   return &effect;
 }
 
@@ -3253,7 +3253,7 @@ static void rna_SceneCompositorEffects_active_set(PointerRNA *ptr,
 
   if (bke::compositor::is_effect_enabled(*effect, bke::compositor::ExecutionMode::Preview)) {
     DEG_id_tag_update(&effect->node_group->id, ID_RECALC_NTREE_OUTPUT);
-    WM_main_add_notifier(NC_SCENE | ND_MODIFIER, scene);
+    WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
   }
 }
 

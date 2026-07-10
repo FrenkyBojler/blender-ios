@@ -1307,7 +1307,7 @@ static void set_scene_compositor_effect_property_update_function(PropertyRNA *pr
           DEG_id_tag_update(&effect->node_group->id, ID_RECALC_NTREE_OUTPUT);
         }
       });
-  RNA_def_property_update_notifier(property, NC_SCENE | ND_MODIFIER);
+  RNA_def_property_update_notifier(property, NC_SCENE | ND_COMPO_RESULT);
 }
 
 static bke::bNodeSocketType *make_socket_type_bool()
