@@ -198,7 +198,7 @@ static void fill_mesh_positions(const int main_point_num,
                                 const Span<float3> profile_positions,
                                 const Span<float3> tangents,
                                 const Span<float3> normals,
-                                const Span<float> scales,
+                                const Span<float3> scales,
                                 MutableSpan<float3> mesh_positions)
 {
   if (profile_point_num == 1) {
@@ -206,7 +206,7 @@ static void fill_mesh_positions(const int main_point_num,
       float4x4 point_matrix = build_point_matrix(
           main_positions[i_ring], normals[i_ring], tangents[i_ring]);
       if (!scales.is_empty()) {
-        point_matrix = math::scale(point_matrix, float3(scales[i_ring]));
+        point_matrix = math::scale(point_matrix, scales[i_ring]);
       }
       mesh_positions[i_ring] = math::transform_point(point_matrix, profile_positions.first());
     }
@@ -216,7 +216,7 @@ static void fill_mesh_positions(const int main_point_num,
       float4x4 point_matrix = build_point_matrix(
           main_positions[i_ring], normals[i_ring], tangents[i_ring]);
       if (!scales.is_empty()) {
-        point_matrix = math::scale(point_matrix, float3(scales[i_ring]));
+        point_matrix = math::scale(point_matrix, scales[i_ring]);
       }
 
       const int ring_vert_start = i_ring * profile_point_num;
@@ -492,7 +492,7 @@ static void foreach_curve_combination(const CurvesInfo &info,
 
 static void build_mesh_positions(const CurvesInfo &curves_info,
                                  const ResultOffsets &offsets,
-                                 const VArray<float> &scales,
+                                 const VArray<float3> &scales,
                                  Vector<std::byte> &eval_buffer,
                                  Mesh &mesh)
 {
@@ -523,9 +523,9 @@ static void build_mesh_positions(const CurvesInfo &curves_info,
   }
   const Span<float3> tangents = curves_info.main.evaluated_tangents();
   const Span<float3> normals = curves_info.main.evaluated_normals();
-  Span<float> eval_scales;
-  if (!scales.is_empty() && scales.get_if_single() != 1.0f) {
-    eval_scales = evaluate_attribute(scales, curves_info.main, eval_buffer).typed<float>();
+  Span<float3> eval_scales;
+  if (!scales.is_empty() && scales.get_if_single() != float3(1.0f)) {
+    eval_scales = evaluate_attribute(scales, curves_info.main, eval_buffer).typed<float3>();
   }
   foreach_curve_combination(curves_info, offsets, [&](const CombinationInfo &info) {
     fill_mesh_positions(info.main_points.size(),
@@ -832,7 +832,7 @@ static void write_sharp_bezier_edges(const CurvesInfo &curves_info,
 
 Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                           const CurvesGeometry &profile,
-                          const VArray<float> &scales,
+                          const VArray<float3> &scales,
                           const bool fill_caps,
                           const AttributeFilter &attribute_filter)
 {

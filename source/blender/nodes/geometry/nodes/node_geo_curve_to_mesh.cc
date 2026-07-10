@@ -27,9 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Curve)
       .description("Curves that are swept along the main curve");
-  b.add_input<decl::Float>("Scale"_ustr)
-      .default_value(1.0f)
-      .min(0.0f)
+  b.add_input<decl::Vector>("Scale"_ustr)
+      .default_value({1.0f, 1.0f, 1.0f})
       .evaluated_geometry_field({0})
       .description("Scale of the profile at each point");
   b.add_input<decl::Bool>("Fill Caps"_ustr)
@@ -41,7 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
                            const GeometrySet &profile_set,
                            const fn::FieldContext &context,
-                           const Field<float> &scale_field,
+                           const Field<float3> &scale_field,
                            const bool fill_caps,
                            const AttributeFilter &attribute_filter)
 {
@@ -53,7 +52,7 @@ static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
     evaluator.add(scale_field);
     evaluator.evaluate();
 
-    const VArray<float> profile_scales = evaluator.get_evaluated<float>(0);
+    const VArray<float3> profile_scales = evaluator.get_evaluated<float3>(0);
     mesh = bke::curve_to_mesh_sweep(
         curves, profile_curves->geometry.wrap(), profile_scales, fill_caps, attribute_filter);
   }
@@ -66,7 +65,7 @@ static Mesh *curve_to_mesh(const bke::CurvesGeometry &curves,
 
 static void grease_pencil_to_mesh(GeometrySet &geometry_set,
                                   const GeometrySet &profile_set,
-                                  const Field<float> &scale_field,
+                                  const Field<float3> &scale_field,
                                   const bool fill_caps,
                                   const AttributeFilter &attribute_filter)
 {
@@ -125,7 +124,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet curve_set = params.extract_input<GeometrySet>("Curve"_ustr);
   GeometrySet profile_set = params.extract_input<GeometrySet>("Profile Curve"_ustr);
-  const Field<float> scale_field = params.extract_input<Field<float>>("Scale"_ustr);
+  const Field<float3> scale_field = params.extract_input<Field<float3>>("Scale"_ustr);
   const bool fill_caps = params.extract_input<bool>("Fill Caps"_ustr);
 
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(curve_set);

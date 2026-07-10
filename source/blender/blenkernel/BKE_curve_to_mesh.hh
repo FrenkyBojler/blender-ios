@@ -32,7 +32,7 @@ class CurvesGeometry;
  */
 Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
                           const CurvesGeometry &profile,
-                          const VArray<float> &scales,
+                          const VArray<float3> &scales,
                           bool fill_caps,
                           const bke::AttributeFilter &attribute_filter = {});
 /**

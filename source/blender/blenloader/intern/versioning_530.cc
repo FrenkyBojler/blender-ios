@@ -20,6 +20,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
+#include "BLI_string_utf8.hh"
 
 #include "readfile.hh"
 
@@ -30,6 +31,33 @@
 namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
+
+static void do_version_node_curve_to_mesh_scale_input_anisotropic(bNodeTree *tree)
+{
+  Set<bNode *> curve_to_mesh_nodes;
+  for (bNode &node : tree->nodes) {
+    if (STREQ(node.idname, "GeometryNodeCurveToMesh")) {
+      curve_to_mesh_nodes.add(&node);
+    }
+  }
+
+  for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
+    bNodeSocket *socket = bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale"_ustr);
+    if (socket && socket->type == SOCK_FLOAT) {
+      /* Convert from float to vector */
+      socket->type = SOCK_VECTOR;
+      STRNCPY_UTF8(socket->idname, "NodeSocketVector");
+      auto *old_value = static_cast<bNodeSocketValueFloat *>(socket->default_value);
+      auto *new_value = MEM_new<bNodeSocketValueVector>(__func__);
+      new_value->value[0] = old_value->value;
+      new_value->value[1] = old_value->value;
+      new_value->value[2] = old_value->value;
+      socket->default_value = new_value;
+      MEM_delete(old_value);
+    }
+  }
+  version_socket_update_is_used(tree);
+}
 
 void do_versions_after_linking_530(FileData * /*fd*/, Main * /*bmain*/)
 {
@@ -126,6 +154,15 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        do_version_node_curve_to_mesh_scale_input_anisotropic(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
