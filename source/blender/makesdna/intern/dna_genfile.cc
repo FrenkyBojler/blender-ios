@@ -314,7 +314,7 @@ static const StringRef sdna_data_pointer_read_string(const char *&data,
                                                      const void *const data_pointer_end,
                                                      const char **r_error_message)
 {
-  BLI_assert(static_cast<const char *>(data_pointer_end) > data);
+  BLI_assert(static_cast<const char *>(data_pointer_end) >= data);
   const char *str_end = std::char_traits<const char>::find(
       data, size_t(static_cast<const char *>(data_pointer_end) - data), '\0');
   if (!str_end) [[unlikely]] {
@@ -323,6 +323,11 @@ static const StringRef sdna_data_pointer_read_string(const char *&data,
   }
   const int64_t string_size = str_end - data;
   BLI_assert(string_size >= 0);
+  /* Non-empty string is a hard requirement by all use-cases currently. */
+  if (!string_size) [[unlikely]] {
+    *r_error_message = "Invalid string data in SDNA file";
+    return nullptr;
+  }
   StringRef ret = StringRef(data, string_size);
   data += (string_size + 1); /* String size + null terminator. */
   return ret;
@@ -539,7 +544,8 @@ static bool init_structDNA(SDNA *sdna, const char **r_error_message)
             sdna->members[struct_info->members[gravity_member_index].member_index] != "gravity" ||
             sdna->members[struct_info->members[gravity_member_index + 1].member_index] !=
                 "gravity[3]" ||
-            sdna->types[float_type_index] != "float" || sdna->types[void_type_index] != "void")
+            float_type_index >= sdna->types_num || sdna->types[float_type_index] != "float" ||
+            void_type_index >= sdna->types_num || sdna->types[void_type_index] != "void")
         {
           *r_error_message = "Invalid data in SDNA file";
           return false;
