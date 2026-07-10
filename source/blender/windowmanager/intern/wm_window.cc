@@ -2959,8 +2959,14 @@ wmWindow *WM_window_find_under_cursor(wmWindow *win,
                                       const int event_xy[2],
                                       int r_event_xy_other[2])
 {
-  if ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) == 0) {
-    /* Window positions are unsupported, so this function can't work as intended.
+  if (win == nullptr) {
+    return nullptr;
+  }
+  if ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) == 0 || win->runtime == nullptr ||
+      win->runtime->ghostwin == nullptr)
+  {
+    /* Window positions or native window queries are unavailable, so this function can't work as
+     * intended.
      * Perform the bare minimum, return the active window if the event is within it. */
     rcti rect;
     WM_window_rect_calc(win, &rect);
