@@ -3046,6 +3046,7 @@ void SEQUENCER_OT_select_grouped(wmOperatorType *ot)
 /* Special pseudo-types for this operator. Use a high value to avoid clashing with `STRIP_TYPE`. */
 enum {
   SEQ_SELECT_TYPE_EFFECT = 1000,
+  SEQ_SELECT_TYPE_TRANSITION,
   SEQ_SELECT_TYPE_VISUAL,
 };
 
@@ -3064,6 +3065,7 @@ static const EnumPropertyItem sequencer_prop_select_by_type_items[] = {
     {STRIP_TYPE_ADJUSTMENT, "ADJUSTMENT", ICON_COLOR, "Adjustment Layer", ""},
     {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", ICON_NODE_COMPOSITING, "Compositor", ""},
     RNA_ENUM_ITEM_SEPR,
+    {SEQ_SELECT_TYPE_TRANSITION, "TRANSITION", ICON_ARROW_LEFTRIGHT, "Transition", ""},
     {SEQ_SELECT_TYPE_EFFECT, "EFFECT", ICON_SHADERFX, "Effect", ""},
     {SEQ_SELECT_TYPE_VISUAL,
      "VISUAL",
@@ -3085,8 +3087,10 @@ static wmOperatorStatus sequencer_select_by_type_exec(bContext *C, wmOperator *o
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
   if (!extend) {
-    deselect_all_strips(scene);
-    changed = true;
+    changed |= deselect_all_strips(scene);
+  }
+  else {
+    changed |= deselect_transition_handles(scene);
   }
 
   VectorSet<Strip *> strips = strips_from_context(scene, is_preview);
@@ -3103,8 +3107,12 @@ static wmOperatorStatus sequencer_select_by_type_exec(bContext *C, wmOperator *o
     }
 
     bool match;
-    if (type == SEQ_SELECT_TYPE_EFFECT) {
-      match = strip->is_effect() && !ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT);
+    if (type == SEQ_SELECT_TYPE_TRANSITION) {
+      match = seq::strip_is_transition(strip);
+    }
+    else if (type == SEQ_SELECT_TYPE_EFFECT) {
+      match = strip->is_effect() && !ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT) &&
+              !seq::strip_is_transition(strip);
     }
     else if (type == SEQ_SELECT_TYPE_VISUAL) {
       match = strip->type != STRIP_TYPE_SOUND;
