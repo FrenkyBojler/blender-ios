@@ -7,6 +7,8 @@
  */
 
 #include "BLI_array.hh"
+#include "BLI_bit_span.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_mutex.hh"
@@ -523,6 +525,34 @@ gpu::Texture *IMB_create_gpu_texture(const char *name,
   return tex;
 }
 
+/* Number of modified chunks to track for mipmap. */
+static blender::int2 imb_gpu_mipmap_modified_chunks_size(gpu::Texture *tex)
+{
+  return blender::int2(
+      divide_ceil_u(GPU_texture_width(tex), GPU_TEXTURE_MIPMAP_UPDATE_CHUNK_SIZE),
+      divide_ceil_u(GPU_texture_height(tex), GPU_TEXTURE_MIPMAP_UPDATE_CHUNK_SIZE));
+}
+
+/* For scaled images or UDIM atlases, set the modified chunk bits. */
+static void imb_gpu_mipmap_modified_chunks_mark(blender::MutableBitSpan modified_chunks,
+                                                blender::int2 size,
+                                                const rcti &bounds)
+{
+  constexpr int chunk_size = GPU_TEXTURE_MIPMAP_UPDATE_CHUNK_SIZE;
+  if (BLI_rcti_is_empty(&bounds)) {
+    return;
+  }
+  const int tx_begin = std::max(bounds.xmin, 0) / chunk_size;
+  const int ty_begin = std::max(bounds.ymin, 0) / chunk_size;
+  const int tx_end = std::min((bounds.xmax - 1) / chunk_size, size.x - 1);
+  const int ty_end = std::min((bounds.ymax - 1) / chunk_size, size.y - 1);
+  for (int ty = ty_begin; ty <= ty_end; ty++) {
+    for (int tx = tx_begin; tx <= tx_end; tx++) {
+      modified_chunks[int64_t(ty) * size.x + tx].set();
+    }
+  }
+}
+
 static ImBuf *update_do_scale(const uchar *rect,
                               const float *rect_float,
                               int *x,
@@ -570,20 +600,21 @@ static void gpu_texture_update_scaled(gpu::Texture *tex,
                                       int x,
                                       int y,
                                       int layer,
-                                      const int *tile_offset,
-                                      const int *tile_size,
+                                      const int2 tile_offset,
+                                      const int2 tile_size,
                                       int w,
                                       int h,
-                                      const bool is_grayscale)
+                                      const bool is_grayscale,
+                                      rcti &r_bounds)
 {
   ImBuf *ibuf;
   if (layer > -1) {
     ibuf = update_do_scale(
-        rect, rect_float, &x, &y, &w, &h, tile_size[0], tile_size[1], full_w, full_h);
+        rect, rect_float, &x, &y, &w, &h, tile_size.x, tile_size.y, full_w, full_h);
 
     /* Shift to account for tile packing. */
-    x += tile_offset[0];
-    y += tile_offset[1];
+    x += tile_offset.x;
+    y += tile_offset.y;
   }
   else {
     /* Partial update with scaling. */
@@ -614,6 +645,8 @@ static void gpu_texture_update_scaled(gpu::Texture *tex,
     GPU_texture_update_sub(tex, data_format, data, x, y, math::max(layer, 0), w, h, 1);
   }
 
+  BLI_rcti_init(&r_bounds, x, x + w, y, y + h);
+
   IMB_freeImBuf(ibuf);
 }
 
@@ -629,7 +662,8 @@ static void gpu_texture_update_unscaled(gpu::Texture *tex,
                                         int tex_stride,
                                         int tex_offset,
                                         int channels,
-                                        const bool is_grayscale)
+                                        const bool is_grayscale,
+                                        rcti &r_bounds)
 {
   if (layer > -1) {
     /* Shift to account for tile packing. */
@@ -660,6 +694,8 @@ static void gpu_texture_update_unscaled(gpu::Texture *tex,
    * subset of a possible larger buffer than what we are updating. */
 
   GPU_texture_update_sub(tex, data_format, data, x, y, math::max(layer, 0), w, h, 1, tex_stride);
+
+  BLI_rcti_init(&r_bounds, x, x + w, y, y + h);
 }
 
 static void imb_gpu_texture_update_region(gpu::Texture *tex,
@@ -671,7 +707,8 @@ static void imb_gpu_texture_update_region(gpu::Texture *tex,
                                           int h,
                                           const int layer,
                                           const int2 tile_offset,
-                                          const int2 tile_size)
+                                          const int2 tile_size,
+                                          rcti &r_bounds)
 {
   bool scaled;
   if (layer >= 0) {
@@ -774,7 +811,8 @@ static void imb_gpu_texture_update_region(gpu::Texture *tex,
                               tile_size,
                               w,
                               h,
-                              is_grayscale);
+                              is_grayscale,
+                              r_bounds);
   }
   else {
     gpu_texture_update_unscaled(tex,
@@ -789,7 +827,8 @@ static void imb_gpu_texture_update_region(gpu::Texture *tex,
                                 tex_stride,
                                 tex_offset,
                                 src_channels,
-                                is_grayscale);
+                                is_grayscale,
+                                r_bounds);
   }
 
   /* Free buffers if needed. */
@@ -799,8 +838,6 @@ static void imb_gpu_texture_update_region(gpu::Texture *tex,
   if (rect_float && rect_float != ibuf->float_data()) {
     MEM_delete(rect_float);
   }
-
-  GPU_texture_unbind(tex);
 }
 
 void IMB_gpu_texture_apply_partial_update(gpu::Texture *tex,
@@ -811,6 +848,23 @@ void IMB_gpu_texture_apply_partial_update(gpu::Texture *tex,
                                           const int2 tile_offset,
                                           const int2 tile_size)
 {
+  /* For simplicity we require partial update and mipmap chunk sizes to match. */
+  static_assert(imbuf::partial_update::CHUNK_SIZE == GPU_TEXTURE_MIPMAP_UPDATE_CHUNK_SIZE);
+
+  /* For scaled images and UDIM atlases, we need to recompute the chunks rather than
+   * getting them directly from the changes. */
+  const bool compute_chunks = (GPU_texture_width(tex) != ibuf->x) ||
+                              (GPU_texture_height(tex) != ibuf->y) ||
+                              (layer >= 0 &&
+                               (tile_offset != int2(0, 0) || tile_size != int2(ibuf->x, ibuf->y)));
+  BitVector<> modified_chunks;
+  int2 modified_chunks_size;
+  if (compute_chunks) {
+    modified_chunks_size = imb_gpu_mipmap_modified_chunks_size(tex);
+    modified_chunks.resize(int64_t(modified_chunks_size.x) * modified_chunks_size.y, false);
+  }
+
+  /* Update modified regions and gather modified chunks for mipmap update. */
   rcti buffer_rect;
   BLI_rcti_init(&buffer_rect, 0, ibuf->x, 0, ibuf->y);
   for (const rcti &region : changes.modified_regions()) {
@@ -818,6 +872,7 @@ void IMB_gpu_texture_apply_partial_update(gpu::Texture *tex,
     if (!BLI_rcti_isect(&buffer_rect, &region, &clipped)) {
       continue;
     }
+    rcti bounds;
     imb_gpu_texture_update_region(tex,
                                   ibuf,
                                   store_premultiplied,
@@ -827,7 +882,22 @@ void IMB_gpu_texture_apply_partial_update(gpu::Texture *tex,
                                   BLI_rcti_size_y(&clipped),
                                   layer,
                                   tile_offset,
-                                  tile_size);
+                                  tile_size,
+                                  bounds);
+    if (compute_chunks) {
+      imb_gpu_mipmap_modified_chunks_mark(modified_chunks, modified_chunks_size, bounds);
+    }
+  }
+
+  /* Partial mipmap update. */
+  GPU_texture_update_mipmap_chain_partial(tex,
+                                          math::max(layer, 0),
+                                          compute_chunks ? BitSpan(modified_chunks) :
+                                                           BitSpan(changes.modified_chunks));
+  GPU_texture_unbind(tex);
+
+  if (ibuf->gpu.texture == tex) {
+    ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
   }
 }
 
@@ -904,7 +974,6 @@ static void imb_gpu_texture_apply_partial_updates(ImBuf *ibuf, const bool use_pr
     case Changes::Kind::Partial:
       IMB_gpu_texture_apply_partial_update(
           ibuf->gpu.texture, ibuf, use_premult, changes, -1, int2(0), int2(0));
-      GPU_texture_update_mipmap_chain(ibuf->gpu.texture);
       ibuf->gpu.flag |= IMB_GPU_MIPMAP_COMPLETE;
       ibuf->gpu.partial_update_changeset = new_changeset_id;
       break;
