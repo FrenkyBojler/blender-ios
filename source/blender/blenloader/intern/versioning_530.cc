@@ -120,6 +120,15 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      for (ViewLayer &view_layer : scene.view_layers) {
+        view_layer.eevee.denoising_pass_flags =
+            EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
     for (Brush &brush : bmain->brushes) {
       if (ELEM(brush.ob_mode, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT)) {
         printf("  Brush %s\n", brush.id.name + 2);

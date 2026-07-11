@@ -1305,6 +1305,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
             layout.operator("mesh.flatten", text="Flatten")
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("mesh.space_edge_loops_evenly", text="Space Edge Loops Evenly")
+            layout.operator("mesh.relax_edge_loops", text="Relax Edge Loops")
             layout.operator("transform.skin_resize")
         elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
@@ -2240,6 +2241,7 @@ class VIEW3D_MT_select_edit_grease_pencil(Menu):
         layout.operator_menu_enum("grease_pencil.select_similar", "mode")
         layout.operator("grease_pencil.select_fill")
         layout.operator("grease_pencil.select_linked")
+        layout.operator("grease_pencil.select_linked", text="Deselect Linked").deselect = True
 
         layout.separator()
 
