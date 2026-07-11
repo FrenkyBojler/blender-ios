@@ -251,6 +251,8 @@ void ED_view3d_cameracontrol_update(View3DCameraControl *vctrl, /* args for keyf
   float view_mat[4][4];
   ED_view3d_to_m4(view_mat, rv3d->ofs, rv3d->viewquat, rv3d->dist);
 
+  rotate_m4(view_mat, 'Z', rv3d->camroll);
+
   /* transform the parent or the camera? */
   if (vctrl->root_parent) {
     Object *ob_update;
