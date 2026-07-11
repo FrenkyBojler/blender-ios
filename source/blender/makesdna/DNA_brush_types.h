@@ -295,7 +295,6 @@ struct Brush {
 
   /** Projection shape (sphere, circle). */
   eBrushFalloffShape falloff_shape = PAINT_FALLOFF_SHAPE_SPHERE;
-  /* Deprecated, to be removed in 5.4 - @Sean-Kim */
   float falloff_angle_legacy = 0;
 
   /** Active sculpt brush type. */
