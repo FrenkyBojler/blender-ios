@@ -1123,7 +1123,7 @@ struct ScopeParser {
     if (curr_node.type() == type) {
       IndexRange &range = parser.scope_ranges[curr_node.index_];
       /* On error/EOF unwind, `tok` is invalid: extend the scope to the last token. */
-      const int64_t end = tok.is_valid() ? tok.index_ : parser.size() - 1;
+      const int64_t end = tok.is_valid() ? tok.index_ : parser.size();
       range.size = end - range.start + 1;
       curr_node = curr_node.parent();
     }

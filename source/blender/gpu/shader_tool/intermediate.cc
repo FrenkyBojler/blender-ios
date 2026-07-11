@@ -388,7 +388,7 @@ struct ScopeStack {
 void ParserBase::build_token_to_scope_map()
 {
   token_scope.clear();
-  token_scope.resize(scope_ranges[0].size);
+  token_scope.resize(this->size() + 1);
 
   int scope_id = 0;
   for (const IndexRange &range : scope_ranges) {
