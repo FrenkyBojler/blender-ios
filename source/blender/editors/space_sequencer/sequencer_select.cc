@@ -98,6 +98,8 @@ bool deselect_all_strips(const Scene *scene)
 bool deselect_transition_handles(const Scene *scene)
 {
   Editing *ed = seq::editing_get(scene);
+  bool changed = false;
+
   if (ed == nullptr) {
     return false;
   }
@@ -105,19 +107,10 @@ bool deselect_transition_handles(const Scene *scene)
   for (Strip &strip : *seq::active_seqbase_get(ed)) {
     if (seq::strip_is_transition(&strip) && (strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL))) {
       strip.flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
-      return true;
+      changed = true;
     }
   }
-  return false;
-}
-
-static void deselect_non_transitions(ListBaseT<Strip> *seqbase)
-{
-  for (Strip &strip : *seqbase) {
-    if (!seq::strip_is_transition(&strip)) {
-      strip.flag &= ~STRIP_ALLSEL;
-    }
-  }
+  return changed;
 }
 
 Strip *strip_under_mouse_get(const Scene *scene,
@@ -1222,12 +1215,31 @@ static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
   eStripHandle handle = selection.handle;
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
 
+  // TODO: right now it's possible to first select two handles, then deselect the active strip's
+  // handle, leaving it to a state where handles and non-handles are selected. But does it even
+  // make sense to try and prevent this? I guess this change might not make sense.
+  // Actually, this should do the linked handle selection instead, so it's not a problem.
+
   if (deselect_all || (!extend && !deselect && !toggle)) {
     deselect_all_strips(scene);
   }
-  else if (ELEM(handle, STRIP_HANDLE_LEFT, STRIP_HANDLE_RIGHT)) {
-    /* Transition handles and normal strips must not be selected at the same time. */
-    deselect_non_transitions(seqbase);
+  else if (handle == STRIP_HANDLE_NONE) {
+    /* Either only transition handles should be selected, or just the body. */
+    deselect_transition_handles(scene);
+  }
+  else {
+    /* Transition handles and normal strips must not be selected at the same time.
+     * Either only transition handles should be selected, or just the body. */
+    for (Strip &strip : *seqbase) {
+      if (seq::strip_is_transition(&strip)) {
+        if ((strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) == 0) {
+          strip.flag &= ~SEQ_SELECT;
+        }
+      }
+      else {
+        strip.flag &= ~STRIP_ALLSEL;
+      }
+    }
   }
 
   /* Do actual selection. */
