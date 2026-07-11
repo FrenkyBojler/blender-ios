@@ -331,8 +331,8 @@ static bool img_seq_need_fallback(StripElem *se)
   return false;
 }
 
-static void path_append_sequence_number(
-    const char *old_path, char *path_out, int frame_nr, int padding, bool prefix_period = true)
+void path_append_sequence_number(
+    const char *old_path, char *path_out, int frame_nr, int padding, bool prefix_period)
 {
   /* Copy old path. */
   BLI_strncpy(path_out, old_path, FILE_MAX);

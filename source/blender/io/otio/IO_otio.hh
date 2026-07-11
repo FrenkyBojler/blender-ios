@@ -58,6 +58,9 @@ struct ExportJobData {
   OTIOExportParams params;
 };
 
+void path_append_sequence_number(
+    const char *old_path, char *path_out, int frame_nr, int padding, bool prefix_period = true);
+
 }  // namespace io::otio
 
 static CLG_LogRef LOG = {"io.otio"};

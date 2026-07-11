@@ -72,6 +72,10 @@ static Strip *add_item_recursive(Main *bmain,
   if (auto clip = dynamic_cast<Clip *>(item)) {
 
     StripType strip_type = is_sound_clip ? STRIP_TYPE_SOUND : STRIP_TYPE_MOVIE;
+    char name_prefix[FILE_MAX];
+    char name_suffix[FILE_MAX];
+    int start_frame = 0;
+    int padding = 0;
 
     if (auto ext_ref = dynamic_cast<ExternalReference *>(clip->media_reference())) {
       STRNCPY(load_data.path, ext_ref->target_url().c_str());
@@ -82,7 +86,17 @@ static Strip *add_item_recursive(Main *bmain,
     }
     else if (auto img_seq_ref = dynamic_cast<ImageSequenceReference *>(clip->media_reference())) {
       strip_type = STRIP_TYPE_IMAGE;
-      /* Todo: Set load_data.image values.*/
+      load_data.image.count = img_seq_ref->number_of_images_in_sequence();
+
+      STRNCPY(name_prefix, img_seq_ref->name_prefix().c_str());
+      STRNCPY(name_suffix, img_seq_ref->name_suffix().c_str());
+      start_frame = img_seq_ref->start_frame();
+      padding = img_seq_ref->frame_zero_padding();
+
+      STRNCPY(load_data.path, img_seq_ref->target_url_base().c_str());
+      BLI_strncat(load_data.path, name_prefix, sizeof(load_data.path));
+      path_append_sequence_number(load_data.path, load_data.path, start_frame, padding, false);
+      BLI_strncat(load_data.path, name_suffix, sizeof(load_data.path));
     }
 
     switch (strip_type) {
@@ -103,6 +117,13 @@ static Strip *add_item_recursive(Main *bmain,
         BLI_path_split_file_part(load_data.path, filename, sizeof(filename));
         seq::add_image_set_directory(strip, dirpath);
         seq::add_image_load_file(scene, strip, 0, filename);
+
+        for (int i = 1; i < load_data.image.count; ++i) {
+          STRNCPY(filename, name_prefix);
+          path_append_sequence_number(filename, filename, start_frame + i, padding, false);
+          BLI_strncat(filename, name_suffix, sizeof(filename));
+          seq::add_image_load_file(scene, strip, i, filename);
+        }
         seq::add_image_init_alpha_mode(bmain, scene, strip);
         break;
 
@@ -114,7 +135,6 @@ static Strip *add_item_recursive(Main *bmain,
     return nullptr;
   }
   else if (auto stack = dynamic_cast<Stack *>(item)) {
-    CLOG_ERROR(&LOG, "start_frame: %d \nleft_offset: %d", load_data.start_frame, left_offset);
     strip = seq::add_meta_strip(scene, seqbase, &load_data);
     int meta_end_frame = std::numeric_limits<int>::min();
     int channel_meta = 1;
