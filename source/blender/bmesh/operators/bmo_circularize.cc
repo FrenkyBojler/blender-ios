@@ -107,8 +107,7 @@ struct CircularizeEdgeTestParams {
 
 static bool bm_edge_circularize_test_cb(BMEdge *e, void *user_data)
 {
-  const CircularizeEdgeTestParams *params = static_cast<const CircularizeEdgeTestParams *>(
-      user_data);
+  const auto *params = static_cast<const CircularizeEdgeTestParams *>(user_data);
   return is_valid_boundary_edge(e, params->hflag, params->check_axis);
 }
 
