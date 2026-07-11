@@ -1078,7 +1078,11 @@ void wm_xr_viewfinder_draw(const bContext *C,
                            const XrSessionSettings *settings,
                            wmXrSessionState *state)
 {
-  if (!settings->viewfinder_enabled) {
+  if (!settings->viewfinder_enabled || C == nullptr) {
+    return;
+  }
+
+  if (CTX_data_scene(C) == nullptr) {
     return;
   }
 

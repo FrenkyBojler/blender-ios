@@ -2177,7 +2177,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   GPU_matrix_projection_set(winmat);
   GPU_matrix_push();
   GPU_matrix_set(viewmat);
-  wm_xr_draw_controllers(nullptr, nullptr, xr_data);
+  wm_xr_draw_controllers(xr_context, nullptr, xr_data);
   GPU_matrix_pop();
   GPU_matrix_pop_projection();
 }
