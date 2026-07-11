@@ -21,6 +21,7 @@
 #include "PRF_profile.hh"
 
 #include <algorithm>
+#include <optional>
 
 namespace blender {
 
@@ -259,7 +260,7 @@ inline bool kdtree_is_left_child(const KDTree<CoordT> &tree,
                                  const KDTreeNode<CoordT> &parent_node,
                                  const KDTreeNode<CoordT> &node)
 {
-  const int node_index = std::distance(&tree.nodes, &node);
+  const int node_index = std::distance<const KDTreeNode<CoordT> *>(tree.nodes, &node);
   BLI_assert(ELEM(node_index, parent_node.left, parent_node.right));
   return parent_node.left == node_index;
 }
@@ -275,7 +276,7 @@ inline void kdtree_foreach_node_around(const KDTree<CoordT> &tree, const CoordT 
   ValueType min_sq_dist = std::numeric_limits<ValueType>::max();
 
   kdtree_foreach_node(
-      *tree,
+      tree,
       [&](const KDTreeNode<CoordT> &node) {
         const std::optional<ValueType> new_value = func(node, min_sq_dist);
         min_sq_dist = new_value.value_or(0.0f);
@@ -289,7 +290,7 @@ inline void kdtree_foreach_node_around(const KDTree<CoordT> &tree, const CoordT 
         }
 
         const bool coord_sign = math::sign(max_dist);
-        const bool child_sign = kdtree_is_left_child(*tree, node, child);
+        const bool child_sign = kdtree_is_left_child(tree, node, child);
         const bool is_same_space_half = coord_sign == child_sign;
         return is_same_space_half;
       },
@@ -315,7 +316,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
   int min_node_index = -1;
 
   kdtree_foreach_node_around(
-      *tree, co, [&](const KDTreeNode<CoordT> &node, const ValueType &old_dist) {
+      *tree, co, [&](const KDTreeNode<CoordT> &node, const ValueType &old_dist) -> std::optional<ValueType> {
         const ValueType dist_sq = detail::distance_squared(node.co, co);
         if (old_dist <= dist_sq) {
           return old_dist;
@@ -325,12 +326,15 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
           case 0:
             return old_dist;
           case 1: {
-            min_node_index = math::distance(&tree->nodes, &node);
+            min_node_index = std::distance<const KDTreeNode<CoordT> *>(tree->nodes, &node);
             return dist_sq;
           }
           case -1:
             return std::nullopt;
         }
+        
+        BLI_assert_unreachable();
+        return {};
       });
 
   if (min_node_index == -1) {
@@ -403,6 +407,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
                                                      const uint nearest_len_capacity,
                                                      Func &&len_sq_fn)
 {
+  using ValueType = KDTree<CoordT>::ValueType;
   if (nearest_len_capacity == 0) [[unlikely]] {
     return 0;
   }
@@ -421,7 +426,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(const KDTree<CoordT> *tree,
         return r_nearest[nearest_len - 1].dist;
       });
 
-  for (i = 0; i < nearest_len; i++) {
+  for (int i = 0; i < nearest_len; i++) {
     r_nearest[i].dist = sqrtf(r_nearest[i].dist);
   }
 
@@ -516,6 +521,7 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<CoordT> *tree,
                                                    const typename KDTree<CoordT>::ValueType range,
                                                    Func &&len_sq_fn)
 {
+  using ValueType = KDTree<CoordT>::ValueType;
   KDTreeNearest<CoordT> *nearest = nullptr;
   uint nearest_len = 0;
   uint nearest_len_capacity = 0;
@@ -567,7 +573,8 @@ inline void kdtree_range_search_cb(const KDTree<CoordT> *tree,
                                    typename KDTree<CoordT>::ValueType range,
                                    Fn &&search_cb)
 {
-  kdtree_foreach_node_in_range(tree, co, range, [&](const KDTreeNode<CoordT> &node) {
+  using ValueType = KDTree<CoordT>::ValueType;
+  kdtree_foreach_node_in_range(*tree, co, range, [&](const KDTreeNode<CoordT> &node) {
     const ValueType sq_value = detail::distance_squared(node.co, co);
     if (sq_value > math::square(range)) {
       return true;
@@ -618,20 +625,21 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
                                        const bool use_index_order,
                                        int *duplicates)
 {
+  using ValueType = KDTree<CoordT>::ValueType;
   PRF_scope(ProfileCategory::Default);
 
   const auto mark_nodes_around = [&](const KDTreeNode<CoordT> &node, const int value) {
     int found = 0;
-    kdtree_foreach_node_in_range(tree, node.co, range, [&](const KDTreeNode<CoordT> &other_node) {
+    kdtree_foreach_node_in_range(*tree, node.co, range, [&](const KDTreeNode<CoordT> &other_node) {
       if (&other_node == &node) {
         return true;
       }
 
       if (duplicates[other_node.index] == -1) {
-        continue;
+        return true;
       }
 
-      const ValueType sq_value = detail::distance_squared(other_node.co, co);
+      const ValueType sq_value = detail::distance_squared(other_node.co, node.co);
       if (sq_value > math::square(range)) {
         return true;
       }
@@ -647,13 +655,13 @@ inline int kdtree_calc_duplicates_fast(const KDTree<CoordT> *tree,
   const auto deduplicate_nodes = [&](const KDTreeNode<CoordT> &node) {
     const int index = node.index;
     if (!ELEM(duplicates[index], -1, index)) {
-      continue;
+      return;
     }
 
     const int found_nodes_num = mark_nodes_around(node, index);
     found += found_nodes_num;
     if (found_nodes_num == 0) {
-      continue;
+      return;
     }
 
     /* Prevent chains of doubles. */
