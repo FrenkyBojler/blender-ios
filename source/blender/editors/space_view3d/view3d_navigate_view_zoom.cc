@@ -77,23 +77,54 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
     rctf camera_frame_old;
     rctf camera_frame_new;
 
-    const float pt_src[2] = {float(zoom_xy[0]), float(zoom_xy[1])};
+    const float pt_src[2] = {float(zoom_xy[0] - region->winrct.xmin),
+                             float(zoom_xy[1] - region->winrct.ymin)};
+    float pt_src_2[2] = {pt_src[0], pt_src[1]};
     float pt_dst[2];
     float delta_px[2];
 
+    const float c = cosf(rv3d->camroll);
+    const float s = sinf(rv3d->camroll);
+
+    const int center_x = region->winx / 2;
+    const int center_y = region->winy / 2;
+
+    pt_src_2[0] -= center_x;
+    pt_src_2[1] -= center_y;
+
+    float x2 = pt_src_2[0];
+    pt_src_2[0] = pt_src_2[0] * c + pt_src_2[1] * s;
+    pt_src_2[1] = -x2 * s + pt_src_2[1] * c;
+
+    pt_src_2[0] += center_x;
+    pt_src_2[1] += center_y;
+
     ED_view3d_calc_camera_border(
         scene, depsgraph, region, v3d, rv3d, false, true, &camera_frame_old);
-    BLI_rctf_translate(&camera_frame_old, region->winrct.xmin, region->winrct.ymin);
 
     rv3d->camzoom = camzoom_new;
     CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 
     ED_view3d_calc_camera_border(
         scene, depsgraph, region, v3d, rv3d, false, true, &camera_frame_new);
-    BLI_rctf_translate(&camera_frame_new, region->winrct.xmin, region->winrct.ymin);
 
-    BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src);
+    BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src_2);
+
+    pt_dst[0] -= center_x;
+    pt_dst[1] -= center_y;
+
+    x2 = pt_dst[0];
+    pt_dst[0] = pt_dst[0] * c - pt_dst[1] * s;
+    pt_dst[1] = x2 * s + pt_dst[1] * c;
+
+    pt_dst[0] += center_x;
+    pt_dst[1] += center_y;
+
     sub_v2_v2v2(delta_px, pt_dst, pt_src);
+
+    x2 = delta_px[0];
+    delta_px[0] = delta_px[0] * c + delta_px[1] * s;
+    delta_px[1] = -x2 * s + delta_px[1] * c;
 
     /* translate the camera offset using pixel space delta
      * mapped back to the camera (same logic as panning in camera view) */
