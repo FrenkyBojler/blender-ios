@@ -113,12 +113,6 @@ echo Installing LLVM %LLVM_VER_ARM64%
 start /wait C:\install\llvm.exe /S
 set PATH=%PATH%;C:\Program Files\LLVM\bin
 
-REM NuGet may be initialized without sources (see https://github.com/python/cpython/pull/152919)
-echo Obtaining NuGet CLI
-curl -s -L https://aka.ms/nugetclidl -o C:\install\nuget.exe
-echo Initializing NuGet with source
-start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api.nuget.org/v3/index.json >nul 2>nul
-
 set VCVARS_PATH=C:\vs%VSBT_YEAR%bt\VC\Auxiliary\Build\vcvarsarm64.bat
 goto common
 
@@ -173,6 +167,12 @@ set VCVARS_PATH=C:\vs%VSBT_YEAR%bt\VC\Auxiliary\Build\vcvars64.bat
 goto common
 
 :common
+REM NuGet may be initialized without sources (see https://github.com/python/cpython/pull/152919)
+echo Obtaining NuGet CLI
+curl -s -L https://aka.ms/nugetclidl -o C:\install\nuget.exe
+echo Initializing NuGet with source
+start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api.nuget.org/v3/index.json >nul 2>nul
+
 mkdir C:\blendergit
 cd C:\blendergit
 echo Cloning Blender repository
