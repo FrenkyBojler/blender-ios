@@ -641,6 +641,16 @@ void ED_view3d_camera_lock_init_ex(const Depsgraph *depsgraph,
           ob_camera_eval->object_to_world().ptr(), rv3d->ofs, VIEW3D_DIST_FALLBACK);
     }
     ED_view3d_from_object(ob_camera_eval, rv3d->ofs, rv3d->viewquat, &rv3d->dist, nullptr);
+
+    float quat_mul[4];
+    float z_vec[3];
+    z_vec[0] = 0.0f;
+    z_vec[1] = 0.0f;
+    z_vec[2] = 1.0f;
+
+    axis_angle_normalized_to_quat(quat_mul, z_vec, rv3d->camroll);
+
+    mul_qt_qtqt(rv3d->viewquat, quat_mul, rv3d->viewquat);
   }
 }
 
@@ -695,7 +705,8 @@ bool ED_view3d_camera_lock_sync(const Depsgraph *depsgraph, View3D *v3d, RegionV
       /* always maintain the same scale */
       const short protect_scale_all = (OB_LOCK_SCALEX | OB_LOCK_SCALEY | OB_LOCK_SCALEZ);
       BKE_object_tfm_protected_backup(v3d->camera, &obtfm);
-      ED_view3d_to_object(depsgraph, v3d->camera, rv3d->ofs, rv3d->viewquat, rv3d->dist);
+      ED_view3d_to_object(
+          depsgraph, v3d->camera, rv3d->ofs, rv3d->viewquat, rv3d->dist, rv3d->camroll);
       BKE_object_tfm_protected_restore(
           v3d->camera, &obtfm, v3d->camera->protectflag | protect_scale_all);
 
@@ -1679,10 +1690,13 @@ void ED_view3d_to_object(const Depsgraph *depsgraph,
                          Object *ob,
                          const float ofs[3],
                          const float quat[4],
-                         const float dist)
+                         const float dist,
+                         const float camroll)
 {
   float mat[4][4];
   ED_view3d_to_m4(mat, ofs, quat, dist);
+
+  rotate_m4(mat, 'Z', camroll);
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   BKE_object_apply_mat4_ex(ob, mat, ob_eval->parent, ob_eval->parentinv, true);
