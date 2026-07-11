@@ -719,6 +719,7 @@ static void wm_xr_viewfinder_ui_draw_widgets(const bContext *C,
 
     ui::Block *block = block_func(C, state);
     wm_xr_viewfinder_ui_block_draw(C, block);
+    ui::block_free(C, block);
 
     GPU_matrix_pop();
   };
