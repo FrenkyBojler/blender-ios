@@ -1700,6 +1700,7 @@ if(WITH_UI_TESTS)
     test_sculpt.trim_gestures
     test_sculpt.primitive_tool_add
     test_tools.sculpt_mode_toolbar
+    test_view3d_select.view3d_select_armature_in_front_of_grease_pencil
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple

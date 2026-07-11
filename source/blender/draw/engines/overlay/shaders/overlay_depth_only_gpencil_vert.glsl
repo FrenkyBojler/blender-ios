@@ -35,8 +35,12 @@ void main()
                                gp_interp_noperspective.thickness,
                                gp_interp_noperspective.hardness);
 
-  /* Small bias to always be on top of the geom. */
+  /* Small bias to always be on top of the geom.
+   * Skip during selection so GP does not unfairly win depth picking against
+   * nearby objects (especially in orthographic view). See: #156983. */
+#ifndef SELECT_ENABLE
   gl_Position.z -= 1e-3f;
+#endif
 
   view_clipping_distances(world_pos);
 
