@@ -16,15 +16,15 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_rect.h"
+#include "BLI_rect.hh"
 #include "BLI_task.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
@@ -64,6 +64,7 @@
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_thumbnail_cache.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
@@ -153,13 +154,16 @@ static void ensure_ibuf_is_color_space(ImBuf *ibuf, bool make_float, const char 
     if (ibuf->byte_data() != nullptr) {
       IMB_free_byte_pixels(ibuf);
     }
+    /* Note: we do not use predivide to more closely match what
+     * compositor does, and to better preserve cases of pure emissive
+     * colors (alpha=0, RGB non black). */
     IMB_colormanagement_transform_float(ibuf->float_data_for_write(),
                                         ibuf->x,
                                         ibuf->y,
                                         ibuf->channels,
                                         from_colorspace,
                                         to_colorspace,
-                                        true);
+                                        false);
     IMB_colormanagement_assign_float_colorspace(ibuf, to_colorspace);
   }
 }
@@ -639,7 +643,6 @@ static SeqResult input_preprocess(const RenderData *context,
   const bool do_scale_to_render_size = seq_need_scale_to_render_size(strip, is_proxy_image);
   const float image_scale_factor = do_scale_to_render_size ? preview_scale_factor : 1.0f;
 
-  float2 modifier_translation = float2(0, 0);
   if (strip->modifiers.first) {
     result.image = IMB_makeSingleUser(result.image);
     float3x3 matrix = calc_strip_transform_matrix(scene,
@@ -654,9 +657,8 @@ static SeqResult input_preprocess(const RenderData *context,
         scene, strip, 0, 0, 0, 0, image_scale_factor, preview_scale_factor);
     matrix_comp = math::invert(matrix_comp);
     ModifierApplyContext mod_context(
-        *context, *state, *strip, matrix, matrix_comp, timeline_frame, result.image);
+        *context, *state, *strip, matrix, matrix_comp, timeline_frame, result);
     modifier_apply_stack(mod_context);
-    modifier_translation = mod_context.result_translation;
   }
 
   /* After everything above is done but before transform is applied,
@@ -665,7 +667,7 @@ static SeqResult input_preprocess(const RenderData *context,
 
   if (sequencer_use_crop(strip) || sequencer_use_transform(strip) ||
       context->rectx != result.image->x || context->recty != result.image->y ||
-      (strip->is_effect() && image_scale_factor != 1.0f) || modifier_translation != float2(0, 0))
+      (strip->is_effect() && image_scale_factor != 1.0f) || result.translation != float2(0, 0))
   {
     PRF_scope_with_name("SeqStripTransform", ProfileCategory::Draw);
 
@@ -683,7 +685,7 @@ static SeqResult input_preprocess(const RenderData *context,
                                                   context->recty,
                                                   image_scale_factor,
                                                   preview_scale_factor);
-    matrix *= math::from_location<float3x3>(modifier_translation);
+    matrix *= math::from_location<float3x3>(result.translation);
     matrix = math::invert(matrix);
     sequencer_preprocess_transform_crop(result.image,
                                         transformed_ibuf,
@@ -723,7 +725,9 @@ static SeqResult seq_render_preprocess_ibuf(const RenderData *context,
                                             const bool is_proxy_image)
 {
   BLI_assert(input.is_valid());
-  if (input.image->x != context->rectx || input.image->y != context->recty) {
+  if (input.image->x != context->rectx || input.image->y != context->recty ||
+      input.translation != float2(0, 0))
+  {
     use_preprocess = true;
   }
 
@@ -832,10 +836,11 @@ static SeqResult seq_render_effect_strip_impl(const RenderData *context,
 /** \name Individual strip rendering functions
  * \{ */
 
-void convert_multilayer_ibuf(ImBuf *ibuf)
+void ensure_ibuf_is_rgba(ImBuf *ibuf)
 {
-  /* Load the combined/RGB layer, if this is a multi-layer image. */
-  BKE_movieclip_convert_multilayer_ibuf(ibuf);
+  if (ibuf == nullptr) {
+    return;
+  }
 
   /* Combined layer might be non-4 channels, however the rest
    * of sequencer assumes RGBA everywhere. Convert to 4 channel if needed. */
@@ -860,7 +865,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
 {
   ImBuf *ibuf = nullptr;
 
-  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata | ImBufFlags::MultiLayer;
+  ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::Metadata;
   if (strip->alpha_mode == SEQ_ALPHA_PREMUL) {
     flag |= ImBufFlags::AlphaPremul;
   }
@@ -879,7 +884,7 @@ static ImBuf *seq_render_image_strip_view(const RenderData *context,
   if (ibuf == nullptr) {
     return nullptr;
   }
-  convert_multilayer_ibuf(ibuf);
+  ensure_ibuf_is_rgba(ibuf);
 
   /* We don't need both (speed reasons)! */
   if (ibuf->float_data() != nullptr && ibuf->byte_data() != nullptr) {
@@ -1324,6 +1329,92 @@ static Depsgraph *get_depsgraph_for_scene_strip(Main *bmain, Scene *scene, ViewL
   return depsgraph;
 }
 
+/* Render a scene strip through the offscreen viewport path (used for preview and thumbnails).
+ * `scene` is the strip's scene; `display_scene` is the scene that drives the shading
+ * (timeline edit scene). */
+static ImBuf *render_scene_strip_viewport(const Scene *display_scene,
+                                          Scene *scene,
+                                          const Strip *strip,
+                                          Depsgraph *depsgraph,
+                                          Object *camera,
+                                          eDrawType draw_type,
+                                          int width,
+                                          int height,
+                                          int view_id,
+                                          GPUOffScreen *gpu_offscreen,
+                                          GPUViewport *gpu_viewport)
+{
+  const bool use_gpencil = (strip->flag & SEQ_SCENE_NO_ANNOTATION) == 0;
+  const bool use_scene_settings = (display_scene->r.seq_flag & R_SEQ_OVERRIDE_SCENE_SETTINGS) != 0;
+
+  uint draw_flags = V3D_OFSDRAW_NONE;
+  draw_flags |= (use_gpencil) ? V3D_OFSDRAW_SHOW_ANNOTATION : 0;
+  draw_flags |= (use_scene_settings) ? (V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
+                                        V3D_OFSDRAW_NO_WORLD_BACKGROUND_OVERRIDE) :
+                                       0;
+
+  View3DShading scene_shading = display_scene->display.shading;
+  if (use_scene_settings) {
+    /* Allow to render with the scene world color. */
+    if (display_scene->world != nullptr) {
+      copy_v3_v3(&scene_shading.background_color[0], &display_scene->world->horr);
+    }
+    else {
+      copy_v3_fl(&scene_shading.background_color[0], 0.0f);
+    }
+    scene_shading.background_type = V3D_SHADING_BACKGROUND_VIEWPORT;
+  }
+
+  const char *viewname = BKE_scene_multiview_render_view_name_get(&scene->r, view_id);
+
+  BKE_scene_graph_update_for_newframe(depsgraph);
+  Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+
+  char err_out[256] = "unknown";
+  ImBuf *ibuf = view3d_fn(depsgraph,
+                          scene_eval,
+                          &scene_shading,
+                          draw_type,
+                          camera_eval,
+                          width,
+                          height,
+                          ImBufFlags::ByteData,
+                          eV3DOffscreenDrawFlag(draw_flags),
+                          scene->r.alphamode,
+                          viewname,
+                          gpu_offscreen,
+                          gpu_viewport,
+                          err_out);
+  if (ibuf == nullptr) {
+    fprintf(stderr, "VSE failed to render scene strip image: %s\n", err_out);
+  }
+  return ibuf;
+}
+
+struct SceneStripSavedState {
+  Scene *scene;
+  int scemode, cfra, mode;
+  float subframe;
+
+  SceneStripSavedState(Scene *scene)
+      : scene(scene),
+        scemode(scene->r.scemode),
+        cfra(scene->r.cfra),
+        mode(scene->r.mode),
+        subframe(scene->r.subframe)
+  {
+  }
+
+  ~SceneStripSavedState()
+  {
+    scene->r.scemode = this->scemode;
+    scene->r.cfra = this->cfra;
+    scene->r.subframe = this->subframe;
+    scene->r.mode &= this->mode | ~R_NO_CAMERA_SWITCH;
+  }
+};
+
 static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
                                         Strip *strip,
                                         float frame_index,
@@ -1339,7 +1430,7 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
    * stopped when needed. This would also give a nice progress bar for the preview
    * space so that users know there's something happening.
    *
-   * As a result the active scene now only uses OpenGL rendering for the sequencer
+   * As a result the active scene now only uses viewport rendering for the sequencer
    * preview. This is far from nice, but is the only way to prevent crashes at this
    * time.
    */
@@ -1354,8 +1445,7 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
 
   const bool is_rendering = G.is_rendering;
   const bool is_preview = !context->render && (context->scene->r.seq_prev_type) != OB_RENDER;
-  const bool use_gpencil = (strip->flag & SEQ_SCENE_NO_ANNOTATION) == 0;
-  double frame = double(scene->r.sfra) + double(frame_index) + double(strip->anim_startofs);
+  const float frame = float(scene->r.sfra) + frame_index + float(strip->anim_startofs);
 
 #if 0 /* UNUSED */
   bool have_seq = (scene->r.scemode & R_DOSEQ) && scene->ed && scene->ed->seqbase.first;
@@ -1386,32 +1476,8 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
   scene->r.mode |= R_NO_CAMERA_SWITCH;
 
   if (view3d_fn && is_preview && camera) {
-    char err_out[256] = "unknown";
     int width, height;
     BKE_render_resolution(&scene->r, false, &width, &height);
-    const char *viewname = BKE_scene_multiview_render_view_name_get(&scene->r, context->view_id);
-
-    const bool use_scene_settings = (context->scene->r.seq_flag & R_SEQ_OVERRIDE_SCENE_SETTINGS) !=
-                                    0;
-
-    uint draw_flags = V3D_OFSDRAW_NONE;
-    draw_flags |= (use_gpencil) ? V3D_OFSDRAW_SHOW_ANNOTATION : 0;
-    draw_flags |= (use_scene_settings) ? (V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
-                                          V3D_OFSDRAW_NO_WORLD_BACKGROUND_OVERRIDE) :
-                                         0;
-
-    View3DShading scene_shading = context->scene->display.shading;
-
-    if (use_scene_settings) {
-      /* Allow to render with the scene world color. */
-      if (context->scene->world != nullptr) {
-        copy_v3_v3(&scene_shading.background_color[0], &context->scene->world->horr);
-      }
-      else {
-        copy_v3_fl(&scene_shading.background_color[0], 0.0f);
-      }
-      scene_shading.background_type = V3D_SHADING_BACKGROUND_VIEWPORT;
-    }
 
     /* for old scene this can be uninitialized,
      * should probably be added to do_versions at some point if the functionality stays */
@@ -1419,29 +1485,17 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
       context->scene->r.seq_prev_type = OB_SOLID;
     }
 
-    /* opengl offscreen render */
-    BKE_scene_graph_update_for_newframe(depsgraph);
-    Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
-    Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-    ibuf = view3d_fn(
-        /* set for OpenGL render (nullptr when scrubbing) */
-        depsgraph,
-        scene_eval,
-        &scene_shading,
-        eDrawType(context->scene->r.seq_prev_type),
-        camera_eval,
-        width,
-        height,
-        ImBufFlags::ByteData,
-        eV3DOffscreenDrawFlag(draw_flags),
-        scene->r.alphamode,
-        viewname,
-        context->gpu_offscreen,
-        context->gpu_viewport,
-        err_out);
-    if (ibuf == nullptr) {
-      fprintf(stderr, "seq_render_scene_strip failed to get opengl buffer: %s\n", err_out);
-    }
+    ibuf = render_scene_strip_viewport(context->scene,
+                                       scene,
+                                       strip,
+                                       depsgraph,
+                                       camera,
+                                       eDrawType(context->scene->r.seq_prev_type),
+                                       width,
+                                       height,
+                                       context->view_id,
+                                       context->gpu_offscreen,
+                                       context->gpu_viewport);
   }
   else {
     Render *re = RE_GetSceneRender(scene);
@@ -1527,6 +1581,65 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
   return ibuf;
 }
 
+ImBuf *render_scene_strip_thumbnail(
+    Main *bmain, Scene *timeline_scene, const Strip *strip, float frame_index, int size)
+{
+  if (view3d_fn == nullptr || G.is_rendering) {
+    return nullptr;
+  }
+  Scene *scene = strip->scene;
+  if (scene == nullptr || scene == timeline_scene) {
+    return nullptr; /* No scene, or recursion with sequencer scene. */
+  }
+
+  /* Render at thumbnail size. */
+  int width, height;
+  BKE_render_resolution(&scene->r, false, &width, &height);
+  if (width <= 0 || height <= 0) {
+    return nullptr;
+  }
+  image_size_to_thumb_size(width, height, size);
+
+  ViewLayer *view_layer = get_view_layer_for_scene_strip(scene, strip);
+  Depsgraph *depsgraph = get_depsgraph_for_scene_strip(bmain, scene, view_layer);
+
+  SceneStripSavedState save_state(scene);
+
+  /* Note: passed frame index already includes `strip->anim_startofs`. */
+  const float frame = float(scene->r.sfra) + frame_index;
+  BKE_scene_frame_set(scene, frame);
+
+  Object *camera;
+  if (strip->scene_camera) {
+    camera = strip->scene_camera;
+  }
+  else {
+    BKE_scene_camera_switch_update(scene);
+    camera = scene->camera;
+  }
+  if (camera == nullptr) {
+    return nullptr;
+  }
+
+  /* Prevent rendering this scene's own sequencer, and enforce specific camera. */
+  scene->r.scemode &= ~R_DOSEQ;
+  scene->r.mode |= R_NO_CAMERA_SWITCH;
+
+  ImBuf *ibuf = render_scene_strip_viewport(timeline_scene,
+                                            scene,
+                                            strip,
+                                            depsgraph,
+                                            camera,
+                                            OB_SOLID,
+                                            width,
+                                            height,
+                                            0,
+                                            nullptr,
+                                            nullptr);
+
+  return ibuf;
+}
+
 static SeqResult seq_render_scene_strip(const RenderData *context,
                                         Strip *strip,
                                         float frame_index,
@@ -1540,41 +1653,11 @@ static SeqResult seq_render_scene_strip(const RenderData *context,
     return out;
   }
 
-  Scene *scene = strip->scene;
-
-  struct {
-    int scemode;
-    int timeline_frame;
-    float subframe;
-    int mode;
-  } orig_data;
-
-  /* Store state. */
-  orig_data.scemode = scene->r.scemode;
-  orig_data.timeline_frame = scene->r.cfra;
-  orig_data.subframe = scene->r.subframe;
-  orig_data.mode = scene->r.mode;
-
-  const bool is_frame_update = (orig_data.timeline_frame != scene->r.cfra) ||
-                               (orig_data.subframe != scene->r.subframe);
-
+  SceneStripSavedState save_state(strip->scene);
   out.image = seq_render_scene_strip_ex(context, strip, frame_index, timeline_frame);
   if (out.image && !out.image->can_contain_alpha()) {
     out.is_opaque_before_transform = true;
   }
-
-  /* Restore state. */
-  scene->r.scemode = orig_data.scemode;
-  scene->r.cfra = orig_data.timeline_frame;
-  scene->r.subframe = orig_data.subframe;
-  scene->r.mode &= orig_data.mode | ~R_NO_CAMERA_SWITCH;
-
-  Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene,
-                                                 get_view_layer_for_scene_strip(scene, strip));
-  if (is_frame_update && (depsgraph != nullptr)) {
-    BKE_scene_graph_update_for_newframe(depsgraph);
-  }
-
   return out;
 }
 
@@ -1598,7 +1681,15 @@ static SeqResult do_render_strip_seqbase(const RenderData *context,
     frame_index += offset;
 
     if (strip->flag & SEQ_SCENE_STRIPS && strip->scene) {
-      BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, frame_index);
+      if (AnimData *adt = BKE_animdata_from_id(&strip->scene->id)) {
+        const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
+            context->depsgraph, frame_index);
+        BKE_animsys_evaluate_animdata(&strip->scene->id,
+                                      adt,
+                                      &anim_eval_context,
+                                      ADT_RECALC_ANIM,
+                                      DEG_is_active(context->depsgraph));
+      }
     }
 
     intra_frame_cache_set_cur_frame(context->scene,

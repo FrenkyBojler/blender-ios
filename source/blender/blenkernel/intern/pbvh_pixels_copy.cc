@@ -4,8 +4,8 @@
 
 #include "BLI_array.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
@@ -16,6 +16,8 @@
 #include "BKE_image_wrappers.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
+
+#include "PRF_profile.hh"
 
 #include "pbvh_pixels_copy.hh"
 #include "pbvh_uv_islands.hh"
@@ -322,7 +324,7 @@ struct Rows {
         if (source == first_source) {
           continue;
         }
-        int pixel_index = sy * resolution.y + sx;
+        int pixel_index = sy * resolution.x + sx;
         if (pixels[pixel_index].type != PixelType::Brush) {
           continue;
         }
@@ -492,6 +494,7 @@ void copy_update(bke::pbvh::Tree &pbvh,
                  ImageUser &image_user,
                  const uv_islands::MeshData &mesh_data)
 {
+  PRF_scope(ProfileCategory::Editor);
   PixelData &pbvh_data = data_get(pbvh);
   pbvh_data.tiles_copy_pixels.clear();
   const NonManifoldUVEdges non_manifold_edges(mesh_data);
@@ -527,7 +530,7 @@ void copy_update(bke::pbvh::Tree &pbvh,
     rows.find_copy_source(selected_pixels, tile_edges);
     rows.pack_into(selected_pixels, copy_tile);
 
-    copy_tile.print_compression_rate();
+    // copy_tile.print_compression_rate();
     pbvh_data.tiles_copy_pixels.tiles.append(copy_tile);
   }
 }
