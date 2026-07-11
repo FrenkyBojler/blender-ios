@@ -127,6 +127,8 @@ enum ImBufGPUFlag : int {
   /** GPU texture failed to be loaded onto the GPU, to distinguish a null
    * texture between not yet loaded and failed to load. */
   IMB_GPU_LOAD_FAILED = (1 << 1),
+  /** GPU texture should be created writable, for partial mipmap updates. */
+  IMB_GPU_WRITABLE = (1 << 2),
 };
 ENUM_OPERATORS(ImBufGPUFlag)
 
