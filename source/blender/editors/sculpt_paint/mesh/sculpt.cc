@@ -2912,10 +2912,10 @@ void calc_brush_local_mat(const ViewContext &vc,
   normalize_m4(local_mat);
 }
 
-static void calc_brush_local_mat(const float rotation,
-                                 const Object &ob,
-                                 float local_mat[4][4],
-                                 float local_mat_inv[4][4])
+static void calc_brush_scaled_local_mat(const float rotation,
+                                        const Object &ob,
+                                        float local_mat[4][4],
+                                        float local_mat_inv[4][4])
 {
   const StrokeCache *cache = ob.runtime->sculpt_session->cache;
   float tmat[4][4];
@@ -2984,7 +2984,7 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
   if (cache->mirror_symmetry_pass == 0 && cache->radial_symmetry_pass == 0) {
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
     const MTex *mask_tex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
-    calc_brush_local_mat(
+    calc_brush_scaled_local_mat(
         mask_tex->rot, ob, cache->brush_local_mat.ptr(), cache->brush_local_mat_inv.ptr());
   }
 }
@@ -6860,9 +6860,9 @@ void cube_tip_init(const Sculpt & /*sd*/, const Object &ob, const Brush &brush, 
   float unused[4][4];
 
   zero_m4(mat);
-  calc_brush_local_mat(0.0, ob, unused, mat);
+  calc_brush_scaled_local_mat(0.0, ob, unused, mat);
 
-  /* NOTE: we ignore the radius scaling done inside of calc_brush_local_mat to
+  /* NOTE: we ignore the radius scaling done inside of calc_brush_scaled_local_mat to
    * duplicate prior behavior.
    *
    * TODO: try disabling this and check that all edge cases work properly.
