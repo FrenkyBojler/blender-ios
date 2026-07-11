@@ -316,7 +316,9 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
   int min_node_index = -1;
 
   kdtree_foreach_node_around(
-      *tree, co, [&](const KDTreeNode<CoordT> &node, const ValueType &old_dist) -> std::optional<ValueType> {
+      *tree,
+      co,
+      [&](const KDTreeNode<CoordT> &node, const ValueType &old_dist) -> std::optional<ValueType> {
         const ValueType dist_sq = detail::distance_squared(node.co, co);
         if (old_dist <= dist_sq) {
           return old_dist;
@@ -332,7 +334,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
           case -1:
             return std::nullopt;
         }
-        
+
         BLI_assert_unreachable();
         return {};
       });
