@@ -169,7 +169,7 @@ goto common
 :common
 REM NuGet may be initialized without sources (see https://github.com/python/cpython/pull/152919)
 echo Obtaining NuGet CLI
-curl -s -L https://aka.ms/nugetclidl -o C:\install\nuget.exe
+curl -s -L https://dist.nuget.org/win-x86-commandline/v7.6.0/nuget.exe -o C:\install\nuget.exe
 echo Initializing NuGet with source
 start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api.nuget.org/v3/index.json >nul 2>nul
 
