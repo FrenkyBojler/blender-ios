@@ -2397,8 +2397,6 @@ struct PAbfSystem {
 
 static void p_abf_setup_system(PAbfSystem *sys)
 {
-  int i;
-
   sys->alpha.reinitialize(sys->nangles);
   sys->beta.reinitialize(sys->nangles);
   sys->sine.reinitialize(sys->nangles);
@@ -2410,16 +2408,15 @@ static void p_abf_setup_system(PAbfSystem *sys)
   sys->bInterior.reinitialize(2 * size_t(sys->ninterior));
 
   sys->lambdaTriangle.reinitialize(sys->nfaces);
+  sys->lambdaTriangle.as_mutable_span().fill(0.0f);
   sys->lambdaPlanar.reinitialize(sys->ninterior);
+  sys->lambdaPlanar.as_mutable_span().fill(0.0f);
   sys->lambdaLength.reinitialize(sys->ninterior);
+  sys->lambdaLength.as_mutable_span().fill(1.0f);
 
   sys->J2dt.reinitialize(sys->nangles);
   sys->bstar.reinitialize(sys->nfaces);
   sys->dstar.reinitialize(sys->nfaces);
-
-  for (i = 0; i < sys->ninterior; i++) {
-    sys->lambdaLength[i] = 1.0;
-  }
 }
 
 static void p_abf_compute_sines(PAbfSystem *sys)
