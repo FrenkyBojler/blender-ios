@@ -868,6 +868,10 @@ static void wm_window_decoration_style_set_from_theme(const wmWindow *win, const
 
 void WM_window_decoration_style_apply(const wmWindow *win, const bScreen *screen)
 {
+  if (win == nullptr || win->runtime == nullptr || win->runtime->ghostwin == nullptr) {
+    return;
+  }
+
   BLI_assert(WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES);
   wm_window_decoration_style_set_from_theme(win, screen);
 
