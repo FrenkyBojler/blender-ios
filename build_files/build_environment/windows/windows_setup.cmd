@@ -175,6 +175,10 @@ start /wait C:\install\nuget.exe sources add -Name nuget.org -Source https://api
 
 mkdir C:\blendergit
 cd C:\blendergit
+if exist blender (
+  echo Repo dir exists, removing..
+  rd /q /s blender
+)
 echo Cloning Blender repository
 git clone --quiet --branch %BRANCH% https://projects.blender.org/%REPO%.git
 
