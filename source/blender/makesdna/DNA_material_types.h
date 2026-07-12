@@ -44,6 +44,8 @@ enum eMaterialGPencilStyle_Flag : short {
   GP_MATERIAL_STROKE_PATTERN = (1 << 7),
   GP_MATERIAL_STROKE_SHOW = (1 << 8), /* Deprecated. Only used for compatibility. */
   GP_MATERIAL_FILL_SHOW = (1 << 9),   /* Deprecated. Only used for compatibility. */
+  /* Automatically scale the stroke texture's UV to the stroke radius. */
+  GP_MATERIAL_LOCK_UV = (1 << 10),
   /* mix stroke texture */
   GP_MATERIAL_STROKE_TEX_MIX = (1 << 11),
   /* disable stencil clipping (overlap) */

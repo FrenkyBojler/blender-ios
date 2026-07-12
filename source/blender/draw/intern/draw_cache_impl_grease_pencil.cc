@@ -14,6 +14,7 @@
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_fills.hh"
+#include "BKE_image.hh"
 #include "BKE_material.hh"
 
 #include "BLI_array_utils.hh"
@@ -1277,6 +1278,51 @@ static Array<float> get_radii_lengths(const Span<float> lengths,
   return radii_lengths;
 }
 
+/**
+ * Calculate a cumulative "UV length" array for locking a stroke texture's U coordinate to the
+ * stroke's local radius (see `GP_MATERIAL_LOCK_UV`). Each segment contributes `segment_length /
+ * local_radius`, integrated along the segment's linear radius taper, so the texture keeps a
+ * locally-correct aspect ratio even along a tapered stroke.
+ *
+ * Radius is clamped to a fraction of the stroke's maximum radius to keep the integral from
+ * blowing up near zero-radius tips (e.g. tapered brush ends).
+ */
+static Array<float> get_uv_lock_lengths(const Span<float> lengths,
+                                        const VArray<float> &radii,
+                                        const IndexRange &points)
+{
+  float max_radius = 0.0f;
+  for (const int point_i : points) {
+    max_radius = math::max(max_radius, radii[point_i]);
+  }
+
+  if (max_radius <= 0.0f) {
+    return Array<float>(lengths.size(), 0.0f);
+  }
+
+  /* Floor to avoid the `1/r` integral blowing up near zero-radius stroke tips. */
+  const float radius_floor = max_radius * 0.15f;
+
+  Array<float> uv_lengths(lengths.size());
+  float uv_length = 0.0f;
+  for (const int i : lengths.index_range()) {
+    const float l = lengths[i] - (i > 0 ? lengths[i - 1] : 0.0f);
+    const float r1 = math::max(radii[points[i]], radius_floor);
+    const float r2 = math::max(radii[points[(i + 1) % points.size()]], radius_floor);
+    if (l > 0.0f) {
+      if (abs(r2 - r1) < 0.001f * r1) {
+        uv_length += l / r1;
+      }
+      else {
+        uv_length += (l / (r2 - r1)) * log(r2 / r1);
+      }
+    }
+    uv_lengths[i] = uv_length;
+  }
+
+  return uv_lengths;
+}
+
 static void grease_pencil_geom_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
                                             const Scene &scene)
@@ -1361,6 +1407,29 @@ static void grease_pencil_geom_batch_ensure(Object &object,
   GPU_indexbuf_init(&ibo, GPU_PRIM_TRIS, total_triangles_num, INT_MAX);
   MutableSpan<uint3> triangle_ibo_data = GPU_indexbuf_get_data(&ibo).cast<uint3>();
   int triangle_ibo_index = 0;
+
+  /* Cache of stroke texture aspect ratio (width / height) per material, for materials with
+   * "Lock UV to Radius" enabled. Lazily computed since #BKE_image_get_size() acquires an image
+   * buffer, so this avoids doing that once per stroke. */
+  Array<float> uv_lock_aspect(object.totcol, 1.0f);
+  Array<bool> uv_lock_aspect_computed(object.totcol, false);
+  auto get_uv_lock_aspect = [&](const int mat_id, const MaterialGPencilStyle &gp_style) {
+    /* The material index attribute is not guaranteed to be in range (see comment on
+     * `s_vert.mat` above), so fall back to an uncached lookup rather than indexing out of
+     * bounds. */
+    if (mat_id < 0 || mat_id >= uv_lock_aspect.size()) {
+      int width = 0, height = 0;
+      BKE_image_get_size(gp_style.sima, nullptr, &width, &height);
+      return (height > 0) ? (float(width) / float(height)) : 1.0f;
+    }
+    if (!uv_lock_aspect_computed[mat_id]) {
+      int width = 0, height = 0;
+      BKE_image_get_size(gp_style.sima, nullptr, &width, &height);
+      uv_lock_aspect[mat_id] = (height > 0) ? (float(width) / float(height)) : 1.0f;
+      uv_lock_aspect_computed[mat_id] = true;
+    }
+    return uv_lock_aspect[mat_id];
+  };
 
   /* Fill buffers with data. */
   for (const int drawing_i : drawings.index_range()) {
@@ -1487,13 +1556,26 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
       Array<float> radii_lengths;
       const bool is_line = gp_style->mode == GP_MATERIAL_MODE_LINE;
+      const bool lock_uv = is_line && (gp_style->flag & GP_MATERIAL_LOCK_UV);
 
       if (gp_style->placement_mode == GP_MATERIAL_PLACEMENT_RADIUS && !is_line) {
         radii_lengths = get_radii_lengths(lengths, radii, points);
       }
 
+      Array<float> uv_lock_lengths;
+      float uv_lock_scale = 1.0f;
+      if (lock_uv) {
+        uv_lock_lengths = get_uv_lock_lengths(lengths, radii, points);
+        const float aspect = get_uv_lock_aspect(mat_id, *gp_style);
+        uv_lock_scale = 1.0f / (2.0f * aspect);
+      }
+
       auto get_u_stroke = [&](const int i) {
         if (is_line) {
+          if (lock_uv) {
+            const float u = i > 0 ? uv_lock_lengths[i - 1] : 0.0f;
+            return u_scale * uv_lock_scale * u + u_translation;
+          }
           const float u = i > 0 ? lengths[i - 1] : 0.0f;
           return u_scale * u + u_translation;
         }
