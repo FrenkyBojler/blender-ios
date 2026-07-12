@@ -14,6 +14,7 @@
 #include "BLI_listbase.hh"
 #include "BLI_math_base_c.hh"
 #include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "CLG_log.h"
 
@@ -30,6 +31,7 @@
 #include <opentimelineio/gap.h>
 #include <opentimelineio/imageSequenceReference.h>
 #include <opentimelineio/item.h>
+#include <opentimelineio/marker.h>
 #include <opentimelineio/serializableObject.h>
 #include <opentimelineio/stack.h>
 #include <opentimelineio/timeline.h>
@@ -240,6 +242,35 @@ static Strip *add_item_recursive(Main *bmain,
   return strip;
 }
 
+static void add_scene_markers(Scene *scene, SerializableObject::Retainer<Timeline> &timeline)
+{
+  auto set_marker_name = [](TimeMarker *marker, std::string &&name, int frame) {
+    if (name.length()) {
+      STRNCPY(marker->name, name.c_str());
+    }
+    else {
+      SNPRINTF_UTF8(marker->name, "F_%02d", frame);
+    }
+  };
+
+  for (SerializableObject::Retainer<Marker> &otio_marker : timeline->tracks()->markers()) {
+    int frame1 = otio_marker->marked_range().start_time().to_frames();
+    int frame2 = frame1 + otio_marker->marked_range().duration().to_frames() - 1;
+
+    TimeMarker *marker = MEM_new<TimeMarker>("TimeMarker");
+    marker->frame = frame1;
+    set_marker_name(marker, otio_marker->name(), frame1);
+    BLI_addtail(&scene->markers, marker);
+
+    if (frame2 > frame1) {
+      TimeMarker *marker2 = MEM_new<TimeMarker>("TimeMarker");
+      marker->frame = frame2;
+      set_marker_name(marker2, otio_marker->name(), frame2);
+      BLI_addtail(&scene->markers, marker2);
+    }
+  }
+}
+
 void build_blender_timeline(Main *bmain,
                             Scene *scene,
                             SerializableObject::Retainer<Timeline> &timeline,
@@ -283,6 +314,8 @@ void build_blender_timeline(Main *bmain,
       ++channel;
     }
   }
+
+  add_scene_markers(scene, timeline);
 }
 
 }  // namespace blender::io::otio
