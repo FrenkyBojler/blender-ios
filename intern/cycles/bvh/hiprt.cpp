@@ -22,6 +22,7 @@ BVHHIPRT::BVHHIPRT(const BVHParams &params,
       custom_primitive_bound(in_device, "Custom Primitive Bound", MEM_READ_ONLY),
       triangle_index(in_device, "HIPRT Triangle Index", MEM_READ_ONLY),
       vertex_data(in_device, "vertex_data", MEM_READ_ONLY),
+      aabb_overlap_ratio(0.0f),
       device(in_device)
 {
   triangle_mesh = {nullptr};
@@ -30,12 +31,10 @@ BVHHIPRT::BVHHIPRT(const BVHParams &params,
 
 BVHHIPRT::~BVHHIPRT()
 {
-  HIPRTDevice *hiprt_device = static_cast<HIPRTDevice *>(device);
-  hiprtContext hiprt_context = hiprt_device->get_hiprt_context();
   custom_primitive_bound.free();
   triangle_index.free();
   vertex_data.free();
-  hiprtDestroyGeometry(hiprt_context, hiprt_geom);
+  device->release_bvh(this);
 }
 
 CCL_NAMESPACE_END

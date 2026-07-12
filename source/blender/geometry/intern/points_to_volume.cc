@@ -43,9 +43,7 @@ class OpenVDBParticleList {
 
   void getPos(size_t n, openvdb::Vec3R &xyz) const
   {
-    float3 pos = positions_[n] * voxel_size_inv_;
-    /* Better align generated grid with source points. */
-    pos -= float3(0.5f);
+    const float3 pos = positions_[n] * voxel_size_inv_;
     xyz = &pos.x;
   }
 
@@ -60,6 +58,10 @@ static openvdb::FloatGrid::Ptr points_to_sdf_grid_impl(const Span<float3> positi
                                                        const Span<float> radii,
                                                        const float voxel_size)
 {
+  if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
+    return nullptr;
+  }
+
   /* Create a new grid that will be filled. #ParticlesToLevelSet requires
    * the background value to be positive */
   openvdb::FloatGrid::Ptr new_grid = openvdb::FloatGrid::create(1.0f);

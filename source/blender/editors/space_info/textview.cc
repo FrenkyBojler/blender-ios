@@ -12,10 +12,10 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -26,6 +26,8 @@
 #include "UI_interface_icons.hh"
 
 #include "textview.hh"
+
+namespace blender {
 
 static void textview_font_begin(const int font_id, const int lheight)
 {
@@ -80,11 +82,11 @@ static void textview_draw_sel(const char *str,
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     immUniformColor4ubv(bg_sel);
-    immRecti(pos, xy[0] + (cwidth * sta), xy[1] + lheight, xy[0] + (cwidth * end), xy[1]);
+    immRectf(pos, xy[0] + (cwidth * sta), xy[1] + lheight, xy[0] + (cwidth * end), xy[1]);
 
     immUnbindProgram();
 
@@ -106,7 +108,7 @@ static int textview_wrap_offsets(
 
   *r_lines = 1;
 
-  *r_offsets = MEM_calloc_arrayN<int>(
+  *r_offsets = MEM_new_array_zeroed<int>(
       (str_len * column_width_max / std::max(1, width - (column_width_max - 1)) + 1), __func__);
   (*r_offsets)[0] = 0;
 
@@ -178,7 +180,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
     }
 
     tds->xy[1] = y_next;
-    MEM_freeN(offsets);
+    MEM_delete(offsets);
     return true;
   }
   if (y_next < tds->scroll_ymin) {
@@ -190,7 +192,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
       textview_step_sel(tds, -(str_len + 1));
     }
 
-    MEM_freeN(offsets);
+    MEM_delete(offsets);
     return true;
   }
 
@@ -207,10 +209,10 @@ static bool textview_draw_string(TextViewDrawState *tds,
 
   if (bg) {
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(bg);
-    immRecti(pos, tds->draw_rect_outer->xmin, line_bottom, tds->draw_rect_outer->xmax, line_top);
+    immRectf(pos, tds->draw_rect_outer->xmin, line_bottom, tds->draw_rect_outer->xmax, line_top);
     immUnbindProgram();
   }
 
@@ -221,7 +223,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
     float hpadding = tds->draw_rect->xmin - (bg_size * 1.2f);
 
     rgba_uchar_to_float(col, icon_bg);
-    UI_draw_roundbox_corner_set(UI_CNR_ALL);
+    draw_roundbox_corner_set(ui::CNR_ALL);
 
     rctf roundbox_rect;
     roundbox_rect.xmin = hpadding;
@@ -229,7 +231,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
     roundbox_rect.ymin = line_top - bg_size - vpadding;
     roundbox_rect.ymax = line_top - vpadding;
 
-    UI_draw_roundbox_4fv(&roundbox_rect, true, 4 * UI_SCALE_FAC, col);
+    ui::draw_roundbox_4fv(&roundbox_rect, true, 4 * UI_SCALE_FAC, col);
   }
 
   if (icon) {
@@ -237,15 +239,15 @@ static bool textview_draw_string(TextViewDrawState *tds,
     int hpadding = tds->draw_rect->xmin - (UI_ICON_SIZE * 1.3f);
 
     GPU_blend(GPU_BLEND_ALPHA);
-    UI_icon_draw_ex(hpadding,
-                    line_top - UI_ICON_SIZE - vpadding,
-                    icon,
-                    (16 / UI_ICON_SIZE),
-                    1.0f,
-                    0.0f,
-                    icon_fg,
-                    false,
-                    UI_NO_ICON_OVERLAY_TEXT);
+    ui::icon_draw_ex(hpadding,
+                     line_top - UI_ICON_SIZE - vpadding,
+                     icon,
+                     (16 / UI_ICON_SIZE),
+                     1.0f,
+                     0.0f,
+                     icon_fg,
+                     false,
+                     UI_NO_ICON_OVERLAY_TEXT);
     GPU_blend(GPU_BLEND_NONE);
   }
 
@@ -286,7 +288,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
 
     /* Check if we're out of view bounds. */
     if (tds->xy[1] > tds->scroll_ymax) {
-      MEM_freeN(offsets);
+      MEM_delete(offsets);
       return false;
     }
   }
@@ -296,7 +298,7 @@ static bool textview_draw_string(TextViewDrawState *tds,
   copy_v2_v2_int(tds->sel, sel_orig);
   textview_step_sel(tds, -(str_len + 1));
 
-  MEM_freeN(offsets);
+  MEM_delete(offsets);
   return true;
 }
 
@@ -407,7 +409,7 @@ int textview_draw(TextViewContext *tvc,
       }
 
       if ((mval[1] != INT_MAX) && (mval[1] >= y_prev && mval[1] <= xy[1])) {
-        *r_mval_pick_item = (void *)tvc->iter;
+        *r_mval_pick_item = const_cast<void *>(tvc->iter);
         break;
       }
 
@@ -427,3 +429,5 @@ int textview_draw(TextViewContext *tvc,
 
   return xy[1] - y_orig;
 }
+
+}  // namespace blender

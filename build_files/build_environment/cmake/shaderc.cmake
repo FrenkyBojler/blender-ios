@@ -4,10 +4,9 @@
 
 set(SHADERC_EXTRA_ARGS
   -DSHADERC_SKIP_TESTS=On
-  -DSHADERC_SPIRV_TOOLS_DIR=${BUILD_DIR}/shaderc_spirv_tools/src/external_shaderc_spirv_tools
-  -DSHADERC_SPIRV_HEADERS_DIR=${BUILD_DIR}/shaderc_spirv_headers/src/external_shaderc_spirv_headers
+  -DSHADERC_SPIRV_TOOLS_DIR=${BUILD_DIR}/spirv_tools/src/external_spirv_tools
+  -DSHADERC_SPIRV_HEADERS_DIR=${BUILD_DIR}/spirv_headers/src/external_spirv_headers
   -DSHADERC_GLSLANG_DIR=${BUILD_DIR}/shaderc_glslang/src/external_shaderc_glslang
-  -DCMAKE_DEBUG_POSTFIX=_d
   -DPython_EXECUTABLE=${PYTHON_BINARY}
   -DPython3_EXECUTABLE=${PYTHON_BINARY}
   -DSHADERC_ENABLE_SHARED_CRT=ON
@@ -30,8 +29,8 @@ ExternalProject_Add(external_shaderc
 
 add_dependencies(
   external_shaderc
-  external_shaderc_spirv_tools
-  external_shaderc_spirv_headers
+  external_spirv_tools
+  external_spirv_headers
   external_shaderc_glslang
   external_python
 )
@@ -49,18 +48,6 @@ if(WIN32)
       COMMAND ${CMAKE_COMMAND} -E copy
         ${LIBDIR}/shaderc/lib/shaderc_shared.lib
         ${HARVEST_TARGET}/shaderc/lib/shaderc_shared.lib
-
-      DEPENDEES install
-    )
-  endif()
-  if(BUILD_MODE STREQUAL Debug)
-    ExternalProject_Add_Step(external_shaderc after_install
-      COMMAND ${CMAKE_COMMAND} -E copy
-        ${LIBDIR}/shaderc/bin/shaderc_shared_d.dll
-        ${HARVEST_TARGET}/shaderc/bin/shaderc_shared_d.dll
-      COMMAND ${CMAKE_COMMAND} -E copy
-        ${LIBDIR}/shaderc/lib/shaderc_shared_d.lib
-        ${HARVEST_TARGET}/shaderc/lib/shaderc_shared_d.lib
 
       DEPENDEES install
     )

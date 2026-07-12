@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
@@ -26,7 +26,7 @@ Strip *select_active_get(const Scene *scene)
     return nullptr;
   }
 
-  return ed->act_seq;
+  return ed->act_strip;
 }
 
 void select_active_set(Scene *scene, Strip *strip)
@@ -37,32 +37,45 @@ void select_active_set(Scene *scene, Strip *strip)
     return;
   }
 
-  ed->act_seq = strip;
+  ed->act_strip = strip;
 }
 
-bool select_active_get_pair(Scene *scene, Strip **r_seq_act, Strip **r_seq_other)
+bool select_active_get_pair(Scene *scene, Strip **r_strip_act, Strip **r_strip_other)
 {
   Editing *ed = editing_get(scene);
 
-  *r_seq_act = select_active_get(scene);
+  *r_strip_act = select_active_get(scene);
 
-  if (*r_seq_act == nullptr) {
+  if (*r_strip_act == nullptr) {
     return false;
   }
 
-  *r_seq_other = nullptr;
+  *r_strip_other = nullptr;
 
-  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
-    if (strip->flag & SELECT && (strip != (*r_seq_act))) {
-      if (*r_seq_other) {
+  for (Strip &strip : *ed->current_strips()) {
+    if (strip.flag & SEQ_SELECT && (&strip != (*r_strip_act))) {
+      if (*r_strip_other) {
         return false;
       }
 
-      *r_seq_other = strip;
+      *r_strip_other = &strip;
     }
   }
 
-  return (*r_seq_other != nullptr);
+  return (*r_strip_other != nullptr);
+}
+
+bool select_has_any(const Scene *scene)
+{
+  Editing *ed = editing_get(scene);
+  if (ed != nullptr) {
+    for (Strip &strip : *ed->current_strips()) {
+      if (strip.flag & SEQ_SELECT) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 }  // namespace blender::seq

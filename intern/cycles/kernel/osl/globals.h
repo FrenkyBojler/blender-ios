@@ -37,16 +37,16 @@ struct OSLGlobals {
   OSLGlobals()
   {
     ss = nullptr;
-    ts = nullptr;
     services = nullptr;
-    use = false;
+    use_shading = false;
+    use_camera = false;
   }
 
-  bool use;
+  bool use_shading;
+  bool use_camera;
 
   /* shading system */
   OSL::ShadingSystem *ss;
-  OSL::TextureSystem *ts;
   OSLRenderServices *services;
 
   /* shader states */
@@ -55,6 +55,7 @@ struct OSLGlobals {
   vector<OSL::ShaderGroupRef> displacement_state;
   vector<OSL::ShaderGroupRef> bump_state;
   OSL::ShaderGroupRef background_state;
+  OSL::ShaderGroupRef camera_state;
 
   /* attributes */
   using ObjectNameMap = unordered_map<OSLUStringHash, int>;
@@ -71,6 +72,7 @@ struct OSLTraceData {
   bool setup;
   bool init;
   bool hit;
+  bool self_hit;
 };
 
 /* thread key for thread specific data lookup */
@@ -87,7 +89,6 @@ struct OSLThreadData {
 
   OSL::PerThreadInfo *osl_thread_info = nullptr;
   OSL::ShadingContext *context = nullptr;
-  OIIO::TextureSystem::Perthread *oiio_thread_info = nullptr;
 
   OSLThreadData(OSLGlobals *globals, const int thread_index);
   ~OSLThreadData();

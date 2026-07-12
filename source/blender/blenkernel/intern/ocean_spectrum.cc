@@ -6,16 +6,24 @@
  * \ingroup bke
  */
 
+#include "BLI_math_base.hh"
+#include "BLI_math_constants.hh"
+
 #include "BKE_ocean.h"
+
 #include "ocean_intern.h"
 
 #include <algorithm>
 #include <cmath>
 
+namespace blender {
+
 #ifdef WITH_OCEANSIM
 
 /* -------------------------------------------------------------------- */
 /** \name Ocean Spectrum from EncinoWaves
+ *
+ * See: https://github.com/blackencino/EncinoWaves
  * \{ */
 
 /*
@@ -42,13 +50,12 @@ static float alpha_beta_spectrum(const float alpha,
   return (alpha * sqrt(gamma) / pow(omega, 5.0)) * exp(-beta * pow(peakomega / omega, 4.0));
 }
 
-static float peak_sharpen(const float omega, const float m_peakomega, const float m_gamma)
+static float peak_sharpen(const float omega, const float peakomega, const float gamma)
 {
-  const float peak_sharpening_sigma = (omega < m_peakomega) ? 0.07 : 0.09;
-  const float peak_sharpening = pow(
-      m_gamma, exp(-sqrt((omega - m_peakomega) / (peak_sharpening_sigma * m_peakomega)) / 2.0));
-
-  return peak_sharpening;
+  using math::square;
+  const float sigma = (omega < peakomega) ? 0.07 : 0.09;
+  const float exponent = -square((omega - peakomega) / (sigma * peakomega)) / 2.0;
+  return pow(gamma, exp(exponent));
 }
 
 /**
@@ -97,6 +104,11 @@ static float jonswap(const Ocean *oc, const float k2)
 
   const float m_windspeed = oc->_V;
 
+  /* NOTE(@ideasman42): from upstream project in: `src/EncinoWaves/Spectra.h`,
+   * `square(m_windspeed)` is used, *not* `sqrt(m_windspeed)`, this change makes geometry
+   * significantly more *choppy* as well as causing this spectrum to differed significantly
+   * from the "Established Ocean". Keep as is unless a larger refactor/validation of this
+   * algorithm is undertaken. */
   const float m_dimensionlessFetch = fabs(GRAVITY * m_fetch / sqrt(m_windspeed));
   const float m_alpha = 0.076 * pow(m_dimensionlessFetch, -0.22);
 
@@ -109,7 +121,7 @@ static float jonswap(const Ocean *oc, const float k2)
   float val = alpha_beta_spectrum(m_alpha, beta, GRAVITY, omega, m_peakomega);
 
   /* Peak sharpening. */
-  val *= peak_sharpen(m_omega, m_peakomega, m_gamma);
+  val *= peak_sharpen(omega, m_peakomega, m_gamma);
 
   return val;
 }
@@ -191,3 +203,5 @@ float BLI_ocean_spectrum_jonswap(const Ocean *oc, const float kx, const float kz
 /** \} */
 
 #endif /* WITH_OCEANSIM */
+
+}  // namespace blender

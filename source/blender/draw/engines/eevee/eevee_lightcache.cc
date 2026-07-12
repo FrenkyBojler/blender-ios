@@ -8,8 +8,6 @@
  * Contains everything about light baking.
  */
 
-#include <mutex>
-
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -18,8 +16,9 @@
 
 #include "DNA_lightprobe_types.h"
 
-#include "BLI_threads.h"
-#include "BLI_time.h"
+#include "BLI_mutex.hh"
+#include "BLI_threads.hh"
+#include "BLI_time.hh"
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
@@ -36,11 +35,13 @@
 
 #include "eevee_lightcache.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Light Probe Baking
  * \{ */
 
-namespace blender::eevee {
+namespace eevee {
 
 class LightBake {
  private:
@@ -61,7 +62,7 @@ class LightBake {
    * If running in parallel (in a separate thread), use this context.
    * Created on main thread but first bound in worker thread.
    */
-  void *gl_context_ = nullptr;
+  GHOST_IContext *gl_context_ = nullptr;
   /** Context associated to `gl_context_`. Created in the worker thread. */
   GPUContext *gpu_context_ = nullptr;
 
@@ -74,7 +75,7 @@ class LightBake {
   Vector<Object *> original_probes_;
   /** Frame to copy to original objects during update. This is needed to avoid race conditions. */
   Vector<LightProbeGridCacheFrame *> bake_result_;
-  std::mutex result_mutex_;
+  Mutex result_mutex_;
 
  public:
   LightBake(Main *bmain,
@@ -160,7 +161,7 @@ class LightBake {
     context_disable();
 
     for (auto i : original_probes_.index_range()) {
-      Object *eval_ob = DEG_get_evaluated_object(depsgraph_, original_probes_[i]);
+      Object *eval_ob = DEG_get_evaluated(depsgraph_, original_probes_[i]);
 
       instance_->light_bake_irradiance(
           *eval_ob,
@@ -284,7 +285,7 @@ class LightBake {
   }
 };
 
-}  // namespace blender::eevee
+}  // namespace eevee
 
 /** \} */
 
@@ -299,7 +300,7 @@ wmJob *EEVEE_lightbake_job_create(wmWindowManager *wm,
                                   Main *bmain,
                                   ViewLayer *view_layer,
                                   Scene *scene,
-                                  blender::Vector<Object *> original_probes,
+                                  Vector<Object *> original_probes,
                                   std::string &report,
                                   int delay_ms,
                                   int frame)
@@ -315,7 +316,7 @@ wmJob *EEVEE_lightbake_job_create(wmWindowManager *wm,
   wmJob *wm_job = WM_jobs_get(wm,
                               win,
                               scene,
-                              "Bake Lighting",
+                              "Baking lighting...",
                               WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
                               WM_JOB_TYPE_LIGHT_BAKE);
 
@@ -335,7 +336,7 @@ wmJob *EEVEE_lightbake_job_create(wmWindowManager *wm,
 void *EEVEE_lightbake_job_data_alloc(Main *bmain,
                                      ViewLayer *view_layer,
                                      Scene *scene,
-                                     blender::Vector<Object *> original_probes,
+                                     Vector<Object *> original_probes,
                                      std::string &report,
                                      int frame)
 {
@@ -362,3 +363,5 @@ void EEVEE_lightbake_job(void *job_data, wmJobWorkerStatus *worker_status)
 }
 
 /** \} */
+
+}  // namespace blender

@@ -22,36 +22,59 @@
 
 #include "NOD_geometry_nodes_closure_location.hh"
 
+namespace blender {
+
 struct bNode;
 struct bNodeTree;
 struct NodesModifierData;
+struct ID;
 
-namespace blender::nodes {
+namespace nodes {
 class Closure;
 }
 
-namespace blender::bke {
+namespace bke {
 
-class ModifierComputeContext : public ComputeContext {
+class DataBlockComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "MODIFIER";
+  uint32_t orig_session_uid_;
+  const ID *id_ = nullptr;
 
-  /**
-   * Use modifier name instead of something like `session_uid` for now because:
-   * - It's more obvious that the name matches between the original and evaluated object.
-   * - We might want that the context hash is consistent between sessions in the future.
-   */
-  std::string modifier_name_;
-  /** The modifier data that this context is for. This may be null. */
+ public:
+  DataBlockComputeContext(const ComputeContext *parent, const ID &id);
+  DataBlockComputeContext(const ComputeContext *parent,
+                          uint32_t orig_session_uid,
+                          const ID *id = nullptr);
+
+  uint32_t orig_session_uid() const
+  {
+    return orig_session_uid_;
+  }
+
+  const ID *id() const
+  {
+    return id_;
+  }
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+class GeometryNodesModifierComputeContext : public ComputeContext {
+ private:
+  /** #ModifierData.persistent_uid. */
+  int modifier_uid_;
+  /** The geometry nodes modifier data that this context is for. This may be null. */
   const NodesModifierData *nmd_ = nullptr;
 
  public:
-  ModifierComputeContext(const ComputeContext *parent, const NodesModifierData &nmd);
-  ModifierComputeContext(const ComputeContext *parent, std::string modifier_name);
+  GeometryNodesModifierComputeContext(const ComputeContext *parent, const NodesModifierData &nmd);
+  GeometryNodesModifierComputeContext(const ComputeContext *parent, int modifier_uid);
 
-  StringRefNull modifier_name() const
+  int modifier_uid() const
   {
-    return modifier_name_;
+    return modifier_uid_;
   }
 
   const NodesModifierData *nmd() const
@@ -60,53 +83,46 @@ class ModifierComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-class GroupNodeComputeContext : public ComputeContext {
+class NodeComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "NODE_GROUP";
-
   int32_t node_id_;
-  /**
-   * The caller node tree and group node are not always necessary or even available, but storing
-   * them here simplifies "walking up" the compute context to the parent node groups.
-   */
-  const bNodeTree *caller_tree_ = nullptr;
-  const bNode *caller_group_node_ = nullptr;
+
+  /** This is optional and may not be known always when the compute context is created. */
+  const bNodeTree *tree_ = nullptr;
 
  public:
-  GroupNodeComputeContext(const ComputeContext *parent,
-                          int32_t node_id,
-                          const std::optional<ComputeContextHash> &cached_hash = {});
-  GroupNodeComputeContext(const ComputeContext *parent,
-                          const bNode &caller_group_node,
-                          const bNodeTree &caller_tree,
-                          const std::optional<ComputeContextHash> &cached_hash = {});
+  NodeComputeContext(const ComputeContext *parent,
+                     int32_t node_id,
+                     const bNodeTree *tree = nullptr);
 
   int32_t node_id() const
   {
     return node_id_;
   }
 
-  const bNode *caller_group_node() const
+  const bNodeTree *tree() const
   {
-    return caller_group_node_;
+    return tree_;
   }
 
-  const bNodeTree *caller_tree() const
-  {
-    return caller_tree_;
-  }
+  const bNode *node() const;
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
+};
+
+class GroupNodeComputeContext : public NodeComputeContext {
+ public:
+  using NodeComputeContext::NodeComputeContext;
 };
 
 class SimulationZoneComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "SIMULATION_ZONE";
-
   int32_t output_node_id_;
 
  public:
@@ -119,13 +135,12 @@ class SimulationZoneComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
 class RepeatZoneComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "REPEAT_ZONE";
-
   int32_t output_node_id_;
   int iteration_;
 
@@ -144,13 +159,12 @@ class RepeatZoneComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
 class ForeachGeometryElementZoneComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "FOREACH_GEOMETRY_ELEMENT_ZONE";
-
   int32_t output_node_id_;
   int index_;
 
@@ -173,51 +187,48 @@ class ForeachGeometryElementZoneComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-class EvaluateClosureComputeContext : public ComputeContext {
+class EvaluateClosureComputeContext : public NodeComputeContext {
  private:
-  static constexpr const char *s_static_type = "CLOSURE";
-
-  int32_t node_id_;
-
-  /**
-   * Extra information that might not always be available.
-   */
-  const bNode *evaluate_node_ = nullptr;
   std::optional<nodes::ClosureSourceLocation> closure_source_location_;
 
  public:
-  EvaluateClosureComputeContext(const ComputeContext *parent, int32_t node_id);
   EvaluateClosureComputeContext(
       const ComputeContext *parent,
-      int32_t evaluate_node_id,
-      const bNode *evaluate_node,
-      const std::optional<nodes::ClosureSourceLocation> &closure_source_location);
-
-  int32_t node_id() const
-  {
-    return node_id_;
-  }
-  const bNode *evaluate_node() const
-  {
-    return evaluate_node_;
-  }
+      int32_t node_id,
+      const bNodeTree *tree = nullptr,
+      const std::optional<nodes::ClosureSourceLocation> &closure_source_location = std::nullopt);
 
   std::optional<nodes::ClosureSourceLocation> closure_source_location() const
   {
     return closure_source_location_;
   }
 
+  /**
+   * True if there is a parent context that evaluates the same closure already. This can only be
+   * used when the #ClosureSourceLocation is available.
+   */
+  bool is_recursive() const;
+};
+
+class ClosureToListComputeContext : public NodeComputeContext {
  private:
+  int32_t node_id_;
+  int list_index_;
+
+ public:
+  ClosureToListComputeContext(const ComputeContext *parent, int32_t node_id, int list_index);
+
+ private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
 class OperatorComputeContext : public ComputeContext {
  private:
-  static constexpr const char *s_static_type = "OPERATOR";
-
   /** The tree that is executed. May be null. */
   const bNodeTree *tree_ = nullptr;
 
@@ -232,7 +243,21 @@ class OperatorComputeContext : public ComputeContext {
   }
 
  private:
+  ComputeContextHash compute_hash() const override;
   void print_current_in_line(std::ostream &stream) const override;
 };
 
-}  // namespace blender::bke
+class ShaderComputeContext : public ComputeContext {
+ private:
+  const bNodeTree *tree_ = nullptr;
+
+ public:
+  ShaderComputeContext(const ComputeContext *parent = nullptr, const bNodeTree *tree = nullptr);
+
+ private:
+  ComputeContextHash compute_hash() const override;
+  void print_current_in_line(std::ostream &stream) const override;
+};
+
+}  // namespace bke
+}  // namespace blender

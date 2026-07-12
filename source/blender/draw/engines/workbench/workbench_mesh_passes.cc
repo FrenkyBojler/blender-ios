@@ -10,7 +10,7 @@ namespace blender::workbench {
 /** \name MeshPass
  * \{ */
 
-MeshPass::MeshPass(const char *name) : PassMain(name){};
+MeshPass::MeshPass(const char *name) : PassMain(name) {};
 
 bool MeshPass::is_empty() const
 {
@@ -31,31 +31,39 @@ void MeshPass::init_pass(SceneResources &resources, DRWState state, int clip_pla
   bind_texture(WB_TILE_DATA_SLOT, resources.dummy_tile_data_tx);
   bind_ssbo(WB_MATERIAL_SLOT, &resources.material_buf);
   bind_ubo(WB_WORLD_SLOT, resources.world_buf);
-  if (clip_planes > 0) {
-    bind_ubo(DRW_CLIPPING_UBO_SLOT, resources.clip_planes_buf);
-  }
+  bind_ubo(DRW_CLIPPING_UBO_SLOT, resources.clip_planes_buf);
 }
 
 void MeshPass::init_subpasses(ePipelineType pipeline, eLightingType lighting, bool clip)
 {
   texture_subpass_map_.clear();
-
-  static std::string pass_names[geometry_type_len][shader_type_len] = {};
+  pipeline_ = pipeline;
+  lighting_ = lighting;
+  clip_ = clip;
 
   for (auto geom : IndexRange(geometry_type_len)) {
     for (auto shader : IndexRange(shader_type_len)) {
-      eGeometryType geom_type = static_cast<eGeometryType>(geom);
-      eShaderType shader_type = static_cast<eShaderType>(shader);
-      if (pass_names[geom][shader].empty()) {
-        pass_names[geom][shader] = std::string(get_name(geom_type)) +
-                                   std::string(get_name(shader_type));
-      }
-      PassMain::Sub *pass = &sub(pass_names[geom][shader].c_str());
-      pass->shader_set(
-          ShaderCache::get().prepass_get(geom_type, pipeline, lighting, shader_type, clip));
-      passes_[geom][shader] = pass;
+      passes_[geom][shader] = nullptr;
     }
   }
+}
+
+PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type, eShaderType shader_type)
+{
+  static std::string pass_names[geometry_type_len][shader_type_len] = {};
+
+  PassMain::Sub *&sub_pass = passes_[int(geometry_type)][int(shader_type)];
+  if (!sub_pass) {
+    std::string &pass_name = pass_names[int(geometry_type)][int(shader_type)];
+    if (pass_name.empty()) {
+      pass_name = std::string(get_name(geometry_type)) + std::string(get_name(shader_type));
+    }
+    sub_pass = &sub(pass_name.c_str());
+    sub_pass->shader_set(
+        ShaderCache::get().prepass_get(geometry_type, pipeline_, lighting_, shader_type, clip_));
+  }
+
+  return *sub_pass;
 }
 
 PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
@@ -65,7 +73,7 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
 
   if (texture && texture->gpu.texture) {
     auto add_cb = [&] {
-      PassMain::Sub *sub_pass = passes_[int(geometry_type)][int(eShaderType::TEXTURE)];
+      PassMain::Sub *sub_pass = &get_subpass(geometry_type, eShaderType::TEXTURE);
       sub_pass = &sub_pass->sub(texture->name);
       if (texture->gpu.tile_mapping) {
         sub_pass->bind_texture(WB_TILE_ARRAY_SLOT, texture->gpu.texture, texture->sampler_state);
@@ -85,10 +93,10 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
     };
 
     return *texture_subpass_map_.lookup_or_add_cb(
-        TextureSubPassKey(texture->gpu.texture, geometry_type), add_cb);
+        {texture->gpu.texture, texture->sampler_state, geometry_type}, add_cb);
   }
 
-  return *passes_[int(geometry_type)][int(eShaderType::MATERIAL)];
+  return get_subpass(geometry_type, eShaderType::MATERIAL);
 }
 
 /** \} */
@@ -141,10 +149,12 @@ void OpaquePass::draw(Manager &manager,
   if (is_empty()) {
     return;
   }
-  gbuffer_material_tx.acquire(
-      resolution, GPU_RGBA16F, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
-  gbuffer_normal_tx.acquire(
-      resolution, GPU_RG16F, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+  gbuffer_material_tx.acquire_2d(resolution,
+                                 gpu::TextureFormat::SFLOAT_16_16_16_16,
+                                 GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+  gbuffer_normal_tx.acquire_2d(resolution,
+                               gpu::TextureFormat::SFLOAT_16_16,
+                               GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
   GPUAttachment object_id_attachment = GPU_ATTACHMENT_NONE;
   if (resources.object_id_tx.is_valid()) {
@@ -176,7 +186,7 @@ void OpaquePass::draw(Manager &manager,
   }
 
   if (shadow_pass) {
-    shadow_depth_stencil_tx.ensure_2d(GPU_DEPTH24_STENCIL8,
+    shadow_depth_stencil_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                       resolution,
                                       GPU_TEXTURE_USAGE_SHADER_READ |
                                           GPU_TEXTURE_USAGE_ATTACHMENT |
@@ -253,10 +263,12 @@ void TransparentPass::draw(Manager &manager,
   if (is_empty()) {
     return;
   }
-  accumulation_tx.acquire(
-      resolution, GPU_RGBA16F, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
-  reveal_tx.acquire(
-      resolution, GPU_R16F, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+  accumulation_tx.acquire_2d(resolution,
+                             gpu::TextureFormat::SFLOAT_16_16_16_16,
+                             GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+  reveal_tx.acquire_2d(resolution,
+                       gpu::TextureFormat::SFLOAT_16,
+                       GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
   resolve_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(resources.color_tx));
 

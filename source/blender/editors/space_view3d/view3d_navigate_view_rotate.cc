@@ -8,9 +8,9 @@
 
 #include "BKE_context.hh"
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "WM_api.hh"
 
@@ -18,6 +18,8 @@
 
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Rotate Operator
@@ -332,7 +334,7 @@ static wmOperatorStatus viewrotate_modal_impl(bContext *C,
   return ret;
 }
 
-static wmOperatorStatus viewrotate_invoke_impl(bContext * /*C*/,
+static wmOperatorStatus viewrotate_invoke_impl(bContext *C,
                                                ViewOpsData *vod,
                                                const wmEvent *event,
                                                PointerRNA * /*ptr*/)
@@ -357,6 +359,8 @@ static wmOperatorStatus viewrotate_invoke_impl(bContext * /*C*/,
       copy_v2_v2_int(m_xy, event->prev_xy);
     }
     viewrotate_apply(vod, m_xy);
+
+    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
     return OPERATOR_FINISHED;
   }
 
@@ -375,7 +379,7 @@ void VIEW3D_OT_rotate(wmOperatorType *ot)
   ot->description = "Rotate the view";
   ot->idname = ViewOpsType_rotate.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewrotate_invoke;
   ot->modal = view3d_navigate_modal_fn;
   ot->poll = view3d_rotation_poll;
@@ -396,3 +400,5 @@ const ViewOpsType ViewOpsType_rotate = {
     /*init_fn*/ viewrotate_invoke_impl,
     /*apply_fn*/ viewrotate_modal_impl,
 };
+
+}  // namespace blender

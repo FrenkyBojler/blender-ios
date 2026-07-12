@@ -7,6 +7,7 @@
 
 include_directories(
   ../blenlib
+  ../blenloader_core
   ../makesdna
   ../../../intern/guardedalloc
 )
@@ -22,6 +23,12 @@ set(SRC
   src/blendthumb_png.cc
 )
 
+if(WITH_BUILDINFO)
+  list(APPEND SRC
+    "$<TARGET_OBJECTS:buildinfoobj>"
+  )
+endif()
+
 if(WIN32)
   # -----------------------------------------------------------------------------
   # Build `BlendThumb.dll`
@@ -33,11 +40,12 @@ if(WIN32)
     src/blendthumb_win32_dll.cc
   )
 
-  add_definitions(-DNOMINMAX)
-
   add_library(BlendThumb SHARED ${SRC} ${SRC_WIN32})
 
-  target_link_libraries(BlendThumb bf_blenlib dbghelp.lib Version.lib Comctl32.lib)
+  setup_platform_linker_flags(BlendThumb)
+  setup_platform_linker_libs(BlendThumb)
+
+  target_link_libraries(BlendThumb PRIVATE bf_blenlib bf_blenloader_core dbghelp.lib Version.lib Comctl32.lib)
   # `blenlib` drags in a whole bunch of dependencies on shared libraries, none of which are used
   # by `blenthumb`, but will cause load issues since the debug linker will not eliminate them.
   # Link with /OPT:ref to force elimination of those unused dependencies this is already
@@ -59,6 +67,7 @@ elseif(APPLE)
   setup_platform_linker_libs(blender-thumbnailer)
   target_link_libraries(blender-thumbnailer
     bf_blenlib
+    bf_blenloader_core
     # Avoid linker error about undefined _main symbol.
     "-e _NSExtensionMain"
     "-framework QuickLookThumbnailing"
@@ -90,8 +99,7 @@ elseif(UNIX)
 
   add_executable(blender-thumbnailer ${SRC} ${SRC_CMD})
   setup_platform_linker_flags(blender-thumbnailer)
-  target_link_libraries(blender-thumbnailer bf_blenlib)
-  if(DEFINED PTHREADS_LIBRARIES)
-    target_link_libraries(blender-thumbnailer ${PTHREADS_LIBRARIES})
-  endif()
+  setup_platform_linker_libs(blender-thumbnailer)
+  target_link_libraries(blender-thumbnailer PRIVATE bf_blenlib bf_blenloader_core)
+  target_link_libraries(blender-thumbnailer PRIVATE bf::dependencies::pthreads)
 endif()

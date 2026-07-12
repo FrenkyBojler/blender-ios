@@ -6,14 +6,16 @@
  * Draw particles as shapes using primitive expansion.
  */
 
-#include "infos/overlay_extra_info.hh"
+#include "infos/overlay_extra_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_particle_shape)
 
 #include "draw_model_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
+#include "gpu_shader_math_matrix_transform_lib.glsl"
+
 #include "select_lib.glsl"
 
 float3 rotate(float3 vec, float4 quat)
@@ -35,7 +37,7 @@ void main()
   int particle_id = gl_VertexID;
   int shape_vert_id = gl_VertexID;
 
-  switch (shape_type) {
+  switch (OVERLAY_ParticleShape(shape_type)) {
     case PART_SHAPE_AXIS:
     case PART_SHAPE_CROSS:
       shape_vert_id = gl_VertexID % 6;
@@ -58,7 +60,7 @@ void main()
 #endif
 
   float3 shape_pos = float3(0.0f);
-  switch (shape_type) {
+  switch (OVERLAY_ParticleShape(shape_type)) {
     case PART_SHAPE_AXIS:
       shape_pos = float3(axis_id == 0, axis_id == 1, axis_id == 2) * 2.0f * float(axis_vert != 0u);
       break;
@@ -93,7 +95,8 @@ void main()
     world_pos += rotate(shape_pos, part.rotation);
   }
   gl_Position = drw_point_world_to_homogenous(world_pos);
-  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
 
   view_clipping_distances(world_pos);
 }

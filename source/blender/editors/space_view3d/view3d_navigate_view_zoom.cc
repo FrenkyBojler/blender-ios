@@ -6,9 +6,9 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_time.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_time.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -21,6 +21,8 @@
 
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Zoom Operator
@@ -292,32 +294,28 @@ static void viewzoom_apply_3d(ViewOpsData *vod,
                               const bool zoom_invert,
                               const bool zoom_to_pos)
 {
-  float zfac;
-  float dist_range[2];
-
-  ED_view3d_dist_range_get(vod->v3d, dist_range);
-
-  zfac = viewzoom_scale_value_offset(&vod->region->winrct,
-                                     viewzoom,
-                                     zoom_invert,
-                                     false,
-                                     xy,
-                                     vod->init.event_xy,
-                                     vod->init.event_xy_offset,
-                                     vod->rv3d->dist,
-                                     vod->init.dist,
-                                     &vod->prev.time);
+  const Bounds<float> dist_range = ED_view3d_dist_soft_range_get(vod->v3d, false);
+  float zfac = viewzoom_scale_value_offset(&vod->region->winrct,
+                                           viewzoom,
+                                           zoom_invert,
+                                           false,
+                                           xy,
+                                           vod->init.event_xy,
+                                           vod->init.event_xy_offset,
+                                           vod->rv3d->dist,
+                                           vod->init.dist,
+                                           &vod->prev.time);
 
   if (zfac != 1.0f) {
-    const float zfac_min = dist_range[0] / vod->rv3d->dist;
-    const float zfac_max = dist_range[1] / vod->rv3d->dist;
+    const float zfac_min = dist_range.min / vod->rv3d->dist;
+    const float zfac_max = dist_range.max / vod->rv3d->dist;
     CLAMP(zfac, zfac_min, zfac_max);
 
     view_zoom_to_window_xy_3d(vod->region, zfac, zoom_to_pos ? vod->prev.event_xy : nullptr);
   }
 
   /* these limits were in old code too */
-  CLAMP(vod->rv3d->dist, dist_range[0], dist_range[1]);
+  CLAMP(vod->rv3d->dist, dist_range.min, dist_range.max);
 
   if (RV3D_LOCK_FLAGS(vod->rv3d) & RV3D_BOXVIEW) {
     view3d_boxview_sync(vod->area, vod->region);
@@ -355,7 +353,7 @@ static wmOperatorStatus viewzoom_modal_impl(bContext *C,
 
   switch (event_code) {
     case VIEW_APPLY: {
-      viewzoom_apply(vod, xy, (eViewZoom_Style)U.viewzoom, (U.uiflag & USER_ZOOM_INVERT) != 0);
+      viewzoom_apply(vod, xy, eViewZoom_Style(U.viewzoom), (U.uiflag & USER_ZOOM_INVERT) != 0);
       if (ED_screen_animation_playing(CTX_wm_manager(C))) {
         use_autokey = true;
       }
@@ -393,12 +391,11 @@ static void view_zoom_apply_step(bContext *C,
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   bool use_cam_zoom;
-  float dist_range[2];
 
   use_cam_zoom = (rv3d->persp == RV3D_CAMOB) &&
                  !(rv3d->is_persp && ED_view3d_camera_lock_check(v3d, rv3d));
 
-  ED_view3d_dist_range_get(v3d, dist_range);
+  const Bounds<float> dist_range = ED_view3d_dist_soft_range_get(v3d, false);
 
   if (delta < 0) {
     const float step = 1.2f;
@@ -406,7 +403,7 @@ static void view_zoom_apply_step(bContext *C,
       view_zoom_to_window_xy_camera(scene, depsgraph, v3d, region, step, zoom_xy);
     }
     else {
-      if (rv3d->dist < dist_range[1]) {
+      if (rv3d->dist < dist_range.max) {
         view_zoom_to_window_xy_3d(region, step, zoom_xy);
       }
     }
@@ -417,7 +414,7 @@ static void view_zoom_apply_step(bContext *C,
       view_zoom_to_window_xy_camera(scene, depsgraph, v3d, region, step, zoom_xy);
     }
     else {
-      if (rv3d->dist > dist_range[0]) {
+      if (rv3d->dist > dist_range.min) {
         view_zoom_to_window_xy_3d(region, step, zoom_xy);
       }
     }
@@ -532,7 +529,7 @@ void VIEW3D_OT_zoom(wmOperatorType *ot)
   ot->description = "Zoom in/out in the view";
   ot->idname = ViewOpsType_zoom.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewzoom_invoke;
   ot->exec = viewzoom_exec;
   ot->modal = view3d_navigate_modal_fn;
@@ -556,3 +553,5 @@ const ViewOpsType ViewOpsType_zoom = {
     /*init_fn*/ viewzoom_invoke_impl,
     /*apply_fn*/ viewzoom_modal_impl,
 };
+
+}  // namespace blender

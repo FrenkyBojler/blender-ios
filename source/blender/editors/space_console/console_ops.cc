@@ -16,14 +16,16 @@
 
 #include "DNA_userdef_types.h"
 
-#include "BLI_dynstr.h"
-#include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_string_cursor_utf8.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_dynstr.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_cursor_utf8.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -31,12 +33,15 @@
 #include "WM_types.hh"
 
 #include "ED_screen.hh"
+
 #include "UI_view2d.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "console_intern.hh"
+
+namespace blender {
 
 #define TAB_LENGTH 4
 
@@ -54,8 +59,8 @@ static char *console_select_to_buffer(SpaceConsole *sc)
   console_scrollback_prompt_begin(sc, &cl_dummy);
 
   int offset = 0;
-  LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
-    offset += cl->len + 1;
+  for (ConsoleLine &cl : sc->scrollback) {
+    offset += cl.len + 1;
   }
 
   char *buf_str = nullptr;
@@ -63,20 +68,20 @@ static char *console_select_to_buffer(SpaceConsole *sc)
     offset -= 1;
     int sel[2] = {offset - sc->sel_end, offset - sc->sel_start};
     DynStr *buf_dyn = BLI_dynstr_new();
-    LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
-      if (sel[0] <= cl->len && sel[1] >= 0) {
+    for (ConsoleLine &cl : sc->scrollback) {
+      if (sel[0] <= cl.len && sel[1] >= 0) {
         int sta = max_ii(sel[0], 0);
-        int end = min_ii(sel[1], cl->len);
+        int end = min_ii(sel[1], cl.len);
 
         if (BLI_dynstr_get_len(buf_dyn)) {
           BLI_dynstr_append(buf_dyn, "\n");
         }
 
-        BLI_dynstr_nappend(buf_dyn, cl->line + sta, end - sta);
+        BLI_dynstr_nappend(buf_dyn, cl.line + sta, end - sta);
       }
 
-      sel[0] -= cl->len + 1;
-      sel[1] -= cl->len + 1;
+      sel[0] -= cl.len + 1;
+      sel[1] -= cl.len + 1;
     }
 
     buf_str = BLI_dynstr_get_cstring(buf_dyn);
@@ -90,7 +95,11 @@ static char *console_select_to_buffer(SpaceConsole *sc)
 
 static void console_select_update_primary_clipboard(SpaceConsole *sc)
 {
-  if ((WM_capabilities_flag() & WM_CAPABILITY_PRIMARY_CLIPBOARD) == 0) {
+  if (G.background) {
+    return;
+  }
+
+  if ((WM_capabilities_flag() & WM_CAPABILITY_CLIPBOARD_PRIMARY) == 0) {
     return;
   }
   if (sc->sel_start == sc->sel_end) {
@@ -101,7 +110,7 @@ static void console_select_update_primary_clipboard(SpaceConsole *sc)
     return;
   }
   WM_clipboard_text_set(buf, true);
-  MEM_freeN(buf);
+  MEM_delete(buf);
 }
 
 /* Delete selected characters in the edit line. */
@@ -148,7 +157,7 @@ void console_textview_update_rect(SpaceConsole *sc, ARegion *region)
 {
   View2D *v2d = &region->v2d;
 
-  UI_view2d_totRect_set(v2d, region->winx - 1, console_textview_height(sc, region));
+  ui::view2d_totRect_set(v2d, region->winx - 1, console_textview_height(sc, region));
 }
 
 static void console_select_offset(SpaceConsole *sc, const int offset)
@@ -160,21 +169,21 @@ static void console_select_offset(SpaceConsole *sc, const int offset)
 void console_history_free(SpaceConsole *sc, ConsoleLine *cl)
 {
   BLI_remlink(&sc->history, cl);
-  MEM_freeN(cl->line);
-  MEM_freeN(cl);
+  MEM_delete(cl->line);
+  MEM_delete(cl);
 }
 void console_scrollback_free(SpaceConsole *sc, ConsoleLine *cl)
 {
   BLI_remlink(&sc->scrollback, cl);
-  MEM_freeN(cl->line);
-  MEM_freeN(cl);
+  MEM_delete(cl->line);
+  MEM_delete(cl);
 }
 
 static void console_scrollback_limit(SpaceConsole *sc)
 {
   int tot;
 
-  for (tot = BLI_listbase_count(&sc->scrollback); tot > U.scrollback; tot--) {
+  for (tot = sc->scrollback.count(); tot > U.scrollback; tot--) {
     console_scrollback_free(sc, static_cast<ConsoleLine *>(sc->scrollback.first));
   }
 }
@@ -203,11 +212,11 @@ static bool console_line_cursor_set(ConsoleLine *cl, int cursor)
 }
 
 #if 0 /* XXX unused */
-static void console_lb_debug__internal(ListBase *lb)
+static void console_lb_debug__internal(ListBaseT<ConsoleLine> *lb)
 {
   ConsoleLine *cl;
 
-  printf("%d: ", BLI_listbase_count(lb));
+  printf("%d: ", lb->count());
   for (cl = lb->first; cl; cl = cl->next) {
     printf("<%s> ", cl->line);
   }
@@ -222,9 +231,9 @@ static void console_history_debug(const bContext *C)
 }
 #endif
 
-static ConsoleLine *console_lb_add__internal(ListBase *lb, ConsoleLine *from)
+static ConsoleLine *console_lb_add__internal(ListBaseT<ConsoleLine> *lb, ConsoleLine *from)
 {
-  ConsoleLine *ci = MEM_callocN<ConsoleLine>("ConsoleLine Add");
+  ConsoleLine *ci = MEM_new<ConsoleLine>("ConsoleLine Add");
 
   if (from) {
     BLI_assert(strlen(from->line) == from->len);
@@ -234,7 +243,7 @@ static ConsoleLine *console_lb_add__internal(ListBase *lb, ConsoleLine *from)
     ci->type = from->type;
   }
   else {
-    ci->line = MEM_calloc_arrayN<char>(64, "console-in-line");
+    ci->line = MEM_new_array_zeroed<char>(64, "console-in-line");
     ci->len_alloc = 64;
     ci->len = 0;
   }
@@ -257,9 +266,9 @@ static ConsoleLine *console_scrollback_add(const bContext *C, ConsoleLine *from)
 }
 #endif
 
-static ConsoleLine *console_lb_add_str__internal(ListBase *lb, char *str, bool own)
+static ConsoleLine *console_lb_add_str__internal(ListBaseT<ConsoleLine> *lb, char *str, bool own)
 {
-  ConsoleLine *ci = MEM_callocN<ConsoleLine>("ConsoleLine Add");
+  ConsoleLine *ci = MEM_new<ConsoleLine>("ConsoleLine Add");
   const int str_len = strlen(str);
   if (own) {
     ci->line = str;
@@ -305,7 +314,7 @@ static void console_line_verify_length(ConsoleLine *ci, int len)
 #else
     int new_len = (len + 1) * 2;
 #endif
-    ci->line = static_cast<char *>(MEM_recallocN_id(ci->line, new_len, "console line"));
+    ci->line = static_cast<char *>(MEM_realloc_zeroed_id(ci->line, new_len, "console line"));
     ci->len_alloc = new_len;
   }
 }
@@ -382,15 +391,26 @@ static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int type = RNA_enum_get(op->ptr, "type");
-  bool select = RNA_boolean_get(op->ptr, "select");
+  const bool select = RNA_boolean_get(op->ptr, "select");
 
   bool done = false;
-  int old_pos = ci->cursor;
+  const int old_pos = ci->cursor;
   int pos = 0;
 
   if (!select && sc->sel_start != sc->sel_end) {
     /* Clear selection if we are not extending it. */
     sc->sel_start = sc->sel_end;
+  }
+  const bool had_select = sc->sel_start != sc->sel_end;
+
+  int select_side = 0;
+  if (had_select) {
+    if (sc->sel_start == ci->len - old_pos) {
+      select_side = -1;
+    }
+    else if (sc->sel_end == ci->len - old_pos) {
+      select_side = 1;
+    }
   }
 
   switch (type) {
@@ -430,15 +450,32 @@ static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
   }
 
   if (select) {
-    if (sc->sel_start == sc->sel_end || sc->sel_start > ci->len || sc->sel_end > ci->len) {
-      sc->sel_start = ci->len - old_pos;
-      sc->sel_end = sc->sel_start;
-    }
-    if (pos > old_pos) {
-      sc->sel_start = ci->len - pos;
+    if (had_select) {
+      if (select_side != 0) {
+        /* Modify the current selection if either side was positioned at the cursor. */
+        if (select_side == -1) {
+          sc->sel_start = ci->len - pos;
+        }
+        else if (select_side == 1) {
+          sc->sel_end = ci->len - pos;
+        }
+        if (sc->sel_start > sc->sel_end) {
+          std::swap(sc->sel_start, sc->sel_end);
+        }
+      }
     }
     else {
-      sc->sel_end = ci->len - pos;
+      /* Create a new selection. */
+      if (old_pos > pos) {
+        sc->sel_start = ci->len - old_pos;
+        sc->sel_end = ci->len - pos;
+        BLI_assert(sc->sel_start < sc->sel_end);
+      }
+      else if (old_pos < pos) {
+        sc->sel_start = ci->len - pos;
+        sc->sel_end = ci->len - old_pos;
+        BLI_assert(sc->sel_start < sc->sel_end);
+      }
     }
   }
 
@@ -457,7 +494,7 @@ void CONSOLE_OT_move(wmOperatorType *ot)
   ot->description = "Move cursor position";
   ot->idname = "CONSOLE_OT_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_move_exec;
   ot->poll = ED_operator_console_active;
 
@@ -495,7 +532,7 @@ static wmOperatorStatus console_insert_exec(bContext *C, wmOperator *op)
     console_line_insert(ci, str, len);
   }
 
-  MEM_freeN(str);
+  MEM_delete(str);
 
   if (len == 0) {
     return OPERATOR_CANCELLED;
@@ -542,7 +579,7 @@ void CONSOLE_OT_insert(wmOperatorType *ot)
   ot->description = "Insert text at cursor position";
   ot->idname = "CONSOLE_OT_insert";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_insert_exec;
   ot->invoke = console_insert_invoke;
   ot->poll = ED_operator_console_active;
@@ -573,10 +610,12 @@ static wmOperatorStatus console_indent_or_autocomplete_exec(bContext *C, wmOpera
   }
 
   if (text_before_cursor) {
-    WM_operator_name_call(C, "CONSOLE_OT_autocomplete", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "CONSOLE_OT_autocomplete", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   }
   else {
-    WM_operator_name_call(C, "CONSOLE_OT_indent", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "CONSOLE_OT_indent", wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -588,7 +627,7 @@ void CONSOLE_OT_indent_or_autocomplete(wmOperatorType *ot)
   ot->idname = "CONSOLE_OT_indent_or_autocomplete";
   ot->description = "Indent selected text or autocomplete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_indent_or_autocomplete_exec;
   ot->poll = ED_operator_console_active;
 
@@ -644,7 +683,7 @@ void CONSOLE_OT_indent(wmOperatorType *ot)
   ot->description = "Add 4 spaces at line beginning";
   ot->idname = "CONSOLE_OT_indent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_indent_exec;
   ot->poll = ED_operator_console_active;
 }
@@ -700,7 +739,7 @@ void CONSOLE_OT_unindent(wmOperatorType *ot)
   ot->description = "Delete 4 spaces from line beginning";
   ot->idname = "CONSOLE_OT_unindent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_unindent_exec;
   ot->poll = ED_operator_console_active;
 }
@@ -805,7 +844,7 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
   ot->description = "Delete text by cursor position";
   ot->idname = "CONSOLE_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_delete_exec;
   ot->poll = ED_operator_console_active;
 
@@ -849,7 +888,7 @@ void CONSOLE_OT_clear_line(wmOperatorType *ot)
   ot->description = "Clear the line and store in history";
   ot->idname = "CONSOLE_OT_clear_line";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_clear_line_exec;
   ot->poll = ED_operator_console_active;
 }
@@ -892,7 +931,7 @@ void CONSOLE_OT_clear(wmOperatorType *ot)
   ot->description = "Clear text by type";
   ot->idname = "CONSOLE_OT_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_clear_exec;
   ot->poll = ED_operator_console_active;
 
@@ -979,7 +1018,7 @@ void CONSOLE_OT_history_cycle(wmOperatorType *ot)
   ot->description = "Cycle through history";
   ot->idname = "CONSOLE_OT_history_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_history_cycle_exec;
   ot->poll = ED_operator_console_active;
 
@@ -1019,7 +1058,7 @@ static wmOperatorStatus console_history_append_exec(bContext *C, wmOperator *op)
     }
     /* Remove blank command. */
     if (STREQ(str, ci->line)) {
-      MEM_freeN(str);
+      MEM_delete(str);
       return OPERATOR_FINISHED;
     }
   }
@@ -1041,7 +1080,7 @@ void CONSOLE_OT_history_append(wmOperatorType *ot)
   ot->description = "Append history at cursor position";
   ot->idname = "CONSOLE_OT_history_append";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_history_append_exec;
   ot->poll = ED_operator_console_active;
 
@@ -1097,7 +1136,7 @@ void CONSOLE_OT_scrollback_append(wmOperatorType *ot)
   ot->description = "Append scrollback text by type";
   ot->idname = "CONSOLE_OT_scrollback_append";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_scrollback_append_exec;
   ot->poll = ED_operator_console_active;
 
@@ -1126,7 +1165,7 @@ static wmOperatorStatus console_copy_exec(bContext *C, wmOperator *op)
     ED_area_tag_redraw(CTX_wm_area(C));
   }
 
-  MEM_freeN(buf);
+  MEM_delete(buf);
   return OPERATOR_FINISHED;
 }
 
@@ -1143,7 +1182,7 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
   ot->description = "Copy selected text to clipboard";
   ot->idname = "CONSOLE_OT_copy";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = console_copy_poll;
   ot->exec = console_copy_exec;
 
@@ -1171,16 +1210,17 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   if (*buf_str == '\0') {
-    MEM_freeN(buf_str);
+    MEM_delete(buf_str);
     return OPERATOR_CANCELLED;
   }
   const char *buf_step = buf_str;
   do {
     const char *buf = buf_step;
-    buf_step = (char *)BLI_strchr_or_end(buf, '\n');
+    buf_step = const_cast<char *>(BLI_strchr_or_end(buf, '\n'));
     const int buf_len = buf_step - buf;
     if (buf != buf_str) {
-      WM_operator_name_call(C, "CONSOLE_OT_execute", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+      WM_operator_name_call(
+          C, "CONSOLE_OT_execute", wm::OpCallContext::ExecDefault, nullptr, nullptr);
       ci = console_history_verify(C);
     }
     console_delete_editable_selection(sc);
@@ -1188,7 +1228,7 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     console_select_offset(sc, buf_len);
   } while (*buf_step ? ((void)buf_step++, true) : false);
 
-  MEM_freeN(buf_str);
+  MEM_delete(buf_str);
 
   console_textview_update_rect(sc, region);
   ED_area_tag_redraw(area);
@@ -1205,7 +1245,7 @@ void CONSOLE_OT_paste(wmOperatorType *ot)
   ot->description = "Paste text from clipboard";
   ot->idname = "CONSOLE_OT_paste";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_operator_console_active;
   ot->exec = console_paste_exec;
 
@@ -1291,7 +1331,7 @@ static void console_cursor_set_exit(bContext *C, wmOperator *op)
 
   console_select_update_primary_clipboard(sc);
 
-  MEM_freeN(scu);
+  MEM_delete(scu);
 }
 
 static wmOperatorStatus console_select_set_invoke(bContext *C,
@@ -1313,7 +1353,7 @@ static wmOperatorStatus console_select_set_invoke(bContext *C,
     }
   }
 
-  op->customdata = MEM_callocN(sizeof(SetConsoleCursor), "SetConsoleCursor");
+  op->customdata = MEM_new_zeroed<SetConsoleCursor>("SetConsoleCursor");
   scu = static_cast<SetConsoleCursor *>(op->customdata);
 
   scu->sel_old[0] = sc->sel_start;
@@ -1369,7 +1409,7 @@ void CONSOLE_OT_select_set(wmOperatorType *ot)
   ot->idname = "CONSOLE_OT_select_set";
   ot->description = "Set the console selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = console_select_set_invoke;
   ot->modal = console_select_set_modal;
   ot->cancel = console_select_set_cancel;
@@ -1385,8 +1425,8 @@ static wmOperatorStatus console_modal_select_all_invoke(bContext *C,
 
   int offset = strlen(sc->prompt);
 
-  LISTBASE_FOREACH (ConsoleLine *, cl, &sc->scrollback) {
-    offset += cl->len + 1;
+  for (ConsoleLine &cl : sc->scrollback) {
+    offset += cl.len + 1;
   }
 
   ConsoleLine *cl = static_cast<ConsoleLine *>(sc->history.last);
@@ -1409,7 +1449,7 @@ void CONSOLE_OT_select_all(wmOperatorType *ot)
   ot->idname = "CONSOLE_OT_select_all";
   ot->description = "Select all the text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = console_modal_select_all_invoke;
   ot->poll = ED_operator_console_active;
 }
@@ -1468,7 +1508,9 @@ void CONSOLE_OT_select_word(wmOperatorType *ot)
   ot->description = "Select word at cursor position";
   ot->idname = "CONSOLE_OT_select_word";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = console_selectword_invoke;
   ot->poll = ED_operator_console_active;
 }
+
+}  // namespace blender

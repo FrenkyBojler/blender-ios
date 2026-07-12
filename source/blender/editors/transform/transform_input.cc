@@ -16,8 +16,8 @@
 
 #include "BKE_context.hh"
 
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_utildefines.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -26,8 +26,6 @@
 #include "transform_mode.hh"
 
 #include "ED_sequencer.hh"
-
-#include "SEQ_time.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -229,7 +227,7 @@ void setCustomPoints(TransInfo * /*t*/,
 {
   int *data;
 
-  mi->data = MEM_reallocN(mi->data, sizeof(int[4]));
+  mi->data = MEM_realloc_uninitialized(mi->data, sizeof(int[4]));
 
   data = static_cast<int *>(mi->data);
 
@@ -307,10 +305,6 @@ static int transform_seq_slide_strip_cursor_get(const Strip *strip)
 
 static int transform_seq_slide_cursor_get(TransInfo *t)
 {
-  if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
-    return WM_CURSOR_NSEW_SCROLL;
-  }
-
   const Scene *scene = t->scene;
   VectorSet<Strip *> strips = vse::selected_strips_from_context(t->context);
 
@@ -318,27 +312,23 @@ static int transform_seq_slide_cursor_get(TransInfo *t)
     return transform_seq_slide_strip_cursor_get(strips[0]);
   }
   if (strips.size() == 2) {
-    Strip *seq1 = strips[0];
-    Strip *seq2 = strips[1];
+    Strip *strip1 = strips[0];
+    Strip *strip2 = strips[1];
 
-    if (seq::time_left_handle_frame_get(scene, seq1) >
-        seq::time_left_handle_frame_get(scene, seq2))
-    {
-      SWAP(Strip *, seq1, seq2);
+    if (strip1->left_handle() > strip2->left_handle()) {
+      SWAP(Strip *, strip1, strip2);
     }
 
-    if (seq1->machine != seq2->machine) {
+    if (strip1->channel != strip2->channel) {
       return WM_CURSOR_NSEW_SCROLL;
     }
 
-    if (seq::time_right_handle_frame_get(scene, seq1) !=
-        seq::time_left_handle_frame_get(scene, seq2))
-    {
+    if (strip1->right_handle(scene) != strip2->left_handle()) {
       return WM_CURSOR_NSEW_SCROLL;
     }
 
-    const int cursor1 = transform_seq_slide_strip_cursor_get(seq1);
-    const int cursor2 = transform_seq_slide_strip_cursor_get(seq2);
+    const int cursor1 = transform_seq_slide_strip_cursor_get(strip1);
+    const int cursor2 = transform_seq_slide_strip_cursor_get(strip2);
 
     if (cursor1 == WM_CURSOR_RIGHT_HANDLE && cursor2 == WM_CURSOR_LEFT_HANDLE) {
       return WM_CURSOR_BOTH_HANDLES;
@@ -381,7 +371,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
       InputAngle_Data *data;
       mi->use_virtual_mval = false;
       mi->precision_factor = 1.0f / 30.0f;
-      data = MEM_callocN<InputAngle_Data>("angle accumulator");
+      data = MEM_new_zeroed<InputAngle_Data>("angle accumulator");
       data->mval_prev[0] = mi->imval[0];
       data->mval_prev[1] = mi->imval[1];
       mi->data = data;
@@ -452,7 +442,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
       }
       /* Only use special cursor, when tweaking strips with mouse. */
       if (t->mode == TFM_SEQ_SLIDE) {
-        if (transform_mode_edge_seq_slide_use_restore_handle_selection(t)) {
+        if ((t->flag & T_MODAL) && transform_mode_edge_seq_slide_use_restore_handle_selection(t)) {
           WM_cursor_modal_set(win, transform_seq_slide_cursor_get(t));
         }
         else {
@@ -487,7 +477,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
   /* If we've allocated new data, free the old data
    * less hassle than checking before every alloc above. */
   if (mi_data_prev && (mi_data_prev != mi->data)) {
-    MEM_freeN(mi_data_prev);
+    MEM_delete_void(mi_data_prev);
   }
 }
 

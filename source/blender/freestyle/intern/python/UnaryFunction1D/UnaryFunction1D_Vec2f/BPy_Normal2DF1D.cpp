@@ -28,7 +28,7 @@ PyDoc_STRVAR(
     "\n"
     "   Builds a Normal2DF1D object.\n"
     "\n"
-    "   :arg integration_type: The integration method used to compute a single value\n"
+    "   :param integration_type: The integration method used to compute a single value\n"
     "      from a set of values.\n"
     "   :type integration_type: :class:`freestyle.types.IntegrationType`\n"
     "\n"
@@ -36,11 +36,10 @@ PyDoc_STRVAR(
     "\n"
     "   Returns the 2D normal for the Interface1D.\n"
     "\n"
-    "   :arg inter: An Interface1D object.\n"
+    "   :param inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: The 2D normal for the Interface1D.\n"
     "   :rtype: :class:`mathutils.Vector`\n");
-
 static int Normal2DF1D___init__(BPy_Normal2DF1D *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"integration_type", nullptr};

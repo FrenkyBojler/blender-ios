@@ -8,6 +8,8 @@
 
 #include "ED_curves.hh"
 
+#include "BKE_gtest_base.hh"
+
 #include "testing/testing.h"
 
 namespace blender::ed::curves::tests {
@@ -60,7 +62,9 @@ static void validate_positions(const Span<Vector<float3>> expected_positions,
   }
 }
 
-TEST(curves_editors, DuplicatePointsTwoSingle)
+class CurvesEditorsTest : public bke::BlenderGTestBase {};
+
+TEST_F(CurvesEditorsTest, DuplicatePointsTwoSingle)
 {
   /* Two points from single curve. */
   const Vector<float3> expected_positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}};
@@ -83,7 +87,7 @@ TEST(curves_editors, DuplicatePointsTwoSingle)
   EXPECT_TRUE(positions[5] == expected_positions[2]);
 }
 
-TEST(curves_editors, DuplicatePointsFourThree)
+TEST_F(CurvesEditorsTest, DuplicatePointsFourThree)
 {
   /* Four points from three curves. One curve has one point. */
   const Vector<Vector<float3>> expected_positions = {
@@ -116,7 +120,7 @@ TEST(curves_editors, DuplicatePointsFourThree)
   EXPECT_TRUE(positions[13] == expected_positions[2][4]);
 }
 
-TEST(curves_editors, DuplicatePointsTwoCyclic)
+TEST_F(CurvesEditorsTest, DuplicatePointsTwoCyclic)
 {
   /* Two points from cyclic curve. Points are on cycle. */
   const Vector<Vector<float3>> expected_positions = {
@@ -148,7 +152,7 @@ TEST(curves_editors, DuplicatePointsTwoCyclic)
   EXPECT_TRUE(positions[15] == expected_positions[2][0]);
 }
 
-TEST(curves_editors, SplitPointsTwoSingle)
+TEST_F(CurvesEditorsTest, SplitPointsTwoSingle)
 {
   /* Split two points from single curve. */
   const Vector<float3> positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}};
@@ -162,11 +166,11 @@ TEST(curves_editors, SplitPointsTwoSingle)
   const Vector<Vector<float3>> expected_positions = {
       {{-1, 1, 0}, {1, 1, 0}}, {{-1.5, 0, 0}, {-1, 1, 0}}, {{1, 1, 0}, {1.5, 0, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
-TEST(curves_editors, SplitPointsFourThree)
+TEST_F(CurvesEditorsTest, SplitPointsFourThree)
 {
   /* Four points from three curves. One curve has one point. */
   const Vector<Vector<float3>> positions = {
@@ -187,11 +191,11 @@ TEST(curves_editors, SplitPointsFourThree)
       {{1, -1, 0}},
       {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
 }
 
-TEST(curves_editors, SplitPointsTwoCyclic)
+TEST_F(CurvesEditorsTest, SplitPointsTwoCyclic)
 {
   /* Two points from cyclic curve. Points are on cycle. */
   const Vector<Vector<float3>> positions = {
@@ -213,7 +217,7 @@ TEST(curves_editors, SplitPointsTwoCyclic)
       {{1, 1, 0}, {1, -1, 0}, {-1, -1, 0}, {-1, 1, 0}},
       {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
   Array<bool> expected_cyclic = {false, false, false, false, false};
   VArray<bool> cyclic = new_curves.cyclic();
@@ -222,7 +226,7 @@ TEST(curves_editors, SplitPointsTwoCyclic)
   }
 }
 
-TEST(curves_editors, SplitPointsTwoTouchCyclic)
+TEST_F(CurvesEditorsTest, SplitPointsTwoTouchCyclic)
 {
   /* Two points from cyclic curve. Points are touching cycle. */
   const Vector<Vector<float3>> positions = {
@@ -244,8 +248,108 @@ TEST(curves_editors, SplitPointsTwoTouchCyclic)
       {{1, -1, 0}, {-1, -1, 0}, {-1, 1, 0}, {1, 1, 0}},
       {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {1, -1, 0}}};
 
-  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
   validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+}
+
+TEST_F(CurvesEditorsTest, SplitEverySecondCyclic)
+{
+  /* Split every second point in cyclic curve. Expected result all selected points
+   * as separate curves and original curve. */
+  const Vector<Vector<float3>> positions = {{{0, -1, 0},
+                                             {-1, -1, 0},
+                                             {-1, 0, 0},
+                                             {-1, 1, 0},
+                                             {0, 1, 0},
+                                             {1, 1, 0},
+                                             {1, 0, 0},
+                                             {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {0});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{0, 2, 4, 6}.as_span(), memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {{{0, -1, 0}},
+                                                     {{-1, 0, 0}},
+                                                     {{0, 1, 0}},
+                                                     {{1, 0, 0}},
+                                                     {{0, -1, 0},
+                                                      {-1, -1, 0},
+                                                      {-1, 0, 0},
+                                                      {-1, 1, 0},
+                                                      {0, 1, 0},
+                                                      {1, 1, 0},
+                                                      {1, 0, 0},
+                                                      {1, -1, 0}}};
+
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+}
+
+TEST_F(CurvesEditorsTest, SplitAllSelectedButFirstCyclic)
+{
+  /* Split all except first points in cyclic curve. Expected result two curves. One from selected
+   * points another from first, second and last. Both not cyclic. */
+  const Vector<Vector<float3>> positions = {{{0, -1, 0},
+                                             {-1, -1, 0},
+                                             {-1, 0, 0},
+                                             {-1, 1, 0},
+                                             {0, 1, 0},
+                                             {1, 1, 0},
+                                             {1, 0, 0},
+                                             {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {0});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{1, 2, 3, 4, 5, 6, 7}.as_span(),
+                                                 memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {
+      {{-1, -1, 0}, {-1, 0, 0}, {-1, 1, 0}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0}, {1, -1, 0}},
+      {{1, -1, 0}, {0, -1, 0}, {-1, -1, 0}},
+  };
+
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+  EXPECT_EQ(new_curves.curves_num(), expected_positions.size());
+  EXPECT_FALSE(new_curves.cyclic()[0]);
+  EXPECT_FALSE(new_curves.cyclic()[1]);
+}
+
+TEST_F(CurvesEditorsTest, SplitTwoOnSeamAndExtraCyclic)
+{
+  /* Split first, last and pair in the middle. Expected result four non cyclic curves. */
+  const Vector<Vector<float3>> positions = {{{0, -1, 0},
+                                             {-1, -1, 0},
+                                             {-1, 0, 0},
+                                             {-1, 1, 0},
+                                             {0, 1, 0},
+                                             {1, 1, 0},
+                                             {1, 0, 0},
+                                             {1, -1, 0}}};
+
+  bke::CurvesGeometry curves = create_curves(positions, 4, {0});
+  IndexMaskMemory memory;
+  const IndexMask mask = IndexMask::from_indices(Array<int>{0, 3, 4, 7}.as_span(), memory);
+
+  bke::CurvesGeometry new_curves = split_points(curves, mask);
+
+  const Vector<Vector<float3>> expected_positions = {
+      {{-1, 1, 0}, {0, 1, 0}},
+      {{1, -1, 0}, {0, -1, 0}},
+      {{0, -1, 0}, {-1, -1, 0}, {-1, 0, 0}, {-1, 1, 0}},
+      {{0, 1, 0}, {1, 1, 0}, {1, 0, 0}, {1, -1, 0}}};
+
+  GTEST_ASSERT_EQ(new_curves.curves_num(), expected_positions.size());
+  validate_positions(expected_positions, new_curves.points_by_curve(), new_curves.positions());
+  EXPECT_FALSE(new_curves.cyclic()[0]);
+  EXPECT_FALSE(new_curves.cyclic()[1]);
+  EXPECT_FALSE(new_curves.cyclic()[2]);
+  EXPECT_FALSE(new_curves.cyclic()[3]);
 }
 
 }  // namespace blender::ed::curves::tests

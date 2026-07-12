@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_extra_info.hh"
+#include "infos/overlay_extra_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_extra_wire_base)
 
@@ -33,7 +33,7 @@ void main()
    * This is because we force the early depth test to only output the front most fragment.
    * Discarding would expose us to race condition depending on rasterization order. */
   if (fract(dist / dash_width) > dash_factor) {
-    discard;
+    gpu_discard_fragment();
   }
 #endif
 

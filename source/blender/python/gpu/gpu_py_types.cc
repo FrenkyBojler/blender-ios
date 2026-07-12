@@ -11,7 +11,11 @@
 
 #include <Python.h>
 
+#include "gpu_py_matrix.hh"
+#include "gpu_py_offscreen.hh"
 #include "gpu_py_types.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name GPU Types Module
@@ -71,6 +75,15 @@ PyObject *bpygpu_types_init()
   if (PyType_Ready(&BPyGPUStageInterfaceInfo_Type) < 0) {
     return nullptr;
   }
+  if (PyType_Ready(&PyGPUMatrixStackContext_Type) < 0) {
+    return nullptr;
+  }
+  if (PyType_Ready(&PyGPUOffscreenStackContext_Type) < 0) {
+    return nullptr;
+  }
+  if (PyType_Ready(&BPyGPU_DeviceType) < 0) {
+    return nullptr;
+  }
 
   PyModule_AddType(submodule, &BPyGPU_BufferType);
   PyModule_AddType(submodule, &BPyGPUVertFormat_Type);
@@ -84,8 +97,13 @@ PyObject *bpygpu_types_init()
   PyModule_AddType(submodule, &BPyGPUUniformBuf_Type);
   PyModule_AddType(submodule, &BPyGPUShaderCreateInfo_Type);
   PyModule_AddType(submodule, &BPyGPUStageInterfaceInfo_Type);
+  PyModule_AddType(submodule, &PyGPUMatrixStackContext_Type);
+  PyModule_AddType(submodule, &PyGPUOffscreenStackContext_Type);
+  PyModule_AddType(submodule, &BPyGPU_DeviceType);
 
   return submodule;
 }
 
 /** \} */
+
+}  // namespace blender

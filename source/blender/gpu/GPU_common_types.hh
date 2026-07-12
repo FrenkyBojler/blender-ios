@@ -8,12 +8,16 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_vector.hh"
+
+namespace blender {
 
 /**
  * Describes the load operation of a frame-buffer attachment at the start of a render pass.
  */
-enum eGPULoadOp {
+enum GPULoadOp {
   /**
    * Clear the frame-buffer attachment using the clear value.
    */
@@ -35,7 +39,7 @@ enum eGPULoadOp {
 /**
  * Describes the store operation of a frame-buffer attachment at the end of a render pass.
  */
-enum eGPUStoreOp {
+enum GPUStoreOp {
   /**
    * Do not care about the content of the attachment when the render pass ends.
    * Useful if only the values being written are important.
@@ -68,14 +72,26 @@ enum GPUAttachmentState {
   GPU_ATTACHMENT_READ,
 };
 
-enum eGPUFrontFace {
+enum GPUFrontFace {
   GPU_CLOCKWISE,
   GPU_COUNTERCLOCKWISE,
 };
 
-namespace blender::gpu::shader {
+namespace gpu {
 
-enum class Type {
+enum class ShaderStage : uint8_t {
+  VERTEX = 1 << 0,
+  FRAGMENT = 1 << 1,
+  COMPUTE = 2 << 1,
+  ANY = (ShaderStage::VERTEX | ShaderStage::FRAGMENT | ShaderStage::COMPUTE),
+};
+ENUM_OPERATORS(ShaderStage);
+
+}  // namespace gpu
+
+namespace gpu::shader {
+
+enum class Type : int8_t {
   /* Types supported natively across all GPU back-ends. */
   float_t = 0,
   float2_t,
@@ -181,6 +197,11 @@ struct SpecializationConstant {
     {
       return u == other.u;
     }
+
+    uint64_t hash() const
+    {
+      return uint64_t(u);
+    }
   };
 
   Type type;
@@ -215,4 +236,57 @@ struct SpecializationConstant {
   }
 };
 
-}  // namespace blender::gpu::shader
+/**
+ * Specialization constants as a Struct-of-Arrays. Allow simpler comparison and reset.
+ * The backend is free to implement their support as they see fit.
+ */
+struct SpecializationConstants {
+  Vector<gpu::shader::Type, 8> types;
+  /* Current values set by `GPU_shader_constant_*()` call. The backend can choose to interpret
+   * that however it wants (i.e: bind another shader instead). */
+  Vector<SpecializationConstant::Value, 8> values;
+
+  void set_value(int index, uint32_t value)
+  {
+    BLI_assert_msg(types[index] == Type::uint_t, "Mismatch between interface and constant type");
+    values[index].u = value;
+  }
+
+  void set_value(int index, int value)
+  {
+    BLI_assert_msg(types[index] == Type::int_t, "Mismatch between interface and constant type");
+    values[index].i = value;
+  }
+
+  void set_value(int index, float value)
+  {
+    BLI_assert_msg(types[index] == Type::float_t, "Mismatch between interface and constant type");
+    values[index].f = value;
+  }
+
+  void set_value(int index, bool value)
+  {
+    BLI_assert_msg(types[index] == Type::bool_t, "Mismatch between interface and constant type");
+    values[index].u = value ? 1 : 0;
+  }
+
+  bool is_empty() const
+  {
+    return types.is_empty();
+  }
+};
+
+struct CompilationConstant {
+  Type type;
+  StringRefNull name;
+  /* Reusing value type. */
+  SpecializationConstant::Value value;
+
+  bool operator==(const CompilationConstant &b) const
+  {
+    return this->type == b.type && this->name == b.name && this->value == b.value;
+  }
+};
+
+}  // namespace gpu::shader
+}  // namespace blender

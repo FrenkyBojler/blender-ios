@@ -32,30 +32,6 @@ ccl_device_inline float2 polar_to_cartesian(const float r, const float phi)
   return make_float2(r * cosf(phi), r * sinf(phi));
 }
 
-/* Transform p from a local coordinate system (spanned by X and Y) into global coordinates. */
-template<class T> ccl_device_inline T to_global(const float2 p, const T X, const T Y)
-{
-  return p.x * X + p.y * Y;
-}
-
-/* Transform p from a local coordinate system (spanned by X, Y and Z) into global coordinates. */
-template<class T> ccl_device_inline T to_global(const float3 p, const T X, const T Y, const T Z)
-{
-  return p.x * X + p.y * Y + p.z * Z;
-}
-
-/* Transform p from global coordinates into a local coordinate system (spanned by X and Y). */
-template<class T> ccl_device_inline float2 to_local(const T p, const T X, const T Y)
-{
-  return make_float2(dot(p, X), dot(p, Y));
-}
-
-/* Transform p from global coordinates into a local coordinate system (spanned by X, Y and Z). */
-template<class T> ccl_device_inline float3 to_local(const T p, const T X, const T Y, const T Z)
-{
-  return make_float3(dot(p, X), dot(p, Y), dot(p, Z));
-}
-
 ccl_device_inline float3 disk_to_hemisphere(const float2 p)
 {
   return make_float3(p.x, p.y, safe_sqrtf(1.0f - len_squared(p)));
@@ -109,6 +85,31 @@ ccl_device_inline float3 transform_perspective_direction(const ccl_private Proje
                                a.x * t->z.x + a.y * t->z.y + a.z * t->z.z);
 
   return c;
+}
+
+/* Applies transform t to point a with given derivatives `da/dx` and `da/dy`.
+ * Returns t(a) and sets `out_dx/dy` to the values of `dt(a)/dx` and `dt(a)/dy`, respectively. */
+ccl_device_inline float3 transform_perspective_deriv(const ccl_private ProjectionTransform *t,
+                                                     const float3 a,
+                                                     const float3 dx,
+                                                     const float3 dy,
+                                                     ccl_private float3 &out_dx,
+                                                     ccl_private float3 &out_dy)
+{
+  const float4 b = make_float4(a.x, a.y, a.z, 1.0f);
+  const float3 c = make_float3(dot(t->x, b), dot(t->y, b), dot(t->z, b));
+  const float w = dot(t->w, b);
+
+  if (w != 0.0f) {
+    out_dx = (transform_perspective_direction(t, dx) - dot(make_float3(t->w), dx) * c) / w;
+    out_dy = (transform_perspective_direction(t, dy) - dot(make_float3(t->w), dy) * c) / w;
+    return c / w;
+  }
+  else {
+    out_dx = zero_float3();
+    out_dy = zero_float3();
+    return zero_float3();
+  }
 }
 
 ccl_device_inline ProjectionTransform make_projection(const float a,

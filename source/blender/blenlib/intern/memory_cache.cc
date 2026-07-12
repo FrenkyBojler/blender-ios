@@ -7,12 +7,12 @@
  */
 
 #include <atomic>
-#include <mutex>
 #include <optional>
 
 #include "BLI_concurrent_map.hh"
 #include "BLI_memory_cache.hh"
 #include "BLI_memory_counter.hh"
+#include "BLI_mutex.hh"
 
 namespace blender::memory_cache {
 
@@ -43,7 +43,7 @@ struct Cache {
    */
   std::atomic<int64_t> size_in_bytes = 0;
 
-  std::mutex global_mutex;
+  Mutex global_mutex;
   /** Amount of memory currently used in the cache. */
   MemoryCount memory;
   /**
@@ -203,7 +203,7 @@ static void try_enforce_limit()
     keys_with_time.append({accessor->second.last_use_time, key});
   }
   /* Sort the items so that the newest keys come first. */
-  std::sort(keys_with_time.begin(), keys_with_time.end());
+  std::ranges::sort(keys_with_time);
   std::reverse(keys_with_time.begin(), keys_with_time.end());
 
   /* Count used memory starting at the most recently touched element. Stop at the element when the

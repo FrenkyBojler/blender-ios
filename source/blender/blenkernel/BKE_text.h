@@ -7,12 +7,14 @@
  * \ingroup bke
  */
 
+namespace blender {
+
 struct Main;
 struct Text;
 struct TextLine;
 
-#include "BLI_compiler_attrs.h"
-#include "BLI_sys_types.h"
+#include "BLI_compiler_attrs.hh"
+#include "BLI_sys_types.hh"
 
 /**
  * \note caller must handle `compiled` member.
@@ -20,8 +22,8 @@ struct TextLine;
 void BKE_text_free_lines(struct Text *text);
 struct Text *BKE_text_add(struct Main *bmain, const char *name);
 /**
- * Use to a valid UTF-8 sequences.
- * this function replaces extended ascii characters.
+ * Use to a valid UTF8 sequences.
+ * this function replaces extended ASCII characters.
  */
 int txt_extended_ascii_as_utf8(char **str);
 bool BKE_text_reload(struct Text *text);
@@ -75,7 +77,7 @@ void txt_move_bol(struct Text *text, bool sel);
 void txt_move_eol(struct Text *text, bool sel);
 void txt_move_toline(struct Text *text, unsigned int line, bool sel);
 /**
- * Moves to a certain byte in a line, not a certain utf8-character.
+ * Moves to a certain byte in a line, not a certain UTF8-character.
  */
 void txt_move_to(struct Text *text, unsigned int line, unsigned int ch, bool sel);
 void txt_pop_sel(struct Text *text);
@@ -154,3 +156,5 @@ char *txt_to_buf_for_undo(struct Text *text, size_t *r_buf_len)
  * Decode a buffer from #txt_to_buf_for_undo.
  */
 void txt_from_buf_for_undo(struct Text *text, const char *buf, size_t buf_len) ATTR_NONNULL(1, 2);
+
+}  // namespace blender

@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_outline_info.hh"
+#include "infos/overlay_outline_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_outline_detect)
 
@@ -27,7 +27,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_outline_detect)
 #define APEX_YPOS (ALL & (~YPOS))
 #define APEX_YNEG (ALL & (~YNEG))
 
-bool has_edge(uint id, float2 uv, uint ref, inout uint ref_col, inout float2 depth_uv)
+bool has_edge(uint id, float2 uv, uint ref, uint &ref_col, float2 &depth_uv)
 {
   if (ref_col == 0u) {
     /* Make outline bleed on the background. */
@@ -44,7 +44,7 @@ bool4 gather_edges(float2 uv, uint ref)
 #ifdef GPU_ARB_texture_gather
   ids = textureGather(outline_id_tx, uv);
 #else
-  float3 ofs = float3(0.5f, 0.5f, -0.5f) * sizeViewportInv.xyy;
+  float3 ofs = float3(0.5f, 0.5f, -0.5f) * uniform_buf.size_viewport_inv.xyy;
   ids.x = textureLod(outline_id_tx, uv - ofs.xz, 0.0f).r;
   ids.y = textureLod(outline_id_tx, uv + ofs.xy, 0.0f).r;
   ids.z = textureLod(outline_id_tx, uv + ofs.xz, 0.0f).r;
@@ -83,7 +83,7 @@ bool4 rotate_270(bool4 v)
 }
 
 /* Apply offset to line endpoint based on surrounding edges infos. */
-bool line_offset(bool2 edges, float2 ofs, inout float2 line_point)
+bool line_offset(bool2 edges, float2 ofs, float2 &line_point)
 {
   if (all(edges.xy)) {
     line_point.y -= ofs.y;
@@ -102,7 +102,7 @@ bool line_offset(bool2 edges, float2 ofs, inout float2 line_point)
 #define PROXIMITY_OFS -0.35f
 
 /* Use surrounding edges to approximate the outline direction to create smooth lines. */
-void straight_line_dir(bool4 edges1, bool4 edges2, out float2 line_start, out float2 line_end)
+void straight_line_dir(bool4 edges1, bool4 edges2, float2 &line_start, float2 &line_end)
 {
   /* Y_POS as reference. Other cases are rotated to match reference. */
   line_end = float2(1.5f, 0.5f + PROXIMITY_OFS);
@@ -126,22 +126,20 @@ float2 diag_offset(bool4 edges)
     /* Horizontal line. */
     return float2(2.5f, 0.5f);
   }
-  else if (all(not(edges.xw))) {
+  if (all(not(edges.xw))) {
     /* Vertical line. */
     return float2(0.5f, 2.5f);
   }
-  else if (edges.w) {
+  if (edges.w) {
     /* Less horizontal Line. */
     return float2(2.5f, 0.5f);
   }
-  else {
-    /* Less vertical Line. */
-    return float2(0.5f, 2.5f);
-  }
+  /* Less vertical Line. */
+  return float2(0.5f, 2.5f);
 }
 
 /* Compute line direction vector from the bottom left corner. */
-void diag_dir(bool4 edges1, bool4 edges2, out float2 line_start, out float2 line_end)
+void diag_dir(bool4 edges1, bool4 edges2, float2 &line_start, float2 &line_end)
 {
   /* Negate instead of rotating back the result of diag_offset. */
   edges2 = not(edges2);
@@ -166,11 +164,12 @@ void diag_dir(bool4 edges1, bool4 edges2, out float2 line_start, out float2 line
 
 void main()
 {
+  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(outline_id_tx, 0).xy);
   uint ref = textureLod(outline_id_tx, screen_uv, 0.0f).r;
   uint ref_col = ref;
 
-  float2 uvs = gl_FragCoord.xy * sizeViewportInv;
-  float3 ofs = float3(sizeViewportInv, 0.0f);
+  float2 uvs = gl_FragCoord.xy * uniform_buf.size_viewport_inv;
+  float3 ofs = float3(uniform_buf.size_viewport_inv, 0.0f);
 
   float2 depth_uv = uvs;
 
@@ -236,13 +235,13 @@ void main()
     frag_color = float4(0.0f);
   }
   else if (color_id == 1u) {
-    frag_color = colorSelect;
+    frag_color = theme.colors.object_select;
   }
   else if (color_id == 3u) {
-    frag_color = colorActive;
+    frag_color = theme.colors.active_object;
   }
   else {
-    frag_color = colorTransform;
+    frag_color = theme.colors.transform;
   }
 
   float ref_depth = textureLod(outline_depth_tx, depth_uv, 0.0f).r;
@@ -265,7 +264,7 @@ void main()
     /* NOTE(Metal): Discards are not explicit returns in Metal. We should also return to avoid
      * erroneous derivatives which can manifest during texture sampling in
      * non-uniform-control-flow. */
-    discard;
+    gpu_discard_fragment();
     return;
   }
 
@@ -280,13 +279,13 @@ void main()
   switch (edge_case) {
       /* Straight lines. */
     case YPOS:
-      extra_edges = gather_edges(uvs + sizeViewportInv * float2(2.5f, 0.5f), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * float2(-2.5f, 0.5f), ref);
+      extra_edges = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(2.5f, 0.5f), ref);
+      extra_edges2 = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(-2.5f, 0.5f), ref);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
       break;
     case YNEG:
-      extra_edges = gather_edges(uvs + sizeViewportInv * float2(-2.5f, -0.5f), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * float2(2.5f, -0.5f), ref);
+      extra_edges = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(-2.5f, -0.5f), ref);
+      extra_edges2 = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(2.5f, -0.5f), ref);
       extra_edges = rotate_180(extra_edges);
       extra_edges2 = rotate_180(extra_edges2);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
@@ -294,8 +293,8 @@ void main()
       line_end = rotate_180(line_end);
       break;
     case XPOS:
-      extra_edges = gather_edges(uvs + sizeViewportInv * float2(0.5f, 2.5f), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * float2(0.5f, -2.5f), ref);
+      extra_edges = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(0.5f, 2.5f), ref);
+      extra_edges2 = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(0.5f, -2.5f), ref);
       extra_edges = rotate_90(extra_edges);
       extra_edges2 = rotate_90(extra_edges2);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);
@@ -303,8 +302,8 @@ void main()
       line_end = rotate_90(line_end);
       break;
     case XNEG:
-      extra_edges = gather_edges(uvs + sizeViewportInv * float2(-0.5f, 2.5f), ref);
-      extra_edges2 = gather_edges(uvs + sizeViewportInv * float2(-0.5f, -2.5f), ref);
+      extra_edges = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(-0.5f, 2.5f), ref);
+      extra_edges2 = gather_edges(uvs + uniform_buf.size_viewport_inv * float2(-0.5f, -2.5f), ref);
       extra_edges = rotate_270(extra_edges);
       extra_edges2 = rotate_270(extra_edges2);
       straight_line_dir(extra_edges, extra_edges2, line_start, line_end);

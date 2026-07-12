@@ -11,17 +11,13 @@
 #include "mathutils.hh"
 #include "mathutils_interpolate.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_c.hh"
+
+namespace blender {
 
 #ifndef MATH_STANDALONE /* define when building outside blender */
 #  include "MEM_guardedalloc.h"
 #endif
-
-/*-------------------------DOC STRINGS ---------------------------*/
-PyDoc_STRVAR(
-    /* Wrap. */
-    M_Interpolate_doc,
-    "The Blender interpolate module");
 
 /* ---------------------------------WEIGHT CALCULATION ----------------------- */
 
@@ -30,20 +26,20 @@ PyDoc_STRVAR(
 PyDoc_STRVAR(
     /* Wrap. */
     M_Interpolate_poly_3d_calc_doc,
-    ".. function:: poly_3d_calc(veclist, pt)\n"
+    ".. function:: poly_3d_calc(veclist, pt, /)\n"
     "\n"
     "   Calculate barycentric weights for a point on a polygon.\n"
     "\n"
-    "   :arg veclist: Sequence of 3D positions.\n"
+    "   :param veclist: Sequence of 3D positions.\n"
     "   :type veclist: Sequence[Sequence[float]]\n"
-    "   :arg pt: 2D or 3D position."
-    "   :type pt: Sequence[float]"
-    "   :return: list of per-vector weights.\n"
+    "   :param pt: 2D or 3D position.\n"
+    "   :type pt: Sequence[float]\n"
+    "   :return: A list of weights, one per vertex in *veclist*.\n"
     "   :rtype: list[float]\n");
 static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
 {
   float fp[3];
-  float(*vecs)[3];
+  float (*vecs)[3];
   Py_ssize_t len;
 
   PyObject *point, *veclist, *ret;
@@ -59,13 +55,13 @@ static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  len = mathutils_array_parse_alloc_v(((float **)&vecs), 3, veclist, __func__);
+  len = mathutils_array_parse_alloc_v((reinterpret_cast<float **>(&vecs)), 3, veclist, __func__);
   if (len == -1) {
     return nullptr;
   }
 
   if (len) {
-    float *weights = MEM_malloc_arrayN<float>(size_t(len), __func__);
+    float *weights = MEM_new_array_uninitialized<float>(size_t(len), __func__);
 
     interp_weights_poly_v3(weights, vecs, len, fp);
 
@@ -74,7 +70,7 @@ static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
       PyList_SET_ITEM(ret, i, PyFloat_FromDouble(weights[i]));
     }
 
-    MEM_freeN(weights);
+    MEM_delete(weights);
 
     PyMem_Free(vecs);
   }
@@ -90,13 +86,17 @@ static PyObject *M_Interpolate_poly_3d_calc(PyObject * /*self*/, PyObject *args)
 static PyMethodDef M_Interpolate_methods[] = {
 #ifndef MATH_STANDALONE
     {"poly_3d_calc",
-     (PyCFunction)M_Interpolate_poly_3d_calc,
+     static_cast<PyCFunction>(M_Interpolate_poly_3d_calc),
      METH_VARARGS,
      M_Interpolate_poly_3d_calc_doc},
 #endif
     {nullptr, nullptr, 0, nullptr},
 };
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    M_Interpolate_doc,
+    "The Blender interpolate module.");
 static PyModuleDef M_Interpolate_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "mathutils.interpolate",
@@ -116,3 +116,5 @@ PyMODINIT_FUNC PyInit_mathutils_interpolate()
   PyObject *submodule = PyModule_Create(&M_Interpolate_module_def);
   return submodule;
 }
+
+}  // namespace blender

@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/compositor_directional_blur_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(compositor_directional_blur)
+
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 void main()
@@ -27,18 +31,19 @@ void main()
     transformed_coordinates -= origin;
     transformed_coordinates /= current_scale;
     transformed_coordinates -= current_translation;
-    transformed_coordinates *= float2x2(current_cos, current_sin, -current_sin, current_cos);
+    transformed_coordinates = transformed_coordinates *
+                              float2x2(current_cos, current_sin, -current_sin, current_cos);
     transformed_coordinates += origin;
 
     accumulated_color += texture(input_tx, transformed_coordinates / input_size);
 
-    current_scale += scale;
-    current_translation += translation;
+    current_scale += delta_scale;
+    current_translation += delta_translation;
 
     /* Those are the sine and cosine addition identities. Used to avoid computing sine and cosine
      * at each iteration. */
-    float new_sin = current_sin * rotation_cos + current_cos * rotation_sin;
-    current_cos = current_cos * rotation_cos - current_sin * rotation_sin;
+    float new_sin = current_sin * delta_rotation_cos + current_cos * delta_rotation_sin;
+    current_cos = current_cos * delta_rotation_cos - current_sin * delta_rotation_sin;
     current_sin = new_sin;
   }
 

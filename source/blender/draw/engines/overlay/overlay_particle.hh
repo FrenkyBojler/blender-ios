@@ -11,12 +11,12 @@
 #include "BKE_material.hh"
 #include "BKE_pointcache.h"
 #include "DEG_depsgraph_query.hh"
-#include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 #include "DNA_particle_types.h"
 #include "ED_particle.hh"
 
 #include "draw_cache.hh"
+#include "draw_cache_impl.hh"
 #include "overlay_base.hh"
 
 namespace blender::draw::overlay {
@@ -43,7 +43,7 @@ class Particles : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.is_space_v3d();
+    enabled_ = state.is_space_v3d() && !state.skip_particles;
 
     if (!enabled_) {
       return;
@@ -99,7 +99,7 @@ class Particles : Overlay {
         auto &sub = pass.sub("Dots");
         sub.shader_set(res.shaders->particle_edit_vert.get());
         sub.bind_texture("weight_tx", res.weight_ramp_tx);
-        sub.push_constant("use_weight", show_weight_);
+        sub.push_constant("use_weight", false);
         sub.push_constant("use_grease_pencil", false);
         edit_vert_ps_ = &sub;
       }
@@ -107,33 +107,11 @@ class Particles : Overlay {
         auto &sub = pass.sub("Edges");
         sub.shader_set(res.shaders->particle_edit_edge.get());
         sub.bind_texture("weight_tx", res.weight_ramp_tx);
-        sub.push_constant("use_weight", false);
+        sub.push_constant("use_weight", show_weight_);
         sub.push_constant("use_grease_pencil", false);
         edit_edge_ps_ = &sub;
       }
     }
-  }
-
-  /* Particle data are stored in world space. If an object is instanced, the associated particle
-   * systems need to be offset appropriately. */
-  static float4x4 dupli_matrix_get(const ObjectRef &ob_ref)
-  {
-    float4x4 dupli_mat = float4x4::identity();
-
-    if ((ob_ref.dupli_parent != nullptr) && (ob_ref.dupli_object != nullptr)) {
-      if (ob_ref.dupli_object->type & OB_DUPLICOLLECTION) {
-        Collection *collection = ob_ref.dupli_parent->instance_collection;
-        if (collection != nullptr) {
-          dupli_mat[3] -= float4(float3(collection->instance_offset), 0.0f);
-        }
-        dupli_mat = ob_ref.dupli_parent->object_to_world() * dupli_mat;
-      }
-      else {
-        dupli_mat = ob_ref.object->object_to_world() *
-                    math::invert(ob_ref.dupli_object->ob->object_to_world());
-      }
-    }
-    return dupli_mat;
   }
 
   void edit_object_sync(Manager &manager,
@@ -185,7 +163,8 @@ class Particles : Overlay {
 
     Object *ob = ob_ref.object;
 
-    ResourceHandle handle = manager.resource_handle_for_psys(ob_ref, dupli_matrix_get(ob_ref));
+    ResourceHandleRange handle = manager.resource_handle_for_psys(ob_ref,
+                                                                  ob_ref.particles_matrix());
 
     {
       gpu::Batch *geom = DRW_cache_particles_get_edit_strands(ob, psys, edit, show_weight_);
@@ -212,18 +191,26 @@ class Particles : Overlay {
 
     Object *ob = ob_ref.object;
 
-    ResourceHandle handle = {0};
+    ResourceHandleRange handle = {};
 
     for (ParticleSystem *psys : ListBaseWrapper<ParticleSystem>(&ob->particlesystem)) {
       if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
         continue;
       }
 
-      if (handle.raw == 0u) {
-        handle = manager.resource_handle_for_psys(ob_ref, dupli_matrix_get(ob_ref));
+      const ParticleSettings *part = psys->part;
+      const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
+
+      if (ELEM(draw_as, PART_DRAW_NOT, PART_DRAW_OB, PART_DRAW_GR)) {
+        /* Skip early, before we try to create a handle, since we can't create these for ObjectRefs
+         * with instances. Objects and groups are realized by the Depsgraph as regular instances
+         * and therefore support instancing optimizations, but don't need to be handled here. */
+        continue;
       }
 
-      const ParticleSettings *part = psys->part;
+      if (!handle.is_valid()) {
+        handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
+      }
 
       auto set_color = [&](PassMain::Sub &sub) {
         /* NOTE(fclem): Is color even useful in our modern context? */
@@ -231,8 +218,7 @@ class Particles : Overlay {
         sub.push_constant("ucolor", float4(ma ? float3(&ma->r) : float3(0.6f), part->draw_size));
       };
 
-      blender::gpu::Batch *geom = nullptr;
-      const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
+      gpu::Batch *geom = nullptr;
       switch (draw_as) {
         case PART_DRAW_PATH:
           if ((state.is_wireframe_mode == false) && (part->draw_as == PART_DRAW_REND)) {

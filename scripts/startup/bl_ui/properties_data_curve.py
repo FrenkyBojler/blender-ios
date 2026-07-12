@@ -5,7 +5,7 @@
 import bpy
 from bpy.types import Panel
 from rna_prop_ui import PropertyPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bpy.types import Curve, SurfaceCurve, TextCurve
 
@@ -106,6 +106,10 @@ class DATA_PT_shape_curve(CurveButtonsPanel, Panel):
             sub = col.column()
             sub.active = (curve.dimensions == '2D' or (curve.bevel_mode != 'OBJECT' and curve.dimensions == '3D'))
             sub.prop(curve, "fill_mode")
+            sub.prop(curve, "fill_solver")
+            sub_rule = sub.column()
+            sub_rule.active = (curve.fill_solver == 'CDT')
+            sub_rule.prop(curve, "fill_rule")
 
         if is_curve:
             col = layout.column()

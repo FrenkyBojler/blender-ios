@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_extra_info.hh"
+#include "infos/overlay_extra_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_motion_path_line)
 
@@ -11,7 +11,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_motion_path_line)
 
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
+#include "gpu_shader_math_matrix_transform_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
@@ -39,32 +39,34 @@ struct VertOut {
 
 VertOut vertex_main(VertIn vert_in)
 {
-  uint frame_current = mpath_line_settings.x;
-  // uint frameStart = mpath_line_settings.y; /* UNUSED */
-  // uint frameEnd = mpath_line_settings.z; /* UNUSED */
-  uint cache_start = mpath_line_settings.w;
+  int frame_current = mpath_line_settings.x;
+  // int frameStart = mpath_line_settings.y; /* UNUSED */
+  // int frameEnd = mpath_line_settings.z; /* UNUSED */
+  int cache_start = mpath_line_settings.w;
 
   VertOut vert_out;
   /* Optionally transform from view space to world space for screen space motion paths. */
-  vert_out.ws_P = transform_point(camera_space_matrix, vert_in.P);
+  vert_out.ws_P = project_point(camera_object_persinv, vert_in.P);
   vert_out.hs_P = drw_point_world_to_homogenous(vert_out.ws_P);
-  vert_out.ss_P = drw_ndc_to_screen(drw_perspective_divide(vert_out.hs_P)).xy * sizeViewport;
+  vert_out.ss_P = drw_ndc_to_screen(drw_perspective_divide(vert_out.hs_P)).xy *
+                  uniform_buf.size_viewport;
 
   int frame = int(vert_in.vert_id) + cache_start;
 
-  float3 blend_base = (abs(frame - frame_current) == 0) ?
-                          colorCurrentFrame.rgb :
-                          colorBackground.rgb; /* "bleed" CFRAME color to ease color blending */
+  float3 blend_base =
+      (abs(frame - frame_current) == 0) ?
+          theme.colors.current_frame.rgb :
+          theme.colors.background.rgb; /* "bleed" CFRAME color to ease color blending */
   bool use_custom_color = custom_color_pre.x >= 0.0f;
 
   if (frame < frame_current) {
-    vert_out.color.rgb = use_custom_color ? custom_color_pre : colorBeforeFrame.rgb;
+    vert_out.color.rgb = use_custom_color ? custom_color_pre : theme.colors.before_frame.rgb;
   }
   else if (frame > frame_current) {
-    vert_out.color.rgb = use_custom_color ? custom_color_post : colorAfterFrame.rgb;
+    vert_out.color.rgb = use_custom_color ? custom_color_post : theme.colors.after_frame.rgb;
   }
   else /* if (frame == frame_current) */ {
-    vert_out.color.rgb = use_custom_color ? colorCurrentFrame.rgb : blend_base;
+    vert_out.color.rgb = use_custom_color ? theme.colors.current_frame.rgb : blend_base;
   }
   vert_out.color.a = 1.0f;
 
@@ -100,15 +102,15 @@ void strip_EmitVertex(const uint strip_index,
 void geometry_main(VertOut geom_in[2],
                    uint out_vertex_id,
                    uint out_primitive_id,
-                   uint out_invocation_id)
+                   uint /*out_invocation_id*/)
 {
   float2 ss_P0 = geom_in[0].ss_P;
   float2 ss_P1 = geom_in[1].ss_P;
 
-  float2 edge_dir = orthogonal(normalize(ss_P1 - ss_P0 + 1e-8f)) * sizeViewportInv;
+  float2 edge_dir = orthogonal(normalize(ss_P1 - ss_P0 + 1e-8f)) * uniform_buf.size_viewport_inv;
 
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
-  float line_size = float(line_thickness) * sizePixel;
+  float line_size = float(line_thickness) * theme.sizes.pixel;
 
   GeomOut geom_out;
 
@@ -136,23 +138,23 @@ void main()
   /* Point list primitive. */
   constexpr uint input_primitive_vertex_count = 1u;
   /* Triangle list primitive. */
-  constexpr uint ouput_primitive_vertex_count = 3u;
-  constexpr uint ouput_primitive_count = 2u;
-  constexpr uint ouput_invocation_count = 1u;
+  constexpr uint output_primitive_vertex_count = 3u;
+  constexpr uint output_primitive_count = 2u;
+  constexpr uint output_invocation_count = 1u;
 
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   /* Read current and next point. */
   VertIn vert_in[2];

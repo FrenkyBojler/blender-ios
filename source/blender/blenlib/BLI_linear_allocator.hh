@@ -4,10 +4,6 @@
 
 /** \file
  * \ingroup bli
- *
- * A linear allocator is the simplest form of an allocator. It never reuses any memory, and
- * therefore does not need a deallocation method. It simply hands out consecutive buffers of
- * memory. When the current buffer is full, it reallocates a new larger buffer and continues.
  */
 
 #pragma once
@@ -25,6 +21,11 @@ namespace blender {
  */
 // #define BLI_DEBUG_LINEAR_ALLOCATOR_SIZE
 
+/**
+ * A linear allocator is the simplest form of an allocator. It never reuses any memory, and
+ * therefore does not need a deallocation method. It simply hands out consecutive buffers of
+ * memory. When the current buffer is full, it allocates a new larger buffer and continues.
+ */
 template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopyable, NonMovable {
  private:
   BLI_NO_UNIQUE_ADDRESS Allocator allocator_;
@@ -243,7 +244,7 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
     /* If the original allocation size was large, it might have been separately allocated. In this
      * case, we can't free the end of it anymore. */
     if (original_allocation_size <= large_buffer_threshold) {
-      const int64_t new_begin = uintptr_t(free_after);
+      const int64_t new_begin = int64_t(uintptr_t(free_after));
       BLI_assert(new_begin <= current_begin_);
 #ifndef NDEBUG
       /* This condition is not really necessary but it helps finding the cases where memory was

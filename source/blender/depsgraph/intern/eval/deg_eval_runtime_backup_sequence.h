@@ -10,26 +10,59 @@
 
 #include "DNA_listBase.h"
 
-struct Strip;
+#include "BKE_sound_types.hh"
 
-namespace blender::deg {
+#include "BLI_map.hh"
+#include "BLI_vector.hh"
+
+#include "SEQ_modifier.hh"
+
+namespace blender {
+
+struct MovieReader;
+struct Strip;
+struct StripModifierData;
+
+namespace deg {
 
 struct Depsgraph;
 
-/* Backup of a single strip. */
-class SequenceBackup {
+class StripModifierDataBackup {
  public:
-  SequenceBackup(const Depsgraph *depsgraph);
+  StripModifierDataBackup();
 
   void reset();
 
-  void init_from_sequence(Strip *sequence);
-  void restore_to_sequence(Strip *sequence);
+  void init_from_modifier(StripModifierData *smd);
+  void restore_to_modifier(StripModifierData *smd);
 
   bool isEmpty() const;
 
-  void *scene_sound;
-  ListBase anims;
+  /* For Sound Modifiers. */
+  AUD_Sound sound_in;
+  AUD_Sound sound_out;
+  eStripModifierFlag flag;
+  uint64_t params_hash;
 };
 
-}  // namespace blender::deg
+/* Backup of a single strip. */
+class StripBackup {
+ public:
+  StripBackup(const Depsgraph *depsgraph);
+
+  void reset();
+
+  void init_from_strip(Strip *strip);
+  void restore_to_strip(Strip *strip);
+
+  bool isEmpty() const;
+
+  AUD_SequenceEntry scene_sound;
+  AUD_Sound sound_time_stretch;
+  float sound_time_stretch_fps;
+  Vector<MovieReader *, 1> movie_readers;
+  Map<int, StripModifierDataBackup> modifiers;
+};
+
+}  // namespace deg
+}  // namespace blender

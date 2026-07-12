@@ -12,14 +12,14 @@
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_bit_span_ops.hh"
 #include "BLI_bit_vector.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "DNA_ID.h"
@@ -30,11 +30,11 @@
 
 #include <fmt/format.h>
 
-static CLG_LogRef LOG = {"bke.main_namemap"};
+namespace blender {
+
+static CLG_LogRef LOG = {"lib.main_namemap"};
 
 // #define DEBUG_PRINT_MEMORY_USAGE
-
-using namespace blender;
 
 /* Assumes and ensure that the suffix number can never go beyond 1 billion. */
 constexpr int MAX_NUMBER = 999999999;
@@ -206,7 +206,7 @@ struct UniqueName_Map {
       if (this->is_global) {
         /* Global name-map is expected to have several IDs using the same name (from different
          * libraries). */
-        int &count = type_map.full_names.lookup_or_add_as(blender::StringRef{BKE_id_name(*id)}, 0);
+        int &count = type_map.full_names.lookup_or_add_as(StringRef{BKE_id_name(*id)}, 0);
         count++;
         if (count > 1) {
           /* Name is already used at least once, just increase user-count. */
@@ -247,7 +247,7 @@ struct UniqueName_Map {
                 StringRef name_base,
                 const int number)
   {
-    BLI_assert(name_full.size() < MAX_NAME);
+    BLI_assert(name_full.size() < MAX_ID_NAME - 2);
 
     if (this->is_global) {
       /* By definition adding to global map is always successful. */
@@ -278,9 +278,13 @@ struct UniqueName_Map {
 
   /* Remove a full name_full from the specified #type_map. Trying to remove an unknown
    * (unregistered) name_full is an error. */
-  void remove_full_name(UniqueName_TypeMap &type_map, blender::StringRef name_full)
+  void remove_full_name(UniqueName_TypeMap &type_map, StringRef name_full)
   {
-    BLI_assert(name_full.size() < MAX_NAME);
+    BLI_assert(name_full.size() < MAX_ID_NAME - 2);
+
+    int number = 0;
+    const std::string name_base = BLI_string_split_name_number(name_full, '.', number);
+    std::unique_ptr<UniqueName_Value> *val = nullptr;
 
     if (this->is_global) {
       /* By definition adding to global map is always successful. */
@@ -292,33 +296,41 @@ struct UniqueName_Map {
       }
       if (*count > 1) {
         (*count)--;
+        /* If there are still one or more usages of this number, do not mark it as unused in the
+         * global map, so do not lookup for the #UniqueName_Value of its basename. */
       }
       else {
         BLI_assert(*count == 1);
         type_map.full_names.remove_contained(name_full);
+        val = type_map.base_name_to_num_suffix.lookup_ptr(name_base);
+        if (!val) {
+          BLI_assert_unreachable();
+          return;
+        }
       }
     }
-    else if (!type_map.full_names.remove(name_full)) {
-      BLI_assert_msg(
-          false, "Removing a name from Main namemaps that was not in it, should never happen.");
-      return;
+    else {
+      if (!type_map.full_names.remove(name_full)) {
+        BLI_assert_msg(
+            false, "Removing a name from Main namemaps that was not in it, should never happen.");
+        return;
+      }
+      val = type_map.base_name_to_num_suffix.lookup_ptr(name_base);
+      if (!val) {
+        BLI_assert_unreachable();
+        return;
+      }
     }
 
-    int number = 0;
-    const std::string name_base = BLI_string_split_name_number(name_full, '.', number);
-    std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
-        name_base);
-    if (val == nullptr) {
-      BLI_assert_unreachable();
-      return;
-    }
-    val->get()->mark_unused(number);
-    if (!val->get()->max_value_in_use) {
-      /* This was the only base name usage, remove the whole key. */
-      type_map.base_name_to_num_suffix.remove(name_base);
+    if (val) {
+      val->get()->mark_unused(number);
+      if (!val->get()->max_value_in_use) {
+        /* This was the only base name usage, remove the whole key. */
+        type_map.base_name_to_num_suffix.remove(name_base);
+      }
     }
   }
-  void remove_full_name(const short id_type, blender::StringRef name_full)
+  void remove_full_name(const short id_type, StringRef name_full)
   {
     this->remove_full_name(this->find_by_type(id_type), name_full);
   }
@@ -345,7 +357,7 @@ void BKE_main_namemap_destroy(UniqueName_Map **r_name_map)
 
 void BKE_main_namemap_clear(Main &bmain)
 {
-  for (Main *bmain_iter = &bmain; bmain_iter != nullptr; bmain_iter = bmain_iter->next) {
+  auto bmain_namemap_clear = [](Main *bmain_iter) -> void {
     BKE_main_namemap_destroy(&bmain_iter->name_map);
     BKE_main_namemap_destroy(&bmain_iter->name_map_global);
     for (Library *lib_iter = static_cast<Library *>(bmain_iter->libraries.first);
@@ -354,6 +366,17 @@ void BKE_main_namemap_clear(Main &bmain)
     {
       BKE_main_namemap_destroy(&lib_iter->runtime->name_map);
     }
+  };
+
+  if (bmain.split_mains) {
+    BLI_assert_msg(bmain.split_mains->contains(&bmain),
+                   "Main should always be part of its own `split_mains`");
+    for (Main *bmain_iter : *bmain.split_mains) {
+      bmain_namemap_clear(bmain_iter);
+    }
+  }
+  else {
+    bmain_namemap_clear(&bmain);
   }
 }
 
@@ -399,7 +422,7 @@ bool BKE_main_global_namemap_contain_name(Main &bmain, const short id_type, Stri
 {
   UniqueName_Map *name_map = get_global_namemap_for(bmain, nullptr, true);
   BLI_assert(name_map != nullptr);
-  BLI_assert(name.size() < MAX_NAME);
+  BLI_assert(name.size() < MAX_ID_NAME - 2);
   UniqueName_TypeMap &type_map = name_map->find_by_type(id_type);
 
   return type_map.full_names.contains(name);
@@ -409,7 +432,7 @@ bool BKE_main_namemap_contain_name(Main &bmain, Library *lib, const short id_typ
 {
   UniqueName_Map *name_map = get_namemap_for(bmain, lib, nullptr, true);
   BLI_assert(name_map != nullptr);
-  BLI_assert(name.size() < MAX_NAME);
+  BLI_assert(name.size() < MAX_ID_NAME - 2);
   UniqueName_TypeMap &type_map = name_map->find_by_type(id_type);
 
   return type_map.full_names.contains(name);
@@ -423,7 +446,7 @@ bool BKE_main_namemap_contain_name(Main &bmain, Library *lib, const short id_typ
  *
  * Return `false` in case either the given number is invalid (#NO_AVAILABLE_NUMBER), or the
  * generated final name would be too long. #r_name_final is then set with a new, edited base name:
- *  - Shortened by one (utf-8) char in case of too long name.
+ *  - Shortened by one (UTF8) char in case of too long name.
  *  - Extended by a pseudo-random number in case the base name is short already (should only happen
  *    when #number is #NO_AVAILABLE_NUMBER).
  */
@@ -437,10 +460,10 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   if (number != NO_AVAILABLE_NUMBER) {
     BLI_assert(number >= 0 && number <= MAX_NUMBER);
     r_name_final = fmt::format("{}.{:03}", base_name, number);
-    /* Most common case, there is a valid number suffix value and it fits in the #MAX_NAME length
-     * limit.
+    /* Most common case, there is a valid number suffix value and it fits in the #MAX_ID_NAME - 2
+     * length limit.
      */
-    if (r_name_final.size() < MAX_NAME) {
+    if (r_name_final.size() < MAX_ID_NAME - 2) {
       return true;
     }
   }
@@ -449,14 +472,14 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
    * generated for it. */
   r_name_final = base_name;
 
-  /* If the base name is long enough, shorten it by one (UTF-8) char, until a base name with
+  /* If the base name is long enough, shorten it by one (UTF8) char, until a base name with
    * available number suffixes is found. */
   while (r_name_final.size() > 8) {
-    char base_name_modified[MAX_NAME];
+    char base_name_modified[MAX_ID_NAME - 2];
 
     BLI_strncpy(base_name_modified, r_name_final.c_str(), r_name_final.size() + 1);
     base_name_modified[r_name_final.size() - 1] = '\0';
-    /* Raw truncation of an utf8 string may generate invalid UTF-8 char-code at the end.
+    /* Raw truncation of an UTF8 string may generate invalid UTF8 char-code at the end.
      * Ensure we get a valid one now. */
     BLI_str_utf8_invalid_strip(base_name_modified, r_name_final.size() - 1);
 
@@ -472,7 +495,7 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
   uint64_t suffix = 1;
   const StringRef new_base_name = r_name_final;
   r_name_final = fmt::format("{}_{:03}", r_name_final, suffix);
-  while (r_name_final.size() < MAX_NAME - 12) {
+  while (r_name_final.size() < MAX_ID_NAME - 2 - 12) {
     std::unique_ptr<UniqueName_Value> *val = type_map.base_name_to_num_suffix.lookup_ptr(
         r_name_final);
     if (!val || val->get()->max_value_in_use.value_or(0) < MAX_NUMBER) {
@@ -513,7 +536,7 @@ static bool namemap_get_name(Main &bmain,
                                        get_namemap_for(bmain, id.lib, &id, false) :
                                        get_global_namemap_for(bmain, &id, false);
   BLI_assert(name_map != nullptr);
-  BLI_assert(r_name_full.size() < MAX_NAME);
+  BLI_assert(r_name_full.size() < MAX_ID_NAME - 2);
   UniqueName_TypeMap &type_map = name_map->find_by_type(GS(id.name));
 
   bool is_name_changed = false;
@@ -571,19 +594,19 @@ static bool namemap_get_name(Main &bmain,
 bool BKE_main_namemap_get_unique_name(Main &bmain, ID &id, char *r_name)
 {
   std::string r_name_full = r_name;
-  BLI_assert(r_name_full.size() < MAX_NAME);
+  BLI_assert(r_name_full.size() < MAX_ID_NAME - 2);
   const bool is_name_modified = namemap_get_name(bmain, id, r_name_full, false);
-  BLI_assert(r_name_full.size() < MAX_NAME);
-  BLI_strncpy(r_name, r_name_full.c_str(), MAX_NAME);
+  BLI_assert(r_name_full.size() < MAX_ID_NAME - 2);
+  BLI_strncpy(r_name, r_name_full.c_str(), MAX_ID_NAME - 2);
   return is_name_modified;
 }
 bool BKE_main_global_namemap_get_unique_name(Main &bmain, ID &id, char *r_name)
 {
   std::string r_name_full = r_name;
-  BLI_assert(r_name_full.size() < MAX_NAME);
+  BLI_assert(r_name_full.size() < MAX_ID_NAME - 2);
   const bool is_name_modified = namemap_get_name(bmain, id, r_name_full, true);
-  BLI_assert(r_name_full.size() < MAX_NAME);
-  BLI_strncpy(r_name, r_name_full.c_str(), MAX_NAME);
+  BLI_assert(r_name_full.size() < MAX_ID_NAME - 2);
+  BLI_strncpy(r_name, r_name_full.c_str(), MAX_ID_NAME - 2);
   return is_name_modified;
 }
 
@@ -612,7 +635,7 @@ struct Uniqueness_Key {
   Library *lib;
   uint64_t hash() const
   {
-    return blender::get_default_hash(name, lib);
+    return get_default_hash(name, lib);
   }
   friend bool operator==(const Uniqueness_Key &a, const Uniqueness_Key &b)
   {
@@ -625,61 +648,61 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
   Set<Uniqueness_Key> id_names_libs;
   Set<ID *> id_validated;
   bool is_valid = true;
-  ListBase *lb_iter;
+  ListBaseT<ID> *lb_iter;
   FOREACH_MAIN_LISTBASE_BEGIN (&bmain, lb_iter) {
-    LISTBASE_FOREACH_MUTABLE (ID *, id_iter, lb_iter) {
-      if (id_validated.contains(id_iter)) {
+    for (ID &id_iter : lb_iter->items_mutable()) {
+      if (id_validated.contains(&id_iter)) {
         /* Do not re-check an already validated ID. */
         continue;
       }
 
-      Uniqueness_Key key = {id_iter->name, id_iter->lib};
+      Uniqueness_Key key = {id_iter.name, id_iter.lib};
       if (!id_names_libs.add(key)) {
         is_valid = false;
         if (do_fix) {
           CLOG_WARN(&LOG,
                     "ID name '%s' (from library '%s') is found more than once",
-                    id_iter->name,
-                    id_iter->lib != nullptr ? id_iter->lib->filepath : "<None>");
+                    id_iter.name,
+                    id_iter.lib != nullptr ? id_iter.lib->filepath : "<None>");
           /* NOTE: this may imply moving this ID in its listbase. The logic below will add the ID
            * to the validated set if it can now be added to `id_names_libs`, and will prevent
            * further checking (which would fail again, since the new ID name/lib key has already
            * been added to `id_names_libs`). */
           BKE_id_new_name_validate(bmain,
-                                   *which_libbase(&bmain, GS(id_iter->name)),
-                                   *id_iter,
+                                   *which_libbase(&bmain, GS(id_iter.name)),
+                                   id_iter,
                                    nullptr,
                                    IDNewNameMode::RenameExistingNever,
                                    true);
-          key.name = id_iter->name;
+          key.name = id_iter.name;
           if (!id_names_libs.add(key)) {
             /* This is a serious error, very likely a bug, keep it as CLOG_ERROR even when doing
              * fixes. */
             CLOG_ERROR(&LOG,
                        "\tID has been renamed to '%s', but it still seems to be already in use",
-                       id_iter->name);
+                       id_iter.name);
           }
           else {
-            CLOG_WARN(&LOG, "\tID has been renamed to '%s'", id_iter->name);
-            id_validated.add(id_iter);
+            CLOG_WARN(&LOG, "\tID has been renamed to '%s'", id_iter.name);
+            id_validated.add(&id_iter);
           }
         }
         else {
           CLOG_ERROR(&LOG,
                      "ID name '%s' (from library '%s') is found more than once",
-                     id_iter->name,
-                     id_iter->lib != nullptr ? id_iter->lib->filepath : "<None>");
+                     id_iter.name,
+                     id_iter.lib != nullptr ? id_iter.lib->filepath : "<None>");
         }
       }
 
-      UniqueName_Map *name_map = get_namemap_for(bmain, id_iter->lib, id_iter, false);
+      UniqueName_Map *name_map = get_namemap_for(bmain, id_iter.lib, &id_iter, false);
       if (name_map == nullptr) {
         continue;
       }
-      UniqueName_TypeMap &type_map = name_map->find_by_type(GS(id_iter->name));
+      UniqueName_TypeMap &type_map = name_map->find_by_type(GS(id_iter.name));
 
       /* Remove full name from the set. */
-      const std::string id_name = BKE_id_name(*id_iter);
+      const std::string id_name = BKE_id_name(id_iter);
       if (!type_map.full_names.contains(id_name)) {
         is_valid = false;
         if (do_fix) {
@@ -687,16 +710,16 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
               &LOG,
               "ID name '%s' (from library '%s') exists in current Main, but is not listed in "
               "the namemap",
-              id_iter->name,
-              id_iter->lib != nullptr ? id_iter->lib->filepath : "<None>");
+              id_iter.name,
+              id_iter.lib != nullptr ? id_iter.lib->filepath : "<None>");
         }
         else {
           CLOG_ERROR(
               &LOG,
               "ID name '%s' (from library '%s') exists in current Main, but is not listed in "
               "the namemap",
-              id_iter->name,
-              id_iter->lib != nullptr ? id_iter->lib->filepath : "<None>");
+              id_iter.name,
+              id_iter.lib != nullptr ? id_iter.lib->filepath : "<None>");
         }
       }
     }
@@ -761,3 +784,5 @@ bool BKE_main_namemap_validate(Main &bmain)
 {
   return main_namemap_validate_and_fix(bmain, false);
 }
+
+}  // namespace blender

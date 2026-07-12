@@ -16,6 +16,7 @@ from bpy.app.translations import (
     pgettext_rpt as rpt_,
     contexts as i18n_contexts,
 )
+from bpy_extras import anim_utils
 
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable, Any
@@ -100,7 +101,7 @@ class DATA_PT_rigify(bpy.types.Panel):
         obj = verify_armature_obj(C.object)
 
         if metarig_needs_upgrade(obj):
-            layout.label(text="This metarig requires upgrading to Bone Collections", icon='ERROR')
+            layout.label(text="This metarig requires upgrading to Bone Collections", icon='STATUS_ERROR')
             layout.operator("armature.rigify_upgrade_layers", text="Upgrade Metarig")
             return
 
@@ -139,23 +140,23 @@ class DATA_PT_rigify(bpy.types.Panel):
                 show_upgrade_face = True
 
         if show_warning:
-            layout.label(text=WARNING, icon='ERROR')
+            layout.label(text=WARNING, icon='STATUS_WARNING')
 
         enable_generate = not (show_not_updatable or show_update_metarig)
 
         if show_not_updatable:
             layout.label(text="WARNING: This metarig contains deprecated Rigify rig-types and "
-                              "cannot be upgraded automatically.", icon='ERROR')
+                              "cannot be upgraded automatically.", icon='STATUS_WARNING')
             text = iface_("({:s} on bone {:s})").format(old_rig, old_bone)
             layout.label(text=text, translate=False)
         elif show_update_metarig:
             layout.label(text="This metarig contains old rig-types that can be automatically "
-                              "upgraded to benefit from new rigify features.", icon='ERROR')
+                              "upgraded to benefit from new rigify features.", icon='STATUS_WARNING')
             text = iface_("({:s} on bone {:s})").format(old_rig, old_bone)
             layout.label(text=text, translate=False)
             layout.operator("pose.rigify_upgrade_types", text="Upgrade Metarig")
         elif show_upgrade_face:
-            layout.label(text="This metarig uses the old face rig.", icon='INFO')
+            layout.label(text="This metarig uses the old face rig.", icon='STATUS_INFO')
             layout.operator("pose.rigify_upgrade_face")
 
         # Rig type field
@@ -359,7 +360,7 @@ class DATA_PT_rigify_collection_list(bpy.types.Panel):
 
         if ROOT_COLLECTION not in arm.collections_all:
             text = iface_("The '{:s}' collection will be added upon generation").format(ROOT_COLLECTION)
-            layout.label(text=text, translate=False, icon='INFO')
+            layout.label(text=text, translate=False, icon='STATUS_INFO')
 
 
 # noinspection PyPep8Naming
@@ -411,7 +412,7 @@ class DATA_PT_rigify_collection_ui(bpy.types.Panel):
         active_bcoll_idx = arm.collections.active_index
 
         if active_bcoll_idx < 0:
-            layout.label(text="Click a button to select a collection:", icon="INFO")
+            layout.label(text="Click a button to select a collection:", icon='STATUS_INFO')
 
         box = layout.box()
         last_row = max(row_table.keys())
@@ -421,7 +422,7 @@ class DATA_PT_rigify_collection_ui(bpy.types.Panel):
             row_items = row_table[row_id]
 
             if row_id == 1 and not has_buttons:
-                row.label(text="Click to assign the button here:", icon="INFO")
+                row.label(text="Click to assign the button here:", icon='STATUS_INFO')
 
             grid = row.grid_flow(row_major=True, columns=len(row_items), even_columns=True)
             for bcoll_id in row_items:
@@ -904,8 +905,8 @@ class BONE_PT_rigify_buttons(bpy.types.Panel):
             except (ImportError, AttributeError, KeyError):
                 row = layout.row()
                 box = row.box()
-                text = iface_("ERROR: type \"{:s}\" does not exist!").format(rig_name)
-                box.label(text=text, icon='ERROR', translate=False)
+                text = rpt_("ERROR: type \"{:s}\" does not exist!").format(rig_name)
+                box.label(text=text, icon='STATUS_ERROR', translate=False)
             else:
                 if hasattr(rig.Rig, 'parameters_ui'):
                     rig = rig.Rig
@@ -1352,10 +1353,10 @@ def fk_to_ik(rig: ArmatureObject, window='ALL'):
                     # fk_ctrl = names['fk_ctrl']
                     parent = names['parent']
                     pole = names['pole']
-                    rig.pose.bones[controls[0]].bone.select = True
-                    rig.pose.bones[controls[4]].bone.select = True
-                    rig.pose.bones[pole].bone.select = True
-                    rig.pose.bones[parent].bone.select = True
+                    rig.pose.bones[controls[0]].select = True
+                    rig.pose.bones[controls[4]].select = True
+                    rig.pose.bones[pole].select = True
+                    rig.pose.bones[parent].select = True
                     kwargs = {'uarm_fk': controls[1], 'farm_fk': controls[2], 'hand_fk': controls[3],
                               'uarm_ik': controls[0], 'farm_ik': ik_ctrl[1], 'hand_ik': controls[4],
                               'pole': pole, 'main_parent': parent}
@@ -1368,11 +1369,11 @@ def fk_to_ik(rig: ArmatureObject, window='ALL'):
                     # fk_ctrl = names['fk_ctrl']
                     parent = names['parent']
                     pole = names['pole']
-                    rig.pose.bones[controls[0]].bone.select = True
-                    rig.pose.bones[controls[6]].bone.select = True
-                    rig.pose.bones[controls[5]].bone.select = True
-                    rig.pose.bones[pole].bone.select = True
-                    rig.pose.bones[parent].bone.select = True
+                    rig.pose.bones[controls[0]].select = True
+                    rig.pose.bones[controls[6]].select = True
+                    rig.pose.bones[controls[5]].select = True
+                    rig.pose.bones[pole].select = True
+                    rig.pose.bones[parent].select = True
                     # noinspection SpellCheckingInspection
                     kwargs = {'thigh_fk': controls[1], 'shin_fk': controls[2], 'foot_fk': controls[3],
                               'mfoot_fk': controls[7], 'thigh_ik': controls[0], 'shin_ik': ik_ctrl[1],
@@ -1431,9 +1432,9 @@ def ik_to_fk(rig: ArmatureObject, window='ALL'):
                     # fk_ctrl = names['fk_ctrl']
                     parent = names['parent']
                     pole = names['pole']
-                    rig.pose.bones[controls[1]].bone.select = True
-                    rig.pose.bones[controls[2]].bone.select = True
-                    rig.pose.bones[controls[3]].bone.select = True
+                    rig.pose.bones[controls[1]].select = True
+                    rig.pose.bones[controls[2]].select = True
+                    rig.pose.bones[controls[3]].select = True
                     kwargs = {'uarm_fk': controls[1], 'farm_fk': controls[2], 'hand_fk': controls[3],
                               'uarm_ik': controls[0], 'farm_ik': ik_ctrl[1],
                               'hand_ik': controls[4]}
@@ -1446,9 +1447,9 @@ def ik_to_fk(rig: ArmatureObject, window='ALL'):
                     # fk_ctrl = names['fk_ctrl']
                     parent = names['parent']
                     pole = names['pole']
-                    rig.pose.bones[controls[1]].bone.select = True
-                    rig.pose.bones[controls[2]].bone.select = True
-                    rig.pose.bones[controls[3]].bone.select = True
+                    rig.pose.bones[controls[1]].select = True
+                    rig.pose.bones[controls[2]].select = True
+                    rig.pose.bones[controls[3]].select = True
                     # noinspection SpellCheckingInspection
                     kwargs = {'thigh_fk': controls[1], 'shin_fk': controls[2], 'foot_fk': controls[3],
                               'mfoot_fk': controls[7], 'thigh_ik': controls[0], 'shin_ik': ik_ctrl[1],
@@ -1469,7 +1470,7 @@ def ik_to_fk(rig: ArmatureObject, window='ALL'):
                 break
 
 
-def clear_animation(act, anim_type, names):
+def clear_animation(channelbag, anim_type, names):
     bones = []
     for group in names:
         if names[group]['limb_type'] == 'arm':
@@ -1485,7 +1486,7 @@ def clear_animation(act, anim_type, names):
                 bones.extend([names[group]['controls'][1], names[group]['controls'][2], names[group]['controls'][3],
                               names[group]['controls'][4]])
     f_curves = []
-    for fcu in act.fcurves:
+    for fcu in channelbag.fcurves:
         words = fcu.data_path.split('"')
         if words[0] == "pose.bones[" and words[1] in bones:
             f_curves.append(fcu)
@@ -1494,7 +1495,7 @@ def clear_animation(act, anim_type, names):
         return
 
     for fcu in f_curves:
-        act.fcurves.remove(fcu)
+        channelbag.fcurves.remove(fcu)
 
     # Put cleared bones back to rest pose
     bpy.ops.pose.loc_clear()
@@ -1549,10 +1550,10 @@ def rot_pole_toggle(rig: ArmatureObject, window='ALL', value=False, toggle=False
                     # fk_ctrl = names['fk_ctrl']
                     parent = names['parent']
                     pole = names['pole']
-                    rig.pose.bones[controls[0]].bone.select = not new_pole_vector_value
-                    rig.pose.bones[controls[4]].bone.select = not new_pole_vector_value
-                    rig.pose.bones[parent].bone.select = not new_pole_vector_value
-                    rig.pose.bones[pole].bone.select = new_pole_vector_value
+                    rig.pose.bones[controls[0]].select = not new_pole_vector_value
+                    rig.pose.bones[controls[4]].select = not new_pole_vector_value
+                    rig.pose.bones[parent].select = not new_pole_vector_value
+                    rig.pose.bones[pole].select = new_pole_vector_value
 
                     kwargs1 = {'uarm_fk': controls[1], 'farm_fk': controls[2], 'hand_fk': controls[3],
                                'uarm_ik': controls[0], 'farm_ik': ik_ctrl[1],
@@ -1569,11 +1570,11 @@ def rot_pole_toggle(rig: ArmatureObject, window='ALL', value=False, toggle=False
                     # fk_ctrl = names['fk_ctrl']
                     parent = names['parent']
                     pole = names['pole']
-                    rig.pose.bones[controls[0]].bone.select = not new_pole_vector_value
-                    rig.pose.bones[controls[6]].bone.select = not new_pole_vector_value
-                    rig.pose.bones[controls[5]].bone.select = not new_pole_vector_value
-                    rig.pose.bones[parent].bone.select = not new_pole_vector_value
-                    rig.pose.bones[pole].bone.select = new_pole_vector_value
+                    rig.pose.bones[controls[0]].select = not new_pole_vector_value
+                    rig.pose.bones[controls[6]].select = not new_pole_vector_value
+                    rig.pose.bones[controls[5]].select = not new_pole_vector_value
+                    rig.pose.bones[parent].select = not new_pole_vector_value
+                    rig.pose.bones[pole].select = new_pole_vector_value
 
                     # noinspection SpellCheckingInspection
                     kwargs1 = {'thigh_fk': controls[1], 'shin_fk': controls[2], 'foot_fk': controls[3],
@@ -1673,7 +1674,7 @@ class OBJECT_OT_ClearAnimation(bpy.types.Operator):
     bl_idname = "rigify.clear_animation"
     bl_label = "Clear Animation"
     bl_description = "Clear animation for FK or IK bones"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     anim_type: StringProperty()
 
@@ -1681,13 +1682,14 @@ class OBJECT_OT_ClearAnimation(bpy.types.Operator):
         rig = verify_armature_obj(context.object)
 
         if not rig.animation_data:
-            return {'FINISHED'}
+            return {'CANCELLED'}
 
-        act = rig.animation_data.action
-        if not act:
-            return {'FINISHED'}
+        channelbag = anim_utils.action_get_channelbag_for_slot(
+            rig.animation_data.action, rig.animation_data.action_slot)
+        if not channelbag:
+            return {'CANCELLED'}
 
-        clear_animation(act, self.anim_type, names=get_limb_generated_names(rig))
+        clear_animation(channelbag, self.anim_type, names=get_limb_generated_names(rig))
         return {'FINISHED'}
 
 
@@ -1709,7 +1711,7 @@ class OBJECT_OT_Rot2Pole(bpy.types.Operator):
 
         if self.bone_name:
             bpy.ops.pose.select_all(action='DESELECT')
-            rig.pose.bones[self.bone_name].bone.select = True
+            rig.pose.bones[self.bone_name].select = True
 
         rot_pole_toggle(rig, window=self.window, toggle=self.toggle, value=self.value, bake=self.bake)
         return {'FINISHED'}

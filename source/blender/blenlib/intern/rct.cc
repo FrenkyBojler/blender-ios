@@ -15,12 +15,16 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "BLI_math_base.h"
-#include "BLI_math_matrix.h"
-#include "BLI_rect.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector.hh"
+#include "BLI_rect.hh"
+#include "BLI_utildefines.hh"
 
 #include "DNA_vec_types.h"
+
+namespace blender {
 
 bool BLI_rcti_is_empty(const rcti *rect)
 {
@@ -303,7 +307,7 @@ bool BLI_rctf_isect_segment(const rctf *rect, const float s1[2], const float s2[
   /* both points are outside but may intersect the rect */
   float tvec1[2];
   float tvec2[2];
-  /* diagonal: [/] */
+  /* diagonal: `[/]` */
   tvec1[0] = rect->xmin;
   tvec1[1] = rect->ymin;
   tvec2[0] = rect->xmax;
@@ -312,7 +316,7 @@ bool BLI_rctf_isect_segment(const rctf *rect, const float s1[2], const float s2[
     return true;
   }
 
-  /* diagonal: [\] */
+  /* diagonal: `[\]` */
   tvec1[0] = rect->xmin;
   tvec1[1] = rect->ymax;
   tvec2[0] = rect->xmax;
@@ -381,6 +385,18 @@ void BLI_rctf_union(rctf *rct_a, const rctf *rct_b)
   if (rct_a->ymax < rct_b->ymax) {
     rct_a->ymax = rct_b->ymax;
   }
+}
+
+void BLI_rctf_union_x(rctf *rct, const float x)
+{
+  rct->xmin = min_ff(rct->xmin, x);
+  rct->xmax = max_ff(rct->xmax, x);
+}
+
+void BLI_rctf_union_y(rctf *rct, const float y)
+{
+  rct->ymin = min_ff(rct->ymin, y);
+  rct->ymax = max_ff(rct->ymax, y);
 }
 
 void BLI_rcti_union(rcti *rct_a, const rcti *rct_b)
@@ -1126,4 +1142,66 @@ void BLI_rctf_rotate_expand(rctf *dst, const rctf *src, const float angle)
 
 #undef ROTATE_SINCOS
 
+bool BLI_rctf_clamp_segment(const rctf *rect, float s1[2], float s2[2])
+{
+  const bool p1_inside = BLI_rctf_isect_pt_v(rect, s1);
+  const bool p2_inside = BLI_rctf_isect_pt_v(rect, s2);
+  if (p1_inside && p2_inside) {
+    return true;
+  }
+
+  const std::array<float2, 2> top_line = {float2{rect->xmin, rect->ymax},
+                                          float2{rect->xmax, rect->ymax}};
+  const std::array<float2, 2> bottom_line = {float2{rect->xmin, rect->ymin},
+                                             float2{rect->xmax, rect->ymin}};
+  const std::array<float2, 2> left_line = {float2{rect->xmin, rect->ymin},
+                                           float2{rect->xmin, rect->ymax}};
+  const std::array<float2, 2> right_line = {float2{rect->xmax, rect->ymin},
+                                            float2{rect->xmax, rect->ymax}};
+  const std::array<std::array<float2, 2>, 4> lines = {
+      top_line, bottom_line, left_line, right_line};
+
+  if (p1_inside && !p2_inside) {
+    for (const std::array<float2, 2> &line : lines) {
+      float2 intersection;
+      if (isect_seg_seg_v2_point(s1, s2, line[0], line[1], intersection) == 1) {
+        copy_v2_v2(s2, intersection);
+      }
+    }
+    return true;
+  }
+  if (!p1_inside && p2_inside) {
+    for (const std::array<float2, 2> &line : lines) {
+      float2 intersection;
+      if (isect_seg_seg_v2_point(s1, s2, line[0], line[1], intersection) == 1) {
+        copy_v2_v2(s1, intersection);
+      }
+    }
+    return true;
+  }
+
+  for (const std::array<float2, 2> &line : lines) {
+    float2 intersection;
+    if (isect_seg_seg_v2_point(s1, s2, line[0], line[1], intersection) == 1) {
+      copy_v2_v2(s1, intersection);
+    }
+    else {
+      return false;
+    }
+  }
+  for (const std::array<float2, 2> &line : lines) {
+    float2 intersection;
+    if (isect_seg_seg_v2_point(s2, s1, line[0], line[1], intersection) == 1) {
+      copy_v2_v2(s2, intersection);
+    }
+    else {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /** \} */
+
+}  // namespace blender

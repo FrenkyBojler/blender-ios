@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_3D_polyline_info.hh"
+#include "infos/gpu_shader_3D_polyline_infos.hh"
 
 #include "gpu_shader_colorspace_lib.glsl"
 
@@ -12,7 +12,7 @@ void main()
 {
 #ifdef CLIP
   if (clip < 0.0f) {
-    discard;
+    gpu_discard_fragment();
   }
 #endif
   fragColor = final_color;

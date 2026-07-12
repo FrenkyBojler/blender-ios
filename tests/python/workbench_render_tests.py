@@ -25,14 +25,32 @@ except ImportError:
     # this script is run during preparation steps.
     pass
 
+BLOCKLIST_VULKAN = [
+    # Blocked due behavior differences. mix(0.05, INF, 0.0) will result a NaN in Vulkan, but INF in OpenGL.
+    # The INF is part of the EXR image.
+    "image_log.blend",
+]
+
+# Block list for AMD official driver. On buildbot this driver can fail and the artifacts are likely
+# caused by incorrect index buffer synchronization or vertex shader execution.
+BLOCKLIST_AMD_VK = [
+    ".*"
+]
+
 
 def setup():
     import bpy
 
     for scene in bpy.data.scenes:
+        if scene.get("Workbench_skip_setup", False):
+            continue
+
         scene.render.engine = 'BLENDER_WORKBENCH'
         scene.display.shading.light = 'STUDIO'
         scene.display.shading.color_type = 'TEXTURE'
+
+        # Hair
+        scene.render.hair_type = 'STRIP'
 
 
 # When run from inside Blender, render and exit.
@@ -56,6 +74,7 @@ def get_arguments(filepath, output_filepath, gpu_backend):
         "--factory-startup",
         "--enable-autoexec",
         "--debug-memory",
+        "--console-crash-handler",
         "--debug-exit-on-error"]
 
     if gpu_backend:
@@ -90,17 +109,28 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
-    report = WorkbenchReport("Workbench", args.outdir, args.oiiotool, variation=args.gpu_backend)
+    blocklist = ["raycast_hit.blend", "raycast_normal.blend", "raycast_position.blend", "raycast_bump.blend"]
+    if args.gpu_backend == "vulkan":
+        blocklist += BLOCKLIST_VULKAN
+
+    gpu_vendor = render_report.get_gpu_device_vendor(args.blender, args.gpu_backend)
+    if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+        if gpu_vendor == "AMD" and args.gpu_backend == "vulkan":
+            blocklist += BLOCKLIST_AMD_VK
+
+    report = WorkbenchReport("Workbench", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('workbench', 'opengl')
     else:
-        report.set_compare_engine('eevee_next', 'opengl')
+        report.set_compare_engine('eevee', 'opengl')
     report.set_pixelated(True)
     report.set_reference_dir("workbench_renders")
 
     test_dir_name = Path(args.testdir).name
     if test_dir_name.startswith('hair') and platform.system() == "Darwin":
         report.set_fail_threshold(0.050)
+    if test_dir_name.startswith('openvdb'):
+        report.set_fail_threshold(0.04)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
 

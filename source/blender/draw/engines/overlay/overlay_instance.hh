@@ -20,7 +20,6 @@
 #include "overlay_camera.hh"
 #include "overlay_cursor.hh"
 #include "overlay_curve.hh"
-#include "overlay_edit_text.hh"
 #include "overlay_empty.hh"
 #include "overlay_facing.hh"
 #include "overlay_fade.hh"
@@ -45,6 +44,7 @@
 #include "overlay_relation.hh"
 #include "overlay_sculpt.hh"
 #include "overlay_speaker.hh"
+#include "overlay_text.hh"
 #include "overlay_wireframe.hh"
 #include "overlay_xray_fade.hh"
 
@@ -82,7 +82,7 @@ class Instance : public DrawEngine {
     Bounds bounds = {selection_type_};
     Cameras cameras = {selection_type_};
     Curves curves;
-    EditText edit_text = {selection_type_};
+    Text text = {selection_type_};
     Empties empties = {selection_type_};
     Facing facing;
     Fade fade;
@@ -108,14 +108,17 @@ class Instance : public DrawEngine {
   } regular{selection_type_}, infront{selection_type_};
 
   Grid grid;
-
   AntiAliasing anti_aliasing;
   XrayFade xray_fade;
 
-  Instance() : selection_type_(select::SelectionType::DISABLED){};
-  Instance(const SelectionType selection_type) : selection_type_(selection_type){};
+  Instance() : selection_type_(select::SelectionType::DISABLED) {};
+  Instance(const SelectionType selection_type) : selection_type_(selection_type) {};
+  ~Instance() override
+  {
+    DRW_text_cache_destroy(state.dt);
+  }
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "Overlay";
   }
@@ -150,6 +153,8 @@ class Instance : public DrawEngine {
   void draw_node(Manager &manager, View &view);
   void draw_v2d(Manager &manager, View &view);
   void draw_v3d(Manager &manager, View &view);
+
+  void draw_text(Framebuffer &framebuffer);
 
   void ensure_weight_ramp_texture();
 };

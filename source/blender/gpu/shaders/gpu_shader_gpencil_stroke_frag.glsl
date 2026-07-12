@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_gpencil_stroke_info.hh"
+#include "infos/gpu_shader_gpencil_stroke_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(gpu_shader_gpencil_stroke)
 
@@ -15,7 +15,7 @@ void main()
     tColor.a = tColor.a * -1.0f;
     float dist = length(interp.mTexCoord - center);
     if (dist > 0.25f) {
-      discard;
+      gpu_discard_fragment();
     }
   }
   /* Solid */

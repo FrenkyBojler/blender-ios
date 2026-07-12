@@ -4,8 +4,10 @@
 
 #include "node_geometry_util.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_generic_key_string.hh"
+#include "BLI_listbase.hh"
+#include "BLI_memory_cache_file_load.hh"
+#include "BLI_string.hh"
 
 #include "BKE_instances.hh"
 #include "BKE_report.hh"
@@ -16,61 +18,71 @@ namespace blender::nodes::node_geo_import_obj {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Path")
+  b.add_input<decl::String>("Path"_ustr)
       .subtype(PROP_FILEPATH)
       .path_filter("*.obj")
-      .hide_label()
+      .optional_label()
       .description("Path to a OBJ file");
 
-  b.add_output<decl::Geometry>("Instances");
+  b.add_output<decl::Geometry>("Instances"_ustr);
 }
+
+class LoadObjCache : public memory_cache::CachedValue {
+ public:
+  GeometrySet geometry;
+  Vector<eval_log::NodeWarning> warnings;
+
+  void count_memory(MemoryCounter &counter) const override
+  {
+    this->geometry.count_memory(counter);
+  }
+};
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_IO_WAVEFRONT_OBJ
   const std::optional<std::string> path = params.ensure_absolute_path(
-      params.extract_input<std::string>("Path"));
+      params.extract_input<std::string>("Path"_ustr));
   if (!path) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  OBJImportParams import_params;
-  STRNCPY(import_params.filepath, path->c_str());
+  std::shared_ptr<const LoadObjCache> cached_value = memory_cache::get_loaded<LoadObjCache>(
+      GenericStringKey{"import_obj_node"}, {StringRefNull(*path)}, [&]() {
+        OBJImportParams import_params;
+        STRNCPY(import_params.filepath, path->c_str());
 
-  ReportList reports;
-  BKE_reports_init(&reports, RPT_STORE);
-  BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); });
-  import_params.reports = &reports;
+        ReportList reports;
+        BKE_reports_init(&reports, RPT_STORE);
+        BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); });
+        import_params.reports = &reports;
 
-  Vector<bke::GeometrySet> geometries;
-  OBJ_import_geometries(&import_params, geometries);
+        Vector<bke::GeometrySet> geometries;
+        OBJ_import_geometries(&import_params, geometries);
 
-  LISTBASE_FOREACH (Report *, report, &(import_params.reports)->list) {
-    NodeWarningType type;
-    switch (report->type) {
-      case RPT_ERROR:
-        type = NodeWarningType::Error;
-        break;
-      default:
-        type = NodeWarningType::Info;
-        break;
-    }
-    params.error_message_add(type, TIP_(report->message));
+        auto instances = std::make_unique<bke::Instances>(geometries.size());
+        MutableSpan<int> handles = instances->reference_handles_for_write();
+        instances->transforms_for_write().fill(float4x4::identity());
+        for (const int i : geometries.index_range()) {
+          handles[i] = instances->add_reference(bke::InstanceReference{std::move(geometries[i])});
+        }
+
+        auto cached_value = std::make_unique<LoadObjCache>();
+        cached_value->geometry = GeometrySet::from_instances(std::move(instances));
+
+        for (Report &report : (import_params.reports)->list) {
+          cached_value->warnings.append_as(report);
+        }
+
+        return cached_value;
+      });
+
+  for (const eval_log::NodeWarning &warning : cached_value->warnings) {
+    params.error_message_add(warning.type, warning.message);
   }
 
-  if (geometries.is_empty()) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  bke::Instances *instances = new bke::Instances();
-  for (GeometrySet geometry : geometries) {
-    const int handle = instances->add_reference(bke::InstanceReference{std::move(geometry)});
-    instances->add_instance(handle, float4x4::identity());
-  }
-
-  params.set_output("Instances", GeometrySet::from_instances(instances));
+  params.set_output("Instances"_ustr, cached_value->geometry);
 #else
   params.error_message_add(NodeWarningType::Error,
                            TIP_("Disabled, Blender was compiled without OBJ I/O"));
@@ -80,9 +92,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeImportOBJ", GEO_NODE_IMPORT_OBJ);
+  geo_node_type_base(&ntype, "GeometryNodeImportOBJ"_ustr, GEO_NODE_IMPORT_OBJ);
   ntype.ui_name = "Import OBJ";
   ntype.ui_description = "Import geometry from an OBJ file";
   ntype.enum_name_legacy = "IMPORT_OBJ";
@@ -90,7 +102,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

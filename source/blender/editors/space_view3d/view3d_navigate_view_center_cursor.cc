@@ -6,7 +6,7 @@
  * \ingroup spview3d
  */
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 
@@ -15,6 +15,8 @@
 #include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
+
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name View Center Cursor Operator
@@ -33,11 +35,11 @@ static wmOperatorStatus viewcenter_cursor_exec(bContext *C, wmOperator *op)
     ED_view3d_smooth_view_force_finish(C, v3d, region);
 
     /* non camera center */
-    float new_ofs[3];
-    negate_v3_v3(new_ofs, scene->cursor.location);
+    float ofs_new[3];
+    negate_v3_v3(ofs_new, scene->cursor.location);
 
     V3D_SmoothParams sview = {nullptr};
-    sview.ofs = new_ofs;
+    sview.ofs = ofs_new;
     sview.undo_str = op->type->name;
     ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
 
@@ -54,7 +56,7 @@ void VIEW3D_OT_view_center_cursor(wmOperatorType *ot)
   ot->description = "Center the view so that the cursor is in the middle of the view";
   ot->idname = "VIEW3D_OT_view_center_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = viewcenter_cursor_exec;
   ot->poll = view3d_location_poll;
 
@@ -63,3 +65,5 @@ void VIEW3D_OT_view_center_cursor(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

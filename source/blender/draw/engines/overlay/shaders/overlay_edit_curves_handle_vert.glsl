@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_edit_mode_info.hh"
+#include "infos/overlay_edit_mode_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 
@@ -11,7 +11,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_attribute_load_lib.glsl"
 #include "gpu_shader_index_load_lib.glsl"
-#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #define M_TAN_PI_BY_8 tan(M_PI / 8)
@@ -21,6 +21,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_curves_handle)
 struct VertIn {
   /* Local Position. */
   float3 ls_P;
+  float radius;
   /* Edit Flags and Data. */
   uint e_data;
   float sel;
@@ -32,8 +33,9 @@ VertIn input_assembly(uint in_vertex_id)
 
   VertIn vert_in;
   vert_in.ls_P = gpu_attr_load_float3(pos, gpu_attr_0, v_i);
-  vert_in.e_data = data[gpu_attr_load_index(v_i, gpu_attr_1)];
-  vert_in.sel = selection[gpu_attr_load_index(v_i, gpu_attr_2)];
+  vert_in.radius = rad[gpu_attr_load_index(v_i, gpu_attr_1)];
+  vert_in.e_data = data[gpu_attr_load_index(v_i, gpu_attr_2)];
+  vert_in.sel = selection[gpu_attr_load_index(v_i, gpu_attr_3)];
   return vert_in;
 }
 
@@ -49,6 +51,19 @@ VertOut vertex_main(VertIn vert_in)
   VertOut vert;
   vert.flag = vert_in.e_data;
   vert.ws_P = drw_point_object_to_world(vert_in.ls_P);
+  {
+    /* Offset the curve radius in the incoming direction,
+     * so the curve geometry doesn't occlude the handle.
+     * But ensure we don't offset past the near plane. */
+    float3 I = drw_world_incident_vector(vert.ws_P);
+    float vs_depth = dot(drw_view_position() - vert.ws_P, I);
+    float near_plane_distance = abs(drw_view_near()) / dot(I, drw_view_forward());
+    float max_offset = vs_depth - (near_plane_distance * 1.01f);
+    max_offset = max(0.0f, max_offset);
+    /* Compensate for view angle. */
+    float radius = vert_in.radius * 1.5f;
+    vert.ws_P += I * min(radius, max_offset);
+  }
   vert.gpu_position = drw_point_world_to_homogenous(vert.ws_P);
   vert.sel = vert_in.sel;
   return vert;
@@ -108,21 +123,21 @@ float4 get_bezier_handle_color(uint color_id, float sel)
 {
   switch (color_id) {
     case 0u: /* BEZIER_HANDLE_FREE */
-      return mix(globalsBlock.color_handle_free, globalsBlock.color_handle_sel_free, sel);
+      return mix(theme.colors.handle_free, theme.colors.handle_sel_free, sel);
     case 1u: /* BEZIER_HANDLE_AUTO */
-      return mix(globalsBlock.color_handle_auto, globalsBlock.color_handle_sel_auto, sel);
+      return mix(theme.colors.handle_auto, theme.colors.handle_sel_auto, sel);
     case 2u: /* BEZIER_HANDLE_VECTOR */
-      return mix(globalsBlock.color_handle_vect, globalsBlock.color_handle_sel_vect, sel);
+      return mix(theme.colors.handle_vect, theme.colors.handle_sel_vect, sel);
     case 3u: /* BEZIER_HANDLE_ALIGN */
-      return mix(globalsBlock.color_handle_align, globalsBlock.color_handle_sel_align, sel);
+      return mix(theme.colors.handle_align, theme.colors.handle_sel_align, sel);
   }
-  return mix(globalsBlock.color_handle_autoclamp, globalsBlock.color_handle_sel_autoclamp, sel);
+  return mix(theme.colors.handle_autoclamp, theme.colors.handle_sel_autoclamp, sel);
 }
 
 void geometry_main(VertOut geom_in[2],
                    uint out_vertex_id,
                    uint out_primitive_id,
-                   uint out_invocation_id)
+                   uint /*out_invocation_id*/)
 {
   float4 v1 = geom_in[0].gpu_position;
   float4 v2 = geom_in[1].gpu_position;
@@ -154,21 +169,19 @@ void geometry_main(VertOut geom_in[2],
     inner_color = get_bezier_handle_color(color_id, geom_in[line_end_point].sel);
   }
   else if ((geom_in[line_end_point].flag & EDIT_CURVES_NURBS_CONTROL_POINT) != 0u) {
-    inner_color = mix(globalsBlock.color_nurb_uline,
-                      globalsBlock.color_nurb_sel_uline,
-                      geom_in[line_end_point].sel);
+    inner_color = mix(
+        theme.colors.nurb_uline, theme.colors.nurb_sel_uline, geom_in[line_end_point].sel);
   }
   else {
-    inner_color = mix(
-        globalsBlock.color_wire, globalsBlock.color_vertex_select, geom_in[line_end_point].sel);
+    inner_color = mix(theme.colors.wire, theme.colors.vert_select, geom_in[line_end_point].sel);
   }
 
   /* Minimize active color bleeding on inner_color. */
-  float4 active_color = mix(colorActiveSpline, inner_color, 0.25f);
+  float4 active_color = mix(float4(0.0, 0.0, 0.0, 1.0), inner_color, 0.25f);
   float4 outer_color = is_active ? active_color : float4(inner_color.rgb, 0.0f);
 
   float2 v1_2 = (v2.xy / v2.w - v1.xy / v1.w);
-  float2 offset = sizeEdge * 4.0f * sizeViewportInv; /* 4.0f is eyeballed */
+  float2 offset = theme.sizes.edge * 4.0f * uniform_buf.size_viewport_inv; /* 4.0f is eyeballed */
 
   if (abs(v1_2.x) <= M_TAN_PI_BY_8 * abs(v1_2.y)) {
     offset.y = 0.0f;
@@ -180,7 +193,7 @@ void geometry_main(VertOut geom_in[2],
     offset.x = 0.0f;
   }
 
-  float4 border_color = float4(colorActiveSpline.rgb, 0.0f);
+  float4 border_color = float4(0.0, 0.0, 0.0, 0.0);
   /* Draw the transparent border (AA). */
   if (is_active) {
     offset *= 0.75f; /* Don't make the active "halo" appear very thick. */
@@ -203,22 +216,22 @@ void main()
   /* Line list primitive. */
   constexpr uint input_primitive_vertex_count = 2u;
   /* Triangle list primitive (emulating triangle strip). */
-  constexpr uint ouput_primitive_vertex_count = 3u;
-  constexpr uint ouput_primitive_count = 8u;
-  constexpr uint ouput_invocation_count = 1u;
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_primitive_vertex_count = 3u;
+  constexpr uint output_primitive_count = 8u;
+  constexpr uint output_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   VertIn vert_in[input_primitive_vertex_count];
   vert_in[0] = input_assembly(in_primitive_first_vertex + 0u);

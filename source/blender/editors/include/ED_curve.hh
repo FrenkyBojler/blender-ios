@@ -10,7 +10,10 @@
 
 #include "BLI_span.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_windowmanager_enums.h"
+
+namespace blender {
 
 struct BPoint;
 struct Base;
@@ -18,7 +21,6 @@ struct BezTriple;
 struct Curve;
 struct EditNurb;
 struct KeyBlock;
-struct ListBase;
 struct Main;
 struct Nurb;
 struct Object;
@@ -38,7 +40,7 @@ void ED_keymap_curve(wmKeyConfig *keyconf);
 
 /* `editcurve.cc` */
 
-ListBase *object_editcurve_get(Object *ob);
+ListBaseT<Nurb> *object_editcurve_get(Object *ob);
 
 KeyBlock *ED_curve_get_edit_shape_key(const Curve *cu);
 
@@ -58,7 +60,7 @@ void ED_curve_editnurb_free(Object *obedit);
 bool ED_curve_editnurb_select_pick(bContext *C,
                                    const int mval[2],
                                    int dist_px,
-                                   const SelectPick_Params *params);
+                                   const SelectPick_Params &params);
 
 Nurb *ED_curve_add_nurbs_primitive(
     bContext *C, Object *obedit, float mat[4][4], int type, int newob);
@@ -78,7 +80,7 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op);
 
 bool ED_curve_select_check(const View3D *v3d, const EditNurb *editnurb);
 bool ED_curve_deselect_all(EditNurb *editnurb);
-bool ED_curve_deselect_all_multi_ex(blender::Span<Base *> bases);
+bool ED_curve_deselect_all_multi_ex(Span<Base *> bases);
 bool ED_curve_deselect_all_multi(bContext *C);
 bool ED_curve_select_all(EditNurb *editnurb);
 bool ED_curve_select_swap(EditNurb *editnurb, bool hide_handles);
@@ -114,7 +116,7 @@ bool ED_curve_active_center(Curve *cu, float center[3]);
  */
 bool ED_curve_editfont_select_pick(bContext *C,
                                    const int mval[2],
-                                   const SelectPick_Params *params);
+                                   const SelectPick_Params &params);
 
 /* `editfont_undo.cc` */
 
@@ -125,3 +127,5 @@ void ED_font_undosys_type(UndoType *ut);
 /* debug only */
 void printknots(Object *obedit);
 #endif
+
+}  // namespace blender

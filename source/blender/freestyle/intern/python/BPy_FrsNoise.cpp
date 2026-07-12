@@ -11,7 +11,7 @@
 
 #include "../system/RandGen.h"
 
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 #include <sstream>
 
@@ -47,9 +47,8 @@ PyDoc_STRVAR(
     "   as a seed for random number generation if it is equal to or greater than zero;\n"
     "   otherwise, time is used as a seed.\n"
     "\n"
-    "   :arg seed: Seed for random number generation.\n"
-    "   :type seed: int");
-
+    "   :param seed: Seed for random number generation.\n"
+    "   :type seed: int\n");
 static int FrsNoise_init(BPy_FrsNoise *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"seed", nullptr};
@@ -82,17 +81,16 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a noise value for a 1D element.\n"
     "\n"
-    "   :arg v: One-dimensional sample point.\n"
+    "   :param v: One-dimensional sample point.\n"
     "   :type v: float\n"
-    "   :arg freq: Noise frequency.\n"
+    "   :param freq: Noise frequency.\n"
     "   :type freq: float\n"
-    "   :arg amp: Amplitude.\n"
+    "   :param amp: Amplitude.\n"
     "   :type amp: float\n"
-    "   :arg oct: Number of octaves.\n"
+    "   :param oct: Number of octaves.\n"
     "   :type oct: int\n"
     "   :return: A noise value.\n"
-    "   :rtype: float");
-
+    "   :rtype: float\n");
 static PyObject *FrsNoise_drand(BPy_FrsNoise * /*self*/, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"seed", nullptr};
@@ -139,17 +137,16 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a noise value for a 2D element.\n"
     "\n"
-    "   :arg v: Two-dimensional sample point.\n"
+    "   :param v: Two-dimensional sample point.\n"
     "   :type v: :class:`mathutils.Vector` | tuple[float, float] | list[float]\n"
-    "   :arg freq: Noise frequency.\n"
+    "   :param freq: Noise frequency.\n"
     "   :type freq: float\n"
-    "   :arg amp: Amplitude.\n"
+    "   :param amp: Amplitude.\n"
     "   :type amp: float\n"
-    "   :arg oct: Number of octaves.\n"
+    "   :param oct: Number of octaves.\n"
     "   :type oct: int\n"
     "   :return: A noise value.\n"
-    "   :rtype: float");
-
+    "   :rtype: float\n");
 static PyObject *FrsNoise_turbulence2(BPy_FrsNoise *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"v", "freq", "amp", "oct", nullptr};
@@ -177,17 +174,16 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a noise value for a 3D element.\n"
     "\n"
-    "   :arg v: Three-dimensional sample point.\n"
+    "   :param v: Three-dimensional sample point.\n"
     "   :type v: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n"
-    "   :arg freq: Noise frequency.\n"
+    "   :param freq: Noise frequency.\n"
     "   :type freq: float\n"
-    "   :arg amp: Amplitude.\n"
+    "   :param amp: Amplitude.\n"
     "   :type amp: float\n"
-    "   :arg oct: Number of octaves.\n"
+    "   :param oct: Number of octaves.\n"
     "   :type oct: int\n"
     "   :return: A noise value.\n"
-    "   :rtype: float");
-
+    "   :rtype: float\n");
 static PyObject *FrsNoise_turbulence3(BPy_FrsNoise *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"v", "freq", "amp", "oct", nullptr};
@@ -215,11 +211,10 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a smooth noise value for a 1D element.\n"
     "\n"
-    "   :arg v: One-dimensional sample point.\n"
+    "   :param v: One-dimensional sample point.\n"
     "   :type v: float\n"
     "   :return: A smooth noise value.\n"
-    "   :rtype: float");
-
+    "   :rtype: float\n");
 static PyObject *FrsNoise_smoothNoise1(BPy_FrsNoise *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"v", nullptr};
@@ -238,11 +233,10 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a smooth noise value for a 2D element.\n"
     "\n"
-    "   :arg v: Two-dimensional sample point.\n"
+    "   :param v: Two-dimensional sample point.\n"
     "   :type v: :class:`mathutils.Vector` | tuple[float, float] | list[float]\n"
     "   :return: A smooth noise value.\n"
-    "   :rtype: float");
-
+    "   :rtype: float\n");
 static PyObject *FrsNoise_smoothNoise2(BPy_FrsNoise *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"v", nullptr};
@@ -268,11 +262,10 @@ PyDoc_STRVAR(
     "\n"
     "   Returns a smooth noise value for a 3D element.\n"
     "\n"
-    "   :arg v: Three-dimensional sample point.\n"
+    "   :param v: Three-dimensional sample point.\n"
     "   :type v: :class:`mathutils.Vector` | tuple[float, float, float] | list[float]\n"
     "   :return: A smooth noise value.\n"
-    "   :rtype: float");
-
+    "   :rtype: float\n");
 static PyObject *FrsNoise_smoothNoise3(BPy_FrsNoise *self, PyObject *args, PyObject *kwds)
 {
   static const char *kwlist[] = {"v", nullptr};

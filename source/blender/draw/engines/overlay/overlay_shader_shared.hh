@@ -2,16 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#if !defined(GPU_SHADER) && !defined(GLSL_CPP_STUBS)
-#  pragma once
+#pragma once
 
-#  include "GPU_shader_shared_utils.hh"
+#include "GPU_shader_shared_utils.hh"
 
+#ifndef GPU_SHADER
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
 #endif
 
-enum OVERLAY_BackgroundType : uint32_t {
+enum [[host_shared]] OVERLAY_BackgroundType : uint32_t {
   BG_SOLID = 0u,
   BG_GRADIENT = 1u,
   BG_CHECKER = 2u,
@@ -20,34 +20,39 @@ enum OVERLAY_BackgroundType : uint32_t {
   BG_MASK = 5u,
 };
 
-enum OVERLAY_UVLineStyle : uint32_t {
-  OVERLAY_UV_LINE_STYLE_OUTLINE = 0u,
-  OVERLAY_UV_LINE_STYLE_DASH = 1u,
-  OVERLAY_UV_LINE_STYLE_BLACK = 2u,
-  OVERLAY_UV_LINE_STYLE_WHITE = 3u,
-  OVERLAY_UV_LINE_STYLE_SHADOW = 4u,
+enum [[host_shared]] OVERLAY_UVLineStyle : uint32_t {
+  OVERLAY_UV_LINE_STYLE_OUTLINE,
+  OVERLAY_UV_LINE_STYLE_DASH,
+  OVERLAY_UV_LINE_STYLE_BLACK,
+  OVERLAY_UV_LINE_STYLE_WHITE,
+  OVERLAY_UV_LINE_STYLE_SHADOW,
 };
 
-enum OVERLAY_GridBits : uint32_t {
-  SHOW_AXIS_X = (1u << 0u),
-  SHOW_AXIS_Y = (1u << 1u),
-  SHOW_AXIS_Z = (1u << 2u),
-  SHOW_GRID = (1u << 3u),
-  PLANE_XY = (1u << 4u),
-  PLANE_XZ = (1u << 5u),
-  PLANE_YZ = (1u << 6u),
-  CLIP_ZPOS = (1u << 7u),
-  CLIP_ZNEG = (1u << 8u),
-  GRID_BACK = (1u << 9u),
-  GRID_CAMERA = (1u << 10u),
-  PLANE_IMAGE = (1u << 11u),
-  CUSTOM_GRID = (1u << 12u),
+enum [[host_shared]] OVERLAY_GridBits : uint32_t {
+  SHOW_GRID = (1u << 0u),
+  SHOW_AXES = (1u << 1u),
+
+  /* Axis * is shown if `SHOW_AXES` is set. */
+  AXIS_X = (1u << 2u),
+  AXIS_Y = (1u << 3u),
+  AXIS_Z = (1u << 4u),
+
+  /* Grid is placed on * plane if `SHOW_GRID` is set. */
+  PLANE_XY = (1u << 5u),
+  PLANE_XZ = (1u << 6u),
+  PLANE_YZ = (1u << 7u),
+
+  GRID_ALIGNED = (1u << 8u),         /* Grid is in an axis-aligned view (PLANE_XY, ...). */
+  GRID_SIMA = (1u << 9u),            /* Grid is in SpaceImage view. */
+  GRID_CAMERA = (1u << 10u),         /* Grid is shown in selected camera. */
+  GRID_OVER_IMAGE = (1u << 11u),     /* Grid is shown in front of SpaceImage, not behind. */
+  GRID_BEHIND_GEOMETRY = (1u << 12u) /* Grid is shown behind geometry, on the far plane. */
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(OVERLAY_GridBits, CUSTOM_GRID)
+ENUM_OPERATORS(OVERLAY_GridBits)
 #endif
 
-enum VertexClass : uint32_t {
+enum [[host_shared]] VertexClass : uint32_t {
   VCLASS_NONE = 0,
 
   VCLASS_LIGHT_AREA_SHAPE = 1 << 0,
@@ -70,10 +75,10 @@ enum VertexClass : uint32_t {
   VCLASS_EMPTY_SIZE = 1 << 14,
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(VertexClass, VCLASS_EMPTY_SIZE)
+ENUM_OPERATORS(VertexClass)
 #endif
 
-enum StickBoneFlag {
+enum [[host_shared]] StickBoneFlag : uint32_t {
   COL_WIRE = (1u << 0u),
   COL_HEAD = (1u << 1u),
   COL_TAIL = (1u << 2u),
@@ -83,8 +88,30 @@ enum StickBoneFlag {
   POS_BONE = (1u << 6u),
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(StickBoneFlag, POS_BONE)
+ENUM_OPERATORS(StickBoneFlag)
 #endif
+
+/* TODO(fclem): Convert into enum. */
+/* See: 'draw_cache_impl.hh' for matching includes. */
+#define VERT_GPENCIL_BEZT_HANDLE (1u << 30)
+/* data[0] (1st byte flags) */
+#define FACE_ACTIVE (1u << 0)
+#define FACE_SELECTED (1u << 1)
+#define FACE_FREESTYLE (1u << 2)
+#define VERT_UV_SELECT (1u << 3)
+#define VERT_UV_PINNED (1u << 4)
+#define EDGE_UV_SELECT (1u << 5)
+#define FACE_UV_ACTIVE (1u << 6)
+#define FACE_UV_SELECT (1u << 7)
+/* data[1] (2nd byte flags) */
+#define VERT_ACTIVE (1u << 0)
+#define VERT_SELECTED (1u << 1)
+#define VERT_SELECTED_BEZT_HANDLE (1u << 2)
+#define EDGE_ACTIVE (1u << 3)
+#define EDGE_SELECTED (1u << 4)
+#define EDGE_SEAM (1u << 5)
+#define EDGE_SHARP (1u << 6)
+#define EDGE_FREESTYLE (1u << 7)
 
 static inline uint outline_id_pack(uint outline_id, uint object_id)
 {
@@ -94,21 +121,30 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
   return (outline_id << 14u) | ((object_id << 18u) >> 18u);
 }
 
-/* Match: #SI_GRID_STEPS_LEN */
+/** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
 #define OVERLAY_GRID_STEPS_LEN 8
+/** Hardcoded grid steps drawn at a time. */
+#define OVERLAY_GRID_STEPS_DRAW 3
+/** Hardcoded max iterations of grid draw for alpha fade. */
+#define OVERLAY_GRID_ITER_LEN 4
 
 /* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
-#define WIRE_WIDTH_COMPRESSION 16.0
+#define WIRE_WIDTH_COMPRESSION 16.0f
 
-struct OVERLAY_GridData {
-  float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float arrays are padded to float4 in std130. */
-  float4 size;                          /* float3 padded to float4. */
-  float distance;
-  float line_size;
-  float zoom_factor; /* Only for UV editor */
-  float _pad0;
+struct [[host_shared]] OVERLAY_GridData {
+  /* Per level step size, based on selected units/subdivision. */
+  float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float3 array padded to float4 (std140). */
+  /* XY/YZ/XZ camera offset of grid. */
+  float2 offset;
+  /* Clipping rectangle for UV/Image editor. */
+  float2 clip_rect;
+  /* Fractional grid-level, dependent on current camera position/distance/zoom. */
+  float level;
+  /* Per-level line count. */
+  uint num_lines;
+  uint _pad0;
+  uint _pad1;
 };
-BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
 #ifdef GPU_SHADER
 /* Keep the same values as in `draw_cache_impl_curves.cc` */
@@ -139,6 +175,10 @@ BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 #  define MOTIONPATH_VERT_KEY (1u << 1)
 
 #else
+#  define CURVE_HANDLE_SELECTED blender::CURVE_HANDLE_SELECTED
+#  define CURVE_HANDLE_ALL blender::CURVE_HANDLE_ALL
+#  define MOTIONPATH_VERT_SEL blender::MOTIONPATH_VERT_SEL
+#  define MOTIONPATH_VERT_KEY blender::MOTIONPATH_VERT_KEY
 /* TODO(fclem): Find a better way to share enums/defines from DNA files with GLSL. */
 BLI_STATIC_ASSERT(CURVE_HANDLE_SELECTED == 0u, "Ensure value is sync");
 BLI_STATIC_ASSERT(CURVE_HANDLE_ALL == 1u, "Ensure value is sync");
@@ -146,121 +186,162 @@ BLI_STATIC_ASSERT(MOTIONPATH_VERT_SEL == (1u << 0), "Ensure value is sync");
 BLI_STATIC_ASSERT(MOTIONPATH_VERT_KEY == (1u << 1), "Ensure value is sync");
 #endif
 
-struct ThemeColorData {
-  float4 color_wire;
-  float4 color_wire_edit;
-  float4 color_active;
-  float4 color_select;
-  float4 color_library_select;
-  float4 color_library;
-  float4 color_transform;
-  float4 color_light;
-  float4 color_speaker;
-  float4 color_camera;
-  float4 color_camera_path;
-  float4 color_empty;
-  float4 color_vertex;
-  float4 color_vertex_select;
-  float4 color_vertex_unreferenced;
-  float4 color_vertex_missing_data;
-  float4 color_edit_mesh_active;
-  /** For edge selection, not edge select mode. */
-  float4 color_edge_select;
-  /** For edge mode selection. */
-  float4 color_edge_mode_select;
-  float4 color_edge_seam;
-  float4 color_edge_sharp;
-  float4 color_edge_crease;
-  float4 color_edge_bweight;
-  float4 color_edge_face_select;
-  float4 color_edge_freestyle;
-  float4 color_face;
-  /** For face selection, not face select mode. */
-  float4 color_face_select;
-  /** For face mode selection. */
-  float4 color_face_mode_select;
-  float4 color_face_freestyle;
-  float4 color_gpencil_vertex;
-  float4 color_gpencil_vertex_select;
-  float4 color_normal;
-  float4 color_vnormal;
-  float4 color_lnormal;
-  float4 color_facedot;
-  float4 color_skinroot;
+/* All colors in this struct are converted to display linear RGB color-space. */
+struct [[host_shared]] ThemeColors {
+  /* UBOs data needs to be 16 byte aligned (size of float4) */
+  float4 wire;
+  float4 wire_edit;
+  float4 active_object; /* "active" is reserved keyword in GLSL. */
+  float4 object_select; /* "select" is defined as a macro for GLSL. */
+  float4 library_select;
+  float4 library;
+  float4 transform;
+  float4 light;
+  float4 speaker;
+  float4 camera;
+  float4 camera_path;
+  float4 empty;
+  float4 vert; /* "vertex" is reserved keyword in MSL. */
+  float4 vert_select;
+  float4 vert_unreferenced;
+  float4 vert_missing_data;
+  float4 edit_mesh_active;
+  float4 edge_select;      /* Stands for edge selection, not edge select mode. */
+  float4 edge_mode_select; /* Stands for edge mode selection. */
+  float4 edge_seam;
+  float4 edge_sharp;
+  float4 edge_crease;
+  float4 edge_bweight;
+  float4 edge_face_select;
+  float4 edge_freestyle;
+  float4 face;
+  float4 face_select;      /* Stands for face selection, not face select mode. */
+  float4 face_mode_select; /* Stands for face mode selection. */
+  float4 face_retopology;
+  float4 face_freestyle;
+  float4 gpencil_wire_edit;
+  float4 gpencil_vertex;
+  float4 gpencil_vertex_select;
+  float4 normal;
+  float4 vnormal;
+  float4 lnormal;
+  float4 facedot;
+  float4 skinroot;
 
-  float4 color_deselect;
-  float4 color_outline;
-  float4 color_light_no_alpha;
+  float4 deselect;
+  float4 outline;
+  float4 light_no_alpha;
 
-  float4 color_background;
-  float4 color_background_gradient;
-  float4 color_checker_primary;
-  float4 color_checker_secondary;
-  float4 color_clipping_border;
-  float4 color_edit_mesh_middle;
+  float4 background;
+  float4 background_gradient;
+  float4 checker_primary;
+  float4 checker_secondary;
+  float4 clipping_border;
+  float4 edit_mesh_middle;
 
-  float4 color_handle_free;
-  float4 color_handle_auto;
-  float4 color_handle_vect;
-  float4 color_handle_align;
-  float4 color_handle_autoclamp;
-  float4 color_handle_sel_free;
-  float4 color_handle_sel_auto;
-  float4 color_handle_sel_vect;
-  float4 color_handle_sel_align;
-  float4 color_handle_sel_autoclamp;
-  float4 color_nurb_uline;
-  float4 color_nurb_vline;
-  float4 color_nurb_sel_uline;
-  float4 color_nurb_sel_vline;
-  float4 color_active_spline;
+  float4 handle_free;
+  float4 handle_auto;
+  float4 handle_vect;
+  float4 handle_align;
+  float4 handle_autoclamp;
+  float4 handle_sel_free;
+  float4 handle_sel_auto;
+  float4 handle_sel_vect;
+  float4 handle_sel_align;
+  float4 handle_sel_autoclamp;
+  float4 nurb_uline;
+  float4 nurb_vline;
+  float4 nurb_sel_uline;
+  float4 nurb_sel_vline;
 
-  float4 color_bone_pose;
-  float4 color_bone_pose_active;
-  float4 color_bone_pose_active_unsel;
-  float4 color_bone_pose_constraint;
-  float4 color_bone_pose_ik;
-  float4 color_bone_pose_spline_ik;
-  float4 color_bone_pose_no_target;
-  float4 color_bone_solid;
-  float4 color_bone_locked;
-  float4 color_bone_active;
-  float4 color_bone_active_unsel;
-  float4 color_bone_select;
-  float4 color_bone_ik_line;
-  float4 color_bone_ik_line_no_target;
-  float4 color_bone_ik_line_spline;
+  float4 bone_pose;
+  float4 bone_pose_active;
+  float4 bone_pose_active_unsel;
+  float4 bone_pose_constraint;
+  float4 bone_pose_ik;
+  float4 bone_pose_spline_ik;
+  float4 bone_pose_no_target;
+  float4 bone_solid;
+  float4 bone_locked;
+  float4 bone_active;
+  float4 bone_active_unsel;
+  float4 bone_select;
+  float4 bone_ik_line;
+  float4 bone_ik_line_no_target;
+  float4 bone_ik_line_spline;
 
-  float4 color_text;
-  float4 color_text_hi;
+  float4 text;
+  float4 text_hi;
 
-  float4 color_bundle_solid;
+  float4 bundle_solid;
 
-  float4 color_mball_radius;
-  float4 color_mball_radius_select;
-  float4 color_mball_stiffness;
-  float4 color_mball_stiffness_select;
+  float4 mball_radius;
+  float4 mball_radius_select;
+  float4 mball_stiffness;
+  float4 mball_stiffness_select;
 
-  float4 color_current_frame;
+  float4 current_frame;
+  float4 before_frame;
+  float4 after_frame;
 
-  float4 color_grid;
-  float4 color_grid_emphasis;
-  float4 color_grid_axis_x;
-  float4 color_grid_axis_y;
-  float4 color_grid_axis_z;
+  float4 grid;
+  float4 grid_emphasis;
+  float4 grid_axis_x;
+  float4 grid_axis_y;
+  float4 grid_axis_z;
 
-  float4 color_face_back;
-  float4 color_face_front;
+  float4 face_back;
+  float4 face_front;
 
-  float4 color_uv_shadow;
+  float4 uv_shadow;
 };
-BLI_STATIC_ASSERT_ALIGN(ThemeColorData, 16)
 
-struct ExtraInstanceData {
+/* All values in this struct are premultiplied by U.pixelsize. */
+struct [[host_shared]] ThemeSizes {
+  float pixel; /* Equivalent to U.pixelsize. */
+
+  float object_center;
+
+  float light_center;
+  float light_circle;
+  float light_circle_shadow;
+
+  float vert; /* "vertex" is reserved keyword in MSL. */
+  float edge;
+  float face_dot;
+
+  float checker;
+  float vertex_gpencil;
+  float _pad1;
+  float _pad2;
+};
+
+struct [[host_shared]] UniformData {
+  struct ThemeColors colors;
+  struct ThemeSizes sizes;
+
+  /** Other global states. */
+
+  float2 size_viewport;
+  float2 size_viewport_inv;
+
+  float fresnel_mix_edit;
+  float pixel_fac;
+  bool32_t backface_culling;
+  float _pad1;
+};
+
+#ifdef GPU_SHADER
+/* The uniform_buf mostly contains theme properties.
+ * This alias has better semantic and shorter syntax. */
+#  define theme uniform_buf
+#endif
+
+struct [[host_shared]] ExtraInstanceData {
   float4 color_;
   float4x4 object_to_world;
 
-#if !defined(GPU_SHADER)
+#ifndef GPU_SHADER
   ExtraInstanceData(const float4x4 &object_to_world, const float4 &color, float draw_size)
   {
     this->color_ = color;
@@ -292,34 +373,31 @@ struct ExtraInstanceData {
   };
 #endif
 };
-BLI_STATIC_ASSERT_ALIGN(ExtraInstanceData, 16)
 
-struct VertexData {
+struct [[host_shared]] VertexData {
   float4 pos_;
   /* TODO: change to color_id. Idea expressed in #125894. */
   float4 color_;
 };
-BLI_STATIC_ASSERT_ALIGN(VertexData, 16)
 
 /* Limited by expand_prim_len bit count. */
 #define PARTICLE_SHAPE_CIRCLE_RESOLUTION 7
 
-enum OVERLAY_ParticleShape : uint32_t {
+enum [[host_shared]] OVERLAY_ParticleShape : uint32_t {
   PART_SHAPE_AXIS = 1,
   PART_SHAPE_CIRCLE = 2,
   PART_SHAPE_CROSS = 3,
 };
 
-struct ParticlePointData {
+struct [[host_shared]] ParticlePointData {
   packed_float3 position;
   /* Can either be velocity or acceleration. */
   float value;
   /* Rotation encoded as quaternion. */
   float4 rotation;
 };
-BLI_STATIC_ASSERT_ALIGN(ParticlePointData, 16)
 
-struct BoneEnvelopeData {
+struct [[host_shared]] BoneEnvelopeData {
   float4 head_sphere;
   float4 tail_sphere;
   /* TODO(pragma37): wire width is never used in the shader. */
@@ -340,7 +418,7 @@ struct BoneEnvelopeData {
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(bone_color, 0.0f),
         state_color(state_color, 0.0f),
-        x_axis(x_axis, 0.0f){};
+        x_axis(x_axis, 0.0f) {};
 
   /* For bone outlines. */
   BoneEnvelopeData(float4 &head_sphere,
@@ -350,16 +428,15 @@ struct BoneEnvelopeData {
       : head_sphere(head_sphere),
         tail_sphere(tail_sphere),
         bone_color_and_wire_width(color_and_wire_width),
-        x_axis(x_axis, 0.0f){};
+        x_axis(x_axis, 0.0f) {};
 
   /* For bone distance volumes. */
   BoneEnvelopeData(float4 &head_sphere, float4 &tail_sphere, float3 &x_axis)
-      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f){};
+      : head_sphere(head_sphere), tail_sphere(tail_sphere), x_axis(x_axis, 0.0f) {};
 #endif
 };
-BLI_STATIC_ASSERT_ALIGN(BoneEnvelopeData, 16)
 
-struct BoneStickData {
+struct [[host_shared]] BoneStickData {
   float4 bone_start;
   float4 bone_end;
   float4 wire_color;
@@ -382,10 +459,9 @@ struct BoneStickData {
         wire_color(wire_color),
         bone_color(bone_color),
         head_color(head_color),
-        tail_color(tail_color){};
+        tail_color(tail_color) {};
 #endif
 };
-BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)
 
 /**
  * We want to know how much of a pixel is covered by a line.
@@ -400,6 +476,7 @@ BLI_STATIC_ASSERT_ALIGN(BoneStickData, 16)
  */
 #define M_1_SQRTPI 0.5641895835477563f /* `1/sqrt(pi)`. */
 #define DISC_RADIUS (M_1_SQRTPI * 1.05f)
-#define LINE_SMOOTH_START (0.5f + DISC_RADIUS)
-#define LINE_SMOOTH_END (0.5f - DISC_RADIUS)
+#define LINE_SMOOTH_START (0.5f - DISC_RADIUS)
+#define LINE_SMOOTH_END (0.5f + DISC_RADIUS)
+/* Returns 0 before LINE_SMOOTH_START and 1 after LINE_SMOOTH_END. */
 #define LINE_STEP(dist) smoothstep(LINE_SMOOTH_START, LINE_SMOOTH_END, dist)

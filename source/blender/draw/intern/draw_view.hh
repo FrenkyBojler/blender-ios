@@ -9,7 +9,7 @@
  *
  * View description and states.
  *
- * A `draw::View` object is required for drawing geometry using the DRW api and its internal
+ * A `draw::View` object is required for drawing geometry using the DRW API and its internal
  * culling system.
  *
  * One `View` object can actually contain multiple view matrices if the template parameter
@@ -194,7 +194,7 @@ class View {
     {
     }
 
-    float4x4 winmat_polygon_offset(float4x4 winmat, float offset)
+    float4x4 winmat_polygon_offset(const float4x4 &winmat, float offset)
     {
       float view_dist = dist;
       /* Special exception for orthographic camera:
@@ -203,12 +203,13 @@ class View {
         view_dist = 1.0f / max_ff(fabsf(winmat[0][0]), fabsf(winmat[1][1]));
       }
 
-      winmat[3][2] -= GPU_polygon_offset_calc(winmat.ptr(), view_dist, offset);
-      return winmat;
+      float4x4 result = winmat;
+      result[3][2] -= GPU_polygon_offset_calc(winmat.ptr(), view_dist, offset);
+      return result;
     }
 
     /* Return unit offset to apply to `gl_Position.z`. To be scaled depending on purpose. */
-    float polygon_offset_factor(float4x4 winmat)
+    float polygon_offset_factor(const float4x4 &winmat)
     {
       float view_dist = dist;
       /* Special exception for orthographic camera:
@@ -222,9 +223,10 @@ class View {
   };
 
   /* Returns frustum planes equations. Available only after sync. */
-  std::array<float4, 6> frustum_planes_get(int view_id = 0);
-  /* Returns frustum corners positions in world space. Available only after sync. */
-  std::array<float3, 8> frustum_corners_get(int view_id = 0);
+  std::array<float4, 6> frustum_planes_get(int view_id = 0) const;
+  /* Returns frustum corners positions in world space. Available only after sync.
+   * Follow bounding box corner order. */
+  std::array<float3, 8> frustum_corners_get(int view_id = 0) const;
 
  protected:
   /** Called from draw manager. */

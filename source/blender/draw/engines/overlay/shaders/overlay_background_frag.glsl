@@ -2,11 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_background_info.hh"
+#include "infos/overlay_background_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(overlay_background)
 
-#include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 
 float dither()
 {
@@ -31,8 +31,20 @@ void main()
    * This removes the alpha channel and put the background behind reference images
    * while masking the reference images by the render alpha.
    */
-  float alpha = texture(color_buffer, screen_uv).a;
-  float depth = texture(depth_buffer, screen_uv).r;
+
+  float alpha;
+  float depth;
+
+  if (vignette_enabled) {
+    const float dist = length(screen_uv - 0.5f);
+    const float falloff = 0.15f;
+    alpha = smoothstep(vignette_aperture, vignette_aperture + falloff, dist);
+    depth = 0.0f;
+  }
+  else {
+    alpha = texture(color_buffer, screen_uv).a;
+    depth = texture(depth_buffer, screen_uv).r;
+  }
 
   float3 bg_col;
   float3 col_high;
@@ -46,37 +58,37 @@ void main()
 
   switch (type) {
     case BG_SOLID:
-      bg_col = colorBackground.rgb;
+      bg_col = theme.colors.background.rgb;
       break;
     case BG_GRADIENT:
       /* XXX do interpolation in a non-linear space to have a better visual result. */
-      col_high = pow(colorBackground.rgb, float3(1.0f / 2.2f));
-      col_low = pow(colorBackgroundGradient.rgb, float3(1.0f / 2.2f));
+      col_high = pow(theme.colors.background.rgb, float3(1.0f / 2.2f));
+      col_low = pow(theme.colors.background_gradient.rgb, float3(1.0f / 2.2f));
       bg_col = mix(col_low, col_high, screen_uv.y);
       /* Convert back to linear. */
       bg_col = pow(bg_col, float3(2.2f));
-      /*  Dither to hide low precision buffer. (Could be improved) */
+      /* Dither to hide low precision buffer. (Could be improved) */
       bg_col += dither();
       break;
     case BG_RADIAL: {
       /* Do interpolation in a non-linear space to have a better visual result. */
-      col_high = pow(colorBackground.rgb, float3(1.0f / 2.2f));
-      col_low = pow(colorBackgroundGradient.rgb, float3(1.0f / 2.2f));
+      col_high = pow(theme.colors.background.rgb, float3(1.0f / 2.2f));
+      col_low = pow(theme.colors.background_gradient.rgb, float3(1.0f / 2.2f));
 
       float2 uv_n = screen_uv - 0.5f;
       bg_col = mix(col_high, col_low, length(uv_n) * M_SQRT2);
 
       /* Convert back to linear. */
       bg_col = pow(bg_col, float3(2.2f));
-      /*  Dither to hide low precision buffer. (Could be improved) */
+      /* Dither to hide low precision buffer. (Could be improved). */
       bg_col += dither();
       break;
     }
     case BG_CHECKER: {
-      float size = sizeChecker * sizePixel;
+      float size = theme.sizes.checker * theme.sizes.pixel;
       int2 p = int2(floor(gl_FragCoord.xy / size));
       bool check = mod(p.x, 2) == mod(p.y, 2);
-      bg_col = (check) ? colorCheckerPrimary.rgb : colorCheckerSecondary.rgb;
+      bg_col = (check) ? theme.colors.checker_primary.rgb : theme.colors.checker_secondary.rgb;
       break;
     }
     case BG_MASK:
@@ -84,17 +96,22 @@ void main()
       return;
     case BG_SOLID_CHECKER:
       /* Unreachable. */
-      assert(0);
+      assert(false);
       return;
   }
 
   bg_col = mix(bg_col, color_override.rgb, color_override.a);
 
-  /* Mimic alpha under behavior. Result is premultiplied. */
-  frag_color = float4(bg_col, 1.0f) * (1.0f - alpha);
+  if (vignette_enabled) {
+    frag_color = float4(bg_col, alpha);
+  }
+  else {
+    /* Mimic alpha under behavior. Result is premultiplied. */
+    frag_color = float4(bg_col, 1.0f) * (1.0f - alpha);
 
-  /* Special case: If the render is not transparent, do not clear alpha values. */
-  if (depth == 1.0f && alpha == 1.0f) {
-    frag_color.a = 1.0f;
+    /* Special case: If the render is not transparent, do not clear alpha values. */
+    if (depth == 1.0f && alpha == 1.0f) {
+      frag_color.a = 1.0f;
+    }
   }
 }

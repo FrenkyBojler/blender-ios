@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/overlay_wireframe_info.hh"
+#include "infos/overlay_wireframe_infos.hh"
 
 VERTEX_SHADER_CREATE_INFO(overlay_wireframe)
 
@@ -10,7 +10,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_wireframe)
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_clipping_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_math_vector_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 #include "select_lib.glsl"
@@ -22,7 +22,7 @@ bool is_edge_sharpness_visible(float wire_data)
 }
 #endif
 
-void wire_color_get(out float3 rim_col, out float3 wire_col)
+void wire_color_get(float3 &rim_col, float3 &wire_col)
 {
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_selected = flag_test(ob_flag, OBJECT_SELECTED);
@@ -30,24 +30,24 @@ void wire_color_get(out float3 rim_col, out float3 wire_col)
   bool is_active = flag_test(ob_flag, OBJECT_ACTIVE);
 
   if (is_from_set) {
-    rim_col = colorWire.rgb;
-    wire_col = colorWire.rgb;
+    rim_col = theme.colors.wire.rgb;
+    wire_col = theme.colors.wire.rgb;
   }
   else if (is_selected && use_coloring) {
     if (is_transform) {
-      rim_col = colorTransform.rgb;
+      rim_col = theme.colors.transform.rgb;
     }
     else if (is_active) {
-      rim_col = colorActive.rgb;
+      rim_col = theme.colors.active_object.rgb;
     }
     else {
-      rim_col = colorSelect.rgb;
+      rim_col = theme.colors.object_select.rgb;
     }
-    wire_col = colorWire.rgb;
+    wire_col = theme.colors.wire.rgb;
   }
   else {
-    rim_col = colorWire.rgb;
-    wire_col = colorBackground.rgb;
+    rim_col = theme.colors.wire.rgb;
+    wire_col = theme.colors.background.rgb;
   }
 }
 
@@ -59,7 +59,7 @@ float3 hsv_to_rgb(float3 hsv)
   return ((nrgb - 1.0f) * hsv.y + 1.0f) * hsv.z;
 }
 
-void wire_object_color_get(out float3 rim_col, out float3 wire_col)
+void wire_object_color_get(float3 &rim_col, float3 &wire_col)
 {
   ObjectInfos info = drw_object_infos();
   bool is_selected = flag_test(info.flag, OBJECT_SELECTED);
@@ -95,9 +95,15 @@ void main()
    * while keeping object coloring mode working (see #134011). */
   float no_nor_facing = (color_type == V3D_SHADING_SINGLE_COLOR) ? 0.0f : 0.5f;
 
+#ifdef WITH_RADIUS
+  float3 wpos = drw_point_object_to_world(pos_rad.xyz);
+  wpos += drw_world_incident_vector(wpos) * pos_rad.w;
+#else
   float3 wpos = drw_point_object_to_world(pos);
+#endif
+
 #if defined(POINTS)
-  gl_PointSize = sizeVertex * 2.0f;
+  gl_PointSize = theme.sizes.vert * 2.0f;
 #elif defined(CURVES)
   float facing = no_nor_facing;
 #else
@@ -127,7 +133,7 @@ void main()
     wofs = drw_normal_world_to_view(wofs);
 
     /* Push vertex half a pixel (maximum) in normal direction. */
-    gl_Position.xy += wofs.xy * sizeViewportInv * gl_Position.w;
+    gl_Position.xy += wofs.xy * uniform_buf.size_viewport_inv * gl_Position.w;
 
     /* Push the vertex towards the camera. Helps a bit. */
     gl_Position.z -= facing_ratio * curvature * 1.0e-6f * gl_Position.w;
@@ -148,12 +154,12 @@ void main()
   }
 
 #if defined(POINTS)
-  final_color = wire_col.rgbb;
-  final_color_inner = rim_col.rgbb;
+  final_color = float4(wire_col * wire_opacity, wire_opacity);
+  final_color_inner = float4(rim_col * wire_opacity, wire_opacity);
 
 #else
   /* Convert to screen position [0..sizeVp]. */
-  edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
   edge_pos = edge_start;
 
 #  if !defined(SELECT_ENABLE)
@@ -179,7 +185,8 @@ void main()
 #  if defined(SELECT_ENABLE)
   /* HACK: to avoid losing sub-pixel object in selections, we add a bit of randomness to the
    * wire to at least create one fragment that will pass the occlusion query. */
-  gl_Position.xy += sizeViewportInv * gl_Position.w * ((gl_VertexID % 2 == 0) ? -1.0f : 1.0f);
+  gl_Position.xy += uniform_buf.size_viewport_inv * gl_Position.w *
+                    ((gl_VertexID % 2 == 0) ? -1.0f : 1.0f);
 #  endif
 #endif
 

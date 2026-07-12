@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_threads.hh"
 #include "BLI_vector.hh"
 #include "GPU_context.hh"
 
@@ -16,34 +17,43 @@
 
 namespace blender::gpu {
 
-/* Abstracts the creation and management of secondary threads with GPU contexts.
+using WorkCallback = void (*)(void *);
+using WorkID = uint64_t;
+
+/**
+ * Abstracts the creation and management of secondary threads with GPU contexts.
  * Must be created from the main thread.
- * Threads and their context remain alive until destruction. */
+ * Threads and their context remain alive until destruction.
+ */
 class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
-  std::condition_variable condition_var_;
-  std::mutex mutex_;
-  std::atomic<bool> terminate_ = false;
+  ThreadQueue *work_queue_;
+  WorkCallback callback_;
 
  public:
+  enum class ContextType {
+    /** Use the main GPU context on the worker threads. */
+    Main,
+    /** Use a different secondary GPU context for each worker thread. */
+    PerThread,
+  };
+
   /**
    * \param threads_count: Number of threads to span.
-   * \param share_context: If true, all threads will use the same secondary GPUContext,
-   *  otherwise each thread will have its own unique GPUContext.
-   * \param run_cb: The callback function that will be called by a thread on `wake_up()`.
+   * \param context_type: The type of context each thread uses.
+   * \param callback: The callback function that will be called for each acquired work
+   *                 (passed as a void pointer).
    */
-  GPUWorker(uint32_t threads_count, bool share_context, std::function<void()> run_cb);
+  GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallback callback);
   ~GPUWorker();
 
-  /* Wake up a single thread. */
-  void wake_up()
-  {
-    condition_var_.notify_one();
-  }
+  WorkID push_work(void *work, ThreadQueueWorkPriority priority);
+  bool cancel_work(WorkID id);
+  bool is_empty();
 
  private:
-  void run(std::shared_ptr<GPUSecondaryContext> context, std::function<void()> run_cb);
+  void run(std::shared_ptr<GPUSecondaryContext> context);
 };
 
 }  // namespace blender::gpu
