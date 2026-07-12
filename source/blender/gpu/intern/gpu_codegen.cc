@@ -74,7 +74,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
 }
 
 /* Print data constructor (i.e: vec2(1.0f, 1.0f)). */
-static std::ostream &operator<<(std::ostream &stream, const Span<float> &span)
+static std::ostream &operator<<(std::ostream &stream, const Span<const float> &span)
 {
   stream << gpu_float_type_from_element_count(span.size()) << "(";
   /* Use uint representation to allow exact same bit pattern even if NaN. This is
@@ -93,7 +93,7 @@ static std::ostream &operator<<(std::ostream &stream, const Span<float> &span)
 }
 
 /* Print data constructor (i.e: int2(1, 1)). */
-static std::ostream &operator<<(std::ostream &stream, const Span<int> &span)
+static std::ostream &operator<<(std::ostream &stream, const Span<const int> &span)
 {
   stream << gpu_int_type_from_element_count(span.size()) << "(";
   for (const int &element : span) {
@@ -111,20 +111,20 @@ struct GPUConstant : public GPUInput {};
 
 static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
 {
-  const GPUValue &value = input->constant_value;
   switch (input->type) {
     case GPU_FLOAT:
     case GPU_VEC2:
     case GPU_VEC3:
     case GPU_VEC4:
-      return stream << value.as_float_span();
+      return stream << gpu_constant_to_float_span(input->constant_data, input->type);
     case GPU_INT:
     case GPU_INT2:
     case GPU_INT3:
     case GPU_INT4:
-      return stream << value.as_int_span();
+      return stream << gpu_constant_to_int_span(input->constant_data, input->type);
     case GPU_BOOL:
-      return stream << (value.as_bool() ? "true" : "false");
+      return stream << "bool(" << (gpu_constant_to_bool(input->constant_data) ? "true" : "false")
+                    << ")";
     default:
       BLI_assert(0);
       return stream;
@@ -346,7 +346,7 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
       if (from == GPU_VEC4 && to == GPU_FLOAT) {
         float coefficients[3];
         IMB_colormanagement_get_luminance_coefficients(coefficients);
-        eval_ss << ", " << Span<float>(coefficients, 3);
+        eval_ss << ", " << Span<const float>(coefficients, 3);
       }
       eval_ss << ")";
     }
@@ -512,7 +512,7 @@ void GPUCodegen::generate_cryptomatte()
                                            BLI_strnlen(material->id.name + 2, MAX_NAME - 2));
     material_hash = hash.float_encoded();
   }
-  cryptomatte_input_->constant_value = GPUValue(material_hash);
+  cryptomatte_input_->constant_data = material_hash;
 
   BLI_addtail(&ubo_inputs_, BLI_genericNodeN(cryptomatte_input_));
 }

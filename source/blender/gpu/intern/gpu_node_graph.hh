@@ -10,9 +10,14 @@
 
 #pragma once
 
+#include <array>
+#include <variant>
+
 #include "DNA_listBase.h"
 
 #include "BLI_enum_flags.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
 
 #include "GPU_material.hh"
 
@@ -81,18 +86,17 @@ struct GPUNode {
   bool is_zone_end;
 };
 
+using GPUNodeLinkData = std::variant<const float *, const int *, const bool *>;
+
 struct GPUNodeLink {
   GPUNodeStack *socket;
 
   GPUNodeLinkType link_type;
   int users; /* Refcount */
 
-  /* Typed constant/uniform value. If set, used instead of data. */
-  GPUValue *constant_value = nullptr;
-
   union {
     /* GPU_NODE_LINK_CONSTANT | GPU_NODE_LINK_UNIFORM */
-    const float *data;
+    GPUNodeLinkData data;
     /* GPU_NODE_LINK_COLORBAND */
     gpu::Texture **colorband;
     /* GPU_NODE_LINK_OUTPUT */
@@ -111,6 +115,14 @@ struct GPUNodeLink {
       float filter_width;
     } differentiate_float;
   };
+
+  GPUNodeLink()
+      : socket(nullptr),
+        link_type(GPU_NODE_LINK_NONE),
+        users(0),
+        data(static_cast<const float *>(nullptr))
+  {
+  }
 };
 
 struct GPUOutput {
@@ -127,6 +139,13 @@ struct GPUOutput {
   bool is_duplicate;
 };
 
+using GPUInputConstantData = std::
+    variant<float, float2, float3, float4, std::array<float, 16>, int, int2, int3, int4, bool>;
+
+Span<const float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type);
+Span<const int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type);
+bool gpu_constant_to_bool(const GPUInputConstantData &data);
+
 struct GPUInput {
   GPUInput *next, *prev;
 
@@ -138,7 +157,7 @@ struct GPUInput {
   GPUDataSource source; /* data source */
 
   /* GPU_SOURCE_CONSTANT | GPU_SOURCE_UNIFORM */
-  GPUValue constant_value;
+  GPUInputConstantData constant_data;
 
   /* Content based on GPUDataSource */
   union {
