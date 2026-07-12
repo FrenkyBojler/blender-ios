@@ -138,9 +138,6 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 {
   bScreen *screen = CTX_wm_screen(C);
 
-  ScrubResumeState *scrub_resume = MEM_new<ScrubResumeState>(__func__);
-  op->customdata = scrub_resume;
-
   /* Change to frame that mouse is over before adding modal handler,
    * as user could click on a single frame (jump to frame) as well as
    * click-dragging over a range (modal scrubbing). Apply this change.
@@ -150,7 +147,7 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 
   /* Signal that a scrubbing operating is starting */
   if (screen) {
-    *scrub_resume = ED_screen_scrubbing_enable(C, screen);
+    op->customdata = ED_screen_scrubbing_enable(C, screen);
   }
 
   /* add temp handler */
@@ -190,7 +187,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
     bScreen *screen = CTX_wm_screen(C);
     if (screen) {
-      ED_screen_scrubbing_disable(C, screen, *scrub_resume);
+      ED_screen_scrubbing_disable(C, screen, scrub_resume);
     }
     MEM_delete(scrub_resume);
     op->customdata = nullptr;
@@ -207,7 +204,7 @@ static void graphview_cursor_cancel(bContext *C, wmOperator *op)
   ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
   bScreen *screen = CTX_wm_screen(C);
   if (screen) {
-    ED_screen_scrubbing_disable(C, screen, *scrub_resume);
+    ED_screen_scrubbing_disable(C, screen, scrub_resume);
   }
   MEM_delete(scrub_resume);
   op->customdata = nullptr;
