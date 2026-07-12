@@ -25,7 +25,7 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 
 #include "BKE_anim_data.hh"
@@ -232,7 +232,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
    * All other indirect dependencies will then be handled automatically by the partial write
    * context code.
    */
-#define VSE_COPYBUFFER_IDTYPES ID_SO, ID_MC, ID_IM, ID_TXT, ID_VF, ID_AC, ID_NT
+#define VSE_COPYBUFFER_IDTYPES ID_SO, ID_MC, ID_IM, ID_TXT, ID_VF, ID_AC, ID_NT, ID_MSK
   auto add_scene_ids_dependencies_cb = [&copy_buffer,
                                         scene_dst](LibraryIDLinkCallbackData *cb_data) -> int {
     ID *id_src = *cb_data->id_pointer;
@@ -259,7 +259,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
     /* Only add (and follow) IDs which usage is marked as 'never null', or are from following
-     * types: #bSound, #MovieClip, #Image, #Text, #VFont, #bAction, #bNodeTree. */
+     * types: #bSound, #MovieClip, #Image, #Text, #VFont, #bAction, #bNodeTree, #Mask. */
     if (ELEM(id_type, VSE_COPYBUFFER_IDTYPES) || (cb_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
       /* The partial write context handle dependencies of ID added to it. This callback will tell
        * it whether a given dependency ID should be skipped/cleared, or also added in the context.
@@ -308,7 +308,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
-  seq::iterator_set_expand(ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
+  seq::iterator_set_expand(ed, effect_chain, seq::query_strip_effect_chain);
 
   VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
@@ -421,7 +421,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const int num_strips_to_paste = BLI_listbase_count(&scene_src->ed->seqbase);
+  const int num_strips_to_paste = scene_src->ed->seqbase.count();
   if (num_strips_to_paste == 0) {
     BKE_report(op->reports, RPT_INFO, "No strips to paste");
     BKE_main_free(bmain_src);
@@ -456,7 +456,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
    * correct otherwise. */
   Main *bmain_dst = CTX_data_main(C);
   MainMergeReport merge_reports = {};
-  /* We need to ensure that the source 'clipbaord marked' main Scene is always merged into
+  /* We need to ensure that the source 'clipboard marked' main Scene is always merged into
    * destination Main, even in case there would be a name collision with an existing ID (see also
    * #158049). */
   Set<ID *> force_merge_ids = {id_cast<ID *>(scene_src)};
@@ -469,7 +469,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
    * when pasted strips are renamed, pasted fcurves are renamed with them. Finally restore original
    * curves from backup.
    */
-  seq::AnimationBackup animation_backup = {{nullptr}};
+  seq::AnimationBackup animation_backup = {};
   seq::animation_backup_original(scene_dst, &animation_backup);
   bool has_animation = sequencer_paste_animation(bmain_dst, scene_dst, scene_src);
 

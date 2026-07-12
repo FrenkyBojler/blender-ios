@@ -17,8 +17,8 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 #include "BLI_vector_set.hh"
 
 #include "BKE_context.hh"
@@ -592,7 +592,7 @@ static void wm_operatortype_free_macro(wmOperatorType *ot)
       MEM_delete(otmacro.ptr);
     }
   }
-  BLI_freelistN(&ot->macro);
+  ot->macro.free_no_destruct();
 }
 
 std::string WM_operatortype_name(wmOperatorType *ot, PointerRNA *properties)

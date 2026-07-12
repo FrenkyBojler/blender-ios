@@ -14,9 +14,9 @@
 
 #include "BLF_api.hh"
 
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
@@ -534,6 +534,22 @@ static void vicon_strip_color_draw_library_data_indirect(
                UI_NO_ICON_OVERLAY_TEXT);
 }
 
+static void vicon_strip_color_draw_package_indirect(
+    float x, float y, float w, float /*h*/, float alpha, const uchar * /*mono_rgba[4]*/)
+{
+  const float aspect = float(ICON_DEFAULT_WIDTH) / w;
+
+  icon_draw_ex(x,
+               y,
+               ICON_PACKAGE,
+               aspect,
+               ICON_INDIRECT_DATA_ALPHA * alpha,
+               0.0f,
+               nullptr,
+               false,
+               UI_NO_ICON_OVERLAY_TEXT);
+}
+
 static void vicon_strip_color_draw_library_data_override_noneditable(
     float x, float y, float w, float /*h*/, float alpha, const uchar * /*mono_rgba[4]*/)
 {
@@ -980,6 +996,7 @@ static void init_internal_icons()
   def_internal_vicon(ICON_LIBRARY_DATA_INDIRECT, vicon_strip_color_draw_library_data_indirect);
   def_internal_vicon(ICON_LIBRARY_DATA_OVERRIDE_NONEDITABLE,
                      vicon_strip_color_draw_library_data_override_noneditable);
+  def_internal_vicon(ICON_PACKAGE_INDIRECT, vicon_strip_color_draw_package_indirect);
 
   def_internal_vicon(ICON_LAYERGROUP_COLOR_01, vicon_layergroup_color_draw_01);
   def_internal_vicon(ICON_LAYERGROUP_COLOR_02, vicon_layergroup_color_draw_02);
@@ -1317,7 +1334,7 @@ static void icon_set_image(const bContext *C,
   }
 
   /* Check if the ID supports preview loading or rendering. */
-  if (!prv_img->runtime->deferred_loading_data && !ED_preview_id_is_supported(id)) {
+  if (!prv_img->runtime->deferred_loading_data && !ED_preview_id_render_is_supported(id)) {
     return;
   }
 
@@ -1899,12 +1916,12 @@ void icon_render_id(
   /* For objects, first try if a preview can created via the object data. */
   if (GS(id->name) == ID_OB) {
     Object *ob = id_cast<Object *>(id);
-    if (ED_preview_id_is_supported(static_cast<const ID *>(ob->data))) {
+    if (ED_preview_id_render_is_supported(static_cast<const ID *>(ob->data))) {
       id_to_render = ob->data;
     }
   }
 
-  if (!ED_preview_id_is_supported(id_to_render)) {
+  if (!ED_preview_id_render_is_supported(id_to_render)) {
     return;
   }
 
@@ -1968,6 +1985,9 @@ int icon_from_library(const ID *id)
 {
   if (ID_IS_LINKED(id)) {
     if (ID_IS_PACKED(id)) {
+      if (id->tag & ID_TAG_INDIRECT) {
+        return ICON_PACKAGE_INDIRECT;
+      }
       return ICON_PACKAGE;
     }
     if (id->tag & ID_TAG_MISSING) {
@@ -2265,9 +2285,10 @@ void icon_draw_ex(float x,
                   const uchar mono_color[4],
                   const bool mono_border,
                   const IconTextOverlay *text_overlay,
-                  const bool inverted)
+                  const bool inverted,
+                  const float scale)
 {
-  const int draw_size = get_draw_size(ICON_SIZE_ICON);
+  const int draw_size = get_draw_size(ICON_SIZE_ICON) * scale;
   icon_draw_size(x,
                  y,
                  icon_id,
