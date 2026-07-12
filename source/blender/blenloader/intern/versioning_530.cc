@@ -100,22 +100,6 @@ void blo_do_versions_530(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
-    if (!DNA_struct_member_exists(fd->filesdna, "SmoothModifierData", "float", "taubin_mu")) {
-      for (Object &ob : bmain->objects) {
-        for (ModifierData &md : ob.modifiers) {
-          if (md.type == eModifierType_Smooth) {
-            SmoothModifierData *smd = reinterpret_cast<SmoothModifierData *>(&md);
-            smd->method = MOD_SMOOTH_METHOD_SIMPLE;
-            smd->taubin_mu = -0.53f;
-            smd->hc_alpha = 0.0f;
-            smd->hc_beta = 0.5f;
-          }
-        }
-      }
-    }
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 6)) {
     for (Brush &brush : bmain->brushes) {
       if (ELEM(brush.ob_mode, OB_MODE_WEIGHT_PAINT, OB_MODE_VERTEX_PAINT)) {
@@ -145,6 +129,22 @@ void blo_do_versions_530(FileData *fd, Library * /*lib*/, Main *bmain)
       for (ViewLayer &view_layer : scene.view_layers) {
         view_layer.eevee.denoising_pass_flags =
             EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SmoothModifierData", "float", "taubin_mu")) {
+      for (Object &ob : bmain->objects) {
+        for (ModifierData &md : ob.modifiers) {
+          if (md.type == eModifierType_Smooth) {
+            SmoothModifierData *smd = reinterpret_cast<SmoothModifierData *>(&md);
+            smd->method = MOD_SMOOTH_METHOD_SIMPLE;
+            smd->taubin_mu = -0.53f;
+            smd->hc_alpha = 0.0f;
+            smd->hc_beta = 0.5f;
+          }
+        }
       }
     }
   }
