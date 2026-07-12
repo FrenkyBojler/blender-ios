@@ -938,7 +938,7 @@ static void make_bad_file(const StringRefNull filename, int line)
 {
   FILE *fp = fopen(filename.c_str(), "w");
   fprintf(fp,
-          "#error \"Error! can't make correct DNA.c file from %s:%d, check alignment.\"\n",
+          "#error \"Error! can't make correct dna.cc file from %s:%d, check alignment.\"\n",
           __FILE__,
           line);
   fclose(fp);
