@@ -3464,7 +3464,7 @@ struct NodeGeometryViewer {
 
   /** #eCustomDataType. */
   int8_t data_type_legacy = 0;
-  /** #AttrDomain. */
+  /** #AttrDomainSelection. */
   int8_t domain = 0;
 
   char _pad[2] = {};

@@ -38,8 +38,6 @@ enum class AttrType : int16_t {
 };
 
 enum class AttrDomain : int8_t {
-  /* Used to choose automatically based on other data. */
-  Auto = -1,
   /* Mesh, Curve or Point Cloud Point. */
   Point = 0,
   /* Mesh Edge. */
@@ -56,5 +54,17 @@ enum class AttrDomain : int8_t {
   Layer = 6,
 };
 #define ATTR_DOMAIN_NUM 7
+
+enum class AttrDomainSelection : int8_t {
+  /* Used to choose automatically based on other data. */
+  Auto = -1,
+  Point = int(AttrDomain::Point),
+  Edge = int(AttrDomain::Edge),
+  Face = int(AttrDomain::Face),
+  Corner = int(AttrDomain::Corner),
+  Curve = int(AttrDomain::Curve),
+  Instance = int(AttrDomain::Instance),
+  Layer = int(AttrDomain::Layer),
+};
 
 }  // namespace blender::bke

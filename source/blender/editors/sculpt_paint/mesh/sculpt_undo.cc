@@ -130,8 +130,6 @@ namespace ed::sculpt_paint::undo {
  *
  * End of dynamic topology and symmetrize in this mode are handled in a special manner as well. */
 
-#define NO_ACTIVE_LAYER bke::AttrDomain::Auto
-
 struct Node {
   Array<float3, 0> position;
   Array<float3, 0> orig_position;
@@ -167,7 +165,8 @@ struct Node {
 };
 
 struct SculptAttrRef {
-  bke::AttrDomain domain;
+  /** If this is nullopt, the ref is not referencing anything. */
+  std::optional<bke::AttrDomain> domain;
   eCustomDataType type;
   char name[MAX_CUSTOMDATA_LAYER_NAME];
   bool was_set;
@@ -1945,7 +1944,7 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
 {
   Mesh *mesh = BKE_object_get_original_mesh(&object);
   attr->was_set = true;
-  attr->domain = NO_ACTIVE_LAYER;
+  attr->domain.reset();
   attr->name[0] = 0;
   if (!mesh) {
     return;
@@ -2137,7 +2136,7 @@ void push_end(Object &ob)
 
 static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
 {
-  if (attr_ref->domain == bke::AttrDomain::Auto) {
+  if (!attr_ref->domain.has_value()) {
     return;
   }
 
@@ -2165,7 +2164,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
       if (ed::geometry::convert_attribute(owner,
                                           mesh->attributes_for_write(),
                                           attr_ref->name,
-                                          attr_ref->domain,
+                                          *attr_ref->domain,
                                           *bke::custom_data_type_to_attr_type(attr_ref->type),
                                           nullptr))
       {
@@ -2176,7 +2175,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
   if (!attributes.contains(attr_ref->name)) {
     /* Memfile undo killed the layer; re-create it. */
     mesh->attributes_for_write().add(attr_ref->name,
-                                     attr_ref->domain,
+                                     *attr_ref->domain,
                                      *bke::custom_data_type_to_attr_type(attr_ref->type),
                                      bke::AttributeInitDefaultValue());
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
