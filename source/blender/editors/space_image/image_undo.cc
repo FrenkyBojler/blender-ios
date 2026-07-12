@@ -745,7 +745,10 @@ static void image_undosys_step_encode_init(bContext * /*C*/, UndoStep *us_p)
   us->paint_tile_map = MEM_new<PaintTileMap>(__func__);
 }
 
-static bool image_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *us_p)
+static bool image_undosys_step_encode(bContext *C,
+                                      Main * /*bmain*/,
+                                      UndoStep *us_p,
+                                      bool /*changed*/)
 {
   /* Encoding is done along the way by adding tiles
    * to the current 'ImageUndoStep' added by encode_init.
@@ -1117,7 +1120,7 @@ void ED_image_undo_push(Image *image, ImBuf *ibuf, ImageUser *iuser, ImageUndoSt
 void ED_image_undo_push_end()
 {
   UndoStack *ustack = ED_undo_stack_get();
-  BKE_undosys_step_push(ustack, nullptr, nullptr);
+  BKE_undosys_step_push(ustack, nullptr, nullptr, UndoEncodeHints(0));
   BKE_undosys_stack_limit_steps_and_memory_defaults(ustack);
   WM_file_tag_modified();
 }

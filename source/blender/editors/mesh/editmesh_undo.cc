@@ -147,12 +147,6 @@ static bool um_customdata_layer_use_rle(const eCustomDataType type)
 #endif
 
 struct UndoMesh {
-  /**
-   * This undo-meshes in `um_arraystore.local_links`.
-   * Not to be confused with the next and previous undo steps.
-   */
-  UndoMesh *local_next, *local_prev;
-
   Mesh *mesh;
   char selectmode;
 
@@ -178,6 +172,19 @@ struct UndoMesh {
     BArrayState *mselect;
   } store;
 #endif /* USE_ARRAY_STORE */
+
+  int user_count;
+};
+
+struct UndoMeshContainer {
+  /**
+   * This undo-meshes in `um_arraystore.local_links`.
+   * Not to be confused with the next and previous undo steps.
+   */
+  UndoMeshContainer *local_next, *local_prev;
+
+  /** Data which may be shared (when the mesh doesn't change). */
+  UndoMesh *data;
 
   size_t undo_size;
 };
@@ -205,17 +212,17 @@ enum {
 };
 #  define ARRAY_STORE_INDEX_NUM (ARRAY_STORE_INDEX_MSEL + 1)
 
-struct UndoMesh;
+struct UndoMeshContainer;
 
 static struct {
   BArrayStore_AtSize bs_stride[ARRAY_STORE_INDEX_NUM];
   int users;
 
   /**
-   * A list of #UndoMesh items ordered from oldest to newest
+   * A list of #UndoMeshContainer items ordered from oldest to newest
    * used to access previous undo data for a mesh.
    */
-  ListBaseT<UndoMesh> local_links;
+  ListBaseT<UndoMeshContainer> local_links;
 
 #  ifdef USE_ARRAY_STORE_THREAD
   TaskPool *task_pool;
@@ -743,8 +750,8 @@ struct UMArrayData {
 };
 static void um_arraystore_compact_cb(TaskPool *__restrict /*pool*/, void *taskdata)
 {
-  UMArrayData *um_data = static_cast<UMArrayData *>(taskdata);
-  um_arraystore_compact_with_info(um_data->um, um_data->um_ref);
+  UMArrayData *um_array_data = static_cast<UMArrayData *>(taskdata);
+  um_arraystore_compact_with_info(um_array_data->um, um_array_data->um_ref);
 }
 
 #  endif /* USE_ARRAY_STORE_THREAD */
@@ -869,7 +876,7 @@ static void um_arraystore_free(UndoMesh *um)
  * \{ */
 
 /**
- * Create an array of #UndoMesh from `objects`.
+ * Create an array of #UndoMeshContainer from `objects`.
  *
  * where each element in the resulting array is the most recently created
  * undo-mesh for the object's mesh.
@@ -879,35 +886,40 @@ static void um_arraystore_free(UndoMesh *um)
  * failure to find the undo step will store a full duplicate in memory.
  * define `DEBUG_PRINT` to check memory is de-duplicating as expected.
  */
-static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, int object_len)
+static UndoMeshContainer **mesh_undostep_reference_elems_from_objects(Object **object,
+                                                                      int object_len)
 {
-  /* Map: `Mesh.id.session_uid` -> `UndoMesh`. */
-  Map<int, UndoMesh **> uuid_map;
+  /* Map: `Mesh.id.session_uid` -> `UndoMeshContainer`. */
+  Map<int, UndoMeshContainer **> uuid_map;
   uuid_map.reserve(object_len);
-  UndoMesh **um_references = MEM_new_array_zeroed<UndoMesh *>(object_len, __func__);
+  UndoMeshContainer **um_container_references = MEM_new_array_zeroed<UndoMeshContainer *>(
+      object_len, __func__);
   for (int i = 0; i < object_len; i++) {
     const Mesh *mesh = id_cast<const Mesh *>(object[i]->data);
-    uuid_map.add(mesh->id.session_uid, &um_references[i]);
+    uuid_map.add(mesh->id.session_uid, &um_container_references[i]);
   }
   int uuid_map_len = object_len;
 
   /* Loop backwards over all previous mesh undo data until either:
-   * - All elements have been found (where `um_references` we'll have every element set).
+   * - All elements have been found (where `um_container_references` we'll have every element set).
    * - There are no undo steps left to look for. */
-  UndoMesh *um_iter = static_cast<UndoMesh *>(um_arraystore.local_links.last);
-  while (um_iter && (uuid_map_len != 0)) {
-    if (UndoMesh **um_p = uuid_map.pop_default(um_iter->mesh->id.session_uid, nullptr)) {
-      *um_p = um_iter;
+  UndoMeshContainer *um_container_iter = static_cast<UndoMeshContainer *>(
+      um_arraystore.local_links.last);
+  while (um_container_iter && (uuid_map_len != 0)) {
+    if (UndoMeshContainer **um_container_p = uuid_map.pop_default(
+            um_container_iter->data->mesh->id.session_uid, nullptr))
+    {
+      *um_container_p = um_container_iter;
       uuid_map_len--;
     }
-    um_iter = um_iter->local_prev;
+    um_container_iter = um_container_iter->local_prev;
   }
   BLI_assert(uuid_map_len == uuid_map.size());
   if (uuid_map_len == object_len) {
-    MEM_delete(um_references);
-    um_references = nullptr;
+    MEM_delete(um_container_references);
+    um_container_references = nullptr;
   }
-  return um_references;
+  return um_container_references;
 }
 
 /** \} */
@@ -922,26 +934,52 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 /* undo simply makes copies of a bmesh */
 /**
  *
- * Copy data from `em` into `um`.
+ * Copy data from `em` into `um_container`.
  *
- * \param um_ref: The reference to use for de-duplicating memory between undo-steps.
+ * \param um_container_prev: This object's container in the previous mesh undo step
+ * (in the undo stack), null when the object has no element in that step.
+ * \param um_container_ref: The reference to use for de-duplicating memory between undo-steps.
+ * \param changed: When false the edit-mesh is known not to have changed since
+ * `um_container_prev`, so its data is shared instead of storing a new copy.
  *
  * \note See #undomesh_to_editmesh for an explanation for why passing in data-blocks is avoided.
  */
-static void *undomesh_from_editmesh(UndoMesh *um,
+static void *undomesh_from_editmesh(UndoMeshContainer *um_container,
                                     BMEditMesh *em,
                                     Key *key,
                                     const ListBaseT<bDeformGroup> *vertex_group_names,
                                     const int vertex_group_active_index,
-                                    UndoMesh *um_ref)
+                                    UndoMeshContainer *um_container_prev,
+                                    UndoMeshContainer *um_container_ref,
+                                    bool changed)
 {
-  BLI_assert(BLI_array_is_zeroed(um, 1));
+  BLI_assert(BLI_array_is_zeroed(um_container, 1));
 #ifdef USE_ARRAY_STORE_THREAD
   /* changes this waits is low, but must have finished */
   if (um_arraystore.task_pool) {
     BLI_task_pool_work_and_wait(um_arraystore.task_pool);
   }
 #endif
+
+  if ((changed == false) && (um_container_prev != nullptr)) {
+    /* Nothing changed, share the data from the previous undo step. */
+
+    /* Paranoid check: `changed` must not be false when the mesh was in fact modified. */
+    BLI_assert(um_container_prev->data->mesh->verts_num == em->bm->totvert);
+    BLI_assert(um_container_prev->data->mesh->edges_num == em->bm->totedge);
+    BLI_assert(um_container_prev->data->mesh->faces_num == em->bm->totface);
+
+    um_container->data = um_container_prev->data;
+    um_container->data->user_count += 1;
+#ifdef USE_ARRAY_STORE
+    BLI_addtail(&um_arraystore.local_links, um_container);
+#endif
+    return um_container;
+  }
+
+  um_container->data = MEM_new<UndoMesh>(__func__);
+  UndoMesh *um = um_container->data;
+  um->user_count = 1;
 
   um->mesh = bke::mesh_new_no_attributes(0, 0, 0, 0);
 
@@ -992,38 +1030,39 @@ static void *undomesh_from_editmesh(UndoMesh *um,
 #ifdef USE_ARRAY_STORE
   {
     /* Add ourselves. */
-    BLI_addtail(&um_arraystore.local_links, um);
+    BLI_addtail(&um_arraystore.local_links, um_container);
 
 #  ifdef USE_ARRAY_STORE_THREAD
     if (um_arraystore.task_pool == nullptr) {
       um_arraystore.task_pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_LOW);
     }
 
-    UMArrayData *um_data = MEM_new_uninitialized<UMArrayData>(__func__);
-    um_data->um = um;
-    um_data->um_ref = um_ref;
+    UMArrayData *um_array_data = MEM_new_uninitialized<UMArrayData>(__func__);
+    um_array_data->um = um;
+    um_array_data->um_ref = um_container_ref ? um_container_ref->data : nullptr;
 
-    BLI_task_pool_push(um_arraystore.task_pool, um_arraystore_compact_cb, um_data, true, nullptr);
+    BLI_task_pool_push(
+        um_arraystore.task_pool, um_arraystore_compact_cb, um_array_data, true, nullptr);
 #  else
-    um_arraystore_compact_with_info(um, um_ref);
+    um_arraystore_compact_with_info(um, um_container_ref ? um_container_ref->data : nullptr);
 #  endif
   }
 #else
-  UNUSED_VARS(um_ref);
+  UNUSED_VARS(um_container_ref);
 #endif
 
-  return um;
+  return um_container;
 }
 
 /**
- * Copy data from `um` into `em`.
+ * Copy data from `um_container` into `em`.
  *
  * \note while `em` defines the "edit-mesh" there are some exceptions which are intentionally
  * kept as separate arguments instead of passing in the #Object or #Mesh data blocks.
  * This is done to avoid confusion from passing in multiple meshes, where it's not always clear
  * what the source of truth is for mesh data - which can make the logic difficult to reason about.
  */
-static void undomesh_to_editmesh(UndoMesh *um,
+static void undomesh_to_editmesh(UndoMeshContainer *um_container,
                                  BMEditMesh *em,
                                  ListBaseT<bDeformGroup> *vertex_group_names,
                                  int *vertex_group_active_index)
@@ -1041,12 +1080,14 @@ static void undomesh_to_editmesh(UndoMesh *um,
   TIMEIT_START(mesh_undo_expand);
 #  endif
 
-  um_arraystore_expand(um);
+  um_arraystore_expand(um_container->data);
 
 #  ifdef DEBUG_TIME
   TIMEIT_END(mesh_undo_expand);
 #  endif
 #endif /* USE_ARRAY_STORE */
+
+  UndoMesh *um = um_container->data;
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(um->mesh);
 
@@ -1086,8 +1127,23 @@ static void undomesh_to_editmesh(UndoMesh *um,
 #endif
 }
 
-static void undomesh_free_data(UndoMesh *um)
+static void undomesh_free_data(UndoMeshContainer *um_container)
 {
+  UndoMesh *um = um_container->data;
+
+#ifdef USE_ARRAY_STORE
+  BLI_assert(BLI_findindex(&um_arraystore.local_links, um_container) != -1);
+  BLI_remlink(&um_arraystore.local_links, um_container);
+#endif
+
+  um_container->data = nullptr;
+  um->user_count -= 1;
+  BLI_assert(um->user_count >= 0);
+  if (um->user_count != 0) {
+    /* Data is shared with other undo steps, the last user frees it. */
+    return;
+  }
+
   Mesh *mesh = um->mesh;
 
 #ifdef USE_ARRAY_STORE
@@ -1100,9 +1156,6 @@ static void undomesh_free_data(UndoMesh *um)
   /* We need to expand so any allocations in custom-data are freed with the mesh. */
   um_arraystore_expand(um);
 
-  BLI_assert(BLI_findindex(&um_arraystore.local_links, um) != -1);
-  BLI_remlink(&um_arraystore.local_links, um);
-
   um_arraystore_free(um);
 #endif
 
@@ -1113,6 +1166,7 @@ static void undomesh_free_data(UndoMesh *um)
 
   BKE_id_free(nullptr, mesh);
   um->mesh = nullptr;
+  MEM_delete(um);
 }
 
 static Object *editmesh_object_from_context(bContext *C)
@@ -1141,7 +1195,7 @@ static Object *editmesh_object_from_context(bContext *C)
 
 struct MeshUndoStep_Elem {
   UndoRefID_Object obedit_ref;
-  UndoMesh data;
+  UndoMeshContainer data;
 };
 
 /**
@@ -1165,12 +1219,53 @@ struct MeshUndoStep {
   uint elems_len;
 };
 
+/**
+ * Find the previous mesh undo step in the undo stack, null when there is none.
+ *
+ * \note Scan from the active step since `us_p` is only added to the stack
+ * once encoding succeeds, so `us_p->prev` can't be used.
+ */
+static MeshUndoStep *mesh_undostep_prev_find(const UndoStep *us_p)
+{
+  UndoStep *us_iter = ED_undo_stack_get()->step_active;
+  while (us_iter && (us_iter->type != us_p->type)) {
+    us_iter = us_iter->prev;
+  }
+  return reinterpret_cast<MeshUndoStep *>(us_iter);
+}
+
+/**
+ * Find the undo container for `mesh` in `us`, null when the mesh has no element in this step.
+ *
+ * Match by the mesh session UID since ID pointers in `obedit_ref` are cleared after encoding.
+ *
+ * \param elem_index_hint: The element index to check first,
+ * since the set of objects rarely changes between steps.
+ */
+static UndoMeshContainer *mesh_undostep_container_from_mesh_find(MeshUndoStep *us,
+                                                                 const Mesh *mesh,
+                                                                 const uint elem_index_hint)
+{
+  const uint session_uid = mesh->id.session_uid;
+  if ((elem_index_hint < us->elems_len) &&
+      (us->elems[elem_index_hint].data.data->mesh->id.session_uid == session_uid))
+  {
+    return &us->elems[elem_index_hint].data;
+  }
+  for (uint i = 0; i < us->elems_len; i++) {
+    if (us->elems[i].data.data->mesh->id.session_uid == session_uid) {
+      return &us->elems[i].data;
+    }
+  }
+  return nullptr;
+}
+
 static bool mesh_undosys_poll(bContext *C)
 {
   return editmesh_object_from_context(C) != nullptr;
 }
 
-static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
+static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p, bool changed)
 {
   MeshUndoStep *us = reinterpret_cast<MeshUndoStep *>(us_p);
 
@@ -1185,11 +1280,15 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   us->elems = MEM_new_array_zeroed<MeshUndoStep_Elem>(objects.size(), __func__);
   us->elems_len = objects.size();
 
-  UndoMesh **um_references = nullptr;
+  UndoMeshContainer **um_container_references = nullptr;
 
 #ifdef USE_ARRAY_STORE
-  um_references = mesh_undostep_reference_elems_from_objects(objects.data(), objects.size());
+  um_container_references = mesh_undostep_reference_elems_from_objects(objects.data(),
+                                                                       objects.size());
 #endif
+
+  /* When nothing changed, data can be shared with the previous mesh undo step in the stack. */
+  MeshUndoStep *us_prev = (changed == false) ? mesh_undostep_prev_find(us_p) : nullptr;
 
   {
     MeshUndoStep_SceneData &scene_data = us->scene_data;
@@ -1206,24 +1305,48 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     elem->obedit_ref.ptr = obedit;
     Mesh *mesh = id_cast<Mesh *>(elem->obedit_ref.ptr->data);
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
+
+    /* This object's container in the previous step (only used for sharing unchanged data). */
+    UndoMeshContainer *um_container_prev = us_prev ? mesh_undostep_container_from_mesh_find(
+                                                         us_prev, mesh, i) :
+                                                     nullptr;
+
+    /* XXX: debug prints, remove. */
+    if ((changed == false) && (um_container_prev != nullptr)) {
+      printf("mesh undo '%s': \"%s\" shares data with the previous step (user_count %d -> %d)\n",
+             us_p->name,
+             mesh->id.name + 2,
+             um_container_prev->data->user_count,
+             um_container_prev->data->user_count + 1);
+    }
+    else {
+      printf("mesh undo '%s': \"%s\" stores new data (changed=%d, has_prev=%d)\n",
+             us_p->name,
+             mesh->id.name + 2,
+             int(changed),
+             int(um_container_prev != nullptr));
+    }
+
     undomesh_from_editmesh(&elem->data,
                            em,
                            mesh->key,
                            &mesh->vertex_group_names,
                            mesh->vertex_group_active_index,
-                           um_references ? um_references[i] : nullptr);
-
-    em->needs_flush_to_id = 1;
+                           um_container_prev,
+                           um_container_references ? um_container_references[i] : nullptr,
+                           changed);
+    if (changed) {
+      em->needs_flush_to_id = 1;
+    }
     us->step.data_size += elem->data.undo_size;
 
-#ifdef USE_ARRAY_STORE
-    /** As this is only data storage it is safe to set the session ID here. */
-    elem->data.mesh->id.session_uid = mesh->id.session_uid;
-#endif
+    /* As this is only data storage it is safe to set the session ID here.
+     * Used to find this mesh in previous undo steps. */
+    elem->data.data->mesh->id.session_uid = mesh->id.session_uid;
   }
 
-  if (um_references != nullptr) {
-    MEM_delete(um_references);
+  if (um_container_references != nullptr) {
+    MEM_delete(um_container_references);
   }
 
   bmain->is_memfile_undo_flush_needed = true;
@@ -1337,7 +1460,7 @@ void ED_mesh_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = mesh_undosys_foreach_ID_ref;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_ENCODE_PRE_MEMFILE_SUPPORTED;
 
   ut->step_size = sizeof(MeshUndoStep);
 }

@@ -55,7 +55,7 @@ struct PointCloudUndoStep {
   Array<StepObject> objects;
 };
 
-static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
+static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p, bool /*changed*/)
 {
   PointCloudUndoStep *us = reinterpret_cast<PointCloudUndoStep *>(us_p);
 

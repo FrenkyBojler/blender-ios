@@ -6,15 +6,19 @@
  * \ingroup edundo
  */
 
+#include <atomic>
 #include <cstring>
 
 #include "CLG_log.h"
 
+#include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.hh"
+#include "BLI_task.hh"
 #include "BLI_utildefines.hh"
+#include "BLI_vector.hh"
 
 #include "BKE_blender_undo.hh"
 #include "BKE_callbacks.hh"
@@ -22,6 +26,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -95,7 +100,7 @@ void ED_undo_group_end(bContext *C)
   BKE_undosys_stack_group_end(wm->runtime->undo_stack);
 }
 
-void ED_undo_push(bContext *C, const char *str)
+void ED_undo_push(bContext *C, const char *str, UndoEncodeHints hints)
 {
   CLOG_INFO(&LOG, "Push '%s'", str);
   WM_file_tag_modified();
@@ -136,7 +141,7 @@ void ED_undo_push(bContext *C, const char *str)
     BKE_undosys_stack_limit_steps_and_memory(wm->runtime->undo_stack, steps - 1, 0);
   }
 
-  push_retval = BKE_undosys_step_push(wm->runtime->undo_stack, C, str);
+  push_retval = BKE_undosys_step_push(wm->runtime->undo_stack, C, str, hints);
 
   if (U.undomemory != 0) {
     const size_t memory_limit = size_t(U.undomemory) * 1024 * 1024;
@@ -339,7 +344,16 @@ static int ed_undo_step_by_index(bContext *C, const int undo_index, ReportList *
   return OPERATOR_FINISHED;
 }
 
-void ED_undo_grouped_push(bContext *C, const char *str)
+static bool ed_undo_grouped_check_by_name(const UndoStack *ustack, const char *str)
+{
+  const UndoStep *us = ustack->step_active;
+  if (us && STREQ(str, us->name)) {
+    return true;
+  }
+  return false;
+}
+
+void ED_undo_grouped_push(bContext *C, const char *str, UndoEncodeHints hints)
 {
   /* do nothing if previous undo task is the same as this one (or from the same undo group) */
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -350,13 +364,12 @@ void ED_undo_grouped_push(bContext *C, const char *str)
       return;
     }
   }
-  const UndoStep *us = ustack->step_active;
-  if (us && STREQ(str, us->name)) {
+  if (ed_undo_grouped_check_by_name(ustack, str)) {
     BKE_undosys_stack_clear_active(ustack);
   }
 
   /* push as usual */
-  ED_undo_push(C, str);
+  ED_undo_push(C, str, hints);
 }
 
 void ED_undo_pop(bContext *C)
@@ -368,20 +381,134 @@ void ED_undo_redo(bContext *C)
   ed_undo_step_direction(C, STEP_REDO, nullptr);
 }
 
+static void ed_undo_push_check_id_changes_fn(const ID *id_first, std::atomic<bool> &modified)
+{
+  const short id_type = GS(id_first->name);
+  for (const ID *id = id_first; id && !modified.load(); id = static_cast<ID *>(id->next)) {
+    if (id->recalc_after_undo_push == false) {
+      continue;
+    }
+
+    /* Skip data in edit-mode: changes are stored by the modes own undo system and
+     * practically all edit-mode operations tag the data being edited.
+     *
+     * XXX: curves/point-cloud/grease-pencil need the object to detect edit-mode
+     * so they are never skipped, in those modes this check is likely to
+     * request memfile undo steps for every operator. */
+    if (OB_DATA_SUPPORT_EDITMODE(id_type) && BKE_object_data_is_in_editmode(nullptr, id)) {
+      continue;
+    }
+    /* Skip shape-keys on data in edit-mode for the same reason. */
+    if (id_type == ID_KE) {
+      const ID *key_from = reinterpret_cast<const ID *>(reinterpret_cast<const Key *>(id)->from);
+      if (key_from && OB_DATA_SUPPORT_EDITMODE(GS(key_from->name)) &&
+          BKE_object_data_is_in_editmode(nullptr, key_from))
+      {
+        continue;
+      }
+    }
+
+    modified.store(true);
+  }
+}
+
+/**
+ * Check if any ID's have changes only the memfile undo system would store.
+ *
+ * Note that #Main::is_memfile_undo_written only detects adding/removing/renaming ID's,
+ * modifying existing ID's in-place (adding a modifier to an object e.g.) is detected
+ * by scanning for ID's tagged since the last memfile undo step,
+ * using the same tag the memfile undo system uses to replay changes.
+ */
+static bool ed_undo_push_check_id_changes_outside_mode(Main *bmain)
+{
+  /* ID's added/removed/renamed. */
+  if (bmain->is_memfile_undo_written == false) {
+    return true;
+  }
+
+  /* Gather modified ID's, skipping ID types that are not stored by undo.
+   * Done serially since scanning lists in parallel performs poorly
+   * when practically all items are skipped. */
+  Vector<const ID *> ids;
+  const MainListsArray lbarray = BKE_main_lists_get(*bmain);
+  for (const ListBaseT<ID> *lb : lbarray) {
+    const ID *id_first = static_cast<const ID *>(lb->first);
+    if ((id_first == nullptr) || !ID_CHECK_UNDO(id_first)) {
+      continue;
+    }
+    ids.append(id_first);
+  }
+
+  /* Check the gathered ID's in parallel, one thread for each ID. */
+  std::atomic<bool> modified = false;
+  threading::parallel_for(ids.index_range(), 1, [&](const IndexRange range) {
+    for (const int64_t i : range) {
+      if (modified.load()) {
+        break;
+      }
+      ed_undo_push_check_id_changes_fn(ids[i], modified);
+    }
+  });
+
+  return modified.load();
+}
+
+static UndoEncodeHints undo_encode_hints_from_context(bContext *C,
+                                                      const char *str,
+                                                      const bool check_grouped)
+{
+  const UndoStack *ustack = CTX_wm_manager(C)->runtime->undo_stack;
+  UndoEncodeHints hints = UndoEncodeHints(0);
+
+  bool check_pre_memfile = true;
+  /* If this is a grouped undo step,  */
+  if (check_grouped) {
+    if (ed_undo_grouped_check_by_name(ustack, str)) {
+      const UndoStep *us = ustack->step_active;
+      if (us->prev && us->prev->skip && (us->prev->type == BKE_UNDOSYS_TYPE_MEMFILE)) {
+        check_pre_memfile = false;
+      }
+    }
+  }
+
+  if (check_pre_memfile) {
+    /* Match the undo type #BKE_undosys_step_push uses,
+     * the context is only a fallback when no undo step has been initialized. */
+    const UndoType *ut = (ustack && ustack->step_init) ? ustack->step_init->type :
+                                                         BKE_undosys_type_from_context(C);
+
+    if (ELEM(ut, nullptr, BKE_UNDOSYS_TYPE_MEMFILE)) {
+      /* Do nothing. */
+    }
+    else if (ut->flags & UNDOTYPE_FLAG_ENCODE_PRE_MEMFILE_SUPPORTED) {
+      /* When the undo step for this operator is not stored in the memfile undo system,
+       * changes to ID's made by the operator would be excluded from the undo step.
+       * Request a memfile undo step before this operators step so they're included. */
+      Main *bmain = CTX_data_main(C);
+      if (ed_undo_push_check_id_changes_outside_mode(bmain)) {
+        printf("Added memfile undo step: %s\n", str);
+        hints |= UndoEncodeHints::PreMemFileChanges;
+      }
+    }
+  }
+
+  return hints;
+}
+
 void ED_undo_push_op(bContext *C, wmOperator *op)
 {
+  UndoEncodeHints hints = undo_encode_hints_from_context(C, op->type->name, false);
+
   /* in future, get undo string info? */
-  ED_undo_push(C, op->type->name);
+  ED_undo_push(C, op->type->name, hints);
 }
 
 void ED_undo_grouped_push_op(bContext *C, wmOperator *op)
 {
-  if (op->type->undo_group[0] != '\0') {
-    ED_undo_grouped_push(C, op->type->undo_group);
-  }
-  else {
-    ED_undo_grouped_push(C, op->type->name);
-  }
+  const char *str = (op->type->undo_group[0] != '\0') ? op->type->undo_group : op->type->name;
+  UndoEncodeHints hints = undo_encode_hints_from_context(C, str, true);
+  ED_undo_grouped_push(C, str, hints);
 }
 
 void ED_undo_pop_op(bContext *C, wmOperator *op)
@@ -423,20 +550,31 @@ bool ED_undo_is_memfile_compatible(const bContext *C)
   return true;
 }
 
-bool ED_undo_is_legacy_compatible_for_property(bContext *C,
-                                               ID *id,
-                                               const PointerRNA &ptr,
-                                               const PropertyRNA &prop)
+std::optional<UndoEncodeHints> ED_undo_is_legacy_compatible_for_property(bContext *C,
+                                                                         ID *id,
+                                                                         const PointerRNA &ptr,
+                                                                         const PropertyRNA &prop)
 {
   if (!RNA_property_undo_check(&prop, ptr.type)) {
-    return false;
+    return std::nullopt;
   }
   /* If the whole ID type doesn't support undo there is no need to check the current context. */
   if (id && !ID_CHECK_UNDO(id)) {
-    return false;
+    return std::nullopt;
   }
 
-  const Main *bmain = CTX_data_main(C);
+  if (ELEM(&prop,
+           /* Exception for renaming ID data, we always need undo pushes in this case,
+            * because undo systems track data by their ID, see: #67002. */
+           &rna_ID_name,
+           /* Exception for active shape-key, since changing this in edit-mode updates
+            * the shape key from object mode data. */
+           &rna_Object_active_shape_key_index))
+  {
+    return UndoEncodeHints(0);
+  }
+
+  Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   if (view_layer != nullptr) {
@@ -447,7 +585,7 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C,
         /* Changing properties while in sculpt mode is expensive due to the paint BVH rebuild.
          * Avoid pushing such undo steps for now. */
         CLOG_DEBUG(&LOG, "skipping undo for sculpt-mode");
-        return false;
+        return std::nullopt;
       }
       if (obact->mode & OB_MODE_EDIT) {
         if ((id == nullptr) || (obact->data == nullptr) ||
@@ -463,15 +601,16 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C,
           }
 
           if (skip_undo) {
-            /* No undo push on id type mismatch in edit-mode. */
-            CLOG_DEBUG(&LOG, "skipping undo for edit-mode");
-            return false;
+            /* The property isn't stored by edit-mode undo steps (id type mismatch),
+             * store the change in a memfile step, the edit-mode step has no changes itself. */
+            CLOG_DEBUG(&LOG, "memfile-only undo for edit-mode");
+            return UndoEncodeHints::PreMemFileChanges | UndoEncodeHints::HasMemFileChangesOnly;
           }
         }
       }
     }
   }
-  return true;
+  return UndoEncodeHints(0);
 }
 
 UndoStack *ED_undo_stack_get()

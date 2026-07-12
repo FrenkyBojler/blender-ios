@@ -351,7 +351,7 @@ static bool font_undosys_poll(bContext *C)
   return editfont_object_from_context(C) != nullptr;
 }
 
-static bool font_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
+static bool font_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p, bool /*changed*/)
 {
   FontUndoStep *us = reinterpret_cast<FontUndoStep *>(us_p);
   us->scene_ref.ptr = CTX_data_scene(C);
@@ -418,7 +418,7 @@ void ED_font_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = font_undosys_foreach_ID_ref;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_ENCODE_PRE_MEMFILE_SUPPORTED;
 
   ut->step_size = sizeof(FontUndoStep);
 }

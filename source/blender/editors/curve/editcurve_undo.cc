@@ -207,7 +207,7 @@ static bool curve_undosys_poll(bContext *C)
   return (obedit != nullptr);
 }
 
-static bool curve_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
+static bool curve_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p, bool /*changed*/)
 {
   CurveUndoStep *us = reinterpret_cast<CurveUndoStep *>(us_p);
 
@@ -314,7 +314,7 @@ void ED_curve_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = curve_undosys_foreach_ID_ref;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_ENCODE_PRE_MEMFILE_SUPPORTED;
 
   ut->step_size = sizeof(CurveUndoStep);
 }

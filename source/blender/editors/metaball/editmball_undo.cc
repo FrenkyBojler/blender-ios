@@ -152,7 +152,7 @@ static bool mball_undosys_poll(bContext *C)
   return editmball_object_from_context(C) != nullptr;
 }
 
-static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
+static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p, bool /*changed*/)
 {
   MBallUndoStep *us = reinterpret_cast<MBallUndoStep *>(us_p);
 
@@ -258,7 +258,7 @@ void ED_mball_undosys_type(UndoType *ut)
 
   ut->step_foreach_ID_ref = mball_undosys_foreach_ID_ref;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_ENCODE_PRE_MEMFILE_SUPPORTED;
 
   ut->step_size = sizeof(MBallUndoStep);
 }

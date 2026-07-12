@@ -94,7 +94,10 @@ static void paintcurve_undosys_step_encode_init(bContext *C, UndoStep *us_p)
   UNUSED_VARS(C, us_p);
 }
 
-static bool paintcurve_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *us_p)
+static bool paintcurve_undosys_step_encode(bContext *C,
+                                           Main * /*bmain*/,
+                                           UndoStep *us_p,
+                                           bool /*changed*/)
 {
   /* FIXME Double check this, it should not be needed here at all? undo system is supposed to
    * ensure that. */
@@ -174,7 +177,7 @@ void ED_paintcurve_undo_push_begin(const char *name)
 void ED_paintcurve_undo_push_end(bContext *C)
 {
   UndoStack *ustack = ED_undo_stack_get();
-  BKE_undosys_step_push(ustack, C, nullptr);
+  BKE_undosys_step_push(ustack, C, nullptr, UndoEncodeHints(0));
   BKE_undosys_stack_limit_steps_and_memory_defaults(ustack);
   WM_file_tag_modified();
 }

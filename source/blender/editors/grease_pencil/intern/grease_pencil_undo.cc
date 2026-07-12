@@ -321,7 +321,7 @@ struct GreasePencilUndoStep {
   Array<StepObject> objects;
 };
 
-static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
+static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p, bool /*changed*/)
 {
   GreasePencilUndoStep *us = reinterpret_cast<GreasePencilUndoStep *>(us_p);
   StepEncodeStatus encode_status;
@@ -414,7 +414,7 @@ void ED_undosys_type_grease_pencil(UndoType *ut)
 
   ut->step_foreach_ID_ref = greasepencil::undo::foreach_ID_ref;
 
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_ENCODE_PRE_MEMFILE_SUPPORTED;
 
   ut->step_size = sizeof(greasepencil::undo::GreasePencilUndoStep);
 }

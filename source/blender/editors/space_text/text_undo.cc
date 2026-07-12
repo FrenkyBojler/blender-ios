@@ -158,7 +158,10 @@ static void text_undosys_step_encode_init(bContext *C, UndoStep *us_p)
   us->text_ref.ptr = text;
 }
 
-static bool text_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *us_p)
+static bool text_undosys_step_encode(bContext *C,
+                                     Main * /*bmain*/,
+                                     UndoStep *us_p,
+                                     bool /*changed*/)
 {
   TextUndoStep *us = reinterpret_cast<TextUndoStep *>(us_p);
 

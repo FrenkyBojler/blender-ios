@@ -70,7 +70,10 @@ static bool memfile_undosys_poll(bContext *C)
   return true;
 }
 
-static bool memfile_undosys_step_encode(bContext * /*C*/, Main *bmain, UndoStep *us_p)
+static bool memfile_undosys_step_encode(bContext * /*C*/,
+                                        Main *bmain,
+                                        UndoStep *us_p,
+                                        bool /*changed*/)
 {
   MemFileUndoStep *us = reinterpret_cast<MemFileUndoStep *>(us_p);
 
