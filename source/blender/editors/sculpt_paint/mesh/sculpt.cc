@@ -2884,20 +2884,20 @@ static void calc_brush_local_mat(const float rotation,
   mat[2][3] = 0.0f;
   mat[3][3] = 1.0f;
 
-  /* Read rotation (user angle, rake, etc.) to find the view's movement direction (negative X of
-   * the brush). */
-  angle = rotation + cache->special_rotation;
-  /* By convention, motion direction points down the brush's Y axis, the angle represents the X
-   * axis, normal is a 90 deg CCW rotation of the motion direction. */
-  float motion_normal_screen[2];
-  motion_normal_screen[0] = cosf(angle);
-  motion_normal_screen[1] = sinf(angle);
-
   float motion_normal_local[3];
 
   /* If rotation is not zero, then we are not calculating local matrix for cube tips, but for
    * texture. */
   if (rotation != 0) {
+    /* Read rotation (user angle, rake, etc.) to find the view's movement direction (negative X of
+     * the brush). */
+    angle = rotation + cache->special_rotation;
+    /* By convention, motion direction points down the brush's Y axis, the angle represents the X
+     * axis, normal is a 90 deg CCW rotation of the motion direction. */
+    float motion_normal_screen[2];
+    motion_normal_screen[0] = cosf(angle);
+    motion_normal_screen[1] = sinf(angle);
+
     /* Convert view's brush transverse direction to object-space,
      * i.e. the normal of the plane described by the motion */
     calc_local_from_screen(
