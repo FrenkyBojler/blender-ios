@@ -5503,6 +5503,7 @@ static wmOperatorStatus grease_pencil_stroke_boolean_exec(bContext *C, wmOperato
 
   const bool keep_caps = RNA_boolean_get(op->ptr, "keep_caps");
   op_params.boolean_mode = carver::Operation(RNA_enum_get(op->ptr, "boolean_mode"));
+  op_params.keep_caps = keep_caps;
   // const bool individual = RNA_boolean_get(op->ptr, "individual");
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -5548,8 +5549,7 @@ static wmOperatorStatus grease_pencil_stroke_boolean_exec(bContext *C, wmOperato
 
   const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
 
-  bke::CurvesGeometry dst_strokes = carver::curve_boolean(
-      op_params, src, fills, normal_planes, clipping_fills, layer_to_world, *region, keep_caps);
+  bke::CurvesGeometry dst_strokes = carver::curve_boolean(op_params, src, fills, clipping_fills);
 
   dst_strokes.attributes_for_write().remove(".positions_2d");
 
