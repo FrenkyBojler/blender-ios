@@ -4514,10 +4514,7 @@ static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush
   if (bke::brush::supports_hardness_pressure(brush) &&
       brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE)
   {
-    const float hardness_factor = brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
-                                      1.0f - cache.pressure :
-                                      cache.pressure;
-    cache.hardness *= BKE_curvemapping_evaluateF(brush.curve_hardness, 0, hardness_factor);
+    cache.hardness *= BKE_curvemapping_evaluateF(brush.curve_hardness, 0, cache.pressure);
   }
 
   cache.paint_brush.flow = brush.flow;

@@ -852,7 +852,6 @@ def brush_settings(layout, context, brush, popover=False):
         if capabilities.has_hardness:
             row.prop(brush, "hardness", slider=True)
             if capabilities.has_hardness_pressure:
-                row.prop(brush, "invert_hardness_pressure", text="")
                 row.prop(brush, "use_hardness_pressure", text="")
                 if not popover:
                     UnifiedPaintPanel.prop_custom_pressure(
