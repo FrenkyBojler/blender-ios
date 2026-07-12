@@ -11,6 +11,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <array>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
@@ -36,6 +38,104 @@ namespace blender {
 
 /* Node Link Functions */
 
+static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink *link,
+                                                              const GPUType type)
+{
+  switch (type) {
+    case GPU_FLOAT:
+      return *std::get<const float *>(link->data);
+    case GPU_VEC2: {
+      const float *data = std::get<const float *>(link->data);
+      return float2(data[0], data[1]);
+    }
+    case GPU_VEC3: {
+      const float *data = std::get<const float *>(link->data);
+      return float3(data[0], data[1], data[2]);
+    }
+    case GPU_VEC4: {
+      const float *data = std::get<const float *>(link->data);
+      return float4(data[0], data[1], data[2], data[3]);
+    }
+    case GPU_MAT4: {
+      std::array<float, 16> mat4;
+      memcpy(mat4.data(), std::get<const float *>(link->data), sizeof(mat4));
+      return mat4;
+    }
+    case GPU_INT:
+      return *std::get<const int *>(link->data);
+    case GPU_INT2: {
+      const int *data = std::get<const int *>(link->data);
+      return int2(data[0], data[1]);
+    }
+    case GPU_INT3: {
+      const int *data = std::get<const int *>(link->data);
+      return int3(data[0], data[1], data[2]);
+    }
+    case GPU_INT4: {
+      const int *data = std::get<const int *>(link->data);
+      return int4(data[0], data[1], data[2], data[3]);
+    }
+    case GPU_BOOL:
+      return *std::get<const bool *>(link->data);
+    default:
+      BLI_assert_unreachable();
+      return {};
+  }
+}
+
+Span<const float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type)
+{
+  switch (type) {
+    case GPU_FLOAT:
+      return Span<const float>(&std::get<float>(data), 1);
+    case GPU_VEC2: {
+      const float2 &value = std::get<float2>(data);
+      return Span<const float>(&value.x, 2);
+    }
+    case GPU_VEC3: {
+      const float3 &value = std::get<float3>(data);
+      return Span<const float>(&value.x, 3);
+    }
+    case GPU_VEC4: {
+      const float4 &value = std::get<float4>(data);
+      return Span<const float>(&value.x, 4);
+    }
+    case GPU_MAT4:
+      return Span<const float>(std::get<std::array<float, 16>>(data).data(), 16);
+    default:
+      BLI_assert_unreachable();
+      return {};
+  }
+}
+
+Span<const int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type)
+{
+  switch (type) {
+    case GPU_INT:
+      return Span<const int>(&std::get<int>(data), 1);
+    case GPU_INT2: {
+      const int2 &value = std::get<int2>(data);
+      return Span<const int>(&value.x, 2);
+    }
+    case GPU_INT3: {
+      const int3 &value = std::get<int3>(data);
+      return Span<const int>(&value.x, 3);
+    }
+    case GPU_INT4: {
+      const int4 &value = std::get<int4>(data);
+      return Span<const int>(&value.x, 4);
+    }
+    default:
+      BLI_assert_unreachable();
+      return {};
+  }
+}
+
+bool gpu_constant_to_bool(const GPUInputConstantData &data)
+{
+  return std::get<bool>(data);
+}
+
 static GPUNodeLink *gpu_node_link_create()
 {
   GPUNodeLink *link = MEM_new<GPUNodeLink>("GPUNodeLink");
@@ -56,7 +156,6 @@ static void gpu_node_link_free(GPUNodeLink *link)
     if (link->output) {
       link->output->link = nullptr;
     }
-    MEM_SAFE_DELETE(link->constant_value);
     MEM_delete(link);
   }
 }
@@ -86,7 +185,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
     input = static_cast<GPUInput *>(outnode->inputs.first);
 
     if (STR_ELEM(name, "set_value", "set_rgb", "set_rgba") && (input->type == type)) {
-      input = MEM_new<GPUInput>(__func__, *input);
+      input = MEM_dupalloc(static_cast<GPUInput *>(outnode->inputs.first));
 
       switch (input->source) {
         case GPU_SOURCE_ATTR:
@@ -176,16 +275,10 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
   }
 
   if (ELEM(input->source, GPU_SOURCE_CONSTANT, GPU_SOURCE_UNIFORM)) {
-    if (link->constant_value != nullptr) {
-      input->constant_value = *link->constant_value;
-    }
-    else {
-      input->constant_value = gpu_value_from_float_data(type, link->data);
-    }
+    input->constant_data = gpu_input_constant_data_from_link(link, type);
   }
 
   if (link->link_type != GPU_NODE_LINK_OUTPUT) {
-    MEM_SAFE_DELETE(link->constant_value);
     MEM_delete(link);
   }
   BLI_addtail(&node->inputs, input);
@@ -690,40 +783,36 @@ GPUNodeLink *GPU_uniform(const float *num)
   return link;
 }
 
-GPUNodeLink *GPU_constant(const GPUValue &value)
+GPUNodeLink *GPU_constant(const int *num)
 {
   GPUNodeLink *link = gpu_node_link_create();
   link->link_type = GPU_NODE_LINK_CONSTANT;
-  link->constant_value = MEM_new<GPUValue>(__func__, value);
+  link->data = num;
   return link;
 }
 
-GPUNodeLink *GPU_uniform(const GPUValue &value)
+GPUNodeLink *GPU_uniform(const int *num)
 {
   GPUNodeLink *link = gpu_node_link_create();
   link->link_type = GPU_NODE_LINK_UNIFORM;
-  link->constant_value = MEM_new<GPUValue>(__func__, value);
+  link->data = num;
   return link;
 }
 
-GPUNodeLink *GPU_constant(const int value)
+GPUNodeLink *GPU_constant(const bool *num)
 {
-  return GPU_constant(GPUValue(value));
+  GPUNodeLink *link = gpu_node_link_create();
+  link->link_type = GPU_NODE_LINK_CONSTANT;
+  link->data = num;
+  return link;
 }
 
-GPUNodeLink *GPU_uniform(const int value)
+GPUNodeLink *GPU_uniform(const bool *num)
 {
-  return GPU_uniform(GPUValue(value));
-}
-
-GPUNodeLink *GPU_constant(const bool value)
-{
-  return GPU_constant(GPUValue(value));
-}
-
-GPUNodeLink *GPU_uniform(const bool value)
-{
-  return GPU_uniform(GPUValue(value));
+  GPUNodeLink *link = gpu_node_link_create();
+  link->link_type = GPU_NODE_LINK_UNIFORM;
+  link->data = num;
+  return link;
 }
 
 GPUNodeLink *GPU_differentiate_float_function(const char *function_name, const float filter_width)
@@ -974,7 +1063,7 @@ bool GPU_stack_link_zone(GPUMaterial *material,
 
 static void gpu_inputs_free(ListBaseT<GPUInput> *inputs)
 {
-  for (GPUInput &input : inputs->items_mutable()) {
+  for (GPUInput &input : *inputs) {
     switch (input.source) {
       case GPU_SOURCE_ATTR:
         input.attr->users--;
@@ -997,10 +1086,9 @@ static void gpu_inputs_free(ListBaseT<GPUInput> *inputs)
     if (input.link) {
       gpu_node_link_free(input.link);
     }
-
-    BLI_remlink(inputs, &input);
-    MEM_delete(&input);
   }
+
+  inputs->free_no_destruct();
 }
 
 static void gpu_node_free(GPUNode *node)
@@ -1202,72 +1290,6 @@ GPUNodeLink *GPU_node_get_input_link(const bNode &node,
     return input.link;
   }
   return GPU_uniform(input.vec);
-}
-
-/* GPUValue */
-
-GPUValue gpu_value_from_float_data(const GPUType gpu_type, const float *data)
-{
-  switch (gpu_type) {
-    case GPU_FLOAT:
-      return GPUValue(data[0]);
-    case GPU_VEC2:
-      return GPUValue(float2(data[0], data[1]));
-    case GPU_VEC3:
-      return GPUValue(float3(data[0], data[1], data[2]));
-    case GPU_VEC4:
-      return GPUValue(float4(data[0], data[1], data[2], data[3]));
-    case GPU_MAT4: {
-      std::array<float, 16> mat4;
-      memcpy(mat4.data(), data, sizeof(float) * 16);
-      return GPUValue(mat4);
-    }
-    default:
-      BLI_assert_unreachable();
-      return {};
-  }
-}
-
-Span<float> GPUValue::as_float_span() const
-{
-  switch (this->type) {
-    case GPU_FLOAT:
-      return Span<float>(&std::get<float>(this->data), 1);
-    case GPU_VEC2:
-      return Span<float>(&std::get<float2>(this->data).x, 2);
-    case GPU_VEC3:
-      return Span<float>(&std::get<float3>(this->data).x, 3);
-    case GPU_VEC4:
-      return Span<float>(&std::get<float4>(this->data).x, 4);
-    case GPU_MAT4:
-      return Span<float>(std::get<std::array<float, 16>>(this->data).data(), 16);
-    default:
-      BLI_assert_unreachable();
-      return {};
-  }
-}
-
-Span<int> GPUValue::as_int_span() const
-{
-  switch (this->type) {
-    case GPU_INT:
-      return Span<int>(&std::get<int>(this->data), 1);
-    case GPU_INT2:
-      return Span<int>(&std::get<int2>(this->data).x, 2);
-    case GPU_INT3:
-      return Span<int>(&std::get<int3>(this->data).x, 3);
-    case GPU_INT4:
-      return Span<int>(&std::get<int4>(this->data).x, 4);
-    default:
-      BLI_assert_unreachable();
-      return {};
-  }
-}
-
-bool GPUValue::as_bool() const
-{
-  BLI_assert(this->type == GPU_BOOL);
-  return std::get<bool>(this->data);
 }
 
 }  // namespace blender
