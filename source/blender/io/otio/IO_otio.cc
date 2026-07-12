@@ -86,6 +86,7 @@ void OTIO_export(const bContext *C, const char *filepath, const OTIOExportParams
 void OTIO_import(const bContext *C, const char *filepath, ReportList *reports)
 {
   using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
+  using ErrorStatus = opentimelineio::OPENTIMELINEIO_VERSION_NS::ErrorStatus;
 
   ErrorStatus err;
   SerializableObject::Retainer<Timeline> timeline = dynamic_cast<Timeline *>(

@@ -10,6 +10,7 @@
 
 #include "BKE_report.hh"
 
+#include "BLI_fileops.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_base_c.hh"
 #include "BLI_string.hh"
@@ -43,13 +44,85 @@
 namespace blender::io::otio {
 using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
 
+/**
+ * \brief Copies `filename_prev` to `filename` if missing frame policy is 'hold' or returns true if
+ * missing frame policy is 'error'.
+ * \note Does not handle 'black' missing frame policy as it is handled by default if a image frame
+ * is missing.
+ * \return Show missing frame error or not.
+ */
+static bool missing_frame_policy_impl(char *filename,
+                                      char *filename_prev,
+                                      char *dirpath,
+                                      ImageSequenceReference::MissingFramePolicy missing_policy)
+{
+  char filepath[FILE_MAX];
+  BLI_strncpy(filepath, dirpath, FILE_MAX);
+  BLI_path_append(filepath, FILE_MAX, filename);
+
+  if (BLI_exists(filepath)) {
+    BLI_strncpy(filename_prev, filename, FILE_MAX);
+    return false;
+  }
+
+  switch (missing_policy) {
+    case ImageSequenceReference::MissingFramePolicy::error:
+      return true;
+
+    case ImageSequenceReference::MissingFramePolicy::hold:
+      BLI_strncpy(filename, filename_prev, FILE_MAX);
+      break;
+
+    default:
+      break;
+  }
+  return false;
+}
+
+static void image_strip_init(
+    Main *bmain, Scene *scene, Strip *strip, ImageStripParams *params, ReportList *reports)
+{
+  char dirpath[sizeof(strip->data->dirpath)];
+  char filename[FILE_MAXFILE];
+  char filename_prev[FILE_MAXFILE];
+  BLI_path_split_dir_part(params->path, dirpath, sizeof(dirpath));
+  BLI_path_split_file_part(params->path, filename, sizeof(filename));
+
+  STRNCPY(filename_prev, filename);
+  bool missing_frames_error = missing_frame_policy_impl(
+      filename, filename_prev, dirpath, params->missing_policy);
+
+  seq::add_image_set_directory(strip, dirpath);
+  seq::add_image_load_file(scene, strip, 0, filename);
+
+  /* Initialize `StripElem.filename` for all other frames if it's an Image Sequence. */
+  for (int i = 1; i < params->count; ++i) {
+    STRNCPY(filename, params->name_prefix);
+    path_append_sequence_number(
+        filename, filename, params->start_frame + i, params->padding, false);
+    BLI_strncat(filename, params->name_suffix, sizeof(filename));
+
+    missing_frames_error |= missing_frame_policy_impl(
+        filename, filename_prev, dirpath, params->missing_policy);
+    seq::add_image_load_file(scene, strip, i, filename);
+  }
+
+  seq::add_image_init_alpha_mode(bmain, scene, strip);
+
+  if (missing_frames_error) {
+    BKE_reportf(
+        reports, RPT_ERROR, "Image Sequence Strip '%s' Contains Missing Frames", params->name);
+  }
+}
+
 static Strip *add_item_recursive(Main *bmain,
                                  Scene *scene,
                                  ListBaseT<Strip> *seqbase,
                                  Item *item,
                                  int channel,
                                  int left_handle,
-                                 bool is_sound_clip)
+                                 bool is_sound_clip,
+                                 ReportList *reports)
 {
   TimeRange range = item->trimmed_range();
   int left_offset = range.start_time().to_frames();
@@ -72,10 +145,8 @@ static Strip *add_item_recursive(Main *bmain,
   if (auto clip = dynamic_cast<Clip *>(item)) {
 
     StripType strip_type = is_sound_clip ? STRIP_TYPE_SOUND : STRIP_TYPE_MOVIE;
-    char name_prefix[FILE_MAX];
-    char name_suffix[FILE_MAX];
-    int start_frame = 0;
-    int padding = 0;
+    ImageStripParams image_params;
+    STRNCPY(image_params.name, load_data.name);
 
     if (auto ext_ref = dynamic_cast<ExternalReference *>(clip->media_reference())) {
       STRNCPY(load_data.path, ext_ref->target_url().c_str());
@@ -87,17 +158,21 @@ static Strip *add_item_recursive(Main *bmain,
     else if (auto img_seq_ref = dynamic_cast<ImageSequenceReference *>(clip->media_reference())) {
       strip_type = STRIP_TYPE_IMAGE;
       load_data.image.count = img_seq_ref->number_of_images_in_sequence();
+      image_params.count = load_data.image.count;
 
-      STRNCPY(name_prefix, img_seq_ref->name_prefix().c_str());
-      STRNCPY(name_suffix, img_seq_ref->name_suffix().c_str());
-      start_frame = img_seq_ref->start_frame();
-      padding = img_seq_ref->frame_zero_padding();
+      STRNCPY(image_params.name_prefix, img_seq_ref->name_prefix().c_str());
+      STRNCPY(image_params.name_suffix, img_seq_ref->name_suffix().c_str());
+      image_params.start_frame = img_seq_ref->start_frame();
+      image_params.padding = img_seq_ref->frame_zero_padding();
+      image_params.missing_policy = img_seq_ref->missing_frame_policy();
 
       STRNCPY(load_data.path, img_seq_ref->target_url_base().c_str());
-      BLI_strncat(load_data.path, name_prefix, sizeof(load_data.path));
-      path_append_sequence_number(load_data.path, load_data.path, start_frame, padding, false);
-      BLI_strncat(load_data.path, name_suffix, sizeof(load_data.path));
+      BLI_path_append(load_data.path, sizeof(load_data.path), image_params.name_prefix);
+      path_append_sequence_number(
+          load_data.path, load_data.path, image_params.start_frame, image_params.padding, false);
+      BLI_strncat(load_data.path, image_params.name_suffix, sizeof(load_data.path));
     }
+    STRNCPY(image_params.path, load_data.path);
 
     switch (strip_type) {
       case STRIP_TYPE_MOVIE:
@@ -110,21 +185,7 @@ static Strip *add_item_recursive(Main *bmain,
 
       case STRIP_TYPE_IMAGE:
         strip = seq::add_image_strip(bmain, scene, seqbase, &load_data);
-
-        char dirpath[sizeof(strip->data->dirpath)];
-        char filename[FILE_MAXFILE];
-        BLI_path_split_dir_part(load_data.path, dirpath, sizeof(dirpath));
-        BLI_path_split_file_part(load_data.path, filename, sizeof(filename));
-        seq::add_image_set_directory(strip, dirpath);
-        seq::add_image_load_file(scene, strip, 0, filename);
-
-        for (int i = 1; i < load_data.image.count; ++i) {
-          STRNCPY(filename, name_prefix);
-          path_append_sequence_number(filename, filename, start_frame + i, padding, false);
-          BLI_strncat(filename, name_suffix, sizeof(filename));
-          seq::add_image_load_file(scene, strip, i, filename);
-        }
-        seq::add_image_init_alpha_mode(bmain, scene, strip);
+        image_strip_init(bmain, scene, strip, &image_params, reports);
         break;
 
       default:
@@ -150,7 +211,8 @@ static Strip *add_item_recursive(Main *bmain,
                                                     item,
                                                     channel_meta,
                                                     left_handle_meta,
-                                                    is_sound_clip);
+                                                    is_sound_clip,
+                                                    reports);
 
             if (strip_child) {
               meta_end_frame = max_ii(strip_child->right_handle(scene), meta_end_frame);
@@ -207,8 +269,14 @@ void build_blender_timeline(Main *bmain,
       bool is_sound_clip = track->kind() == Track::Kind::audio ? true : false;
       for (auto &child : track->children()) {
         if (auto item = dynamic_cast<Item *>(child.value)) {
-          add_item_recursive(
-              bmain, scene, &scene->ed->seqbase, item, channel, left_handle, is_sound_clip);
+          add_item_recursive(bmain,
+                             scene,
+                             &scene->ed->seqbase,
+                             item,
+                             channel,
+                             left_handle,
+                             is_sound_clip,
+                             reports);
           left_handle += item->trimmed_range().duration().to_frames();
         }
       }
