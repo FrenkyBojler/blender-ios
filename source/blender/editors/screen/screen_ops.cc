@@ -3870,14 +3870,32 @@ static wmOperatorStatus frame_offset_exec(bContext *C, wmOperator *op)
   }
 
   int delta = RNA_int_get(op->ptr, "delta");
+  bool backward = delta < 0;
 
   /* In order to jump from e.g. 1.5 to 1 the delta needs to be incremented by 1 since the sub-frame
    * is always zeroed. Otherwise it would jump to 0. */
-  if (delta < 0 && scene->r.subframe > 0) {
+  if (backward && scene->r.subframe > 0) {
     delta += 1;
   }
   scene->r.cfra += delta;
-  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+  /* Wrap around when timeline wrapping is enabled and we've gone past bounds. */
+  if (U.flag & USER_WRAP_TIMELINE_NAVIGATION) {
+    ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
+    const int range_size = playback_range.end_frame - playback_range.start_frame + 1;
+    if ((backward && scene->r.cfra <= playback_range.start_frame) ||
+        (!backward && scene->r.cfra >= playback_range.end_frame))
+    {
+      int index = scene->r.cfra - playback_range.start_frame;
+      int offset = index % range_size;
+      if (offset < 0) {
+        offset += range_size;
+      }
+      scene->r.cfra = playback_range.start_frame + offset;
+    }
+  }
+  else {
+    FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+  }
   scene->r.subframe = 0.0f;
 
   ED_areas_do_frame_follow(C, false);
@@ -4024,7 +4042,24 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
     scene->r.subframe -= subframe_offset;
   }
 
-  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+  /* Wrap around when timeline wrapping is enabled and we've gone past bounds. */
+  if (U.flag & USER_WRAP_TIMELINE_NAVIGATION) {
+    ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
+    const int range_size = playback_range.end_frame - playback_range.start_frame + 1;
+    if ((backward && scene->r.cfra <= playback_range.start_frame) ||
+        (!backward && scene->r.cfra >= playback_range.end_frame))
+    {
+      int index = scene->r.cfra - playback_range.start_frame;
+      int offset = index % range_size;
+      if (offset < 0) {
+        offset += range_size;
+      }
+      scene->r.cfra = playback_range.start_frame + offset;
+    }
+  }
+  else {
+    FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+  }
 
   ED_areas_do_frame_follow(C, true);
   ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
@@ -4166,12 +4201,24 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   ED_keylist_prepare_for_direct_access(keylist);
 
   const float cfra = BKE_scene_frame_get(scene);
+  const bool wrap_timeline_navigation = U.flag & USER_WRAP_TIMELINE_NAVIGATION;
+  ScenePlaybackRange playback_range;
+  if (wrap_timeline_navigation) {
+    playback_range = BKE_scene_get_playback_range(scene);
+  }
+
   /* find matching keyframe in the right direction */
   const ActKeyColumn *ak;
 
   if (next) {
     ak = ED_keylist_find_next(keylist, cfra);
     while ((ak != nullptr) && (done == false)) {
+      if (wrap_timeline_navigation &&
+          (ak->cfra < playback_range.start_frame || ak->cfra > playback_range.end_frame))
+      {
+        ak = ak->next;
+        continue;
+      }
       if (cfra < ak->cfra) {
         BKE_scene_frame_set(scene, ak->cfra);
         done = true;
@@ -4180,17 +4227,55 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
         ak = ak->next;
       }
     }
+
+    /* Wrap around to the beginning of the frame range. */
+    if (!done && wrap_timeline_navigation) {
+      const ListBaseT<ActKeyColumn> *lb = ED_keylist_listbase(keylist);
+      for (const ActKeyColumn *ak_wrap = static_cast<const ActKeyColumn *>(lb->first);
+           ak_wrap != nullptr && !done;
+           ak_wrap = ak_wrap->next)
+      {
+        if (ak_wrap->cfra < playback_range.start_frame || ak_wrap->cfra > playback_range.end_frame)
+        {
+          continue;
+        }
+        BKE_scene_frame_set(scene, ak_wrap->cfra);
+        done = true;
+      }
+    }
   }
 
   else {
     ak = ED_keylist_find_prev(keylist, cfra);
     while ((ak != nullptr) && (done == false)) {
+      if (wrap_timeline_navigation &&
+          (ak->cfra < playback_range.start_frame || ak->cfra > playback_range.end_frame))
+      {
+        ak = ak->prev;
+        continue;
+      }
       if (cfra > ak->cfra) {
         BKE_scene_frame_set(scene, ak->cfra);
         done = true;
       }
       else {
         ak = ak->prev;
+      }
+    }
+
+    /* Wrap around to the end of the frame range. */
+    if (!done && wrap_timeline_navigation) {
+      const ListBaseT<ActKeyColumn> *lb = ED_keylist_listbase(keylist);
+      for (const ActKeyColumn *ak_wrap = static_cast<const ActKeyColumn *>(lb->last);
+           ak_wrap != nullptr && !done;
+           ak_wrap = ak_wrap->prev)
+      {
+        if (ak_wrap->cfra < playback_range.start_frame || ak_wrap->cfra > playback_range.end_frame)
+        {
+          continue;
+        }
+        BKE_scene_frame_set(scene, ak_wrap->cfra);
+        done = true;
       }
     }
   }
@@ -4250,12 +4335,24 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
+
+  const bool wrap_timeline_navigation = U.flag & USER_WRAP_TIMELINE_NAVIGATION;
+  ScenePlaybackRange playback_range;
+  if (wrap_timeline_navigation) {
+    playback_range = BKE_scene_get_playback_range(scene);
+  }
+
   int closest = scene->r.cfra;
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool found = false;
 
   /* find matching marker in the right direction */
   for (TimeMarker &marker : scene->markers) {
+    if (wrap_timeline_navigation &&
+        ((marker.frame < playback_range.start_frame || marker.frame > playback_range.end_frame)))
+    {
+      continue;
+    }
     if (next) {
       if ((marker.frame > scene->r.cfra) && (!found || closest > marker.frame)) {
         closest = marker.frame;
@@ -4266,6 +4363,31 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
       if ((marker.frame < scene->r.cfra) && (!found || closest < marker.frame)) {
         closest = marker.frame;
         found = true;
+      }
+    }
+  }
+
+  if (!found && wrap_timeline_navigation) {
+    if (next) {
+      /* Wrap around to the beginning of the marker list. */
+      for (TimeMarker &marker : scene->markers) {
+        if (marker.frame < playback_range.start_frame || marker.frame > playback_range.end_frame) {
+          continue;
+        }
+        closest = marker.frame;
+        found = true;
+        break;
+      }
+    }
+    else {
+      /* Wrap around to the end of the marker list. */
+      for (TimeMarker &marker : scene->markers.items_reversed()) {
+        if (marker.frame < playback_range.start_frame || marker.frame > playback_range.end_frame) {
+          continue;
+        }
+        closest = marker.frame;
+        found = true;
+        break;
       }
     }
   }

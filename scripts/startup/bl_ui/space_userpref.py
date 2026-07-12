@@ -621,6 +621,7 @@ class USERPREF_PT_animation_timeline(AnimationPanel, CenterAlignMixIn, Panel):
         view = prefs.view
 
         col = layout.column()
+        col.prop(view, "wrap_timeline_navigation")
         col.prop(view, "view2d_grid_spacing_min", text="Minimum Grid Spacing")
         col.prop(view, "timecode_style")
         col.prop(view, "view_frame_type")
