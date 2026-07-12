@@ -21,6 +21,9 @@ void Mesh::tessellate(SubdParams &params)
    * between calls or data updates */
   num_subd_added_verts = 0;
   const int num_faces = get_num_subd_faces();
+
+  /* If there are no faces there is nothing to subdivide, and the required
+   * subd position attribute may not exist. */
   if (num_faces == 0) {
     return;
   }
