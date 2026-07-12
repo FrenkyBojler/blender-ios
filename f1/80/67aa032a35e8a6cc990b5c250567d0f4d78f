@@ -1,2 +1,3 @@
 Referenced by issue #127059, Eevee Shader AOVs cap at 16 layers
 Referenced by issue #99390, Eevee-next: Cryptomatte render pass
+Referenced by issue #161352, Screen Jitters with Temporal Reprojection
