@@ -14,7 +14,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_base.hh"
-#include "BLI_math_geom.h"
+#include "BLI_math_geom.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_sort.hh"
@@ -2330,11 +2330,89 @@ static float4 transform_plane(const float4x4 &mat, const float4 &plane)
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
                                   const std::optional<GroupedSpan<int>> fills,
-                                  const Span<float4> normal_planes,
-                                  const IndexMask &clipping_fills,
-                                  const float4x4 &layer_to_world,
-                                  const ARegion &region,
-                                  const bool keep_caps)
+                                  const IndexMask &clipping_fills)
+{
+  const bke::AttributeAccessor src_attributes = curves.attributes();
+
+  const VArray<float2> src_positions_2d_attribute = *src_attributes.lookup<float2>(
+      ".positions_2d", bke::AttrDomain::Point);
+
+  BLI_assert(src_positions_2d_attribute.is_span());
+  const Span<float2> src_positions_2d = src_positions_2d_attribute.get_internal_span();
+
+  const VArray<int> fill_ids = *src_attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+
+  const BooleanResult result = execute_boolean(op_params,
+                                               src_positions_2d,
+                                               curves.points_by_curve(),
+                                               clipping_fills,
+                                               fills,
+                                               fill_ids,
+                                               curves.cyclic());
+
+  if (result.segments.is_empty()) {
+    return bke::CurvesGeometry();
+  }
+
+  const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(result.segment_offsets);
+
+  Array<bool> is_src_curve_clipping(curves.curves_num(), false);
+  for (const int curve_i : curves.curves_range()) {
+    if (curve_i == curves.curves_range().last()) {
+      is_src_curve_clipping[curve_i] = true;
+    }
+  }
+
+  Array<bool> is_segments_clipping(result.segments.size());
+  for (const int seg_i : result.segments.index_range()) {
+    const Segment &segment = result.segments[seg_i];
+    is_segments_clipping[seg_i] = is_src_curve_clipping[segment.curve];
+  }
+
+  Array<int> dst_to_src_curves(dst_segments_by_curve.size());
+  for (const int i : dst_segments_by_curve.index_range()) {
+    const IndexRange segment_range = dst_segments_by_curve[i];
+    const int fill_id = result.fill_ids[i];
+    dst_to_src_curves[i] = fill_id;
+
+    /* Prioritize non-clipping curves. */
+    for (const int seg_i : segment_range) {
+      const int curve_i = result.segments[seg_i].curve;
+      if (!is_src_curve_clipping[curve_i]) {
+        dst_to_src_curves[i] = curve_i;
+        break;
+      }
+    }
+  }
+
+  Vector<bool> is_point_clipping;
+  bke::CurvesGeometry dst_curves = create_curves_from_segments(curves,
+                                                               result.segments,
+                                                               result.segment_reversed,
+                                                               result.cyclic,
+                                                               is_segments_clipping,
+                                                               dst_to_src_curves,
+                                                               dst_segments_by_curve,
+                                                               is_point_clipping);
+
+  if (!op_params.keep_caps) {
+    cut_caps(dst_curves,
+             result.segments,
+             result.segment_reversed,
+             result.cyclic,
+             dst_segments_by_curve);
+  }
+
+  return dst_curves;
+}
+
+bke::CurvesGeometry curve_boolean_with_planes(const CurveBooleanOpParameters op_params,
+                                              const bke::CurvesGeometry &curves,
+                                              const std::optional<GroupedSpan<int>> fills,
+                                              const Span<float4> normal_planes,
+                                              const IndexMask &clipping_fills,
+                                              const float4x4 &layer_to_world,
+                                              const ARegion &region)
 {
   const bke::AttributeAccessor src_attributes = curves.attributes();
 
@@ -2422,7 +2500,7 @@ bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
     }
   }
 
-  if (!keep_caps) {
+  if (!op_params.keep_caps) {
     cut_caps(dst_curves,
              result.segments,
              result.segment_reversed,

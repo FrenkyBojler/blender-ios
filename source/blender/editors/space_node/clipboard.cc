@@ -4,8 +4,8 @@
 
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_blender_copybuffer.hh"
@@ -37,9 +37,7 @@
 
 #include "node_intern.hh"
 
-namespace blender {
-
-namespace ed::space_node {
+namespace blender::ed::space_node {
 
 /* -------------------------------------------------------------------- */
 /** \name Local Utilities
@@ -104,7 +102,7 @@ static int node_copy_local(bNodeTree &from_tree,
   }
 
   if (node_map.is_empty()) {
-    return false;
+    return 0;
   }
 
   for (bNode *new_node : node_map.values()) {
@@ -326,7 +324,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   MainMergeReport merge_reports = {};
-  /* We need to ensure that the source 'clipbaord marked' main NodeTree is always merged into
+  /* We need to ensure that the source 'clipboard marked' main NodeTree is always merged into
    * destination Main, even in case there would be a name collision with an existing ID (see also
    * #158049). */
   Set<ID *> force_merge_ids = {id_cast<ID *>(from_tree)};
@@ -413,5 +411,4 @@ void NODE_OT_clipboard_paste(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace ed::space_node
-}  // namespace blender
+}  // namespace blender::ed::space_node
