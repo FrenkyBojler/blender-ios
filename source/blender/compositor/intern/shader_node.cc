@@ -101,11 +101,24 @@ static void populate_gpu_node_stack(const bNodeSocket &socket, GPUNodeStack &sta
   stack.end = false;
   /* This will be initialized later by the GPU material compiler or the compile method. */
   stack.link = nullptr;
-  /* This will be initialized by the GPU material compiler if needed. */
-  zero_v4(stack.vec);
 
   stack.sockettype = socket.type;
   stack.type = gpu_type_from_socket(socket);
+
+  switch (stack.type) {
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      stack.ivec = int4(0);
+      break;
+    case GPU_BOOL:
+      stack.b = false;
+      break;
+    default:
+      zero_v4(stack.vec);
+      break;
+  }
 
   stack.hasinput = socket.is_logically_linked();
   stack.hasoutput = socket.is_logically_linked();

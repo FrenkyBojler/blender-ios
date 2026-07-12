@@ -1289,7 +1289,23 @@ GPUNodeLink *GPU_node_get_input_link(const bNode &node,
   if (input.link) {
     return input.link;
   }
-  return GPU_uniform(input.vec);
+  switch (input.type) {
+    case GPU_FLOAT:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
+      return GPU_uniform(input.vec);
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      return GPU_uniform(&input.ivec.x);
+    case GPU_BOOL:
+      return GPU_uniform(&input.b);
+    default:
+      BLI_assert_unreachable();
+      return nullptr;
+  }
 }
 
 }  // namespace blender
