@@ -2892,11 +2892,29 @@ static void calc_brush_local_mat(const float rotation,
   float motion_normal_screen[2];
   motion_normal_screen[0] = cosf(angle);
   motion_normal_screen[1] = sinf(angle);
-  /* Convert view's brush transverse direction to object-space,
-   * i.e. the normal of the plane described by the motion */
+
   float motion_normal_local[3];
-  calc_local_from_screen(
-      *cache->vc, cache->location_symm, motion_normal_screen, motion_normal_local);
+
+  /* If rotation is not zero, then we are not calculating local matrix for cube tips, but for
+   * texture. */
+  if (rotation != 0) {
+    /* Convert view's brush transverse direction to object-space,
+     * i.e. the normal of the plane described by the motion */
+    calc_local_from_screen(
+        *cache->vc, cache->location_symm, motion_normal_screen, motion_normal_local);
+  }
+  else {
+    copy_v3_v3(motion_normal_local, cache->tip_motion_normal);
+  }
+
+  /* Apply symmetry to avoid recalculation. When not calculating for cube tips, this would always
+   * be skipped because in update_brush_local_mat (the only caller that is not calculating for cube
+   * tips but for texture), this function is only called on first symmetry pass. */
+  if (cache->mirror_symmetry_pass != 0 || cache->radial_symmetry_pass != 0) {
+    copy_v3_v3(motion_normal_local,
+               symmetry_flip(motion_normal_local, cache->mirror_symmetry_pass));
+    mul_m4_v3(cache->symm_rot_mat.ptr(), motion_normal_local);
+  }
 
   /* Calculate the movement direction for the local matrix.
    * Note that there is a deliberate prioritization here: Our calculations are
@@ -2936,7 +2954,7 @@ static void calc_brush_local_mat(const float rotation,
                                  float local_mat_inv[4][4])
 {
   const StrokeCache *cache = ob.runtime->sculpt_session->cache;
-  calc_brush_local_mat(rotation, ob, cache->sculpt_normal, local_mat, local_mat_inv);
+  calc_brush_local_mat(rotation, ob, cache->sculpt_normal_symm, local_mat, local_mat_inv);
 }
 
 float3 tilt_apply_to_normal(const Object &object,
@@ -3413,8 +3431,7 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
 
     float4x4 local_mat;
     float4x4 local_mat_inv;
-    const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-    calc_brush_local_mat(mask_tex->rot, ob, sculpt_normal, local_mat.ptr(), local_mat_inv.ptr());
+    calc_brush_local_mat(0.0f, ob, sculpt_normal, local_mat.ptr(), local_mat_inv.ptr());
 
     /* Return only the plane normal for cube-shaped brushes. The plane center is only needed by
      * planar brushes like Clay Strips and Plane. */
@@ -6075,6 +6092,12 @@ void SculptPaintStroke::stroke_cache_update(PointerRNA *ptr)
   }
 
   cache.special_rotation = paint_runtime.brush_rotation;
+
+  float2 motion_normal_screen = float2(cosf(cache.special_rotation), sinf(cache.special_rotation));
+  /* Convert view's brush transverse direction to object-space,
+   * i.e. the normal of the plane described by the motion */
+  calc_local_from_screen(
+      *cache.vc, cache.location_symm, motion_normal_screen, cache.tip_motion_normal);
 
   cache.iteration_count++;
 }
