@@ -70,14 +70,15 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
   struct SocketToCheck {
     SocketInContext socket;
     BundlePath bundle_path;
+    bool follow_bundle_geometry = false;
   };
 
   Stack<SocketToCheck> sockets_to_check;
   Set<SocketInContext> added_sockets;
 
-  auto add_if_new = [&](const SocketInContext &socket, BundlePath bundle_path) {
+  auto add_if_new = [&](const SocketInContext &socket, BundlePath bundle_path, bool follow_bundle_geometry = false) {
     if (added_sockets.add(socket)) {
-      sockets_to_check.push({socket, std::move(bundle_path)});
+      sockets_to_check.push({socket, std::move(bundle_path), follow_bundle_geometry});
     }
   };
 
@@ -89,6 +90,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
     const SocketToCheck socket_to_check = sockets_to_check.pop();
     const SocketInContext socket = socket_to_check.socket;
     const BundlePath &bundle_path = socket_to_check.bundle_path;
+    const bool follow_bundle_geometry = socket_to_check.follow_bundle_geometry;
     const NodeInContext &node = socket.owner_node();
     if (socket->is_input()) {
       if (node->is_muted()) {
@@ -107,7 +109,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         continue;
       }
       if (node->is_reroute()) {
-        add_if_new(node.output_socket(0), bundle_path);
+        add_if_new(node.output_socket(0), bundle_path, follow_bundle_geometry);
         continue;
       }
       if (node->is_group()) {
@@ -120,7 +122,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
                     socket->identifier_ustr()))
             {
               if (group_input_socket->is_directly_linked()) {
-                add_if_new({&group_compute_context, group_input_socket}, bundle_path);
+                add_if_new({&group_compute_context, group_input_socket}, bundle_path, follow_bundle_geometry);
               }
             }
           }
@@ -138,7 +140,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
             if (const bNodeSocket *output_socket = caller_group_node->output_by_identifier(
                     socket->identifier_ustr()))
             {
-              add_if_new({group_context->parent(), output_socket}, bundle_path);
+              add_if_new({group_context->parent(), output_socket}, bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -164,6 +166,22 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
+      if (node->is_type("GeometryNodeSetGeometryBundle"_ustr)) {
+        add_if_new(node.output_socket(0), bundle_path, true);
+        continue;
+      }
+      if (node->is_type("GeometryNodeGetGeometryBundle"_ustr)) {
+        add_if_new(node.output_socket(1), bundle_path, false);
+        continue;
+      }
+      if (follow_bundle_geometry && socket->type == SOCK_GEOMETRY) {
+        for (const bNodeSocket *output_socket : node->output_sockets()) {
+          if (output_socket->type == SOCK_GEOMETRY) {
+            add_if_new({socket.context, output_socket}, bundle_path, true);
+          }
+        }
+        continue;
+      }
       if (node->is_type("NodeClosureOutput"_ustr)) {
         const auto &closure_storage = *static_cast<const NodeClosureOutput *>(node->storage);
         const StringRef key = closure_storage.output_items.items[socket->index()].name;
@@ -179,7 +197,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
           for (const int i : IndexRange(evaluate_storage.output_items.items_num)) {
             const NodeEvaluateClosureOutputItem &item = evaluate_storage.output_items.items[i];
             if (key == item.name) {
-              add_if_new(evaluate_node.output_socket(i), bundle_path);
+              add_if_new(evaluate_node.output_socket(i), bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -226,7 +244,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
           for (const int i : IndexRange(closure_output_storage.input_items.items_num)) {
             const NodeClosureInputItem &item = closure_output_storage.input_items.items[i];
             if (key == item.name) {
-              add_if_new({&closure_context, &closure_input_node->output_socket(i)}, bundle_path);
+              add_if_new({&closure_context, &closure_input_node->output_socket(i)}, bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -303,7 +321,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         if (!compute_context) {
           continue;
         }
-        add_if_new({compute_context, to_socket}, bundle_path);
+        add_if_new({compute_context, to_socket}, bundle_path, follow_bundle_geometry);
       }
     }
   }
@@ -346,14 +364,15 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
   struct SocketToCheck {
     SocketInContext socket;
     BundlePath bundle_path;
+    bool follow_bundle_geometry = false;
   };
 
   Stack<SocketToCheck> sockets_to_check;
   Set<SocketInContext> added_sockets;
 
-  auto add_if_new = [&](const SocketInContext &socket, BundlePath bundle_path) {
+  auto add_if_new = [&](const SocketInContext &socket, BundlePath bundle_path, bool follow_bundle_geometry = false) {
     if (added_sockets.add(socket)) {
-      sockets_to_check.push({socket, std::move(bundle_path)});
+      sockets_to_check.push({socket, std::move(bundle_path), follow_bundle_geometry});
     }
   };
 
@@ -366,6 +385,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
     const SocketInContext socket = socket_to_check.socket;
     const BundlePath &bundle_path = socket_to_check.bundle_path;
     const NodeInContext &node = socket.owner_node();
+    const bool follow_bundle_geometry = socket_to_check.follow_bundle_geometry;
     const SocketDeclaration *socket_decl = socket->runtime->declaration;
     if (socket->is_input()) {
       if (bundle_path.is_empty() && handle_possible_origin_socket_fn(socket)) {
@@ -406,14 +426,14 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
             compute_context = compute_context->parent();
           }
         }
-        add_if_new({compute_context, from_socket}, bundle_path);
+        add_if_new({compute_context, from_socket}, bundle_path, follow_bundle_geometry);
       }
     }
     else {
       if (node->is_muted()) {
         for (const bNodeLink &link : node->internal_links()) {
           if (link.tosock == socket.socket) {
-            add_if_new({socket.context, link.fromsock}, bundle_path);
+            add_if_new({socket.context, link.fromsock}, bundle_path, follow_bundle_geometry);
           }
         }
         continue;
@@ -426,7 +446,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         continue;
       }
       if (node->is_reroute()) {
-        add_if_new(node.input_socket(0), bundle_path);
+        add_if_new(node.input_socket(0), bundle_path, follow_bundle_geometry);
         continue;
       }
       if (node->is_group()) {
@@ -438,7 +458,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
             if (const bNodeSocket *group_output_socket = group_output_node->input_by_identifier(
                     socket->identifier_ustr()))
             {
-              add_if_new({&group_compute_context, group_output_socket}, bundle_path);
+              add_if_new({&group_compute_context, group_output_socket}, bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -455,7 +475,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
             if (const bNodeSocket *input_socket = caller_group_node->input_by_identifier(
                     socket->identifier_ustr()))
             {
-              add_if_new({group_context->parent(), input_socket}, bundle_path);
+              add_if_new({group_context->parent(), input_socket}, bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -490,7 +510,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
           for (const int i : IndexRange(closure_storage.output_items.items_num)) {
             const NodeClosureOutputItem &item = closure_storage.output_items.items[i];
             if (key == item.name) {
-              add_if_new({&closure_context, &closure_output_node->input_socket(i)}, bundle_path);
+              add_if_new({&closure_context, &closure_output_node->input_socket(i)}, bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -522,7 +542,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
           for (const int i : IndexRange(evaluate_storage.input_items.items_num)) {
             const NodeEvaluateClosureInputItem &item = evaluate_storage.input_items.items[i];
             if (key == item.name) {
-              add_if_new(target_node.input_socket(i + 1), bundle_path);
+              add_if_new(target_node.input_socket(i + 1), bundle_path, follow_bundle_geometry);
             }
           }
         }
@@ -546,6 +566,22 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         BundlePath new_bundle_path = bundle_path;
         new_bundle_path.append(storage.items[socket->index()].name);
         add_if_new(node.input_socket(0), std::move(new_bundle_path));
+        continue;
+      }
+      if (node->is_type("GeometryNodeGetGeometryBundle"_ustr)) {
+        add_if_new(node.input_socket(0), bundle_path, true);
+        continue;
+      }
+      if (node->is_type("GeometryNodeSetGeometryBundle"_ustr)) {
+        add_if_new(node.input_socket(1), bundle_path, true);
+        continue;
+      }
+      if (follow_bundle_geometry && socket->type == SOCK_GEOMETRY) {
+        for (const bNodeSocket *input_socket : node->input_sockets()) {
+          if (input_socket->type == SOCK_GEOMETRY) {
+            add_if_new({socket.context, input_socket}, bundle_path, true);
+          }
+        }
         continue;
       }
       if (node->is_type("GeometryNodeSimulationInput"_ustr)) {
