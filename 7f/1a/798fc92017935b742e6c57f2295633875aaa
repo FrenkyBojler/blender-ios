@@ -6,3 +6,4 @@ Referenced by issue #155452, Mesh to curve node does not convert faces anymore
 Referenced by issue #122347, SVG failed import (filled holes in letters)
 Referenced by issue #160062, GP: Select Fill operator broken
 Referenced by issue #160952, GP: Hiding One Material Hides Others & Creates Visual Artifacts
+Referenced by pull request #161356, Fix #160952: Grease Pencil: Hiding material causes visual error
