@@ -44,24 +44,6 @@ static const EnumPropertyItem prop_interpolation_items[] = {
     {0, nullptr},
 };
 
-/** Return true if at least two selected edges form a chain. */
-static bool has_connected_selected_edges(BMesh *bm)
-{
-  BMIter iter;
-  BMEdge *eed;
-  BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-    if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
-      continue;
-    }
-    if (BM_iter_elem_count_flag(BM_EDGES_OF_VERT, eed->v1, BM_ELEM_SELECT, true) >= 2 ||
-        BM_iter_elem_count_flag(BM_EDGES_OF_VERT, eed->v2, BM_ELEM_SELECT, true) >= 2)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
 static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperator *op)
 {
   const Main *bmain = CTX_data_main(C);
@@ -88,7 +70,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
       continue;
     }
 
-    if (!has_connected_selected_edges(bm)) {
+    if (!EDBM_has_connected_selected_edges(em)) {
       continue;
     }
 

@@ -66,6 +66,10 @@ static wmOperatorStatus edbm_relax_edge_loops_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    if (!EDBM_has_connected_selected_edges(em)) {
+      continue;
+    }
+
     if (!EDBM_op_callf(em,
                        op,
                        "relax_edge_loops geom=%he interpolation=%i iterations=%i even_spacing=%b",

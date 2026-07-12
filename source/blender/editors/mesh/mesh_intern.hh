@@ -111,6 +111,9 @@ BMElem *EDBM_elem_from_index_any_multi(const Main &bmain,
                                        uint elem_index,
                                        Object **r_obedit);
 
+/** Return true if at least two selected edges form a chain. */
+bool EDBM_has_connected_selected_edges(BMEditMesh *em);
+
 /* *** `editmesh_add.cc` *** */
 
 void MESH_OT_primitive_plane_add(wmOperatorType *ot);

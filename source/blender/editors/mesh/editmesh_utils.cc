@@ -2147,4 +2147,22 @@ bool EDBM_smooth_vert(BMEditMesh *em, wmOperator *op)
                        true);
 }
 
+bool EDBM_has_connected_selected_edges(BMEditMesh *em)
+{
+  BMesh *bm = em->bm;
+  BMIter iter;
+  BMEdge *eed;
+  BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+    if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+      continue;
+    }
+    if (BM_iter_elem_count_flag(BM_EDGES_OF_VERT, eed->v1, BM_ELEM_SELECT, true) >= 2 ||
+        BM_iter_elem_count_flag(BM_EDGES_OF_VERT, eed->v2, BM_ELEM_SELECT, true) >= 2)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace blender
