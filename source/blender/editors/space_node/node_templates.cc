@@ -932,7 +932,7 @@ static void ui_node_draw_input(ui::Layout &layout,
     row->label(RPT_("Dependency Loop"), ICON_ERROR);
     add_dummy_decorator = true;
   }
-  if (lnode && !lnode->is_muted()) {
+  else if (lnode && !lnode->is_muted()) {
     /* input linked to a node */
     uiTemplateNodeLink(row, &C, &ntree, &node, &input);
     add_dummy_decorator = true;
