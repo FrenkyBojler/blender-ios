@@ -133,18 +133,6 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
   RNA_float_set(op->ptr, "value", viewy);
 }
 
-/* End scrubbing and free the operator's resume state. */
-static void graphview_cursor_exit(bContext *C, wmOperator *op)
-{
-  ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
-  bScreen *screen = CTX_wm_screen(C);
-  if (screen) {
-    ED_screen_scrubbing_disable(C, screen, *scrub_resume);
-  }
-  MEM_delete(scrub_resume);
-  op->customdata = nullptr;
-}
-
 /* Modal Operator init */
 static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -174,14 +162,10 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
   /* execute the events */
   switch (event->type) {
-    case EVT_ESCKEY:
-      graphview_cursor_exit(C, op);
-      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
-      return OPERATOR_FINISHED;
-
     case MOUSEMOVE:
       /* set the new values */
       graphview_cursor_setprops(C, op, event);
@@ -193,9 +177,8 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     case MIDDLEMOUSE:
       /* We check for either mouse-button to end, to work with all user keymaps. */
       if (event->val == KM_RELEASE) {
-        graphview_cursor_exit(C, op);
         WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
-        return OPERATOR_FINISHED;
+        ret = OPERATOR_FINISHED;
       }
       break;
     default: {
@@ -203,7 +186,31 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     }
   }
 
-  return OPERATOR_RUNNING_MODAL;
+  if (ret != OPERATOR_RUNNING_MODAL) {
+    ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
+    bScreen *screen = CTX_wm_screen(C);
+    if (screen) {
+      ED_screen_scrubbing_disable(C, screen, *scrub_resume);
+    }
+    MEM_delete(scrub_resume);
+    op->customdata = nullptr;
+  }
+
+  return ret;
+}
+
+static void graphview_cursor_cancel(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+
+  ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
+  bScreen *screen = CTX_wm_screen(C);
+  if (screen) {
+    ED_screen_scrubbing_disable(C, screen, *scrub_resume);
+  }
+  MEM_delete(scrub_resume);
+  op->customdata = nullptr;
 }
 
 static void GRAPH_OT_cursor_set(wmOperatorType *ot)
@@ -217,6 +224,7 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   ot->exec = graphview_cursor_exec;
   ot->invoke = graphview_cursor_invoke;
   ot->modal = graphview_cursor_modal;
+  ot->cancel = graphview_cursor_cancel;
   ot->poll = graphview_cursor_poll;
 
   /* flags */
