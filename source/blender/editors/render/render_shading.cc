@@ -2626,7 +2626,7 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
 {
   ID *id = CTX_data_pointer_get_type(C, "texture_slot", RNA_TextureSlot).owner_id;
   if (id) {
-    DriverMap driver_map = BKE_animdata_build_driver_target_map(*CTX_data_main(C));
+    const DriverMap driver_map = BKE_animdata_build_driver_target_map(*CTX_data_main(C));
     MTex **mtex_ar, *mtexswap;
     short act;
     int type = RNA_enum_get(op->ptr, "type");
@@ -2643,19 +2643,19 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                "texture_slots",
                                RNA_path_number_to_infix(act - 1),
                                RNA_path_number_to_infix(-1),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         BKE_animdata_fix_paths(*id,
                                "texture_slots",
                                RNA_path_number_to_infix(act),
                                RNA_path_number_to_infix(act - 1),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         BKE_animdata_fix_paths(*id,
                                "texture_slots",
                                RNA_path_number_to_infix(-1),
                                RNA_path_number_to_infix(act),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
 
         set_active_mtex(id, act - 1);
@@ -2671,19 +2671,19 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                "texture_slots",
                                RNA_path_number_to_infix(act + 1),
                                RNA_path_number_to_infix(-1),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         BKE_animdata_fix_paths(*id,
                                "texture_slots",
                                RNA_path_number_to_infix(act),
                                RNA_path_number_to_infix(act + 1),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         BKE_animdata_fix_paths(*id,
                                "texture_slots",
                                RNA_path_number_to_infix(-1),
                                RNA_path_number_to_infix(act),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
 
         set_active_mtex(id, act + 1);

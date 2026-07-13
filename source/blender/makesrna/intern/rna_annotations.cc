@@ -173,12 +173,12 @@ static void rna_annotation_layer_info_set(PointerRNA *ptr, const char *value)
 
   /* now fix animation paths */
   if (ptr->owner_id) {
-    DriverMap driver_map = BKE_animdata_build_driver_target_map();
+    const DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(*ptr->owner_id,
                            "layers",
                            RNA_path_name_to_infix(oldname),
                            RNA_path_name_to_infix(gpl->info),
-                           true,
+                           /*verify_paths=*/true,
                            driver_map);
   }
 

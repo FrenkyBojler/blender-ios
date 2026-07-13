@@ -326,10 +326,12 @@ std::optional<std::string> RNA_path_struct_property_py(PointerRNA *ptr,
 std::string RNA_path_property_py(const PointerRNA *ptr, PropertyRNA *prop, int index);
 /**
  * Escapes the given string and formats it to be within square brackets and quotation marks.
+ * For example `Bone "test"` -> `["Bone \"test\""]`.
  */
 std::string RNA_path_name_to_infix(StringRefNull string);
 /**
  * Turns the number into a string surrounded by square brackets.
+ * For example `1` -> `[1]`.
  */
 std::string RNA_path_number_to_infix(int number);
 /**

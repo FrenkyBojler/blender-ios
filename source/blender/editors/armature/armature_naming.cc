@@ -215,7 +215,7 @@ void ED_armature_bone_rename(Main *bmain,
 
   /* force evaluation copy to update database */
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
-  DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   std::string old_name_esc = RNA_path_name_to_infix(oldname);
   std::string new_name_esc = RNA_path_name_to_infix(newname);
 
@@ -243,7 +243,7 @@ void ED_armature_bone_rename(Main *bmain,
           }
 
           BKE_animdata_fix_paths(
-              ob->id, "pose.bones", old_name_esc, new_name_esc, true, driver_map);
+              ob->id, "pose.bones", old_name_esc, new_name_esc, /*verify_paths=*/true, driver_map);
         }
 
         BLI_assert(BKE_pose_channels_is_valid(ob->pose));
@@ -367,7 +367,8 @@ void ED_armature_bone_rename(Main *bmain,
    * since other ID-blocks may have drivers referring to this bone #29822.
    * This also works for edit bones since those have an rna path of "edit_bones" which is also
    * caught by the rename function. */
-  BKE_animdata_fix_paths(arm->id, "bones", old_name_esc, new_name_esc, true, driver_map);
+  BKE_animdata_fix_paths(
+      arm->id, "bones", old_name_esc, new_name_esc, /*verify_paths=*/true, driver_map);
 
   /* correct view locking */
   {

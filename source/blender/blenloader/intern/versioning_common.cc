@@ -441,7 +441,7 @@ void version_node_socket_index_animdata(Main *bmain,
   /* The for loop for the input ids is at the top level otherwise we lose the animation
    * keyframe data. Not sure what causes that, so I (Sybren) moved the code here from
    * versioning_290.cc as-is (structure-wise). */
-  DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   for (int input_index = total_number_of_sockets - 1; input_index >= socket_index_orig;
        input_index--)
   {
@@ -464,7 +464,7 @@ void version_node_socket_index_animdata(Main *bmain,
                                rna_path_prefix,
                                RNA_path_number_to_infix(input_index),
                                RNA_path_number_to_infix(new_index),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         MEM_delete(rna_path_prefix);
       }

@@ -1927,12 +1927,12 @@ void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
                  sizeof(kb->name));
 
   /* Fix all the animation data which may link to this. */
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(key->id,
                          "key_blocks",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(kb->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 }  // namespace blender

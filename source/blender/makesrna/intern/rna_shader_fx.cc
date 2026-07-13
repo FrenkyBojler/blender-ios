@@ -148,12 +148,12 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
     BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
 
     /* Fix all the animation data which may link to this. */
-    DriverMap driver_map = BKE_animdata_build_driver_target_map();
+    const DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(ob->id,
                            "shader_effects",
                            RNA_path_name_to_infix(oldname),
                            RNA_path_name_to_infix(gmd->name),
-                           true,
+                           /*verify_paths=*/true,
                            driver_map);
   }
 }

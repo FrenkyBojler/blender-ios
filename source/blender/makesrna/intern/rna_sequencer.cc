@@ -987,12 +987,12 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
   seq::strip_unique_name_set(scene, &scene->ed->seqbase, strip);
 
   /* Fix all the animation data which may link to this. */
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(scene->id,
                          "sequence_editor.strips_all",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(strip->name + 2),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 
@@ -1647,12 +1647,9 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
   seq::modifier_unique_name(strip, smd);
 
   /* fix all the animation data which may link to this */
-  char rna_path_prefix[1024];
-  char strip_name_esc[(sizeof(strip->name) - 2) * 2];
-  BLI_str_escape(strip_name_esc, strip->name + 2, sizeof(strip_name_esc));
-
-  SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  std::string rna_path_prefix = fmt::format("sequence_editor.strips_all{}.modifiers",
+                                            RNA_path_name_to_infix(strip->name + 2));
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(scene->id,
                          rna_path_prefix,
                          RNA_path_name_to_infix(oldname),

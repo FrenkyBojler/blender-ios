@@ -64,7 +64,7 @@ void rna_id_animdata_fix_paths_rename_all(ID *id,
                                           const char *oldName,
                                           const char *newName)
 {
-  DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   BKE_animdata_fix_paths(*id,
                          prefix,
                          RNA_path_name_to_infix(oldName),

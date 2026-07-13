@@ -167,17 +167,20 @@ DriverMap BKE_animdata_build_driver_target_map();
  * Search and replace `old_infix` with `new_infix` for all rna paths that reference the given ID
  * and match the prefix.
  *
- * \param prefix does not have to be the full prefix of the rna path. E.g. if the full path is
- * `pose.bones["foo"]` then passing `bones` as a prefix will still work.
- * \param old_infix, new_infix: the full search and replace string pair. This has to be in the form
- * of the rna path and will be replaced as given. E.g. bone names should be escaped and
- * surrounded by `[""]` See `RNA_path_name_to_infix` or `RNA_path_number_to_infix`.
- * \param verify_paths: If true, only paths that are invalid before path replacement but resolve
- * correctly after the change, are changed.
- * \param driver_map: Maps IDs to where they are being used in drivers. Of that map, only the given
- * `id` is read. But building the map for a single ID requires iterating Main anyway so it is built
- * for all IDs passed in to improve the case when this function is called in a loop.
- * See `BKE_animdata_build_driver_target_map`.
+ * \param prefix does not have to be the full prefix of the rna path; it works as loing as it is
+ * directly preceding `infix`. E.g. if the full path is `pose.bones["foo"]` then passing `bones` as
+ * a prefix will still work.
+ * \param old_infix, new_infix: the full search and replace string pair.
+ * This has to be in the form of the rna path and will be replaced as given. E.g. bone names should
+ * be escaped and surrounded with `[""]` by the caller. See `RNA_path_name_to_infix` or
+ * `RNA_path_number_to_infix`.
+ * \param verify_paths: If true, only paths that are invalid before
+ * path replacement but resolve correctly after the change, are changed.
+ * \param driver_map: Maps
+ * IDs to where they are being used in drivers. Of that map, only the given `id` is read. But
+ * building the map for a single ID requires iterating Main anyway so it is built for all IDs
+ * passed in to improve the case when this function is called in a loop. See
+ * `BKE_animdata_build_driver_target_map`.
  */
 void BKE_animdata_fix_paths(ID &id,
                             StringRef prefix,

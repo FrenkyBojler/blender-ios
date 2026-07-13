@@ -504,12 +504,12 @@ void ensure_unique_name(Strip *strip, Scene *scene)
 
   STRNCPY_UTF8(name, strip->name + 2);
   strip_unique_name_set(scene, &scene->ed->seqbase, strip);
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(scene->id,
                          "sequence_editor.strips_all",
                          RNA_path_name_to_infix(name),
                          RNA_path_name_to_infix(strip->name + 2),
-                         false,
+                         /*verify_paths=*/false,
                          driver_map);
 
   if (strip->type == STRIP_TYPE_META) {

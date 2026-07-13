@@ -2717,12 +2717,12 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
   bke::node_unique_name(*ntree, *node);
 
   /* fix all the animation data which may link to this */
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(ntree->id,
                          "nodes",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(node->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 

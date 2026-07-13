@@ -378,7 +378,7 @@ void BKE_mask_layer_rename(Mask *mask,
                          "layers",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(masklay->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 

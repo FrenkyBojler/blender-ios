@@ -928,12 +928,12 @@ static void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
     Object *ob = id_cast<Object *>(ptr->owner_id);
     BKE_modifier_unique_name(&ob->modifiers, md);
 
-    DriverMap driver_map = BKE_animdata_build_driver_target_map();
+    const DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(ob->id,
                            "modifiers",
                            RNA_path_name_to_infix(oldname),
                            RNA_path_name_to_infix(md->name),
-                           true,
+                           /*verify_paths=*/true,
                            driver_map);
   }
 }
@@ -2527,12 +2527,12 @@ static void rna_GreasePencilDashModifierSegment_name_set(PointerRNA *ptr, const 
   BLI_str_escape(name_esc, dmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
   SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(*ptr->owner_id,
                          rna_path_prefix,
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(dash_segment->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 
@@ -2637,12 +2637,12 @@ static void rna_GreasePencilTimeModifierSegment_name_set(PointerRNA *ptr, const 
   BLI_str_escape(name_esc, tmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
   SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(*ptr->owner_id,
                          rna_path_prefix,
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(segment->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 

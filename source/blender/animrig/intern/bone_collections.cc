@@ -606,18 +606,18 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
 
   /* Bone collections can be reached via .collections (4.0+) and .collections_all (4.1+).
    * Animation data from 4.0 should have been versioned to only use `.collections_all`. */
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(armature->id,
                          "collections",
                          RNA_path_name_to_infix(old_name),
                          RNA_path_name_to_infix(bcoll->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
   BKE_animdata_fix_paths(armature->id,
                          "collections_all",
                          RNA_path_name_to_infix(old_name),
                          RNA_path_name_to_infix(bcoll->name),
-                         true,
+                         /*verify_paths=*/true,
                          driver_map);
 }
 

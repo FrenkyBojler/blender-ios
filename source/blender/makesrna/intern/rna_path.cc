@@ -1361,7 +1361,7 @@ std::string RNA_path_property_py(const PointerRNA *ptr, PropertyRNA *prop, int i
 
 std::string RNA_path_name_to_infix(const StringRefNull string)
 {
-  std::string old_name_esc = BLI_str_escape(string);
+  const std::string old_name_esc = BLI_str_escape(string);
   return fmt::format("[\"{}\"]", old_name_esc);
 }
 

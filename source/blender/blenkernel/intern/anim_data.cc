@@ -754,7 +754,7 @@ static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
 }
 
 /**
- * Inverse of RNA_path_name_to_infix.
+ * Inverse of RNA_path_name_to_infix. For example `["bone \"quoted\""]` -> `bone "quoted"`.
  */
 static std::string infix_to_name(const StringRef infix)
 {
@@ -952,12 +952,12 @@ static bool driver_target_path_fix(ID &owner_id,
   bool is_changed = false;
   for (DriverTarget *target : *target_uses) {
     BLI_assert_msg(target->id == &owner_id,
-                   "Driver Map should only contain targets with the given ID.");
+                   "Driver Map for this ID contains targets for another ID.");
     if (target->rna_path) {
       /* This cannot verify paths because driver paths are not always valid rna paths. They can end
        * in e.g. ".location[0]" while "location" + array index integer would be correct. */
       std::optional<std::string> fixed_path = rna_path_rename_fix(
-          owner_id, prefix, old_infix, new_infix, target->rna_path, false);
+          owner_id, prefix, old_infix, new_infix, target->rna_path, /* verify_paths=*/false);
       if (fixed_path.has_value()) {
         MEM_delete(target->rna_path);
         target->rna_path = BLI_strdup(fixed_path->c_str());
@@ -1009,15 +1009,15 @@ DriverMap BKE_animdata_build_driver_target_map()
 }
 
 void BKE_animdata_fix_paths(ID &id,
-                            StringRef prefix,
-                            StringRef old_infix,
-                            StringRef new_infix,
+                            const StringRef prefix,
+                            const StringRef old_infix,
+                            const StringRef new_infix,
                             const bool verify_paths,
                             const DriverMap &driver_map)
 {
   bool is_changed = false;
   /* We always need to fix drivers that target this ID. This is independent of this ID having
-   * animation data. */
+   * animation data. Also fixes this ID's drivers if they target the ID itself. */
   is_changed |= driver_target_path_fix(id, prefix, old_infix, new_infix, driver_map);
 
   AnimData *adt = BKE_animdata_from_id(&id);

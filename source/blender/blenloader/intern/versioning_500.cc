@@ -1316,7 +1316,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
  * like animation or node construction. */
 static void do_version_convert_to_generic_nodes_after_linking(Main *bmain, bNodeTree *node_tree)
 {
-  DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   for (bNode &node : node_tree->nodes.items_mutable()) {
     char escaped_node_name[sizeof(node.name) * 2 + 1];
     BLI_str_escape(escaped_node_name, node.name, sizeof(escaped_node_name));
@@ -1332,7 +1332,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain, bNode
                                rna_path_prefix,
                                RNA_path_number_to_infix(0),
                                RNA_path_number_to_infix(1),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         break;
       }
@@ -1345,13 +1345,13 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain, bNode
                                rna_path_prefix,
                                RNA_path_number_to_infix(1),
                                RNA_path_number_to_infix(6),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         BKE_animdata_fix_paths(node_tree->id,
                                rna_path_prefix,
                                RNA_path_number_to_infix(2),
                                RNA_path_number_to_infix(7),
-                               false,
+                               /*verify_paths=*/false,
                                driver_map);
         break;
       }
