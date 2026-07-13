@@ -87,6 +87,11 @@ ${temp_LIBDIR}/aom/lib/pkgconfig:\
 ${temp_LIBDIR}/x265/lib/pkgconfig:\
 ${temp_LIBDIR}/ffnvcodec/lib/pkgconfig:"
   )
+else()
+  # XXX: we want to avoid pkg-config on windows (see above comment about MSVC)
+  # so this might have to be removed; either way it just needs a single -I
+  # with no linked libs... so maybe it's fine as-is?
+  set(FFMPEG_ENV "PKG_CONFIG_PATH=${temp_LIBDIR}/ffnvcodec/lib/pkgconfig:")
 endif()
 
 unset(temp_LIBDIR)
@@ -150,6 +155,12 @@ elseif(UNIX)
     --disable-videotoolbox
     --enable-nvenc
     --x86asmexe=${LIBDIR}/nasm/bin/nasm
+  )
+else()
+  set(FFMPEG_EXTRA_FLAGS
+    ${FFMPEG_EXTRA_FLAGS}
+    --disable-videotoolbox
+    --enable-nvenc
   )
 endif()
 
@@ -266,7 +277,7 @@ if(UNIX)
     external_openjpeg
   )
 endif()
-if(UNIX AND NOT APPLE)
+if(NOT APPLE)
   add_dependencies(
     external_ffmpeg
     external_ffnvcodec
