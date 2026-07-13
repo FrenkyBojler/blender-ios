@@ -367,7 +367,7 @@ void UVIsland::extract_borders()
     }
   }
 
-  BitVector<> borders_used(edges.size(), false);
+  BitVector<128> borders_used(edges.size(), false);
   while (true) {
     std::optional<UVBorder> border = extract_border_from_edges(edges, borders_used);
     if (!border.has_value()) {
