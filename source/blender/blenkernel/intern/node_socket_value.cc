@@ -108,6 +108,9 @@ template<typename T> static std::optional<eNodeSocketDatatype> static_type_to_so
   if constexpr (is_same_any_v<T, bke::GeometrySet>) {
     return SOCK_GEOMETRY;
   }
+  if constexpr (is_same_any_v<T, ID *>) {
+    return SOCK_ID;
+  }
   return std::nullopt;
 }
 
@@ -160,6 +163,8 @@ static bool static_type_is_base_socket_type(const eNodeSocketDatatype socket_typ
       return std::is_same_v<T, Mask *>;
     case SOCK_SOUND:
       return std::is_same_v<T, bSound *>;
+    case SOCK_ID:
+      return std::is_same_v<T, ID *>;
     case SOCK_GEOMETRY:
       return std::is_same_v<T, bke::GeometrySet>;
     case SOCK_CUSTOM:
@@ -422,6 +427,10 @@ void SocketValueVariant::store_single(const eNodeSocketDatatype socket_type, con
     }
     case SOCK_SOUND: {
       value_.emplace<bSound *>(*static_cast<bSound *const *>(value));
+      break;
+    }
+    case SOCK_ID: {
+      value_.emplace<ID *>(*static_cast<ID *const *>(value));
       break;
     }
     case SOCK_GEOMETRY: {
@@ -826,6 +835,7 @@ INSTANTIATE_SINGLE_AND_LIST(Scene *)
 INSTANTIATE_SINGLE_AND_LIST(Text *)
 INSTANTIATE_SINGLE_AND_LIST(Mask *)
 INSTANTIATE_SINGLE_AND_LIST(bSound *)
+INSTANTIATE_SINGLE_AND_LIST(ID *)
 
 INSTANTIATE_SINGLE_AND_LIST(float4x4)
 INSTANTIATE(fn::Field<float4x4>)

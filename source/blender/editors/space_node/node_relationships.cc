@@ -2879,6 +2879,7 @@ static int get_main_socket_priority(const bNodeSocket *socket)
     case SOCK_SOUND:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_ID:
       return 7;
   }
   return -1;

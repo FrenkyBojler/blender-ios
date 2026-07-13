@@ -42,6 +42,7 @@ void BKE_cpp_types_init()
   BLI_CPP_TYPE_REGISTER(Text *, CPPTypeFlags::BasicType);
   BLI_CPP_TYPE_REGISTER(Mask *, CPPTypeFlags::BasicType);
   BLI_CPP_TYPE_REGISTER(bSound *, CPPTypeFlags::BasicType);
+  BLI_CPP_TYPE_REGISTER(ID *, CPPTypeFlags::BasicType);
 
   BLI_CPP_TYPE_REGISTER(MStringProperty, CPPTypeFlags::None);
   BLI_CPP_TYPE_REGISTER(nodes::MenuValue,

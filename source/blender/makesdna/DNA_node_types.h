@@ -110,6 +110,7 @@ enum eNodeSocketDatatype : short {
   SOCK_MASK = 22,
   SOCK_SOUND = 23,
   SOCK_INT_VECTOR = 24,
+  SOCK_ID = 25,
 };
 
 /** Socket shape. */
@@ -2149,6 +2150,10 @@ struct bNodeSocketValueMask {
 
 struct bNodeSocketValueSound {
   struct bSound *value = nullptr;
+};
+
+struct bNodeSocketValueID {
+  struct ID *value = nullptr;
 };
 
 struct bNodeSocketValueMenu {

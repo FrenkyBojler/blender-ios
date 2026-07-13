@@ -52,6 +52,8 @@ def find_base_socket_type(socket):
         return 'NodeSocketTexture'
     if socket.type == 'MATERIAL':
         return 'NodeSocketMaterial'
+    if socket.type == 'ID':
+        return 'NodeSocketID'
 
 
 def connect_sockets(input, output):

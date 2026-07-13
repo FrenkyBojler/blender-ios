@@ -75,6 +75,7 @@ _socket_idnames = [
     "NodeSocketFloat",
     "NodeSocketFont",
     "NodeSocketGeometry",
+    "NodeSocketID",
     "NodeSocketImage",
     "NodeSocketInt",
     "NodeSocketMask",

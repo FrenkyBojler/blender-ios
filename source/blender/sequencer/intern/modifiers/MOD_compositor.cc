@@ -217,6 +217,7 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
     case SOCK_CLOSURE:
     case SOCK_SHADER:
     case SOCK_CUSTOM:
+    case SOCK_ID:
       break;
   }
 }

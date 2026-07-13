@@ -437,6 +437,10 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueIntVecto
 {
   writer->write_struct(&data);
 }
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueID &data)
+{
+  writer->write_struct(&data);
+}
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
 {
@@ -589,6 +593,10 @@ template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMenu &
 template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueIntVector &data)
 {
   return *bke::node_static_socket_type(SOCK_INT_VECTOR, data.subtype, data.dimensions);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueID & /*data*/)
+{
+  return *bke::node_static_socket_type(SOCK_ID, PROP_NONE);
 }
 
 static StringRefNull socket_type_from_data(const bNodeTreeInterfaceSocket &socket)
@@ -1602,6 +1610,7 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_TEXT_ID:
     case SOCK_MASK:
     case SOCK_SOUND:
+    case SOCK_ID:
       return nullptr;
 
     case SOCK_FLOAT: {
@@ -1799,6 +1808,11 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_MENU:
     case SOCK_FONT:
       return nullptr;
+
+    case SOCK_ID: {
+      // TODO: we could have a GeometryNodeSelfObject that routes through a "To ID" converter?
+      return nullptr;
+    }
 
     case SOCK_OBJECT: {
       if (default_input == NODE_DEFAULT_INPUT_SELF_OBJECT) {

@@ -477,6 +477,15 @@ class Sound : public IDSocketDeclaration {
   Sound();
 };
 
+class DataBlockID : public IDSocketDeclaration {
+  public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_ID;
+
+  using Builder = IDSocketDeclarationBuilder<DataBlockID>;
+
+  DataBlockID();
+};
+
 class ShaderBuilder;
 
 class Shader : public SocketDeclaration {
@@ -805,6 +814,8 @@ inline Text::Text() : IDSocketDeclaration("NodeSocketText") {}
 inline Mask::Mask() : IDSocketDeclaration("NodeSocketMask") {}
 
 inline Sound::Sound() : IDSocketDeclaration("NodeSocketSound") {}
+
+inline DataBlockID::DataBlockID() : IDSocketDeclaration("NodeSocketID") {}
 
 /** \} */
 

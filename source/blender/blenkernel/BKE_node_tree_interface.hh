@@ -301,6 +301,7 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketText", "NodeTreeInterfaceSocketText", SOCK_TEXT_ID, PROP_NONE},
     {"NodeSocketMask", "NodeTreeInterfaceSocketMask", SOCK_MASK, PROP_NONE},
     {"NodeSocketSound", "NodeTreeInterfaceSocketSound", SOCK_SOUND, PROP_NONE},
+    {"NodeSocketID", "NodeTreeInterfaceSocketID", SOCK_ID, PROP_NONE},
 };
 
 template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype type, const Fn &fn)
@@ -362,6 +363,9 @@ template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype 
       return true;
     case SOCK_INT_VECTOR:
       fn.template operator()<bNodeSocketValueIntVector>();
+      return true;
+    case SOCK_ID:
+      fn.template operator()<bNodeSocketValueID>();
       return true;
 
     case SOCK_CUSTOM:

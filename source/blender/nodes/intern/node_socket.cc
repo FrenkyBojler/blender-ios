@@ -867,6 +867,12 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       *data = dval;
       break;
     }
+    case SOCK_ID: {
+      bNodeSocketValueID *dval = MEM_new<bNodeSocketValueID>("node socket value id");
+      dval->value = nullptr;
+      *data = dval;
+      break;
+    }
 
     case SOCK_CUSTOM:
     case SOCK_GEOMETRY:
@@ -1025,6 +1031,13 @@ void node_socket_copy_default_value_data(eNodeSocketDatatype datatype, void *to,
           const_cast<void *>(from));
       *toval = *fromval;
       id_us_plus(id_cast<ID *>(toval->value));
+      break;
+    }
+    case SOCK_ID: {
+      bNodeSocketValueID *toval = static_cast<bNodeSocketValueID *>(to);
+      bNodeSocketValueID *fromval = static_cast<bNodeSocketValueID *>(const_cast<void *>(from));
+      *toval = *fromval;
+      id_us_plus(reinterpret_cast<ID *>(toval->value));
       break;
     }
 
@@ -2277,6 +2290,45 @@ static bke::bNodeSocketType *make_socket_type_sound()
   return socktype;
 }
 
+static bke::bNodeSocketType *make_socket_type_id()
+{
+  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_ID, PROP_NONE);
+  socktype->base_cpp_type = &CPPType::get<blender::ID *>();
+  socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
+    *static_cast<blender::ID **>(r_value) =
+        (static_cast<bNodeSocketValueID *>(const_cast<void *>(socket_value)))->value;
+  };
+  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value) {
+    blender::ID *id = static_cast<const bNodeSocketValueID *>(socket_value)->value;
+    return SocketValueVariant::From(id);
+  };
+  static SocketValueVariant default_value = SocketValueVariant::From(
+      static_cast<blender::ID *>(nullptr));
+  socktype->geometry_nodes_default_value = &default_value;
+  socktype->make_geometry_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                StructRNA &srna,
+                                                const bNodeTreeInterfaceSocket &socket,
+                                                nodes::GeneratedTreeSrnaData &r_generated) {
+    // TODO: Not sure what to do with this.
+    // PropertyRNA *prop = RNA_def_pointer_runtime(
+    //     &srna, "value", RNA_Material, socket.name, socket.description);
+    // RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
+    // RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    make_common_value_props(srna, socket, r_generated);
+  };
+  socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                  StructRNA &srna,
+                                                  const bNodeTreeInterfaceSocket &socket,
+                                                  nodes::GeneratedTreeSrnaData &r_generated) {
+    make_common_type_prop(srna,
+                          socket,
+                          nodes::compositor_nodes_input_type_items_fallback,
+                          nodes::CompositorNodesInputType::Fallback,
+                          r_generated);
+  };
+  return socktype;
+}
+
 void register_standard_node_socket_types()
 {
   /* Draw callbacks are set in `drawnode.cc` to avoid bad-level calls. */
@@ -2371,6 +2423,7 @@ void register_standard_node_socket_types()
   bke::node_register_socket_type(*make_socket_type_text());
   bke::node_register_socket_type(*make_socket_type_mask());
   bke::node_register_socket_type(*make_socket_type_sound());
+  bke::node_register_socket_type(*make_socket_type_id());
 
   bke::node_register_socket_type(*make_socket_type_bundle());
   bke::node_register_socket_type(*make_socket_type_closure());

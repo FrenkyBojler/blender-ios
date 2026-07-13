@@ -336,6 +336,15 @@ static bke::SocketValueVariant init_socket_cpp_value(const GeoNodesCallData *cal
       }
       break;
     }
+    case SOCK_ID: {
+      // TODO: load_data_block_input is expecting an underlying ->id for the type I think.
+      // const GeometryNodesInputType type = get_effective_input_type(
+      //     input_props_ptr, ntree, io_socket);
+      // if (type == GeometryNodesInputType::Value) {
+      //   return load_data_block_input<ID>(call_data, *input_props_ptr);
+      // }
+      // break;
+    }
     case SOCK_GEOMETRY:
     case SOCK_MATRIX:
     case SOCK_BUNDLE:

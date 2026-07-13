@@ -1550,7 +1550,8 @@ static void std_node_socket_interface_draw(ID *id,
     case SOCK_SCENE:
     case SOCK_TEXT_ID:
     case SOCK_MASK:
-    case SOCK_SOUND: {
+    case SOCK_SOUND:
+    case SOCK_ID: {
       col->prop(&ptr, "default_value", DEFAULT_FLAGS, IFACE_("Default"), ICON_NONE);
       break;
     }

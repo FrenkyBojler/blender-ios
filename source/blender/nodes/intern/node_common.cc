@@ -414,6 +414,11 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
                     .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
         break;
       }
+      case SOCK_ID: {
+        decl = &b.add_socket<decl::DataBlockID>(name, identifier, in_out)
+                    .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
       case SOCK_BUNDLE: {
         decl = &b.add_socket<decl::Bundle>(name, identifier, in_out);
         break;

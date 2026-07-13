@@ -34,6 +34,7 @@ base_idname = {
     "TEXT": "NodeSocketText",
     "MASK": "NodeSocketMask",
     "SOUND": "NodeSocketSound",
+    "ID": "NodeSocketID",
 }
 
 
@@ -76,6 +77,7 @@ subtype_idname = {
     ("TEXT", "NONE"): "NodeSocketText",
     ("MASK", "NONE"): "NodeSocketMask",
     ("SOUND", "NONE"): "NodeSocketSound",
+    ("ID", "NONE"): "NodeSocketID",
 }
 
 

@@ -376,6 +376,11 @@ static void library_foreach_node_socket(bNodeSocket *sock, LibraryForeachIDData 
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, default_value.value, IDWALK_CB_USER);
       break;
     }
+    case SOCK_ID: {
+      bNodeSocketValueID &default_value = *sock->default_value_typed<bNodeSocketValueID>();
+      BKE_LIB_FOREACHID_PROCESS_ID(data, default_value.value, IDWALK_CB_USER);
+      break;
+    }
     case SOCK_FLOAT:
     case SOCK_VECTOR:
     case SOCK_RGBA:
@@ -1189,6 +1194,9 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
     case SOCK_SOUND:
       writer->write_struct_cast<bNodeSocketValueSound>(sock->default_value);
       break;
+    case SOCK_ID:
+      writer->write_struct_cast<bNodeSocketValueID>(sock->default_value);
+      break;
     case SOCK_ROTATION:
       writer->write_struct_cast<bNodeSocketValueRotation>(sock->default_value);
       break;
@@ -1462,6 +1470,7 @@ static bool is_node_socket_supported(const bNodeSocket *sock)
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
     case SOCK_INT_VECTOR:
+    case SOCK_ID:
       return true;
   }
   return false;
@@ -1662,6 +1671,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_SOUND:
         BLO_read_struct(reader, bNodeSocketValueSound, &sock->default_value);
         break;
+      case SOCK_ID:
+        BLO_read_struct(reader, bNodeSocketValueID, &sock->default_value);
+        break;
       case SOCK_ROTATION:
         BLO_read_struct(reader, bNodeSocketValueRotation, &sock->default_value);
         break;
@@ -1852,6 +1864,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_BUNDLE:
       case SOCK_CLOSURE:
       case SOCK_INT_VECTOR:
+      case SOCK_ID:
         BLI_assert_unreachable();
         break;
     }
@@ -2377,6 +2390,7 @@ static std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> create_socket_meta
     case SOCK_TEXT_ID:
     case SOCK_MASK:
     case SOCK_SOUND:
+    case SOCK_ID:
       break;
   }
   return socket_prop;
@@ -3156,6 +3170,12 @@ static void socket_id_user_increment(bNodeSocket *sock)
       id_us_plus(id_cast<ID *>(default_value.value));
       break;
     }
+    case SOCK_ID: {
+      bNodeSocketValueID &default_value = *sock->default_value_typed<bNodeSocketValueID>();
+      // TODO: probably redundant
+      id_us_plus(default_value.value);
+      break;
+    }
     case SOCK_FLOAT:
     case SOCK_VECTOR:
     case SOCK_RGBA:
@@ -3233,6 +3253,9 @@ static void node_socket_free_default_value(bNodeSocket *sock, const bool do_id_u
       break;
     case SOCK_SOUND:
       MEM_delete(sock->default_value_typed<bNodeSocketValueSound>());
+      break;
+    case SOCK_ID:
+      MEM_delete(sock->default_value_typed<bNodeSocketValueID>());
       break;
     case SOCK_ROTATION:
       MEM_delete(sock->default_value_typed<bNodeSocketValueRotation>());
@@ -3318,6 +3341,11 @@ static bool socket_id_user_decrement(bNodeSocket *sock)
       id_us_min(id_cast<ID *>(default_value.value));
       return default_value.value != nullptr;
     }
+    case SOCK_ID: {
+      bNodeSocketValueID &default_value = *sock->default_value_typed<bNodeSocketValueID>();
+      id_us_min(id_cast<ID *>(default_value.value));
+      return default_value.value != nullptr;
+    }
     case SOCK_FLOAT:
     case SOCK_VECTOR:
     case SOCK_RGBA:
@@ -3397,6 +3425,7 @@ void node_modify_socket_type(bNodeTree &ntree,
         case SOCK_BUNDLE:
         case SOCK_CLOSURE:
         case SOCK_INT_VECTOR:
+        case SOCK_ID:
           break;
       }
     }
@@ -3661,6 +3690,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
       return "NodeSocketBundle";
     case SOCK_CLOSURE:
       return "NodeSocketClosure";
+    case SOCK_ID:
+      return "NodeSocketID";
     case SOCK_CUSTOM:
       break;
   }
@@ -3869,6 +3900,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
       return "NodeTreeInterfaceSocketMask";
     case SOCK_SOUND:
       return "NodeTreeInterfaceSocketSound";
+    case SOCK_ID:
+      return "NodeTreeInterfaceSocketID";
     case SOCK_MENU:
       return "NodeTreeInterfaceSocketMenu";
     case SOCK_BUNDLE:
@@ -4481,6 +4514,8 @@ static void *socket_value_storage(bNodeSocket &socket)
       return &socket.default_value_typed<bNodeSocketValueMenu>()->value;
     case SOCK_INT_VECTOR:
       return &socket.default_value_typed<bNodeSocketValueIntVector>()->value;
+    case SOCK_ID:
+      return &socket.default_value_typed<bNodeSocketValueID>()->value;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
       return nullptr;
@@ -5974,6 +6009,9 @@ std::optional<eNodeSocketDatatype> geo_nodes_base_cpp_type_to_socket_type(const 
   }
   if (type.is<bSound *>()) {
     return SOCK_SOUND;
+  }
+  if (type.is<ID *>()) {
+    return SOCK_ID;
   }
 
   return std::nullopt;
