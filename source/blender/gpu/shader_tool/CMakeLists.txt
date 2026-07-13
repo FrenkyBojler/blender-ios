@@ -18,7 +18,6 @@ set(SRC
   namespace.cc
   processor.cc
   resource_table.cc
-  shader_tool.cc
   string.cc
   struct.cc
   template.cc
@@ -49,6 +48,24 @@ if(WITH_GPU_SHADER_ASSERT)
   add_definitions(-DWITH_GPU_SHADER_ASSERT)
 endif()
 
-# `SRC_DNA_INC` is defined in the parent directory.
-add_executable(shader_tool ${SRC})
+add_executable(shader_tool shader_tool.cc ${SRC})
 optimize_debug_target(shader_tool)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/shader_preprocess_test.cc
+  )
+
+  set(TEST_INC
+    .
+  )
+
+  blender_add_test_suite_executable(
+    shader_tool
+    "${TEST_SRC};${SRC}"
+    "${TEST_INC}"
+    ""
+    ""
+    ""
+  )
+endif()
