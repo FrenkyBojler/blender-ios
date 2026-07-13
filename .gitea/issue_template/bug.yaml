@@ -29,6 +29,9 @@ body:
       placeholder: |
                Operating system: (Windows, macOS, Linux), its version number, and architecture (x86 or arm64)
                Graphics card: NVIDA RTX ..., AMD RX ..., Intel Arc ..., Apple ..., and graphics driver version
+      value: |
+               Operating system:
+               Graphics card:
     validations:
       required: true
 
@@ -43,6 +46,10 @@ body:
             Test [previous versions](https://download.blender.org/release/) to find an older working version.
       placeholder: |
                Broken: 5.0.0, branch: blender-v5.0-release, commit date: 2025-11-18 09:54, hash: `a37564c4df7a`
+               Broken: (If applicable: Previous version that was also broken)
+               Worked: (Optional: Newest version of Blender that worked as expected)
+      value: |
+               Broken: (Example: 5.0.0, branch: blender-v5.0-release, commit date: 2025-11-18 09:54, hash: `a37564c4df7a`)
                Broken: (If applicable: Previous version that was also broken)
                Worked: (Optional: Newest version of Blender that worked as expected)
     validations:
