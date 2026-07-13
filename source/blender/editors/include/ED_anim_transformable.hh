@@ -54,6 +54,9 @@ struct Rotation {
 
   /**
    * Returns a copy of the rotation in the given mode.
+   *
+   * \param reference_euler: Only used when converting to a euler rotation. The given Rotation *has
+   * to be* of type euler too.
    */
   Rotation converted_to_mode(eRotationModes mode, const Rotation *reference_euler = nullptr) const;
 };
@@ -134,6 +137,12 @@ class AnimTransformable {
   std::string rna_path_to_property(PropertyType prop_type) const;
   std::string rna_path_to_rotation(const eRotationModes rotation_mode) const;
   std::string rna_path_to_rotation_mode() const;
+  /**
+   * Generic function that returns an rna path to the transformable for the property with the given
+   * name. Note that the resulting string doesn't need to be a valid and existing RNA path. It is
+   * up to the caller to pass the correct string for that.
+   */
+  std::string rna_path_to_property(const StringRef property_name) const;
 
   /**
    * Returns a copy of the rotation in the mode the transformable is currently in.
@@ -142,7 +151,8 @@ class AnimTransformable {
   /**
    * Returns a copy of the rotation for the given mode. This is *not* the current rotation
    * converted to the given mode, but the values of the underlying rotation properties for the
-   * given mode.
+   * given mode. For example, this can return the axis-angle rotation property values, even when
+   * the transformable is in quaternion mode.
    */
   Rotation get_rotation_for_mode(eRotationModes mode) const;
   /**
@@ -154,7 +164,10 @@ class AnimTransformable {
    * Returns the current rotation mode of the transformable.
    */
   eRotationModes get_rotation_mode() const;
-  void set_rotation_mode(const eRotationModes mode);
+  /**
+   * Only sets the rotation mode, does not touch the rotation properties or their animation.
+   */
+  void set_rotation_mode(eRotationModes mode);
 
   /**
    * Blends the rotation to the given `target`. If the rotation mode of the transformable and that

@@ -1580,7 +1580,7 @@ animrig::Channelbag *channelbag_for_action_slot(Action &action, slot_handle_t sl
 
 /* Returns all unique channelbags for this action slot combination. */
 Vector<animrig::Channelbag *> channelbags_for_action_slot(Action &action,
-                                                          const slot_handle_t slot_handle);
+                                                          slot_handle_t slot_handle);
 
 /**
  * Return the F-Curves for this specific slot handle.

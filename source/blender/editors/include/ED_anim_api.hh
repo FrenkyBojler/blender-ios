@@ -1333,7 +1333,7 @@ class SortedFCurveBuffer {
   void clear();
   Span<FCurve *> fcurves() const;
   /**
-   * Returns the FCurve with the given array index from the buffer or a nullptr if that index
+   * Returns the first FCurve with the given array index from the buffer or a nullptr if that index
    * does not exist.
    */
   FCurve *get_fcurve_by_array_index(int array_index) const;

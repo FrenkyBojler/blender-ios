@@ -88,7 +88,6 @@ class BONE_PT_transform(BoneButtonsPanel, Panel):
                 row.prop(pchan, "rotation_euler", text="Rotation")
                 row.use_property_decorate = False
                 row.prop(pchan, "lock_rotation", text="", emboss=False, icon='DECORATE_UNLOCKED')
-
             row = layout.row(align=True)
             row.prop(pchan, "rotation_mode", text="Mode")
             row.label(text="", icon='BLANK1')

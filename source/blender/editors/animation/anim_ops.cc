@@ -1604,94 +1604,16 @@ static Vector<ed::AnimTransformable> selected_transformables_from_context(bConte
   return transformables;
 }
 
-static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
+/* Uniquely identifies an AnimTransformable for a Slot. The StringRefNull is the `rna_path()` of
+ * the AnimTransformable.  */
+using SlotTransformableID = std::pair<const animrig::Slot *, StringRefNull>;
+
+static std::string visited_slot_users_to_message(
+    const Map<SlotTransformableID, int> &num_slot_users_to_visit)
 {
-
-  const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
-  const bool bake = RNA_boolean_get(op->ptr, "bake");
-  ID *prev_id = nullptr;
-
-  /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, ChannelbagFCurveMap> data_map;
-  int skipped_datablocks = 0;
-  int skipped_actions = 0;
-
-  /* Uniquely identifies an AnimTransformable for a Slot. */
-  using SlotTransformableID = std::pair<const animrig::Slot *, StringRefNull>;
-  /* We need to keep track of the modified rna paths per Slot. That is to
-   * avoid modifying the same data twice if two transformables with the same rna path share an
-   * action and slot. The integer value is used to warn the user that he modified only a subset of
-   * all users for an rna path in a slot. We store the slot user count when adding elements and
-   * decrement for each user we visit. */
-  Map<SlotTransformableID, int> unmodified_users;
-
-  Main *bmain = CTX_data_main(C);
-
-  Vector<ed::AnimTransformable> selected_transformables = selected_transformables_from_context(C);
-  for (ed::AnimTransformable &transformable : selected_transformables) {
-    /* We cannot skip transformables based on their current rotation mode since that may be
-     * animated. So `transformable.get_rotation_mode() == mode -> continue` won't work.*/
-    ID *owner_id = transformable.owner_id();
-    if (!BKE_id_is_editable(bmain, owner_id)) {
-      skipped_datablocks++;
-      continue;
-    }
-    bool converted_actions = false;
-    animrig::foreach_action_slot_use(
-        *owner_id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
-          if (!BKE_id_is_editable(bmain, &action.id)) {
-            skipped_actions++;
-            return true;
-          }
-          const animrig::Slot *slot = action.slot_for_handle(slot_handle);
-          BLI_assert(slot != nullptr);
-          SlotTransformableID identifier = {slot, transformable.rna_path()};
-          int *unmodified_count = unmodified_users.lookup_ptr(identifier);
-          if (unmodified_count) {
-            (*unmodified_count)--;
-            BLI_assert((*unmodified_count) >= 0);
-            converted_actions = true;
-            /* We already modified the given rna path for the slot. Don't do it twice! */
-            return true;
-          }
-          else {
-            const int slot_user_count = slot->users(*bmain).size();
-            unmodified_users.add(identifier, slot_user_count - 1);
-          }
-
-          if (!data_map.contains({&action, slot_handle})) {
-            ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
-            data_map.add({&action, slot_handle}, std::move(fcurve_map));
-          }
-          ChannelbagFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
-          if (bake) {
-            bake_rotation_fcurves(channelbag_fcurve_map, transformable);
-          }
-          converted_actions |= convert_rotation_keys(transformable, channelbag_fcurve_map, mode);
-          DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
-          return true;
-        });
-
-    if (converted_actions) {
-      transformable.set_rotation_mode(mode);
-    }
-    else {
-      /* No animation, just convert the values. */
-      ed::Rotation current_rotation = transformable.get_rotation();
-      transformable.set_rotation_mode(mode);
-      transformable.set_rotation(current_rotation.converted_to_mode(mode));
-    }
-
-    if (prev_id != owner_id) {
-      DEG_id_tag_update(transformable.owner_id(), ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
-      prev_id = owner_id;
-    }
-  }
-
   int unmodified_count = 0;
   std::string unmodified_message;
-  for (const auto &[identifier, value] : unmodified_users.items()) {
+  for (const auto &[identifier, value] : num_slot_users_to_visit.items()) {
     if (value <= 0) {
       continue;
     }
@@ -1713,8 +1635,87 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
       break;
     }
   }
+  return unmodified_message;
+}
 
-  if (unmodified_count > 0) {
+static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
+{
+
+  const eRotationModes mode = eRotationModes(RNA_enum_get(op->ptr, "mode"));
+  const bool bake = RNA_boolean_get(op->ptr, "bake");
+  ID *prev_id = nullptr;
+
+  /* A map built per action+slot to make it quicker to find the FCurves by RNA path. */
+  Map<std::pair<animrig::Action *, animrig::slot_handle_t>, ChannelbagFCurveMap> data_map;
+  int skipped_datablocks = 0;
+
+  /* We need to keep track of the modified rna paths per Slot. That is to
+   * avoid modifying the same data twice if two transformables with the same rna path share an
+   * action and slot. The integer value is used to warn the artist that they modified only a subset
+   * of all users for an rna path in a slot. We store the slot user count when adding elements and
+   * decrement for each user we visit. */
+  Map<SlotTransformableID, int> num_slot_users_to_visit;
+  Set<animrig::Action *> skipped_actions;
+
+  Main *bmain = CTX_data_main(C);
+
+  Vector<ed::AnimTransformable> selected_transformables = selected_transformables_from_context(C);
+  for (ed::AnimTransformable &transformable : selected_transformables) {
+    /* We cannot skip transformables based on their current rotation mode since that may be
+     * animated. So `transformable.get_rotation_mode() == mode -> continue` won't work.*/
+    ID *owner_id = transformable.owner_id();
+    if (!BKE_id_is_editable(bmain, owner_id)) {
+      skipped_datablocks++;
+      continue;
+    }
+    animrig::foreach_action_slot_use(
+        *owner_id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+          if (!BKE_id_is_editable(bmain, &action.id)) {
+            skipped_actions.add(&action);
+            return true;
+          }
+          const animrig::Slot *slot = action.slot_for_handle(slot_handle);
+          BLI_assert(slot != nullptr);
+          SlotTransformableID identifier = {slot, transformable.rna_path()};
+          int *unmodified_count = num_slot_users_to_visit.lookup_ptr(identifier);
+          if (unmodified_count) {
+            (*unmodified_count)--;
+            BLI_assert((*unmodified_count) >= 0);
+            /* We already modified the given rna path for the slot. Don't do it twice! */
+            return true;
+          }
+          else {
+            const int slot_user_count = slot->users(*bmain).size();
+            num_slot_users_to_visit.add(identifier, slot_user_count - 1);
+          }
+
+          if (!data_map.contains({&action, slot_handle})) {
+            ChannelbagFCurveMap fcurve_map = build_rotation_fcurve_map(action, slot_handle);
+            data_map.add({&action, slot_handle}, std::move(fcurve_map));
+          }
+          ChannelbagFCurveMap &channelbag_fcurve_map = data_map.lookup({&action, slot_handle});
+          if (bake) {
+            bake_rotation_fcurves(channelbag_fcurve_map, transformable);
+          }
+          convert_rotation_keys(transformable, channelbag_fcurve_map, mode);
+          DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+          return true;
+        });
+
+    /* No animation, just convert the values. */
+    ed::Rotation current_rotation = transformable.get_rotation();
+    transformable.set_rotation_mode(mode);
+    transformable.set_rotation(current_rotation.converted_to_mode(mode));
+
+    if (prev_id != owner_id) {
+      DEG_id_tag_update(owner_id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+      prev_id = owner_id;
+    }
+  }
+
+  std::string unmodified_message = visited_slot_users_to_message(num_slot_users_to_visit);
+  if (!unmodified_message.empty()) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
                 "Multiple users of an action and not all were selected: %s",
@@ -1723,16 +1724,16 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 
   if (skipped_datablocks > 0) {
     BKE_reportf(op->reports,
-                RPT_ERROR,
-                "Skipped data-blocks because they cannot be edited: %d",
+                RPT_WARNING,
+                "Skipped animated data-blocks because they cannot be edited: %d",
                 skipped_datablocks);
   }
 
-  if (skipped_actions > 0) {
+  if (skipped_actions.size() > 0) {
     BKE_reportf(op->reports,
-                RPT_ERROR,
+                RPT_WARNING,
                 "Skipped actions because they cannot be edited: %d",
-                skipped_actions);
+                skipped_actions.size());
   }
 
   /* Update the 3d viewport so gizmos are correct. */
@@ -1742,16 +1743,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
 
 static bool rotation_mode_convert_poll(bContext *C)
 {
-  switch (CTX_data_mode_enum(C)) {
-    case CTX_MODE_OBJECT:
-      return true;
-    case CTX_MODE_POSE:
-      return true;
-
-    default:
-      break;
-  }
-  return false;
+  return ELEM(CTX_data_mode_enum(C), CTX_MODE_OBJECT, CTX_MODE_POSE);
 }
 
 static void ANIM_OT_rotation_mode_convert(wmOperatorType *ot)

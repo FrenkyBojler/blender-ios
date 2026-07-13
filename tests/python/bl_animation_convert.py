@@ -2,22 +2,23 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import bpy
-
 import math
 import sys
 import unittest
 import pathlib
+from typing import Generator
+
+import bpy
 import mathutils
+
 
 """
 blender -b --factory-startup --python tests/python/bl_animation_convert.py -- --testdir tests/files/animation/
 """
 
 
-def _get_fcurves_with_rna_path(action: bpy.types.Action, slot: bpy.types.ActionSlot,
-                               rna_path: str) -> list[bpy.types.FCurve]:
-    fcurves = []
+def _fcurves_with_rna_path(action: bpy.types.Action, slot: bpy.types.ActionSlot,
+                           rna_path: str) -> Generator[bpy.types.FCurve]:
     for layer in action.layers:
         for strip in layer.strips:
             channelbag = strip.channelbag(slot)
@@ -25,32 +26,19 @@ def _get_fcurves_with_rna_path(action: bpy.types.Action, slot: bpy.types.ActionS
                 continue
             for fcurve in channelbag.fcurves:
                 if fcurve.data_path == rna_path:
-                    fcurves.append(fcurve)
-    return fcurves
+                    yield fcurve
 
 
 def _action_slot_has_rna_path(action: bpy.types.Action, slot: bpy.types.ActionSlot, rna_path: str) -> bool:
-    for layer in action.layers:
-        for strip in layer.strips:
-            channelbag = strip.channelbag(slot)
-            if not channelbag:
-                continue
-            for fcurve in channelbag.fcurves:
-                if fcurve.data_path == rna_path:
-                    return True
-    return False
+    return any(_fcurves_with_rna_path(action, slot, rna_path))
 
 
 class ConvertRotationModeBase(unittest.TestCase):
     def _assert_almost_equal_rotation_matrix(self, a: mathutils.Matrix, b: mathutils.Matrix):
-        equal = True
         for j in range(3):
             for i in range(3):
                 if abs(a.row[i][j] - b.row[i][j]) > 0.001:
-                    equal = False
-                    break
-        if not equal:
-            raise AssertionError(f"Rotation part of matrices doesn't match\n{a}\n{b}")
+                    raise AssertionError(f"Rotation part of matrices doesn't match\n{a}\n{b}")
 
     def _assert_almost_equal_euler(self, a: mathutils.Euler, b: mathutils.Euler):
         msg = f"Difference in Euler: {a} - {b}"
@@ -99,7 +87,7 @@ class ConvertRotationModeObject(ConvertRotationModeBase):
     def test_convert_rotation_bake(self):
         self.obj.convert_rotation_mode('QUATERNION', bake=True)
 
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'rotation_quaternion')
@@ -225,7 +213,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
     def test_convert_360_rotation_bake(self):
         """ When converting rotations >180 degrees baking has to
         be used to ensure the interpolation is preserved. """
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_euler_rotation_360"].rotation_euler')
@@ -236,7 +224,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
 
         self.bone_euler_360.convert_rotation_mode('QUATERNION', bake=True)
 
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_euler_rotation_360"].rotation_quaternion')
@@ -307,7 +295,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
     def test_result_is_euler_filtered(self):
         """ When converting rotation modes we should not have sudden 180 degree jumps in euler mode. """
         self.bone_euler_360.convert_rotation_mode('XZY', bake=True)
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_euler_rotation_360"].rotation_euler')
@@ -324,18 +312,18 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
 
     def test_convert_partially_keyed_rotation(self):
         """ When converting rotations without baking the resulting animation will have all channels keyed if at least one channel has a key on a frame. """
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_partially_keyed"].rotation_euler')
-        self.assertEqual(len(fcurves), 2)
+        self.assertEqual(len(list(fcurves)), 2)
         self.bone_partially_keyed.convert_rotation_mode('XZY')
 
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_partially_keyed"].rotation_euler')
-        self.assertEqual(len(fcurves), 3)
+        self.assertEqual(len(list(fcurves)), 3)
         expected_frames = [1, 6, 16, 21]
         for fcurve in fcurves:
             for i, frame in enumerate(expected_frames):
@@ -343,15 +331,15 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
 
     def test_convert_subframes(self):
         self.assertEqual(self.bone_subframes.rotation_mode, 'XYZ')
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_subframe_keys"].rotation_euler')
-        self.assertEqual(len(fcurves), 3)
+        self.assertEqual(len(list(fcurves)), 3)
         self.bone_subframes.convert_rotation_mode('XZY')
         self.assertEqual(self.bone_subframes.rotation_mode, 'XZY')
         # Have to get the new FCurves since the call will always replace the FCurves even if conversion Euler to Euler.
-        fcurves = _get_fcurves_with_rna_path(
+        fcurves = _fcurves_with_rna_path(
             self.action,
             self.action_slot,
             'pose.bones["bone_subframe_keys"].rotation_euler')
