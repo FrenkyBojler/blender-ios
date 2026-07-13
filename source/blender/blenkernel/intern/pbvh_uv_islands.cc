@@ -1055,17 +1055,17 @@ std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edge
                                                   MutableBoundedBitSpan borders_used)
 {
   /* Find a part of the border that haven't been extracted yet. */
-  UVBorderEdge *starting_border_edge = nullptr;
   const std::optional<int64_t> start_index = bits::find_first_0_index(borders_used);
   if (!start_index) {
     return std::nullopt;
   }
+  UVBorderEdge &start_edge = edges[*start_index];
   UVBorder border;
-  border.edges.append(*starting_border_edge);
+  border.edges.append(start_edge);
   borders_used[*start_index].set();
 
-  float2 first_uv = starting_border_edge->get_uv_vertex(0)->uv;
-  float2 current_uv = starting_border_edge->get_uv_vertex(1)->uv;
+  float2 first_uv = start_edge.get_uv_vertex(0)->uv;
+  float2 current_uv = start_edge.get_uv_vertex(1)->uv;
   while (current_uv != first_uv) {
     bool edge_added = false;
     for (const int edge_i : edges.index_range()) {
