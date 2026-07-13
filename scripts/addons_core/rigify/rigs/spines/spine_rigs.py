@@ -175,7 +175,7 @@ class BaseSpineRig(TweakChainRig):
         )
 
         params.bbones = bpy.props.IntProperty(
-            name='B-Bone Segments', default=8, min=1,
+            name='B-Bone Segments', default=10, min=1,
             description='Number of B-Bone segments')
 
         # Setting up extra layers for the FK and tweak
