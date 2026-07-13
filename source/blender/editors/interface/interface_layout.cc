@@ -5742,47 +5742,58 @@ int Layout::resolve_dynamic_height()
     return 0;
   }
   /* Extra vertical offsset. */
-  int extra_y_offs = 0;
-  /* Max new sub item heigth for horizontal layouts.*/
-  int max_subitem_h = 0;
+  int y_offs = 0;
 
-  for (Item *subitem : this->items()) {
-    /* Apply dynamic offset from previous items in vertical layouts. */
-    if (extra_y_offs && this->local_direction() == LayoutDirection::Vertical) {
-      item_translate_y(subitem, -extra_y_offs);
-    }
-    if (subitem->type() == ItemType::Button) {
-      ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
-      if (button_label_is_multiline(sub_bitem->but)) {
-        int2 size = subitem->size();
-        resolve_label_multiline(static_cast<ButtonLabel *>(sub_bitem->but));
-        int2 new_size = subitem->size();
-        if (this->local_direction() == LayoutDirection::Vertical) {
-          extra_y_offs += new_size.y - size.y;
-        }
-        else if (max_subitem_h < new_size.y) {
-          max_subitem_h = new_size.y;
-          extra_y_offs = new_size.y - size.y;
-        }
-      }
-      continue;
-    }
-    int2 size = subitem->size();
-    if (this->local_direction() == LayoutDirection::Vertical) {
-      extra_y_offs += static_cast<Layout *>(subitem)->resolve_dynamic_height();
-    }
-    else {
-      static_cast<Layout *>(subitem)->resolve_dynamic_height();
-      int2 new_size = subitem->size();
-      if (new_size.y > max_subitem_h) {
-        max_subitem_h = new_size.y;
-        extra_y_offs = new_size.y - size.y;
-      }
-    }
+  int rows = this->local_direction() == LayoutDirection::Vertical ? this->items().size() : 1;
+  int cols = this->local_direction() == LayoutDirection::Horizontal ? this->items().size() : 1;
+  bool row_major = this->local_direction() == LayoutDirection::Vertical;
+
+  if (const LayoutItemGridFlow *flow = this->type() == ItemType::LayoutGridFlow ?
+                                           static_cast<const LayoutItemGridFlow *>(this) :
+                                           nullptr)
+  {
+    row_major = flow->row_major;
+    rows = flow->tot_rows;
+    cols = flow->tot_columns;
   }
-  this->y_ -= extra_y_offs;
-  this->h_ += extra_y_offs;
-  return extra_y_offs;
+  if (const LayoutItemFlow *flow = this->type() == ItemType::LayoutColumnFlow ?
+                                       static_cast<const LayoutItemFlow *>(this) :
+                                       nullptr)
+  {
+    row_major = false;
+    cols = flow->totcol;
+    rows = (flow->items().size() / std::max(cols, 1));
+  }
+  for (int row : IndexRange(rows)) {
+    int max_row_heigth_new = 0;
+    int max_row_heigth = 0;
+    for (int col : IndexRange(cols)) {
+      int i = (row_major ? (row * cols + col) : (col * rows + row));
+      if (i >= this->items_.size()) {
+        continue;
+      }
+      Item *subitem = this->items_[i];
+      int2 size = subitem->size();
+      max_row_heigth = std::max(max_row_heigth, size.y);
+      item_translate_y(subitem, -y_offs);
+
+      if (subitem->type() == ItemType::Button) {
+        ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
+        if (button_label_is_multiline(sub_bitem->but)) {
+          resolve_label_multiline(static_cast<ButtonLabel *>(sub_bitem->but));
+        }
+      }
+      else {
+        static_cast<Layout *>(subitem)->resolve_dynamic_height();
+      }
+      int2 new_size = subitem->size();
+      max_row_heigth_new = std::max(max_row_heigth_new, new_size.y);
+    }
+    y_offs += std::max(max_row_heigth_new - max_row_heigth, 0);
+  }
+  this->y_ -= y_offs;
+  this->h_ += y_offs;
+  return y_offs;
 }
 
 static int2 layout_end(Layout *layout)
