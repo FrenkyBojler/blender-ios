@@ -2400,8 +2400,11 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
       /* If the fully evaluated mesh has the same topology as the deform-only version, use it.
        * This matters because crazyspace evaluation is very restrictive and excludes even modifiers
-       * that simply recompute vertex weights (which can even include Geometry Nodes). */
-      if (me_eval_deform->faces_num == mesh_eval->faces_num &&
+       * that simply recompute vertex weights (which can even include Geometry Nodes).
+       *
+       * The deform-only mesh may be null, e.g. when a Geometry Nodes modifier replaces the input
+       * geometry entirely. In that case fall through to the crazyspace path below. */
+      if (me_eval_deform && me_eval_deform->faces_num == mesh_eval->faces_num &&
           me_eval_deform->corners_num == mesh_eval->corners_num &&
           me_eval_deform->verts_num == mesh_eval->verts_num)
       {
