@@ -26,12 +26,12 @@ void invalidate_text_wrap_cache(const ARegion &region)
     block.text_wrap_cache.clear();
     for (Button &button : block.buttons()) {
       if (button.type == ButtonType::TextBox) {
-        ButtonTextBox &textbox = static_cast<ButtonTextBox &>(button);
+        auto &textbox = static_cast<ButtonTextBox &>(button);
         textbox.wrap_cache.reset();
         textbox.placeholder_wrap_cache.reset();
       }
       if (button.type == ButtonType::Label) {
-        ButtonLabel &label = static_cast<ButtonLabel &>(button);
+        auto &label = static_cast<ButtonLabel &>(button);
         label.wrap_cache.reset();
       }
     }

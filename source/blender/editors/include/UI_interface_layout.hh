@@ -404,7 +404,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
   /** Adds a label item that will display text and/or icon in the layout. */
   void label(StringRef name, int icon);
   /**
-   * Add a multiline label that will display multiline text and/or icon in the layout.
+   * Adds a multi-line label that will display wrapped text and/or icon in the layout.
    * \param max_lines: Number of maximum lines to display in the layout, 0 means all.
    */
   void label_multiline(StringRefNull label,

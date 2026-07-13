@@ -94,7 +94,6 @@ struct LayoutRoot {
   Block *block;
   Layout *layout;
   LayoutDirection direction;
-
   bool use_dynamic_height;
 };
 
@@ -536,13 +535,12 @@ void LayoutInternal::layout_translate_y(Layout *layout, int delta)
 static void item_translate_y(Item *item, const int delta)
 {
   if (item->type() == ItemType::Button) {
-    ButtonItem *bitem = static_cast<ButtonItem *>(item);
-
+    auto *bitem = static_cast<ButtonItem *>(item);
     bitem->but->rect.ymin += delta;
     bitem->but->rect.ymax += delta;
   }
   else {
-    Layout *layout = static_cast<Layout *>(item);
+    auto *layout = static_cast<Layout *>(item);
     LayoutInternal::layout_translate_y(layout, delta);
     for (Item *sub : layout->items()) {
       item_translate_y(sub, delta);
@@ -5778,7 +5776,7 @@ int Layout::resolve_dynamic_height()
       item_translate_y(subitem, -y_offs);
 
       if (subitem->type() == ItemType::Button) {
-        ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
+        auto *sub_bitem = static_cast<ButtonItem *>(subitem);
         if (button_label_is_multiline(sub_bitem->but)) {
           resolve_label_multiline(static_cast<ButtonLabel *>(sub_bitem->but));
         }
