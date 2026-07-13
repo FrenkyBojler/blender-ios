@@ -238,6 +238,8 @@ class ZstdWriteWrap : public WriteWrap {
   std::condition_variable condition;
   int next_frame = 0;
   int num_frames = 0;
+  int in_flight = 0;
+  int max_in_flight = 0;
 
   ListBaseT<ZstdFrame> frames = {};
 
@@ -289,6 +291,7 @@ void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
     ww->write_error = true;
   }
   ww->next_frame++;
+  ww->in_flight--;
   MEM_delete(task);
   MEM_delete_void(out_buf);
   ww->condition.notify_all();
@@ -301,6 +304,11 @@ bool ZstdWriteWrap::open(const char *filepath)
   }
 
   pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_HIGH);
+  /* Limit the number of chunks in flight at once, so that every task that is
+   * pushed to the pool is guaranteed a worker thread. Without this, a task
+   * waiting for an earlier frame to be written could be stuck behind other
+   * queued tasks that never get a thread to run on, deadlocking the save. */
+  max_in_flight = max_ii(1, BLI_system_thread_count() - 1);
 
   return true;
 }
@@ -370,6 +378,15 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
   task->frame_number = num_frames++;
+
+  {
+    /* Wait for a free slot, so that every task pushed to the pool is guaranteed a
+     * worker thread to run on and can never be stuck waiting behind tasks that
+     * have not started yet. */
+    std::unique_lock lock{mutex};
+    condition.wait(lock, [&] { return in_flight < max_in_flight; });
+    in_flight++;
+  }
 
   BLI_task_pool_push(pool, compress_task_run, task, false, nullptr);
   return true;
