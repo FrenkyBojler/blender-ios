@@ -1010,6 +1010,7 @@ static const float std_node_socket_colors[][4] = {
     {0, 0, 0, 1},            /* SOCK_MASK */
     {0.39, 0.34, 0.26, 1},   /* SOCK_SOUND */
     {0.36, 0.47, 0.61, 1.0}, /* SOCK_INT_VECTOR */
+    {1.0, 0.0, 0.0, 1.0},    /* SOCK_ID */
 };
 
 void std_node_socket_colors_get(int socket_type, float *r_color)
@@ -1049,7 +1050,7 @@ static const SocketColorFn std_node_socket_color_funcs[] = {
     std_node_socket_color_fn<SOCK_CLOSURE>,    std_node_socket_color_fn<SOCK_FONT>,
     std_node_socket_color_fn<SOCK_SCENE>,      std_node_socket_color_fn<SOCK_TEXT_ID>,
     std_node_socket_color_fn<SOCK_MASK>,       std_node_socket_color_fn<SOCK_SOUND>,
-    std_node_socket_color_fn<SOCK_INT_VECTOR>,
+    std_node_socket_color_fn<SOCK_INT_VECTOR>, std_node_socket_color_fn<SOCK_ID>,
 };
 
 static bool socket_needs_attribute_search(bNode &node, bNodeSocket &socket)
@@ -1467,6 +1468,8 @@ static void std_node_socket_draw(
 
       break;
     }
+    case SOCK_ID:
+    // TODO: NOTIMPLEMENTED
     default:
       draw_node_socket_without_value(layout, sock, label_or_empty);
       break;

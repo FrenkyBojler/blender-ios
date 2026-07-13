@@ -1807,12 +1807,13 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_ROTATION:
     case SOCK_MENU:
     case SOCK_FONT:
+    case SOCK_ID:
       return nullptr;
 
-    case SOCK_ID: {
-      // TODO: we could have a GeometryNodeSelfObject that routes through a "To ID" converter?
-      return nullptr;
-    }
+    // case SOCK_ID: {
+    //   // TODO: we could have a GeometryNodeSelfObject that routes through a "To ID" converter?
+    //   return nullptr;
+    // }
 
     case SOCK_OBJECT: {
       if (default_input == NODE_DEFAULT_INPUT_SELF_OBJECT) {

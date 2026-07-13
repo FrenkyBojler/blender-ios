@@ -1582,6 +1582,10 @@ static void node_find_update_fn(const bContext *C,
               *node, id_cast<ID *>(socket->default_value_typed<bNodeSocketValueSound>()->value));
           break;
         }
+        case SOCK_ID: {
+          add_data_block_item(*node, socket->default_value_typed<bNodeSocketValueID>()->value);
+          break;
+        }
         default:
           break;
       }

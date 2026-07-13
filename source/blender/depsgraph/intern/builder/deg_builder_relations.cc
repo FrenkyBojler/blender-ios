@@ -3063,6 +3063,9 @@ void DepsgraphRelationBuilder::build_nodetree_socket(bNodeSocket *socket)
       build_sound(sound);
     }
   }
+  else if (socket->type == SOCK_ID) {
+    // TODO: to be implemented.
+  }
 }
 
 void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)

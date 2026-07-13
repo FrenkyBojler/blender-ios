@@ -2036,6 +2036,9 @@ void DepsgraphNodeBuilder::build_nodetree_socket(bNodeSocket *socket)
   else if (socket->type == SOCK_SOUND) {
     build_id(id_cast<ID *>((static_cast<bNodeSocketValueSound *>(socket->default_value))->value));
   }
+  else if (socket->type == SOCK_ID) {
+    build_id((static_cast<bNodeSocketValueID *>(socket->default_value))->value);
+  }
 }
 
 void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)

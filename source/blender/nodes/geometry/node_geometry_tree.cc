@@ -105,6 +105,12 @@ static bool geometry_node_tree_validate_link(eNodeSocketDatatype type_a,
     return true;
   }
 
+  /* ID-backed sockets can be implicitly converted to an ID socket. */
+  if (ELEM(type_a, SOCK_COLLECTION, SOCK_FONT, SOCK_MATERIAL, SOCK_OBJECT, SOCK_SCENE, SOCK_SOUND, SOCK_TEXT_ID, SOCK_TEXTURE) && type_b == SOCK_ID)
+  {
+    return true;
+  }
+
   /* Support implicit conversions between matrices and rotations. */
   if (type_a == SOCK_MATRIX && type_b == SOCK_ROTATION) {
     return true;
@@ -139,7 +145,7 @@ static bool geometry_node_tree_socket_type_valid(bke::bNodeTreeType * /*treetype
                SOCK_IMAGE,
                SOCK_MATERIAL,
                SOCK_MENU) ||
-          ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_FONT, SOCK_SOUND));
+          ELEM(socket_type->type, SOCK_BUNDLE, SOCK_CLOSURE, SOCK_FONT, SOCK_SOUND, SOCK_ID));
 }
 
 void register_node_tree_type_geo()

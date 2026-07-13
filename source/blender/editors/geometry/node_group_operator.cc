@@ -1346,6 +1346,8 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
       make_common_value_props(*srna);
       break;
     }
+    case SOCK_ID:
+    // NOTIMPLEMENTED
     default:
       break;
   }

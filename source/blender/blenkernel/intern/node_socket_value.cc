@@ -587,6 +587,9 @@ void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
     case SOCK_SOUND:
       ptr = value_.allocate<bSound *>();
       break;
+    case SOCK_ID:
+      ptr = value_.allocate<ID *>();
+      break;
     case SOCK_GEOMETRY:
       ptr = value_.allocate<bke::GeometrySet>();
       break;
@@ -626,6 +629,7 @@ void SocketValueVariant::ensure_owns_direct_data()
     case SOCK_TEXT_ID:
     case SOCK_MASK:
     case SOCK_SOUND:
+    case SOCK_ID:
     case SOCK_CLOSURE: {
       break;
     }
@@ -688,6 +692,7 @@ bool SocketValueVariant::owns_direct_data() const
     case SOCK_TEXT_ID:
     case SOCK_MASK:
     case SOCK_SOUND:
+    case SOCK_ID:
     case SOCK_CLOSURE: {
       return true;
     }

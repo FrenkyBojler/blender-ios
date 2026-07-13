@@ -3965,6 +3965,8 @@ std::optional<StringRefNull> node_static_socket_label(const int type, const int 
       return "Closure";
     case SOCK_INT_VECTOR:
       return "Integer Vector";
+    case SOCK_ID:
+      return "ID";
     case SOCK_CUSTOM:
       break;
   }
@@ -4625,7 +4627,9 @@ void node_socket_move_default_value(Main & /*bmain*/,
            SOCK_SCENE,
            SOCK_TEXT_ID,
            SOCK_MASK,
-           SOCK_SOUND))
+           SOCK_SOUND,
+           SOCK_ID  // ??
+          ))
   {
     src_type.value_initialize(src_value);
   }

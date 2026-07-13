@@ -73,6 +73,7 @@ const EnumPropertyItem rna_enum_node_socket_data_type_items[] = {
     {SOCK_MASK, "MASK", ICON_NODE_SOCKET_MASK, "Mask", ""},
     {SOCK_SOUND, "SOUND", ICON_NODE_SOCKET_SOUND, "Sound", ""},
     {SOCK_INT_VECTOR, "INT_VECTOR", ICON_NODE_SOCKET_INT_VECTOR, "Integer Vector", ""},
+    {SOCK_ID, "ID", ICON_NODE_SOCKET_ID, "ID", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4305,13 +4306,16 @@ static const EnumPropertyItem *rna_NodeImplicitConversion_data_type_itemf(bConte
   bNodeTree &ntree = *id_cast<bNodeTree *>(ptr->owner_id);
   return itemf_function_check(
       rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem *item) {
+        std::cout << item->value << std::endl;
         bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item->value);
         if (!socket_type) {
+          std::cout << "didn't find static socket type" << std::endl;
           return false;
         }
         if (ntree.typeinfo->valid_socket_type &&
             !ntree.typeinfo->valid_socket_type(ntree.typeinfo, socket_type))
         {
+          std::cout << "not a valid socket type!" << std::endl;
           return false;
         }
         return true;
