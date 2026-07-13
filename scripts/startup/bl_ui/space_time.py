@@ -43,7 +43,6 @@ class TIME_PT_frame_range_sync(Panel):
 
     def draw(self, context):
         scene = context.scene
-
         layout = self.layout
         col = layout.column()
         # col.active = context.sequencer_scene
@@ -140,7 +139,15 @@ def playback_controls(layout, context):
 
         row = layout.row(align=True)
         row.prop(scene, "use_preview_range", text="", toggle=True)
-        row.popover(panel="TIME_PT_frame_range_sync", text="")
+        workspace = context.workspace
+
+        has_sequencer = any(
+            area.type == 'SEQUENCE_EDITOR'
+            for screen in workspace.screens
+            for area in screen.areas
+        )
+        if has_sequencer:
+            row.popover(panel="TIME_PT_frame_range_sync", text="")
         sub = row.row(align=True)
         sub.scale_x = 0.8
         if not scene.use_preview_range:
@@ -258,6 +265,7 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
         row.active = not scene.lock_frame_selection_to_range
         row.prop(scene, "allow_preroll")
         col.prop(screen, "use_follow", text="Follow Current Frame")
+        col.prop(screen, "use_follow", text="Sync Frame Range with Sequencer")
         col.prop(scene, "playback_loop_mode", text="Loop")
 
         col = layout.column(heading="Play In")
