@@ -25,6 +25,8 @@
 
 #include "WM_api.hh"
 
+#include "GEO_smooth_curves.hh"
+
 namespace blender {
 
 namespace ed::greasepencil {
@@ -40,7 +42,7 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
                                       const float4x4 &projection,
                                       const float4x4 &layer_to_world,
                                       const DrawingPlacement &placement,
-                                      const Span<int2> mcoords,
+                                      const Span<float2> mcoords,
                                       const bool keep_caps,
                                       bke::greasepencil::Drawing &drawing)
 {
@@ -57,13 +59,6 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
     for (const int src_point : src_points) {
       screen_space_positions[src_point] = ED_view3d_project_float_v2_m4(
           &region, deformation.positions[src_point], projection);
-    }
-  });
-
-  Array<float2> cut_pos2d(mcoords.size());
-  threading::parallel_for(mcoords.index_range(), 4096, [&](const IndexRange i_range) {
-    for (const int i : i_range) {
-      cut_pos2d[i] = float2(mcoords[i]);
     }
   });
 
@@ -89,10 +84,10 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
       ".positions_2d", bke::AttrDomain::Point);
 
   pos_writer.span.slice(src.points_range()).copy_from(screen_space_positions);
-  pos_writer.span.take_back(mcoords.size()).copy_from(cut_pos2d);
+  pos_writer.span.take_back(mcoords.size()).copy_from(mcoords);
   pos_writer.finish();
 
-  placement.project(cut_pos2d, input_curves.positions_for_write().take_back(mcoords.size()));
+  placement.project(mcoords, input_curves.positions_for_write().take_back(mcoords.size()));
 
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
       "fill_id", bke::AttrDomain::Curve);
@@ -163,6 +158,24 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
 
   GreasePencil &grease_pencil = *id_cast<GreasePencil *>(obact->data);
 
+  Array<float2> coords(mcoords.size());
+  threading::parallel_for(mcoords.index_range(), 4096, [&](const IndexRange i_range) {
+    for (const int i : i_range) {
+      coords[i] = float2(mcoords[i]);
+    }
+  });
+
+  Array<float2> lasso_pos(coords.size());
+  const int smooth_iterations = 4;
+  const float smooth_factor = 0.8f;
+  geometry::gaussian_blur_1D(coords.as_span(),
+                             smooth_iterations,
+                             VArray<float>::from_single(smooth_factor, coords.size()),
+                             true,
+                             true,
+                             false,
+                             lasso_pos.as_mutable_span());
+
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   if (brush->gpencil_settings == nullptr) {
@@ -196,7 +209,7 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
                                     projection,
                                     layer_to_world,
                                     placement,
-                                    mcoords,
+                                    lasso_pos.as_span(),
                                     keep_caps,
                                     info.drawing))
       {
@@ -225,7 +238,7 @@ static wmOperatorStatus stroke_carver_execute(const bContext *C, const Span<int2
                                     projection,
                                     layer_to_world,
                                     placement,
-                                    mcoords,
+                                    lasso_pos,
                                     keep_caps,
                                     info.drawing))
       {
