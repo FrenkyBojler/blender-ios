@@ -356,7 +356,7 @@ class Rig(BaseHeadTailRig):
     def add_parameters(cls, params):
         super().add_parameters(params)
         params.bbones = bpy.props.IntProperty(
-            name='B-Bone Segments', default=10, min=1,
+            name='B-Bone Segments', default=8, min=1, max=32,
             description='Number of B-Bone segments')
 
     @classmethod
