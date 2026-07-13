@@ -54,7 +54,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
     const bool type_is_float = ELEM(data_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
     const bool is_vector = data_type == SOCK_VECTOR;
-    const bool is_data_block = is_supported_data_block_type(data_type);
+    const bool is_data_block = data_type == SOCK_ID || is_supported_data_block_type(data_type);
 
     auto &a_input =
         b.add_input(data_type, "A"_ustr).translation_context(BLT_I18NCONTEXT_ID_NODETREE);
@@ -162,7 +162,7 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = params.other_socket().type;
-  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) &&
+  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING, SOCK_ID) &&
       !is_supported_data_block_type(type))
   {
     return;
@@ -654,6 +654,31 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
           break;
       }
       break;
+    case SOCK_ID: {
+        switch (data->operation) {
+          case NODE_COMPARE_EQUAL: {
+            static auto fn = mf::build::SI2_SO<ID *, ID *, bool>(
+                "Equal",
+                [](const ID *a, const ID *b) {
+                  return data_blocks_are_equal(a, b);
+                },
+                mf::build::exec_presets::Simple{});
+            return &fn;
+          }
+          case NODE_COMPARE_NOT_EQUAL: {
+            static auto fn = mf::build::SI2_SO<ID *, ID *, bool>(
+                "Not Equal",
+                [](const ID *a, const ID *b) {
+                  return !data_blocks_are_equal(a, b);
+                },
+                mf::build::exec_presets::Simple{});
+            return &fn;
+          }
+          default: {
+            return nullptr;
+          }
+        }
+    }
     default: {
       if (is_supported_data_block_type(data_type)) {
         return to_static_data_block_type(
@@ -709,7 +734,7 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
-  else if ((node_storage->data_type == SOCK_STRING ||
+  else if ((ELEM(node_storage->data_type, SOCK_STRING, SOCK_ID) ||
             is_supported_data_block_type(node_storage->data_type)) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
@@ -788,7 +813,7 @@ static void node_rna(StructRNA *srna)
                                                  NODE_COMPARE_COLOR_DARKER);
                                    });
         }
-        if (is_supported_data_block_type(data->data_type)) {
+        if (data->data_type == SOCK_ID || is_supported_data_block_type(data->data_type)) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);
@@ -810,7 +835,7 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
-              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA) ||
+              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA, SOCK_ID) ||
                      is_supported_data_block_type(eNodeSocketDatatype(item.value));
             });
       });

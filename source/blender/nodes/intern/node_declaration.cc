@@ -386,6 +386,9 @@ static bool socket_type_to_static_decl_type(const eNodeSocketDatatype socket_typ
     case SOCK_INT_VECTOR:
       fn.template operator()<decl::IntVector>();
       return true;
+    case SOCK_ID:
+      fn.template operator()<decl::DataBlockID>();
+      return true;
     default:
       return false;
   }
