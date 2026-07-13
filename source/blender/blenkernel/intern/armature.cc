@@ -14,19 +14,19 @@
 #include <limits>
 #include <optional>
 
-#include "BLI_alloca.h"
-#include "BLI_assert.h"
+#include "BLI_alloca.hh"
+#include "BLI_assert.hh"
 #include "BLI_bounds.hh"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_span.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 #include "BLT_translation.hh"
 
 #include "DNA_action_types.h"
@@ -41,7 +41,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
@@ -80,6 +80,8 @@ static void copy_bonechildren(Bone *bone_dst,
 
 static void copy_bonechildren_custom_handles(Bone *bone_dst, bArmature *arm_dst);
 
+static void rebuild_bone_array(bArmature &armature);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -91,6 +93,11 @@ static void armature_init_data(ID *id)
   bArmature *armature = id_cast<bArmature *>(id);
   INIT_DEFAULT_STRUCT_AFTER(armature, id);
   armature->runtime = MEM_new<bke::bArmature_Runtime>(__func__);
+
+  /* Initialize the counter at something that's unique to this ID. That way swapping out Armatures
+   * will force the Pose Object to reconstruct its bone indices. If the counter would start at 0
+   * for all data-blocks, detecting such swaps would require more than just this counter. */
+  armature->runtime->bones_generation_count = uint64_t(id->session_uid) << 32;
 }
 
 /**
@@ -166,6 +173,21 @@ static void armature_copy_data(Main * /*bmain*/,
 
   armature_dst->act_bone = bone_dst_act;
 
+  /* Build the flat bone array. */
+  if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
+    /* For copy-on-evaluate copies, start with the same generation counter as the Armature we're
+     * copying from. Since this is an exact duplicate, bone indices should remain valid and thus
+     * pose objects won't need to adjust. */
+    rebuild_bone_array(*armature_dst);
+    armature_dst->runtime->bones_generation_count = armature_src->runtime->bones_generation_count;
+  }
+  else {
+    /* Other copies need their own counter value, to ensure that swapping between the original and
+     * the copy is detected even after they have been edited an equal number of times. */
+    armature_dst->runtime->bones_generation_count = uint64_t(id_dst->session_uid) << 32;
+    rebuild_bone_array(*armature_dst);
+  }
+
   BKE_armature_bone_hash_make(armature_dst);
 
   /* Fix custom handle references. */
@@ -210,7 +232,7 @@ static void armature_free_data(ID *id)
   /* Free all BoneCollectionMembership objects. */
   if (armature->collection_array) {
     for (BoneCollection *bcoll : armature->collections_span()) {
-      BLI_freelistN(&bcoll->bones);
+      bcoll->bones.free_no_destruct();
       ANIM_bonecoll_free(bcoll, false);
     }
     MEM_delete(armature->collection_array);
@@ -380,7 +402,7 @@ static void armature_blend_write(BlendWriter *writer, ID *id, const void *id_add
     arm->collection_array[i]->next = nullptr;
     arm->collection_array[i + 1]->prev = nullptr;
   }
-  BLI_listbase_clear(&arm->collections_legacy);
+  arm->collections_legacy.clear_no_delete();
 
   arm->runtime = runtime_backup;
 }
@@ -425,7 +447,7 @@ static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
 {
   /* Read as listbase, but convert to an array on the armature. */
   BLO_read_struct_list(reader, BoneCollection, &arm->collections_legacy);
-  arm->collection_array_num = BLI_listbase_count(&arm->collections_legacy);
+  arm->collection_array_num = arm->collections_legacy.count();
   arm->collection_array = MEM_new_array_uninitialized<BoneCollection *>(
       size_t(arm->collection_array_num), __func__);
   {
@@ -459,7 +481,7 @@ static void read_bone_collections(BlendDataReader *reader, bArmature *arm)
     arm->collection_array[i]->next = nullptr;
     arm->collection_array[i + 1]->prev = nullptr;
   }
-  BLI_listbase_clear(&arm->collections_legacy);
+  arm->collections_legacy.clear_no_delete();
 
   /* Bone collections added via an override can be edited, but ones that already exist in another
    * blend file (so on the linked Armature) should not be touched. */
@@ -495,6 +517,11 @@ static void armature_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_armature_bone_hash_make(arm);
 
   arm->runtime = MEM_new<bke::bArmature_Runtime>(__func__);
+
+  /* Same approach as in armature_init_data(). */
+  BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+  arm->runtime->bones_generation_count = uint64_t(id->session_uid) << 32;
+
   ANIM_armature_runtime_refresh(arm);
 }
 
@@ -579,11 +606,11 @@ void BKE_armature_bonelist_free(ListBaseT<Bone> *lb, const bool do_id_user)
     if (bone.system_properties) {
       IDP_FreeProperty_ex(bone.system_properties, do_id_user);
     }
-    BLI_freelistN(&bone.runtime.collections);
+    bone.runtime.collections.free_no_destruct();
     BKE_armature_bonelist_free(&bone.childbase, do_id_user);
   }
 
-  BLI_freelistN(lb);
+  lb->free_no_destruct();
 }
 
 void BKE_armature_editbonelist_free(ListBaseT<EditBone> *lb, const bool do_id_user)
@@ -622,7 +649,7 @@ static void copy_bonechildren(Bone *bone_dst,
   /* Clear the runtime cache of the collection relations, these will be
    * reconstructed after the entire armature duplication is done. Don't free,
    * just clear, as these pointers refer to the original and not the copy. */
-  BLI_listbase_clear(&bone_dst->runtime.collections);
+  bone_dst->runtime.collections.clear_no_delete();
 
   /* Copy this bone's list */
   BLI_duplicatelist(&bone_dst->childbase, &bone_src->childbase);
@@ -774,7 +801,7 @@ static void armature_transform_recurse(ListBaseT<Bone> *bonebase,
       bone.zwidth *= scale;
     }
 
-    if (!BLI_listbase_is_empty(&bone.childbase)) {
+    if (!bone.childbase.is_empty()) {
       float arm_mat_inv[4][4];
       invert_m4_m4(arm_mat_inv, bone.arm_mat);
       armature_transform_recurse(&bone.childbase, mat, do_props, mat3, scale, &bone, arm_mat_inv);
@@ -1542,7 +1569,7 @@ static void ease_handle_axis(const float deriv1[3], const float deriv2[3], float
   copy_v3_v3(r_axis, deriv1);
 
   const float len2 = len_squared_v3(deriv2);
-  if (UNLIKELY(len2 == 0.0f)) {
+  if (len2 == 0.0f) [[unlikely]] {
     return;
   }
   const float len1 = len_squared_v3(deriv1);
@@ -2533,6 +2560,29 @@ void BKE_pchan_protected_location_set(bPoseChannel *pchan, const float location[
   }
 }
 
+void BKE_pchan_protected_rotation_set(bPoseChannel *pchan, const float mat[3][3])
+{
+  switch (pchan->rotmode) {
+    case ROT_MODE_QUAT: {
+      float quat[4];
+      mat3_to_quat(quat, mat);
+      BKE_pchan_protected_rotation_quaternion_set(pchan, quat);
+      break;
+    }
+    case ROT_MODE_AXISANGLE:
+      float angle, axis[3];
+      mat3_to_axis_angle(axis, &angle, mat);
+      BKE_pchan_protected_rotation_axisangle_set(pchan, axis, angle);
+      break;
+
+    default:
+      float euler[3];
+      mat3_to_compatible_eulO(euler, pchan->eul, pchan->rotmode, mat);
+      BKE_pchan_protected_rotation_euler_set(pchan, euler);
+      break;
+  }
+}
+
 void BKE_pchan_protected_scale_set(bPoseChannel *pchan, const float scale[3])
 {
   if ((pchan->protectflag & OB_LOCK_SCALEX) == 0) {
@@ -2548,16 +2598,16 @@ void BKE_pchan_protected_scale_set(bPoseChannel *pchan, const float scale[3])
 
 void BKE_pchan_protected_rotation_quaternion_set(bPoseChannel *pchan, const float quat[4])
 {
-  if ((pchan->protectflag & OB_LOCK_ROTX) == 0) {
+  if ((pchan->protectflag & OB_LOCK_ROTW) == 0) {
     pchan->quat[0] = quat[0];
   }
-  if ((pchan->protectflag & OB_LOCK_ROTY) == 0) {
+  if ((pchan->protectflag & OB_LOCK_ROTX) == 0) {
     pchan->quat[1] = quat[1];
   }
-  if ((pchan->protectflag & OB_LOCK_ROTZ) == 0) {
+  if ((pchan->protectflag & OB_LOCK_ROTY) == 0) {
     pchan->quat[2] = quat[2];
   }
-  if ((pchan->protectflag & OB_LOCK_ROTW) == 0) {
+  if ((pchan->protectflag & OB_LOCK_ROTZ) == 0) {
     pchan->quat[3] = quat[3];
   }
 }
@@ -2840,16 +2890,13 @@ void BKE_armature_where_is(bArmature *arm)
 /** \name Pose Rebuild
  * \{ */
 
-static void rebuild_pose_from_armature(bPose *pose, bArmature &armature)
+static void rebuild_pose_from_armature(Object &pose_ob, const bArmature &armature)
 {
+  bPose *pose = pose_ob.pose;
   bPoseChannel *prev_pchan = nullptr;
   BKE_armature_foreach_bone(armature, [&](const int bone_index, const Bone &bone) {
-    UNUSED_VARS(bone_index);
-
     bPoseChannel *pchan = BKE_pose_channel_ensure(pose, bone.name);
-    /* BKE_armature_foreach_bone() only has a const version, but `armature` is mutable, so
-     * const_cast is ok. */
-    pchan->bone = const_cast<Bone *>(&bone);
+    pchan->runtime.bone_index = bone_index;
 
     /* Bones are visited depth-first, so the parent pchan is guaranteed to exist. */
     pchan->parent = bone.parent ? BKE_pose_channel_find_name(pose, bone.parent->name) : nullptr;
@@ -2879,15 +2926,8 @@ static void rebuild_pose_from_armature(bPose *pose, bArmature &armature)
 void BKE_pose_clear_pointers(bPose *pose)
 {
   for (bPoseChannel &pchan : pose->chanbase) {
-    pchan.bone = nullptr;
+    pchan.runtime.bone_index = BONE_INDEX_UNKNOWN;
     pchan.child = nullptr;
-  }
-}
-
-void BKE_pose_remap_bone_pointers(bArmature *armature, bPose *pose)
-{
-  for (bPoseChannel &pchan : pose->chanbase) {
-    pchan.bone = BKE_armature_find_bone_name(armature, pchan.name);
   }
 }
 
@@ -2907,10 +2947,15 @@ void BKE_pose_channels_clear_with_null_bone(Object *armature_ob, const bool do_i
 {
   BLI_assert(armature_ob->pose);
   bPose *pose = armature_ob->pose;
+  BKE_pose_ensure_bone_indices(*armature_ob);
   for (bPoseChannel &pchan : pose->chanbase.items_mutable()) {
     Bone *bone = pchan.bone_get(*armature_ob);
     if (bone == nullptr) {
-      BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
+      /* If `do_id_user` is false, we are working with copy on write data in which case we should
+       * not be deleting any drivers of missing bones. See #158665.  */
+      if (do_id_user) {
+        BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
+      }
       BKE_pose_channel_free_ex(&pchan, do_id_user);
       BKE_pose_channels_hash_free(pose);
       BLI_freelinkN(&pose->chanbase, &pchan);
@@ -2936,7 +2981,7 @@ void BKE_pose_rebuild(Main *bmain, Object *ob, bArmature *arm, const bool do_id_
   BKE_pose_clear_pointers(pose);
 
   /* First step, ensure that all pose channels are there. */
-  rebuild_pose_from_armature(pose, *arm);
+  rebuild_pose_from_armature(*ob, *arm);
 
   /* and a check for garbage */
   BKE_pose_channels_clear_with_null_bone(ob, do_id_user);
@@ -2973,6 +3018,54 @@ void BKE_pose_ensure(Main *bmain, Object *ob, bArmature *arm, const bool do_id_u
   if (ob->type == OB_ARMATURE && ((ob->pose == nullptr) || (ob->pose->flag & POSE_RECALC))) {
     BLI_assert(GS(arm->id.name) == ID_AR);
     BKE_pose_rebuild(bmain, ob, arm, do_id_user);
+  }
+}
+
+/**
+ * This is a trimmed-down copy of rebuild_pose_from_armature() that just deals with bone indices.
+ *
+ * Note: it's not thread-safe, so it's up the caller to make sure this doesn't get called while the
+ * object or armature data is being edited. It should be fine to call this function multiple times
+ * in parallel, as it would just write the same data twice.
+ */
+static void rebuild_pose_bone_indices(const Object &pose_ob)
+{
+  const bArmature &armature = *id_cast<const bArmature *>(pose_ob.data);
+  const bPose *pose = pose_ob.pose;
+
+  for (bPoseChannel &pchan : pose->chanbase) {
+    pchan.runtime.bone_index = BONE_INDEX_UNKNOWN;
+  }
+
+  BKE_armature_foreach_bone(armature, [&pose](const int index, const Bone &bone) {
+    bPoseChannel *pchan = BKE_pose_channel_find_name(pose, bone.name);
+    if (!pchan) {
+      return;
+    }
+    pchan->runtime.bone_index = index;
+  });
+
+  /* If the Armature's bone array needs rebuilding, this has to happen before we grab the
+   * bones_generation_count value. Otherwise the current indices will be invalidated immediately on
+   * the next use. */
+  if (!armature.runtime->is_bones_array_valid()) {
+    rebuild_bone_array(const_cast<bArmature &>(armature));
+  }
+  pose_ob.runtime->pose_bones_generation_count = armature.runtime->bones_generation_count;
+}
+
+void BKE_pose_ensure_bone_indices(const Object &pose_ob)
+{
+  BLI_assert(pose_ob.type == OB_ARMATURE);
+  BLI_assert(GS(pose_ob.data->name) == ID_AR);
+  bArmature *armature = id_cast<bArmature *>(pose_ob.data);
+
+  const uint64_t armature_generation_count = armature->runtime->bones_generation_count;
+  const uint64_t object_generation_count = pose_ob.runtime->pose_bones_generation_count;
+  if (armature_generation_count != object_generation_count ||
+      !armature->runtime->is_bones_array_valid())
+  {
+    rebuild_pose_bone_indices(pose_ob);
   }
 }
 
@@ -3373,6 +3466,67 @@ bool BoneCollection::is_solo() const
 bool BoneCollection::is_expanded() const
 {
   return this->flags & BONE_COLLECTION_EXPANDED;
+}
+
+/**
+ * Rebuild the runtime bone array from the armature's bone listbase.
+ */
+static void rebuild_bone_array(bArmature &armature)
+{
+  bke::bArmature_Runtime &runtime = *armature.runtime;
+  std::scoped_lock lock{runtime.bones_mutex};
+
+  /* Re-check the reason this function was called, now that the lock has been obtained. */
+  if (runtime.is_bones_array_valid()) {
+    return;
+  }
+
+  const int num_bones = BKE_armature_bonelist_count(&armature.bonebase);
+
+  Array<Bone *> bones(num_bones);
+
+  BKE_armature_foreach_bone(armature, [&](const int bone_index, const Bone &bone) {
+    /* const_cast: the bone ref is const because BKE_armature_foreach_bone() is only
+     * implemented for const types. */
+    bones[bone_index] = const_cast<Bone *>(&bone);
+  });
+
+  runtime.bones = std::move(bones);
+  runtime.bones_generation_count++;
+}
+
+void bke::bArmature_Runtime::bones_tag_rebuild()
+{
+  this->bones.clear_without_destruct();
+}
+
+bool bke::bArmature_Runtime::is_bones_array_valid() const
+{
+  return !this->bones.is_empty();
+}
+
+const Bone *bArmature::bone_get_indexed(const int64_t bone_index) const
+{
+  /* The logic 'if runtime->bones is empty, the array needs rebuilding' is only valid when calling
+   * this function implies there is at least one bone. */
+  BLI_assert(!this->bonebase.is_empty());
+  if (this->bonebase.is_empty()) {
+    return nullptr;
+  }
+
+  if (!this->runtime->is_bones_array_valid()) {
+    /* const_cast: allow the function to write to the runtime data. */
+    rebuild_bone_array(const_cast<bArmature &>(*this));
+  }
+
+  BLI_assert(bone_index >= 0);
+  BLI_assert(bone_index < this->runtime->bones.size());
+  return this->runtime->bones[bone_index];
+}
+
+Bone *bArmature::bone_get_indexed(const int64_t bone_index)
+{
+  return const_cast<Bone *>(std::as_const(*this).bone_get_indexed(bone_index));
 }
 
 /** \} */
