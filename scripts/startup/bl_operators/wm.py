@@ -2806,7 +2806,7 @@ class WM_OT_batch_rename(Operator):
             ('ACTION_CLIP', "Action Clips", "", 'ACTION', 17),
             None,
             ('SCENE', "Scenes", "", 'SCENE_DATA', 18),
-            ('MARKER', "Timeline Markers", "", 'MARKER_HLT', 19),
+            ('MARKER', "Timeline Markers", "", 'TIME', 19),
             ('BRUSH', "Brushes", "", 'BRUSH_DATA', 20),
         ),
         translation_context=i18n_contexts.id_id,
