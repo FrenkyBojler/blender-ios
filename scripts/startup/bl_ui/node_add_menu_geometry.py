@@ -143,6 +143,7 @@ class NODE_MT_gn_curve_primitives_base(node_add_menu.NodeMenu):
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeCurves")
         self.node_operator(layout, "GeometryNodeCurveArc")
         self.node_operator(layout, "GeometryNodeCurvePrimitiveBezierSegment")
         self.node_operator(layout, "GeometryNodeCurvePrimitiveCircle")

@@ -74,6 +74,7 @@ set(SRC
   nodes/node_geo_curve_topology_points_of_curve.cc
   nodes/node_geo_curve_trim.cc
   nodes/node_geo_curves_to_grease_pencil.cc
+  nodes/node_geo_curves.cc
   nodes/node_geo_deform_curves_on_surface.cc
   nodes/node_geo_delete_geometry.cc
   nodes/node_geo_distribute_points_in_grid.cc
