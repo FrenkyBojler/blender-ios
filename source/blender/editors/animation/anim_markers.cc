@@ -2160,6 +2160,9 @@ static bool markers_write_copy_paste_file(Main *bmain_src,
                             {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
+  /* Save the current frame, for calculating offset when pasting. */
+  scene_dst->r.cfra = scene_src->r.cfra;
+
   /* Copy selected markers to dummy scene. */
   TimeMarker *marker_new;
   for (TimeMarker &marker : scene_src->markers) {
@@ -2327,6 +2330,19 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
+  /* Compute frame offset. */
+  int ofs;
+  if (RNA_boolean_get(op->ptr, "keep_offset")) {
+    ofs = scene_dst->r.cfra - scene_src->r.cfra;
+  }
+  else {
+    int min_marker_frame = std::numeric_limits<int>::max();
+    for (TimeMarker &marker : scene_src->markers) {
+      min_marker_frame = std::min(marker.frame, min_marker_frame);
+    }
+    ofs = scene_dst->r.cfra - min_marker_frame;
+  }
+
   deselect_markers(&scene_dst->markers);
 
   /* Make sure we have all data IDs we need in bmain_dst. Remap the IDs if we already have them.
@@ -2347,6 +2363,7 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
   for (TimeMarker &marker : scene_src->markers) {
     marker_new = MEM_dupalloc(&marker);
     marker_new->prev = marker_new->next = nullptr;
+    marker_new->frame += ofs;
 
     /* Keep track of the number of overlapping markers, to report to user later. */
     for (TimeMarker &existing_marker : scene_dst->markers) {
@@ -2393,6 +2410,13 @@ void MARKER_OT_clipboard_paste(wmOperatorType *ot)
   ot->poll = operator_markers_region_active;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop = RNA_def_boolean(ot->srna,
+                                      "keep_offset",
+                                      false,
+                                      "Keep Offset",
+                                      "Keep offset relative to the current frame when pasting");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
