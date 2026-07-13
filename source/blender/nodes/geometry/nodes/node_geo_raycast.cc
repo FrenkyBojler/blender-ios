@@ -138,7 +138,7 @@ static void raycast_to_mesh(const IndexMask &mask,
                             const MutableSpan<float3> r_hit_normals,
                             const MutableSpan<float> r_hit_distances)
 {
-  const bke::bvh::Tree &tree_data = mesh.bvh_tree();
+  const bke::bvh::Tree &tree_data = mesh.bvh_tris();
   mask.foreach_index([&](const int i) {
     bke::bvh::Ray ray{};
     ray.origin = ray_origins[i];

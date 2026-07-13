@@ -549,14 +549,13 @@ struct Mesh {
   bke::BVHTreeFromMesh bvh_verts() const;
   bke::BVHTreeFromMesh bvh_edges() const;
   bke::BVHTreeFromMesh bvh_legacy_faces() const;
+  const blender::bke::bvh::Tree &bvh_tris() const;
   bke::BVHTreeFromMesh bvh_corner_tris() const;
   bke::BVHTreeFromMesh bvh_corner_tris_no_hidden() const;
   bke::BVHTreeFromMesh bvh_loose_verts() const;
   bke::BVHTreeFromMesh bvh_loose_edges() const;
   bke::BVHTreeFromMesh bvh_loose_no_hidden_verts() const;
   bke::BVHTreeFromMesh bvh_loose_no_hidden_edges() const;
-
-  const blender::bke::bvh::Tree &bvh_tree() const;
 
   void count_memory(MemoryCounter &memory) const;
 

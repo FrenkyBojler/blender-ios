@@ -118,7 +118,7 @@ struct PuffOperationExecutor {
     surface_corner_verts_ = surface_->corner_verts();
     surface_corner_tris_ = surface_->corner_tris();
     corner_normals_su_ = surface_->corner_normals();
-    surface_bvh_ = &surface_->bvh_tree();
+    surface_bvh_ = &surface_->bvh_tris();
 
     if (stroke_extension.is_first) {
       if (falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE || (U.uiflag & USER_ORBIT_SELECTION)) {

@@ -276,7 +276,7 @@ static void try_convert_single_object(Object &curves_ob,
   }
   Mesh &surface_me = *id_cast<Mesh *>(surface_ob.data);
 
-  const bke::bvh::Tree &surface_bvh = surface_me.bvh_tree();
+  const bke::bvh::Tree &surface_bvh = surface_me.bvh_tris();
 
   const Span<float3> positions_cu = curves.positions();
   const Span<int> tri_faces = surface_me.corner_tri_faces();
@@ -611,7 +611,7 @@ static void snap_curves_to_surface_exec_object(Object &curves_ob,
 
   switch (attach_mode) {
     case AttachMode::Nearest: {
-      const bke::bvh::Tree &surface_bvh = surface_mesh.bvh_tree();
+      const bke::bvh::Tree &surface_bvh = surface_mesh.bvh_tris();
 
       threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange curves_range) {
         for (const int curve_i : curves_range) {

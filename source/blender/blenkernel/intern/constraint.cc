@@ -5164,7 +5164,7 @@ static void followtrack_project_to_depth_object_if_needed(FollowTrackContext *co
     return;
   }
 
-  const bke::bvh::Tree &tree = depth_mesh->bvh_tree();
+  const bke::bvh::Tree &tree = depth_mesh->bvh_tris();
   const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(ray_start, ray_direction);
   if (hit) {
     mul_v3_m4v3(cob->matrix[3], depth_object->object_to_world().ptr(), hit->position);

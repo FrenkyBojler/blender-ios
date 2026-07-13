@@ -205,7 +205,7 @@ static void statvis_calc_thickness(const MeshRenderData &mr,
     if (mr.mesh->faces_num == 0) {
       return;
     }
-    const bke::bvh::Tree &tree = mr.mesh->bvh_tree();
+    const bke::bvh::Tree &tree = mr.mesh->bvh_tris();
     const Span<int3> corner_tris = mr.mesh->corner_tris();
     const Span<int> tri_faces = mr.mesh->corner_tri_faces();
     for (const int i : corner_tris.index_range()) {

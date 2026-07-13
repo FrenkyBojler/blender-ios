@@ -1523,7 +1523,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
     const Mesh &mesh_to_use = tmp_mesh ? *tmp_mesh : *mesh;
 
     Set<OrderedEdge> existing_vert_pairs;
-    const bke::bvh::Tree &treedata = mesh_to_use.bvh_tree();
+    const bke::bvh::Tree &treedata = mesh_to_use.bvh_tris();
     rng = BLI_rng_new_srandom(0);
 
     for (int i = 0; i < mvert_num; i++) {

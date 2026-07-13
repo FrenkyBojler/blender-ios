@@ -1068,7 +1068,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_CANCELLED;
   }
 
-  const bke::bvh::Tree &surface_bvh_eval = surface_me_eval->bvh_tree();
+  const bke::bvh::Tree &surface_bvh_eval = surface_me_eval->bvh_tris();
 
   const int2 mouse_pos_int_re{event->mval};
   const float2 mouse_pos_re{mouse_pos_int_re};

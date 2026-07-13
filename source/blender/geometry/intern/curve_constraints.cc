@@ -76,7 +76,7 @@ void solve_length_and_collision_constraints(const OffsetIndices<int> points_by_c
 {
   solve_length_constraints(points_by_curve, curve_selection, segment_lengths_cu, positions_cu);
 
-  const bke::bvh::Tree &surface_bvh = surface.bvh_tree();
+  const bke::bvh::Tree &surface_bvh = surface.bvh_tris();
 
   const int max_collisions = 5;
 

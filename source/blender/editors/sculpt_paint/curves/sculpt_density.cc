@@ -128,7 +128,7 @@ struct DensityAddOperationExecutor {
       return;
     }
 
-    surface_bvh_eval_ = &surface_eval_->bvh_tree();
+    surface_bvh_eval_ = &surface_eval_->bvh_tris();
     surface_corner_tris_eval_ = surface_eval_->corner_tris();
     /* Find UV map. */
     VArraySpan<float2> surface_uv_map;
@@ -551,7 +551,7 @@ struct DensitySubtractOperationExecutor {
     }
     surface_eval_ = BKE_object_get_evaluated_mesh(surface_ob_eval_);
 
-    surface_bvh_eval_ = &surface_eval_->bvh_tree();
+    surface_bvh_eval_ = &surface_eval_->bvh_tris();
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
@@ -834,7 +834,7 @@ static bool use_add_density_mode(const BrushStrokeMode brush_mode,
   }
 
   const CurvesSurfaceTransforms transforms(curves_ob_orig, curves_id_orig.surface);
-  const bke::bvh::Tree &surface_bvh_eval = surface_mesh_eval->bvh_tree();
+  const bke::bvh::Tree &surface_bvh_eval = surface_mesh_eval->bvh_tris();
 
   const float2 brush_pos_re = stroke_start.mouse_position;
   /* Reduce radius so that only an inner circle is used to determine the existing density. */

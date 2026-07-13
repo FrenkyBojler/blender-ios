@@ -1431,10 +1431,10 @@ class XpbdSolverStep {
                                                                           const bool deforming)
   {
     if (!deforming || !prev_mesh) {
-      return StaticMeshInfo{&mesh, &mesh.bvh_tree(), mesh.bvh_edges()};
+      return StaticMeshInfo{&mesh, &mesh.bvh_tris(), mesh.bvh_edges()};
     }
     if (mesh.verts_num != prev_mesh->verts_num) {
-      return StaticMeshInfo{&mesh, &mesh.bvh_tree(), mesh.bvh_edges()};
+      return StaticMeshInfo{&mesh, &mesh.bvh_tris(), mesh.bvh_edges()};
     }
     const int verts_num = mesh.verts_num;
     DeformingMeshInfo result;
@@ -1475,7 +1475,7 @@ class XpbdSolverStep {
             result.substep_meshes[mesh_i] = substep_mesh;
             if (mesh_i > 0) {
               /* The bvh tree is not needed for the first substep. */
-              result.substep_corner_tris_bvh_trees[mesh_i - 1] = &substep_mesh->bvh_tree();
+              result.substep_corner_tris_bvh_trees[mesh_i - 1] = &substep_mesh->bvh_tris();
               result.substep_edges_bvh_trees[mesh_i - 1] = substep_mesh->bvh_edges();
             }
           }

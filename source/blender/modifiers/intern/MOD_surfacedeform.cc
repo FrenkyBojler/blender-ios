@@ -1217,7 +1217,7 @@ static bool surfacedeformBind(Object *ob,
   smd_orig->verts_sharing_info = MEM_new<BindVertsImplicitSharing>(
       __func__, smd_orig->verts, verts_num);
 
-  const bke::bvh::Tree &treeData = target->bvh_tree();
+  const bke::bvh::Tree &treeData = target->bvh_tris();
 
   adj_result = buildAdjacencyMap(polys, edges, corner_edges, vert_edges, adj_array, edge_polys);
 

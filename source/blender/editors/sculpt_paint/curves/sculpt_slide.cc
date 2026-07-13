@@ -193,7 +193,7 @@ struct SlideOperationExecutor {
       report_missing_uv_map_on_evaluated_surface(stroke_extension.reports);
       return;
     }
-    surface_bvh_eval_ = &surface_eval_->bvh_tree();
+    surface_bvh_eval_ = &surface_eval_->bvh_tris();
 
     if (stroke_extension.is_first) {
       self_->initial_brush_pos_re_ = brush_pos_re_;

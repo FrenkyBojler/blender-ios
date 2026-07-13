@@ -583,7 +583,7 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
     me_highpoly[i] = highpoly[i].mesh;
 
     if (BKE_mesh_runtime_corner_tris_len(me_highpoly[i]) != 0) {
-      treeData[i] = &me_highpoly[i]->bvh_tree();
+      treeData[i] = &me_highpoly[i]->bvh_tris();
     }
   }
 

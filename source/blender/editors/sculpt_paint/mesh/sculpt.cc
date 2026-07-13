@@ -4278,7 +4278,7 @@ static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
     if (!mesh_eval || mesh_eval->faces_num == 0) {
       continue;
     }
-    const bke::bvh::Tree &tree_data = mesh_eval->bvh_tree();
+    const bke::bvh::Tree &tree_data = mesh_eval->bvh_tris();
     const float4x4 active_to_target_matrix = object->world_to_object() *
                                              active_object.object_to_world();
 

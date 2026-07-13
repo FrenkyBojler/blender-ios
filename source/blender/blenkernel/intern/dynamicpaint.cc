@@ -4298,7 +4298,7 @@ static bool dynamicPaint_paintMesh(Depsgraph *depsgraph,
     if (grid && meshBrush_boundsIntersect(&grid->grid_bounds, &mesh_bb, brush, brush_radius)) {
       /* Build a bvh tree from transformed vertices */
       if (mesh->faces_num != 0) {
-        const bke::bvh::Tree &tree = mesh->bvh_tree();
+        const bke::bvh::Tree &tree = mesh->bvh_tris();
 
         int c_index;
         int total_cells = grid->dim[0] * grid->dim[1] * grid->dim[2];

@@ -372,7 +372,7 @@ OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &
 {
   OptionallyOwnedTree result;
   if (mask.size() == mesh.faces_num) {
-    result.tree = &mesh.bvh_tree();
+    result.tree = &mesh.bvh_tris();
   }
   else {
     result.owned_tree = std::make_unique<Tree>(Tree::from_tris(mesh, mask));

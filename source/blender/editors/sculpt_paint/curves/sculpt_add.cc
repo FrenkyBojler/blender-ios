@@ -140,7 +140,7 @@ struct AddOperationExecutor {
     surface_positions_eval_ = surface_eval_->vert_positions();
     surface_corner_verts_eval_ = surface_eval_->corner_verts();
     surface_corner_tris_eval_ = surface_eval_->corner_tris();
-    surface_bvh_eval_ = &surface_eval_->bvh_tree();
+    surface_bvh_eval_ = &surface_eval_->bvh_tris();
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);

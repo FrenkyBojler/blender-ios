@@ -766,7 +766,7 @@ bke::BVHTreeFromMesh Mesh::bvh_corner_tris() const
       this->runtime->bvh_cache_corner_tris.data().get(), positions, corner_verts, corner_tris);
 }
 
-const bke::bvh::Tree &Mesh::bvh_tree() const
+const bke::bvh::Tree &Mesh::bvh_tris() const
 {
   using namespace blender::bke::bvh;
   this->runtime->bvh_embree_cache.ensure(

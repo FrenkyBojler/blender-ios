@@ -198,7 +198,7 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
     const float4x4 world_to_surface_mat = math::invert(surface_to_world_mat);
 
     Mesh *surface_eval = BKE_object_get_evaluated_mesh(surface_object_eval);
-    const bke::bvh::Tree &surface_bvh = surface_eval->bvh_tree();
+    const bke::bvh::Tree &surface_bvh = surface_eval->bvh_tris();
 
     const float3 center_ray_start_su = math::transform_point(world_to_surface_mat,
                                                              center_ray_start_wo);

@@ -557,7 +557,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
    * the decisions made here, which mainly results in easier refactoring, more generic code, and
    * possibly improved performance from lower cache usage in the "complex" sampling part of the
    * algorithm and the copying itself. */
-  const bvh::Tree &bvhtree = src.bvh_tree();
+  const bvh::Tree &bvhtree = src.bvh_tris();
 
   const Span<float3> dst_positions = dst.vert_positions();
   const OffsetIndices dst_faces = dst.faces();

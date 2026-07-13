@@ -145,7 +145,7 @@ static void get_closest_mesh_tris(const Mesh &mesh,
                                   const MutableSpan<float3> r_positions)
 {
   BLI_assert(mesh.faces_num > 0);
-  const bke::bvh::Tree &tree = mesh.bvh_tree();
+  const bke::bvh::Tree &tree = mesh.bvh_tris();
   mask.foreach_index([&](const int i) {
     const float3 position = positions[i];
     const std::optional<bke::bvh::ClosestPointResult> nearest = tree.closest_point(position);
