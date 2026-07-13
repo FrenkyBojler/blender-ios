@@ -26,7 +26,7 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "BLI_build_config.h"
+#  include "BLI_build_config.hh"
 #  include "BLI_fileops.hh"
 #  include "BLI_math_base.hh"
 #  include "BLI_math_base_c.hh"
