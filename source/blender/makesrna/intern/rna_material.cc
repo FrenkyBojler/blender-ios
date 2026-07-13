@@ -671,6 +671,15 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV Factor", "Texture Pixel Size factor along the stroke");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
+  /* Same as "pixel_size" above, but used instead when "Lock UV to Radius" is enabled, so each
+   * mode keeps its own remembered value. */
+  prop = RNA_def_property(srna, "pixel_size_locked", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "texture_pixsize_locked");
+  RNA_def_property_range(prop, 1, 5000);
+  RNA_def_property_ui_text(
+      prop, "UV Factor", "Texture Pixel Size factor along the stroke, used when UV is locked to radius");
+  RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
+
   prop = RNA_def_property(srna, "lock_uv", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_MATERIAL_LOCK_UV);
   RNA_def_property_ui_text(

@@ -253,11 +253,15 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
     mat_data->alignment_rot[0] = cosf(gp_style->alignment_rotation);
     mat_data->alignment_rot[1] = sinf(gp_style->alignment_rotation);
     if (gp_style->mode == GP_MATERIAL_MODE_LINE) {
-      /* Convert pixel size to stroke u, the factor of `500` is from legacy Grease Pencil.
-       * When "Lock UV to Radius" is enabled, this still applies on top of the automatic
-       * radius-based scale computed per-stroke on the CPU (see grease_pencil_geom_batch_ensure),
-       * so the UV Factor slider keeps working as an extra manual multiplier. */
-      mat_data->stroke_u_scale = 500.0f / gp_style->texture_pixsize;
+      /* Convert pixel size to stroke u, the factor of `500` is from legacy Grease Pencil. This
+       * still applies on top of the automatic radius-based scale computed per-stroke on the CPU
+       * (see grease_pencil_geom_batch_ensure) when "Lock UV to Radius" is enabled, so the UV
+       * Factor slider keeps working as an extra manual multiplier. A separate stored value is
+       * used for the locked case, so each mode remembers its own factor when toggling. */
+      const bool lock_uv = (gp_style->flag & GP_MATERIAL_LOCK_UV) != 0;
+      const float pixel_size = lock_uv ? gp_style->texture_pixsize_locked :
+                                          gp_style->texture_pixsize;
+      mat_data->stroke_u_scale = 500.0f / pixel_size;
     }
     else {
       switch (gp_style->placement_mode) {

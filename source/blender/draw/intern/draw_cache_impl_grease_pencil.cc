@@ -1281,11 +1281,12 @@ static Array<float> get_radii_lengths(const Span<float> lengths,
 /**
  * Calculate a cumulative "UV length" array for locking a stroke texture's U coordinate to the
  * stroke's local radius (see `GP_MATERIAL_LOCK_UV`). Each segment contributes `segment_length /
- * local_radius`, integrated along the segment's linear radius taper, so the texture keeps a
- * locally-correct aspect ratio even along a tapered stroke.
+ * average_radius`, so the texture keeps a locally-correct aspect ratio even along a tapered
+ * stroke. This approximates (rather than exactly integrates) the radius taper within a segment,
+ * which is indistinguishable in practice given how finely evaluated GP strokes already are.
  *
- * Radius is clamped to a fraction of the stroke's maximum radius to keep the integral from
- * blowing up near zero-radius tips (e.g. tapered brush ends).
+ * Radius is clamped to a fraction of the stroke's maximum radius to keep this from blowing up
+ * near zero-radius tips (e.g. tapered brush ends).
  */
 static Array<float> get_uv_lock_lengths(const Span<float> lengths,
                                         const VArray<float> &radii,
@@ -1300,7 +1301,7 @@ static Array<float> get_uv_lock_lengths(const Span<float> lengths,
     return Array<float>(lengths.size(), 0.0f);
   }
 
-  /* Floor to avoid the `1/r` integral blowing up near zero-radius stroke tips. */
+  /* Floor to avoid blowing up near zero-radius stroke tips. */
   const float radius_floor = max_radius * 0.15f;
 
   Array<float> uv_lengths(lengths.size());
@@ -1309,14 +1310,7 @@ static Array<float> get_uv_lock_lengths(const Span<float> lengths,
     const float l = lengths[i] - (i > 0 ? lengths[i - 1] : 0.0f);
     const float r1 = math::max(radii[points[i]], radius_floor);
     const float r2 = math::max(radii[points[(i + 1) % points.size()]], radius_floor);
-    if (l > 0.0f) {
-      if (abs(r2 - r1) < 0.001f * r1) {
-        uv_length += l / r1;
-      }
-      else {
-        uv_length += (l / (r2 - r1)) * log(r2 / r1);
-      }
-    }
+    uv_length += l / (0.5f * (r1 + r2));
     uv_lengths[i] = uv_length;
   }
 

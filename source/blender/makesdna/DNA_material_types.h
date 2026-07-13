@@ -354,7 +354,9 @@ struct MaterialGPencilStyle {
   float random_value_factor = 0;
 
   float random_noise_scale = 0;
-  char _pad3[4] = {};
+  /** Separate "UV Factor" used instead of `texture_pixsize` when `GP_MATERIAL_LOCK_UV` is
+   * enabled, so each mode remembers its own value when toggling back and forth. */
+  float texture_pixsize_locked = 500.0f;
 };
 
 struct MaterialLineArt {

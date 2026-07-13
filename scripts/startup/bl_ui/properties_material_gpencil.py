@@ -159,7 +159,10 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
                 row.prop(gpcolor, "mix_stroke_factor", text="Blend", slider=True)
                 if gpcolor.mode == 'LINE':
                     col.prop(gpcolor, "lock_uv", text="Lock UV to Radius")
-                    col.prop(gpcolor, "pixel_size", text="UV Factor")
+                    if gpcolor.lock_uv:
+                        col.prop(gpcolor, "pixel_size_locked", text="UV Factor")
+                    else:
+                        col.prop(gpcolor, "pixel_size", text="UV Factor")
 
             if gpcolor.mode in {'DOTS', 'BOX'}:
                 col.prop(gpcolor, "alignment_mode")
