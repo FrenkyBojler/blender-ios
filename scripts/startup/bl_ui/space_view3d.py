@@ -2241,6 +2241,7 @@ class VIEW3D_MT_select_edit_grease_pencil(Menu):
         layout.operator_menu_enum("grease_pencil.select_similar", "mode")
         layout.operator("grease_pencil.select_fill")
         layout.operator("grease_pencil.select_linked")
+        layout.operator("grease_pencil.select_linked", text="Deselect Linked").deselect = True
 
         layout.separator()
 
@@ -2926,6 +2927,7 @@ class VIEW3D_MT_object_animation(Menu):
         layout.operator("grease_pencil.bake_grease_pencil_animation", text="Bake Object Transform to Grease Pencil...")
         layout.operator("anim.replace_action")
         layout.operator("anim.replace_action_new")
+        layout.operator("anim.replace_action_duplicate")
 
 
 class VIEW3D_MT_object_rigid_body(Menu):
