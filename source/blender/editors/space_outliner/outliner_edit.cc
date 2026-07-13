@@ -1611,7 +1611,7 @@ static void outliner_show_active(SpaceOutliner *space_outliner,
   }
 }
 
-void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, short &idcode)
+void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, short idcode)
 {
   outliner_set_coordinates(region, space_outliner);
   const View2D *v2d = &region->v2d;
