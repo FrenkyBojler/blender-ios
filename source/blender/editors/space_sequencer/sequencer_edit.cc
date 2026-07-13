@@ -217,6 +217,28 @@ bool sequencer_strip_editable_poll(bContext *C)
   return true;
 }
 
+bool sequencer_strip_editable_and_selected_poll(bContext *C)
+{
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene || !ID_IS_EDITABLE(&scene->id)) {
+    return false;
+  }
+  const Editing *ed = seq::editing_get(scene);
+  if (!ed) {
+    return false;
+  }
+  const Strip *strip_active = ed->act_strip;
+  if (!strip_active) {
+    CTX_wm_operator_poll_msg_set(C, "No active strip");
+    return false;
+  }
+  if ((strip_active->flag & SEQ_SELECT) == 0) {
+    CTX_wm_operator_poll_msg_set(C, "Active strip isn't selected");
+    return false;
+  }
+  return true;
+}
+
 bool sequencer_strip_has_path_poll(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -854,7 +876,7 @@ static void slip_draw_status(bContext *C, const wmOperator *op)
     status.opmodal(IFACE_("Clamp"), op->type, SLIP_MODAL_CLAMP_TOGGLE, data->clamp);
   }
   if (data->clamp_warning) {
-    status.item(TIP_("Not enough content to clamp strip(s)"), ICON_ERROR);
+    status.item(TIP_("Not enough content to clamp strip(s)"), ICON_STATUS_WARNING_FILLED);
   }
 }
 
@@ -3013,6 +3035,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
     channel_min = min_ii(strip->channel, channel_min);
     meta_start_frame = min_ii(strip->left_handle(), meta_start_frame);
     meta_end_frame = max_ii(strip->right_handle(scene), meta_end_frame);
+    strip->flag &= ~STRIP_ALLSEL;
   }
 
   ListBaseT<SeqTimelineChannel> *channels_cur = seq::channels_displayed_get(ed);
@@ -3037,7 +3060,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
   seq::strip_lookup_invalidate(ed);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  sequencer_select_do_updates(C, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -3076,6 +3099,10 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   seq::prefetch_stop(scene);
 
   for (Strip &strip : active_strip->seqbase) {
+    /* Expand selection to meta strip's old contents. */
+    strip.flag &= ~STRIP_ALLSEL;
+    strip.flag |= SEQ_SELECT;
+
     seq::relations_invalidate_cache(scene, &strip);
   }
 
@@ -3098,8 +3125,8 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
     }
   }
 
+  sequencer_select_do_updates(C, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -3113,7 +3140,7 @@ void SEQUENCER_OT_meta_separate(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = sequencer_meta_separate_exec;
-  ot->poll = sequencer_edit_poll;
+  ot->poll = sequencer_strip_editable_and_selected_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
