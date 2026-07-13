@@ -633,7 +633,6 @@ void cancel_modal_transform(bContext *C, Object &ob)
 void end_transform(bContext *C, Object &ob)
 {
   ToolSettings &ts = *CTX_data_tool_settings(C);
-  Sculpt &sd = *(ts.sculpt);
   SculptSession &ss = *ob.runtime->sculpt_session;
   /* Pivot only transformations don't push undo steps */
   if (ts.transform_flag & SCE_XFORM_SCULPT_PIVOT) {
