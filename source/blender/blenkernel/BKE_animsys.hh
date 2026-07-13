@@ -167,7 +167,7 @@ DriverMap BKE_animdata_build_driver_target_map();
  * Search and replace `old_infix` with `new_infix` for all rna paths that reference the given ID
  * and match the prefix.
  *
- * \param prefix does not have to be the full prefix of the rna path; it works as loing as it is
+ * \param prefix does not have to be the full prefix of the rna path; it works as long as it is
  * directly preceding `infix`. E.g. if the full path is `pose.bones["foo"]` then passing `bones` as
  * a prefix will still work.
  * \param old_infix, new_infix: the full search and replace string pair.
