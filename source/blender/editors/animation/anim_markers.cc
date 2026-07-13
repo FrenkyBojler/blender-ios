@@ -2191,14 +2191,33 @@ static bool markers_write_copy_paste_file(Main *bmain_src,
       return IDWALK_RET_NOP;
     }
 
-    /* The only IDs here should be markers bound to camera. */
+    /* The only IDs left here should be markers bound to camera. */
     BLI_assert(GS(id_src->name) == ID_OB);
 
     Object *ob_src = id_cast<Object *>(id_src);
     BLI_assert(ob_src->type == OB_CAMERA);
 
+    auto partial_write_dependencies_filter_cb =
+        [](LibraryIDLinkCallbackData *cb_deps_data,
+           PartialWriteContext::IDAddOptions /*options*/) -> PartialWriteContext::IDAddOperations {
+      ID *id_deps_src = *cb_deps_data->id_pointer;
+
+      /* Only the camera objects + their data. */
+      if (GS(id_deps_src->name) == ID_CA) {
+        return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
+      }
+
+      if (GS(id_deps_src->name) == ID_OB) {
+        Object *ob_deps_src = id_cast<Object *>(id_deps_src);
+        if (ob_deps_src->type == OB_CAMERA) {
+          return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
+        }
+      }
+
+      return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+    };
     *cb_data->id_pointer = copy_buffer.id_add(
-        id_src, {PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES});
+        id_src, {PartialWriteContext::IDAddOperations::NOP}, partial_write_dependencies_filter_cb);
     return IDWALK_RET_NOP;
   };
   BKE_library_foreach_ID_link(
