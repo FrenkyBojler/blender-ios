@@ -240,6 +240,7 @@ AnimTransformable::AnimTransformable(Object &owner_id, bPoseChannel &pchan)
     : type_(AnimTransformable::Type::POSE_BONE),
       owner_id_(&owner_id.id),
       data_(&pchan),
+      name_(pchan.name),
       location_({pchan.loc, 3}),
       rotation_mode_(&pchan.rotmode),
       scale_({pchan.scale, 3})
@@ -252,6 +253,7 @@ AnimTransformable::AnimTransformable(Object &obj)
     : type_(AnimTransformable::Type::OBJECT),
       owner_id_(&obj.id),
       data_(&obj),
+      name_(&obj.id.name[2]),
       location_({obj.loc, 3}),
       rotation_mode_(reinterpret_cast<eRotationModes *>(&obj.rotmode)),
       scale_({obj.scale, 3})

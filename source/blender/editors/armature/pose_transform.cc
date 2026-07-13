@@ -50,6 +50,7 @@
 #include "WM_types.hh"
 
 #include "ED_anim_api.hh"
+#include "ED_anim_transformable.hh"
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
@@ -615,7 +616,7 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
  * Perform paste pose, for a single bone.
  *
  * \param ob: Object where bone to paste to lives
- * \param chan: Bone that pose to paste comes from
+ * \param copy_transformable: Transformable that the data comes from. Assumed to be a bPoseChannel.
  * \param selOnly: Only paste on selected bones
  * \param flip: Flip on x-axis
  * \param r_is_found: optional return param, indicates whether the expected bone was found. This
@@ -623,7 +624,7 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
  * \return The channel of the bone that was pasted to, or nullptr if no paste was performed.
  */
 static bPoseChannel *pose_bone_do_paste(Object *ob,
-                                        const bPoseChannel *chan,
+                                        const ed::AnimTransformable &copy_transformable,
                                         const bool selOnly,
                                         const bool flip,
                                         const float factor,
@@ -633,10 +634,10 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
 
   /* get the name - if flipping, we must flip this first */
   if (flip) {
-    BLI_string_flip_side_name(name, chan->name, false, sizeof(name));
+    BLI_string_flip_side_name(name, copy_transformable.name().data(), false, sizeof(name));
   }
   else {
-    STRNCPY_UTF8(name, chan->name);
+    STRNCPY_UTF8(name, copy_transformable.name().data());
   }
 
   /* only copy when:
@@ -654,68 +655,38 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   if (selOnly && (pchan->flag & POSE_SELECTED) == 0) {
     return nullptr;
   }
+  ed::AnimTransformable paste_transformable(*ob, *pchan);
 
   /* only loc rot size
    * - only copies transform info for the pose
    */
-  interp_v3_v3v3(pchan->loc, pchan->loc, chan->loc, factor);
-  interp_v3_v3v3(pchan->scale, pchan->scale, chan->scale, factor);
+  paste_transformable.blend_property_to(
+      ed::AnimTransformable::PropertyType::LOCATION,
+      copy_transformable.get_property(ed::AnimTransformable::PropertyType::LOCATION),
+      factor,
+      ed::AXIS_MUTABLE_ALL);
+  paste_transformable.blend_rotation_to(
+      copy_transformable.get_rotation(), factor, ed::AXIS_MUTABLE_ALL);
+  paste_transformable.blend_property_to(
+      ed::AnimTransformable::PropertyType::SCALE,
+      copy_transformable.get_property(ed::AnimTransformable::PropertyType::SCALE),
+      factor,
+      ed::AXIS_MUTABLE_ALL);
 
-  /* check if rotation modes are compatible (i.e. do they need any conversions) */
-  if (pchan->rotmode == chan->rotmode) {
-    /* copy the type of rotation in use */
-    if (pchan->rotmode > 0) {
-      copy_v3_v3(pchan->eul, chan->eul);
-    }
-    else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
-      copy_v3_v3(pchan->rotAxis, chan->rotAxis);
-      pchan->rotAngle = chan->rotAngle;
-    }
-    else {
-      copy_qt_qt(pchan->quat, chan->quat);
-    }
-  }
-  else if (pchan->rotmode > 0) {
-    /* quat/axis-angle to euler */
-    if (chan->rotmode == ROT_MODE_AXISANGLE) {
-      axis_angle_to_eulO(pchan->eul, pchan->rotmode, chan->rotAxis, chan->rotAngle);
-    }
-    else {
-      quat_to_eulO(pchan->eul, pchan->rotmode, chan->quat);
-    }
-  }
-  else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
-    /* quat/euler to axis angle */
-    if (chan->rotmode > 0) {
-      eulO_to_axis_angle(pchan->rotAxis, &pchan->rotAngle, chan->eul, chan->rotmode);
-    }
-    else {
-      quat_to_axis_angle(pchan->rotAxis, &pchan->rotAngle, chan->quat);
-    }
-  }
-  else {
-    /* euler/axis-angle to quat */
-    if (chan->rotmode > 0) {
-      eulO_to_quat(pchan->quat, chan->eul, chan->rotmode);
-    }
-    else {
-      axis_angle_to_quat(pchan->quat, chan->rotAxis, pchan->rotAngle);
-    }
-  }
-
+  bPoseChannel *copy_pchan = copy_transformable.data<bPoseChannel *>();
   /* B-Bone posing options should also be included... */
-  pchan->curve_in_x = interpf(chan->curve_in_x, pchan->curve_in_x, factor);
-  pchan->curve_in_z = interpf(chan->curve_in_z, pchan->curve_in_z, factor);
-  pchan->curve_out_x = interpf(chan->curve_out_x, pchan->curve_out_x, factor);
-  pchan->curve_out_z = interpf(chan->curve_out_z, pchan->curve_out_z, factor);
+  pchan->curve_in_x = interpf(copy_pchan->curve_in_x, pchan->curve_in_x, factor);
+  pchan->curve_in_z = interpf(copy_pchan->curve_in_z, pchan->curve_in_z, factor);
+  pchan->curve_out_x = interpf(copy_pchan->curve_out_x, pchan->curve_out_x, factor);
+  pchan->curve_out_z = interpf(copy_pchan->curve_out_z, pchan->curve_out_z, factor);
 
-  pchan->roll1 = interpf(chan->roll1, pchan->roll1, factor);
-  pchan->roll2 = interpf(chan->roll2, pchan->roll2, factor);
-  pchan->ease1 = interpf(chan->ease1, pchan->ease1, factor);
-  pchan->ease2 = interpf(chan->ease2, pchan->ease2, factor);
+  pchan->roll1 = interpf(copy_pchan->roll1, pchan->roll1, factor);
+  pchan->roll2 = interpf(copy_pchan->roll2, pchan->roll2, factor);
+  pchan->ease1 = interpf(copy_pchan->ease1, pchan->ease1, factor);
+  pchan->ease2 = interpf(copy_pchan->ease2, pchan->ease2, factor);
 
-  interp_v3_v3v3(pchan->scale_in, pchan->scale_in, chan->scale_in, factor);
-  interp_v3_v3v3(pchan->scale_out, pchan->scale_out, chan->scale_out, factor);
+  interp_v3_v3v3(pchan->scale_in, pchan->scale_in, copy_pchan->scale_in, factor);
+  interp_v3_v3v3(pchan->scale_out, pchan->scale_out, copy_pchan->scale_out, factor);
 
   /* paste flipped pose? */
   if (flip) {
@@ -751,25 +722,25 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   }
 
   /* ID properties */
-  if (chan->prop) {
+  if (copy_pchan->prop) {
     if (pchan->prop) {
       /* If we have existing properties on a bone, just copy over the values of
        * matching properties (i.e. ones which will have some impact) on to the target
        * instead of just blindly replacing all. */
-      IDP_SyncGroupValues(pchan->prop, chan->prop);
+      IDP_SyncGroupValues(pchan->prop, copy_pchan->prop);
     }
     else {
       /* no existing properties, so assume that we want copies too? */
-      pchan->prop = IDP_CopyProperty(chan->prop);
+      pchan->prop = IDP_CopyProperty(copy_pchan->prop);
     }
   }
-  if (chan->system_properties) {
+  if (copy_pchan->system_properties) {
     /* Same logic as above for system IDProperties, for now. */
     if (pchan->system_properties) {
-      IDP_SyncGroupValues(pchan->system_properties, chan->system_properties);
+      IDP_SyncGroupValues(pchan->system_properties, copy_pchan->system_properties);
     }
     else {
-      pchan->system_properties = IDP_CopyProperty(chan->system_properties);
+      pchan->system_properties = IDP_CopyProperty(copy_pchan->system_properties);
     }
   }
 
@@ -928,7 +899,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   int num_skipped_bones = 0;
   int num_copied_bones = 0;
   const float factor = RNA_float_get(op->ptr, "factor");
-  for (const bPoseChannel &pchan_from : pose_from->chanbase) {
+  for (bPoseChannel &pchan_from : pose_from->chanbase) {
     if ((pchan_from.flag & POSE_SELECTED) == 0) {
       /* This code pretends that bones that were not selected at copy time do not exist. */
       continue;
@@ -938,7 +909,8 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
 
     /* Try to perform paste on this bone. */
     bool is_found;
-    bPoseChannel *pchan_to = pose_bone_do_paste(ob, &pchan_from, selOnly, flip, factor, &is_found);
+    bPoseChannel *pchan_to = pose_bone_do_paste(
+        ob, {*object_from, pchan_from}, selOnly, flip, factor, &is_found);
     if (!pchan_to) {
       if (is_found) {
         /* The bone was found, but not selected (and selOnly), so nothing was pasted to it. */
@@ -1495,7 +1467,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
 
       /* Copy back values, but on selected bones only. */
       for (bPoseChannel &pchan : dummyPose->chanbase) {
-        pose_bone_do_paste(ob, &pchan, only_select, 1.0f, false);
+        pose_bone_do_paste(ob, {*ob, pchan}, only_select, 1.0f, false);
       }
 
       /* free temp data - free manually as was copied without constraints */
