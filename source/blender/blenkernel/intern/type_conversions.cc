@@ -13,6 +13,19 @@
 #include "BLI_math_vector.hh"
 #include "IMB_colormanagement.hh"
 
+#include "DNA_collection_types.h"
+#include "DNA_image_types.h"
+#include "DNA_object_types.h"
+#include "DNA_mask_types.h"
+#include "DNA_material_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_vfont_types.h"
+#include "DNA_text_types.h"
+#include "DNA_texture_types.h"
+
+#include <iostream>
+
 namespace blender::bke {
 
 using mf::DataType;
@@ -623,6 +636,23 @@ static float4x4 quaternion_to_float4x4(const math::Quaternion &a)
   return math::from_rotation<float4x4>(a);
 }
 
+#define ID_TYPE_TO_ID_CONVERSION_FUNCTION(type, name) \
+static ID* name(type* const& val) \
+{ \
+  return const_cast<ID*>(&val->id); \
+}
+
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Collection, collection_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(VFont, font_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Image, image_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Mask, mask_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Material, material_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Object, object_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Scene, scene_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(bSound, sound_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Text, text_to_id)
+ID_TYPE_TO_ID_CONVERSION_FUNCTION(Tex, texture_to_id)
+
 static DataTypeConversions create_implicit_conversions()
 {
   DataTypeConversions conversions;
@@ -781,6 +811,17 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<math::Quaternion, float3, quaternion_to_float3>(conversions);
   add_implicit_conversion<math::Quaternion, float4, quaternion_to_float4>(conversions);
   add_implicit_conversion<math::Quaternion, float4x4, quaternion_to_float4x4>(conversions);
+
+  add_implicit_conversion<Collection*, ID*, collection_to_id>(conversions);
+  add_implicit_conversion<VFont*, ID*, font_to_id>(conversions);
+  add_implicit_conversion<Image*, ID*, image_to_id>(conversions);
+  add_implicit_conversion<Mask*, ID*, mask_to_id>(conversions);
+  add_implicit_conversion<Material*, ID*, material_to_id>(conversions);
+  add_implicit_conversion<Object*, ID*, object_to_id>(conversions);
+  add_implicit_conversion<Scene*, ID*, scene_to_id>(conversions);
+  add_implicit_conversion<bSound*, ID*, sound_to_id>(conversions);
+  add_implicit_conversion<Text*, ID*, text_to_id>(conversions);
+  add_implicit_conversion<Tex*, ID*, texture_to_id>(conversions);
 
   return conversions;
 }

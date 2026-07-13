@@ -1010,7 +1010,7 @@ static const float std_node_socket_colors[][4] = {
     {0, 0, 0, 1},            /* SOCK_MASK */
     {0.39, 0.34, 0.26, 1},   /* SOCK_SOUND */
     {0.36, 0.47, 0.61, 1.0}, /* SOCK_INT_VECTOR */
-    {1.0, 0.0, 0.0, 1.0},    /* SOCK_ID */
+    {0.78, 0.35, 0.31, 1.0}, /* SOCK_ID */
 };
 
 void std_node_socket_colors_get(int socket_type, float *r_color)
