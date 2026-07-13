@@ -2,7 +2,7 @@
 
 #include "BKE_bvh.hh"
 
-#include "BLI_math_geom.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
 #include "DNA_mesh_types.h"
 
