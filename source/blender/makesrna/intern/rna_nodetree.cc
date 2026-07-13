@@ -10697,6 +10697,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeForeachGeometryElementOutput", def_geo_foreach_geometry_element_output);
   define("GeometryNode", "GeometryNodeGeometryToInstance");
   define("GeometryNode", "GeometryNodeGetAttributeNames");
+  define("GeometryNode", "GeometryNodeGetCustomProperty");
   define("GeometryNode", "GeometryNodeGetGeometryBundle");
   define("GeometryNode", "GeometryNodeGetGeometryComponent");
   define("GeometryNode", "GeometryNodeGetNamedGrid");

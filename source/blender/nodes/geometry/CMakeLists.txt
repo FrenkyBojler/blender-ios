@@ -101,6 +101,7 @@ set(SRC
   nodes/node_geo_geometry_to_instance.cc
   nodes/node_geo_get_attribute_names.cc
   nodes/node_geo_get_bundle_item.cc
+  nodes/node_geo_get_custom_property.cc
   nodes/node_geo_get_geometry_bundle.cc
   nodes/node_geo_get_geometry_component.cc
   nodes/node_geo_get_named_grid.cc

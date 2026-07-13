@@ -18,6 +18,7 @@ class NODE_MT_gn_attribute_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeAttributeStatistic")
         self.node_operator(layout, "GeometryNodeAttributeDomainSize")
         self.node_operator(layout, "GeometryNodeGetAttributeNames")
+        self.node_operator(layout, "GeometryNodeGetCustomProperty") # TODO: not the best place for this, find a better place
         layout.separator()
         self.node_operator(layout, "GeometryNodeBlurAttribute")
         self.node_operator(layout, "GeometryNodeCaptureAttribute")
