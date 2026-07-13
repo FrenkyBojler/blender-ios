@@ -1042,22 +1042,28 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
       }
       break;
     case NC_MASK:
-    switch(wmn->data) {
-      case ND_SELECT:
-        ED_region_tag_redraw(region);
-        break;
-    }
-    switch(wmn->action) {
-      case NA_EDITED:
-      case NA_ADDED:
-        // Scene *scene = const_cast<Scene *>(params->scene);
-        // Editing *ed = seq::editing_get(scene);
-        // Strip *active_strip = ed->act_strip;
-        // seq::relations_invalidate_cache_raw(scene, active_strip);
-        ED_region_tag_redraw(region);
-        break;
-    }
-    break;
+      switch(wmn->data) {
+        case ND_SELECT:
+        case ND_DRAW:
+        case ND_DATA:
+          ED_region_tag_redraw(region);
+          break;
+        // default:
+          // printf("Data! %u \n", wmn->data);
+      }
+      switch(wmn->action) {
+        case NA_EDITED:
+        case NA_ADDED:
+          // Scene *scene = const_cast<Scene *>(params->scene);
+          // Editing *ed = seq::editing_get(scene);
+          // Strip *active_strip = ed->act_strip;
+          // seq::relations_invalidate_cache_raw(scene, active_strip);
+          ED_region_tag_redraw(region);
+          break;
+        // default:
+          // printf("Action! %u \n", wmn->action);
+      }
+      break;
   }
 }
 

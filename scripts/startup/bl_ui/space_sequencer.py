@@ -451,6 +451,29 @@ class SEQUENCER_PT_sequencer_overlay_waveforms(Panel):
         row.active = overlay_settings.waveform_display_type != 'NO_WAVEFORMS'
 
 
+class SEQUENCER_PT_overlay_mask(Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_parent_id = "SEQUENCER_PT_overlay"
+    bl_label = "Mask Display"
+
+    @classmethod
+    def poll(cls, context):
+        st = context.space_data
+        return st.mode == 'MASK' and st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        space_data = context.space_data
+
+        row = layout.row(align=True)
+        row.prop(space_data, "show_mask_spline", text="Spline")
+        sub = row.row()
+        sub.active = space_data.show_mask_spline
+        sub.prop(space_data, "mask_display_type", text="")
+
+
 class SEQUENCER_MT_range(Menu):
     bl_label = "Range"
 
@@ -2224,6 +2247,7 @@ classes = (
     SEQUENCER_PT_sequencer_overlay_strips,
     SEQUENCER_PT_sequencer_overlay_thumbnails,
     SEQUENCER_PT_sequencer_overlay_waveforms,
+    SEQUENCER_PT_overlay_mask,
 
 
     SEQUENCER_PT_cache_settings,
