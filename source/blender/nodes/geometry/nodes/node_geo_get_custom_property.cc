@@ -20,8 +20,8 @@ static const EnumPropertyItem type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define ADD_TYPED_OUTPUT(decl_type, idp_type)\
-  b.add_output<decl_type>("Value"_ustr)\
+#define ADD_TYPED_OUTPUT(decl_type, id, idp_type)\
+  b.add_output<decl_type>("Value"_ustr, id)\
     .make_available([](bNode& node) {\
         bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type"_ustr);\
         type_socket.default_value_typed<bNodeSocketValueMenu>()->value = idp_type;\
@@ -39,10 +39,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     .static_items(type_items)
     .optional_label();
 
-  ADD_TYPED_OUTPUT(decl::Bool, IDP_BOOLEAN)
-  ADD_TYPED_OUTPUT(decl::Float, IDP_FLOAT)
-  ADD_TYPED_OUTPUT(decl::Int, IDP_INT)
-  ADD_TYPED_OUTPUT(decl::String, IDP_STRING)
+  ADD_TYPED_OUTPUT(decl::Bool, "ValueBool"_ustr, IDP_BOOLEAN)
+  ADD_TYPED_OUTPUT(decl::Float, "ValueFloat"_ustr, IDP_FLOAT)
+  ADD_TYPED_OUTPUT(decl::Int, "ValueInt"_ustr, IDP_INT)
+  ADD_TYPED_OUTPUT(decl::String, "ValueInt"_ustr, IDP_STRING)
 
   b.add_output<decl::Bool>("Exists"_ustr).default_value(false);
 
@@ -68,37 +68,33 @@ static void node_geo_exec(GeoNodeExecParams params)
   // addressing scheme using `.` as a separator, for example.
   // We could add yet another socket type for this but that's probably overkill.
   // Groups can be recursive.
+  // For now, just get top-level custom props.
   IDProperty* group = IDP_GetProperties(id);
   if (group == nullptr) {
     params.set_default_remaining_outputs();
     return;
   }
-
-  std::cout << "we get the group baby" << std::endl;
-  std::cout << "looking for " << name << std::endl;
-
-  IDProperty* prop = IDP_GetPropertyTypeFromGroup(group, name, type);
+  
+  auto prop = IDP_GetPropertyFromGroup(group, name);
   if (prop == nullptr) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  std::cout << "we got the prop" << std::endl;
-
   params.set_output("Exists"_ustr, true);
 
   switch (type) {
     case IDP_STRING:
-        params.set_output("Value"_ustr, std::string(IDP_string_get(prop))); // maybe an issue with encoding?
+        params.set_output("ValueString"_ustr, IDP_coerce_to_string_or_empty(prop));
         return;
     case IDP_INT:
-        params.set_output("Value"_ustr, IDP_int_get(prop));
+        params.set_output("ValueInt"_ustr, IDP_coerce_to_int_or_zero(prop));
         return;
     case IDP_FLOAT:
-        params.set_output("Value"_ustr, IDP_float_get(prop));
+        params.set_output("ValueFloat"_ustr, IDP_coerce_to_float_or_zero(prop));
         return;
     case IDP_BOOLEAN:
-        params.set_output("Value"_ustr, IDP_bool_get(prop));
+        params.set_output("ValueBool"_ustr, IDP_coerce_to_bool_or_false(prop));
         return;
     default:
         BLI_assert_unreachable();

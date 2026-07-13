@@ -954,6 +954,40 @@ float IDP_coerce_to_float_or_zero(const IDProperty *prop)
   }
 }
 
+bool IDP_coerce_to_bool_or_false(const IDProperty* prop)
+{
+  switch (prop->type)
+  {
+    case IDP_BOOLEAN:
+      return IDP_bool_get(prop);
+    case IDP_DOUBLE:
+      return IDP_double_get(prop) == 0.0f;
+    case IDP_FLOAT:
+      return IDP_float_get(prop) == 0.0f;
+    case IDP_INT:
+      return IDP_int_get(prop) == 0;
+    default:
+      return false;
+  }
+}
+
+const std::string IDP_coerce_to_string_or_empty(const IDProperty* prop)
+{
+  switch (prop->type)
+  {
+    case IDP_BOOLEAN:
+      return IDP_bool_get(prop) ? "True" : "False";
+    case IDP_DOUBLE:
+      return std::to_string(IDP_double_get(prop));
+    case IDP_FLOAT:
+      return std::to_string(IDP_float_get(prop));
+    case IDP_INT:
+      return std::to_string(IDP_int_get(prop));
+    default:
+      return "";
+  }
+}
+
 IDProperty *IDP_CopyProperty_ex(const IDProperty *prop, const int flag)
 {
   switch (prop->type) {

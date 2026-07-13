@@ -397,6 +397,16 @@ float IDP_coerce_to_float_or_zero(const IDProperty *prop);
  * it's sometimes necessary, for example when legacy files have incorrect property types.
  */
 double IDP_coerce_to_double_or_zero(const IDProperty *prop);
+/**
+ * Return a boolean from an #IDProperty with a compatible type. This should be avoided, but
+ * it's sometimes necessary, for example when legacy files have incorrect property types.
+ */
+bool IDP_coerce_to_bool_or_false(const IDProperty* prop);
+/**
+ * Return a string from an #IDProperty with a compatible type. This should be avoided, but
+ * it's sometimes necessary, for example when legacy files have incorrect property types.
+ */
+const std::string IDP_coerce_to_string_or_empty(const IDProperty* prop);
 
 /**
  * Loop through all ID properties in hierarchy of given \a id_property_root included.
