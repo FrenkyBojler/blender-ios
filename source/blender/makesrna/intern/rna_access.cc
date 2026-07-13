@@ -547,6 +547,11 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
   r_prop_rna_or_id->ptr = ptr;
   r_prop_rna_or_id->rawprop = prop;
 
+  const bool is_ptr_type_prop_or_struct = RNA_struct_is_a(ptr->type, RNA_Property) ||
+                                          RNA_struct_is_a(ptr->type, RNA_Struct);
+  BLI_assert((prop->magic == RNA_MAGIC && (prop->flag & PROP_IDPROPERTY) == 0) ||
+             !is_ptr_type_prop_or_struct);
+
   if (prop->magic == RNA_MAGIC) {
     r_prop_rna_or_id->rnaprop = prop;
     r_prop_rna_or_id->identifier = prop->identifier;
@@ -554,7 +559,9 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
     r_prop_rna_or_id->is_array = prop->getlength || prop->totarraylength;
     if (r_prop_rna_or_id->is_array) {
       int arraylen[RNA_MAX_ARRAY_DIMENSION];
-      r_prop_rna_or_id->array_len = (prop->getlength && ptr->data) ?
+      /* Do not call actual data callbacks on definition data (i.e. it `ptr` is a struct or
+       * property definition, and not the actual data type). See e.g. #161362. */
+      r_prop_rna_or_id->array_len = (prop->getlength && ptr->data && !is_ptr_type_prop_or_struct) ?
                                         uint(prop->getlength(ptr, arraylen)) :
                                         prop->totarraylength;
     }
