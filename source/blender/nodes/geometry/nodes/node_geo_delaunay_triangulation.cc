@@ -673,7 +673,7 @@ static Array<TriangulationResult> calc_triangulations(const Mesh *mesh,
 
               const auto [vert1, vert2] = verts_from_cdt_edge(edge1);
               const auto [vert3, vert4] = verts_from_cdt_edge(edge2);
-              const Span<int> src_points = {vert1, vert2, vert3, vert4};
+              const Array<int> src_points{vert1, vert2, vert3, vert4};
               Array<float2> src_positions(src_points.size());
               for (const int i : src_points.index_range()) {
                 const int src_point = src_points[i];
