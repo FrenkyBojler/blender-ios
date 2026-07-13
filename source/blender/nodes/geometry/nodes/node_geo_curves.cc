@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array.hh"
-#include "BLI_implicit_sharing.hh"
+#include "BLI_offset_indices.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_lib_id.hh"
@@ -21,94 +21,61 @@ namespace blender::nodes::node_geo_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  const bNode *node = b.node_or_null();
-  if (!node) {
-    return;
-  }
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-
   b.add_output<decl::Geometry>("Curves"_ustr);
 
   b.add_input<decl::Int>("Points"_ustr)
       .default_value(1)
       .min(1)
-      .description("The number of points in the curves");
+      .description("The total number of points");
   b.add_input<decl::Vector>("Positions"_ustr).structure_type(StructureType::Field).hide_value();
-  b.add_input<decl::Int>("Curve Offsets"_ustr).structure_type(StructureType::List).hide_value();
-}
-
-static bool get_offsets_from_list(GeoNodeExecParams &params,
-                                   bke::CurvesGeometry &curves,
-                                   const GListPtr &offsets_list)
-{
-  if (!offsets_list->cpp_type().is<int>()) {
-    params.error_message_add(NodeWarningType::Error, "Curve Offsets must be a list of integers");
-    return false;
-  }
-  const GList::DataVariant &offsets_list_data = offsets_list->data();
-  const auto *array_data = std::get_if<GList::ArrayData>(&offsets_list_data);
-  if (!array_data) {
-    params.error_message_add(NodeWarningType::Error, "Curve Offsets can't be a single integer");
-    return false;
-  }
-  const auto values = offsets_list->typed<int>().values();
-  const auto *span_values = std::get_if<Span<int>>(&values);
-  BLI_assert(span_values);
-
-  const Span<int> offsets = *span_values;
-  if (offsets.is_empty() || offsets.first() != 0) {
-    params.error_message_add(NodeWarningType::Error, "The first curve offset must be zero");
-    return false;
-  }
-  if (offsets.last() != curves.points_num()) {
-    params.error_message_add(NodeWarningType::Error,
-                             "The last curve offset must be equal to the number of points");
-    return false;
-  }
-  for (const int i : offsets.index_range().drop_back(1)) {
-    if (offsets[i] >= offsets[i + 1]) {
-      params.error_message_add(NodeWarningType::Error,
-                               "Curve offsets must be in ascending order");
-      return false;
-    }
-  }
-  const int curves_num = offsets.size() - 1;
-  curves.attribute_storage.wrap().resize(AttrDomain::Curve, curves_num);
-  implicit_sharing::copy_shared_pointer(static_cast<int *>(const_cast<void *>(array_data->data)), &(*array_data->sharing_info), &curves.curve_offsets, &curves.runtime->curve_offsets_sharing_info);
-  curves.curve_num = curves_num;
-  return true;
+  b.add_input<decl::Int>("Curves"_ustr)
+      .default_value(1)
+      .min(1)
+      .description("The number of curves");
+  b.add_input<decl::Int>("Curve Sizes"_ustr)
+      .default_value(1)
+      .min(1)
+      .hide_value()
+      .structure_type(StructureType::Field)
+      .description("The number of points in each curve");
 }
 
 static Curves *create_curves_from_topology_info(GeoNodeExecParams &params,
-                                                 const int points_num,
-                                                 GField &positions_field,
-                                                 const GListPtr &offsets_list)
+                                                const int points_num,
+                                                GField &positions_field,
+                                                const int curves_num,
+                                                GField &curve_sizes_field)
 {
-  if (!offsets_list) {
-    params.error_message_add(NodeWarningType::Error, "The curve offsets are required");
-    return nullptr;
-  }
-  const int offsets_num = offsets_list->size();
-  if (offsets_num < 2) {
-    params.error_message_add(NodeWarningType::Error,
-                             "There must be at least one curve (at least 2 offsets)");
-    return nullptr;
-  }
-
-  /* The curve offsets might get shared from the list, so start with no curves. */
-  Curves *curves_id = bke::curves_new_nomain(points_num, 0);
+  Curves *curves_id = bke::curves_new_nomain(points_num, curves_num);
   bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
-  if (!get_offsets_from_list(params, curves, offsets_list)) {
+  ListFieldContext context;
+  fn::FieldEvaluator evaluator_curve_sizes{context, curves_num};
+  evaluator_curve_sizes.add_with_destination(std::move(curve_sizes_field),
+                                             curves.offsets_for_write());
+  evaluator_curve_sizes.evaluate();
+
+  if (std::any_of(curves.offsets().begin(),
+                  curves.offsets().drop_back(1).end(),
+                  [](const int size) { return size < 1; }))
+  {
+    params.error_message_add(NodeWarningType::Error, "Curve sizes must be at least 1");
     BKE_id_free_ex(nullptr, curves_id, LIB_ID_FREE_NO_MAIN, false);
     return nullptr;
   }
 
-  ListFieldContext context;
-  fn::FieldEvaluator evaluator{context, points_num};
-  evaluator.add_with_destination(std::move(positions_field), curves.positions_for_write());
-  evaluator.evaluate();
+  auto curve_offsets = offset_indices::accumulate_counts_to_offsets(curves.offsets_for_write());
+  if (curve_offsets.total_size() != points_num) {
+    params.error_message_add(NodeWarningType::Error,
+                             "Curve sizes must sum to the number of points");
+    BKE_id_free_ex(nullptr, curves_id, LIB_ID_FREE_NO_MAIN, false);
+    return nullptr;
+  }
+
+  fn::FieldEvaluator evaluator_positions{context, points_num};
+  evaluator_positions.add_with_destination(std::move(positions_field),
+                                           curves.positions_for_write());
+  evaluator_positions.evaluate();
 
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
@@ -118,18 +85,30 @@ static Curves *create_curves_from_topology_info(GeoNodeExecParams &params,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const int points_num = params.extract_input<int>("Points"_ustr);
+  const int curves_num = params.extract_input<int>("Curves"_ustr);
   if (points_num < 1) {
-    params.error_message_add(NodeWarningType::Error,
-                             "Number of points must be greater than zero");
+    params.error_message_add(NodeWarningType::Error, "Number of points must be greater than zero");
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (curves_num < 1) {
+    params.error_message_add(NodeWarningType::Error, "Number of curves must be greater than zero");
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (points_num < curves_num) {
+    params.error_message_add(
+        NodeWarningType::Error,
+        "Number of curves must be less than or equal to the number of points");
     params.set_default_remaining_outputs();
     return;
   }
   if (params.output_is_required("Curves"_ustr)) {
     GField positions_field = params.extract_input<GField>("Positions"_ustr);
-    const GListPtr curves_offset = params.extract_input<GListPtr>("Curve Offsets"_ustr);
+    GField curve_sizes_field = params.extract_input<GField>("Curve Sizes"_ustr);
 
     Curves *curves = create_curves_from_topology_info(
-        params, points_num, positions_field, curves_offset);
+        params, points_num, positions_field, curves_num, curve_sizes_field);
     params.set_output("Curves"_ustr, GeometrySet::from_curves(curves));
   }
 }
