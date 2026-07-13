@@ -45,14 +45,6 @@ def _modal_translate(e, start_xy, delta_xy, steps=8):
     yield
 
 
-def _assert_tuple_not_equal(testcase, a, b, msg):
-    testcase.assertNotEqual(tuple(a), tuple(b), msg)
-
-
-def _assert_tuple_equal(testcase, a, b, msg):
-    testcase.assertEqual(tuple(a), tuple(b), msg)
-
-
 def _setup_compositor_tree(window):
     import bpy
 
@@ -67,7 +59,7 @@ def _setup_node_editor(window, tree):
     space = area.spaces.active
     space.tree_type = tree.bl_idname
     space.node_tree = tree
-    return area, space
+    return area
 
 
 def _setup_dopesheet(window):
@@ -94,7 +86,7 @@ def _setup_uv_editor(window):
     area = _window_area(window, "IMAGE_EDITOR")
     space = area.spaces.active
     space.mode = "UV"
-    return area, space
+    return area
 
 
 def _animated_cube():
@@ -111,17 +103,18 @@ def _animated_cube():
     return cube
 
 
-def _selected_keyframe(fcurve, index=0):
-    for keyframe in fcurve.keyframe_points:
-        keyframe.select_control_point = False
-        keyframe.select_left_handle = False
-        keyframe.select_right_handle = False
+def select_keyframe(fcurve, index=0):
+    """
+    Select only the requested keyframe on an F-Curve.
+    """
+    fcurve.id_data.deselect_keys()
+
     keyframe = fcurve.keyframe_points[index]
     keyframe.select_control_point = True
     return keyframe
 
 
-def _uv_vertex_0_selected(mesh):
+def _uv_vertex_selected(mesh):
     import bmesh
     import bpy
 
@@ -131,6 +124,8 @@ def _uv_vertex_0_selected(mesh):
 
     for vert in bm.verts:
         vert.select = False
+
+    # Select vertex 0 for the drag test.
     bm.verts[0].select = True
     bm.select_history.clear()
     bm.select_history.add(bm.verts[0])
@@ -139,11 +134,7 @@ def _uv_vertex_0_selected(mesh):
 
 def _get_fcurve(obj, data_path, index=0):
     """
-    Look up an F-Curve for `obj`'s active action under Blender's current
-    layered-action data model. `Action.fcurves` no longer exists (it now
-    lives on `ActionChannelbag`, see rna_action.cc); channels are reached
-    via the slot assigned to this object's AnimData:
-    action.layers[0].strips[0].channelbag(slot).fcurves
+    Return the requested F-Curve from the object's active action.
     """
     action = obj.animation_data.action
     slot = obj.animation_data.action_slot
@@ -167,19 +158,19 @@ def view3d_object_drag():
     yield from _modal_translate(e, ui.get_area_center(area), (120, 70))
 
     after_location = tuple(cube.location)
-    _assert_tuple_not_equal(t, after_location, before_location, "Object location should change after dragging")
+    t.assertNotEqual(after_location, before_location, "Object location should change after dragging")
     t.assertIs(window.view_layer.objects.active, before_active, "Active object should remain the dragged object")
     t.assertTrue(cube.select_get(), "Selection should be preserved")
 
     yield e.ctrl.z()
     yield
     cube = bpy.data.objects["Cube"]
-    _assert_tuple_equal(t, cube.location, before_location, "Undo should restore the exact object location")
+    t.assertEqual(cube.location, before_location, "Undo should restore the exact object location")
 
     yield e.ctrl.shift.z()
     yield
     cube = bpy.data.objects["Cube"]
-    _assert_tuple_equal(t, cube.location, after_location, "Redo should restore the moved object location")
+    t.assertEqual(cube.location, after_location, "Redo should restore the moved object location")
 
 
 def viewport_navigation_drags():
@@ -195,10 +186,10 @@ def viewport_navigation_drags():
 
     center = ui.get_area_center(area)
     yield from e.middlemouse.cursor_motion(ui.cursor_motion_data_circle(center, 80))
-    _assert_tuple_not_equal(t, rv3d.view_rotation, before_rotation, "Rotate drag should change the view rotation")
+    t.assertNotEqual(rv3d.view_rotation, before_rotation, "Rotate drag should change the view rotation")
 
     yield from e.shift.middlemouse.cursor_motion(ui.cursor_motion_data_x(window))
-    _assert_tuple_not_equal(t, rv3d.view_location, before_location, "Pan drag should change the view location")
+    t.assertNotEqual(rv3d.view_location, before_location, "Pan drag should change the view location")
 
     yield from e.ctrl.middlemouse.cursor_motion(ui.cursor_motion_data_y(window))
     t.assertNotEqual(rv3d.view_distance, before_distance, "Zoom drag should change the view distance")
@@ -212,7 +203,7 @@ def node_single_drag():
 
     e, t, window = ui.test_window()
     tree = _setup_compositor_tree(window)
-    area, _ = _setup_node_editor(window, tree)
+    area = _setup_node_editor(window, tree)
 
     node = tree.nodes.new("CompositorNodeRGB")
     node.name = "TestRGBNode"
@@ -227,8 +218,7 @@ def node_single_drag():
 
     after_location = tuple(node.location)
 
-    _assert_tuple_not_equal(
-        t,
+    t.assertNotEqual(
         after_location,
         before_location,
         "Node location should change after translate",
@@ -241,7 +231,7 @@ def node_multiple_drag():
     """
     e, t, window = ui.test_window()
     tree = _setup_compositor_tree(window)
-    area, _ = _setup_node_editor(window, tree)
+    area = _setup_node_editor(window, tree)
 
     nodes = [
         tree.nodes.new("CompositorNodeRGB"),
@@ -277,7 +267,7 @@ def dopesheet_keyframe_drag():
 
     cube = _animated_cube()
     fcurve = _get_fcurve(cube, "location", index=0)
-    keyframe = _selected_keyframe(fcurve, index=1)
+    keyframe = select_keyframe(fcurve, index=1)
     yield
 
     before = tuple(keyframe.co)
@@ -290,8 +280,7 @@ def dopesheet_keyframe_drag():
 
     after = tuple(keyframe.co)
 
-    _assert_tuple_not_equal(
-        t,
+    t.assertNotEqual(
         after,
         before,
         "Dope Sheet keyframe coordinates should change after dragging",
@@ -314,7 +303,7 @@ def graph_editor_drag():
 
     cube = _animated_cube()
     fcurve = _get_fcurve(cube, "location", index=0)
-    keyframe = _selected_keyframe(fcurve, index=1)
+    keyframe = select_keyframe(fcurve, index=1)
     yield
 
     before = tuple(keyframe.co)
@@ -327,8 +316,7 @@ def graph_editor_drag():
 
     after = tuple(keyframe.co)
 
-    _assert_tuple_not_equal(
-        t,
+    t.assertNotEqual(
         after,
         before,
         "Graph keyframe coordinates should change after dragging",
@@ -349,7 +337,7 @@ def uv_editor_drag():
     import bmesh
 
     e, t, window = ui.test_window()
-    area, _ = _setup_uv_editor(window)
+    area = _setup_uv_editor(window)
 
     # Create a plane and enter Edit Mode.
     yield from ui.call_menu(e, "Add -> Mesh -> Plane")
@@ -365,7 +353,7 @@ def uv_editor_drag():
     if mesh.uv_layers.active is None:
         mesh.uv_layers.new(name="UVMap")
 
-    _uv_vertex_0_selected(mesh)
+    _uv_vertex_selected(mesh)
     yield
 
     bm = bmesh.from_edit_mesh(mesh)
@@ -386,7 +374,7 @@ def uv_editor_drag():
     loop = bm.faces[0].loops[0]
     after = tuple(loop[uv_layer].uv)
 
-    _assert_tuple_not_equal(t, after, before, "UV coordinates should change after dragging")
+    t.assertNotEqual(after, before, "UV coordinates should change after dragging")
 
     yield e.ctrl.z()
 
@@ -394,7 +382,7 @@ def uv_editor_drag():
     uv_layer = bm.loops.layers.uv.active
     loop = bm.faces[0].loops[0]
 
-    _assert_tuple_equal(t, tuple(loop[uv_layer].uv), before, "Undo should restore the exact UV coordinates")
+    t.assertEqual(tuple(loop[uv_layer].uv), before, "Undo should restore the exact UV coordinates")
 
 
 # Image Editor
@@ -419,4 +407,4 @@ def image_editor_pan():
     after_cur = tuple(region.view2d.region_to_view(probe_x - region.x, probe_y - region.y))
  
 
-    _assert_tuple_not_equal(t, after_cur, before_cur, "Image editor view should pan")
+    t.assertNotEqual(after_cur, before_cur, "Image editor view should pan")
