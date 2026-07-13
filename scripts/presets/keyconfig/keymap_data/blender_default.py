@@ -458,9 +458,9 @@ def _template_items_select_lasso(params, operator):
         ]
 
 
-def _template_items_hide_reveal_actions(op_hide, op_reveal):
+def _template_items_hide_reveal_actions(op_hide, op_reveal, reveal_property={"properties": [("select", False)]}):
     return [
-        (op_reveal, {"type": 'H', "value": 'PRESS', "alt": True}, None),
+        (op_reveal, {"type": 'H', "value": 'PRESS', "alt": True}, reveal_property),
         (op_hide, {"type": 'H', "value": 'PRESS'}, {"properties": [("unselected", False)]}),
         (op_hide, {"type": 'H', "value": 'PRESS', "shift": True}, {"properties": [("unselected", True)]}),
     ]
@@ -3645,7 +3645,7 @@ def km_clip_editor(params):
          {"properties": [("action", 'LOCK')]}),
         ("clip.lock_tracks", {"type": 'L', "value": 'PRESS', "alt": True},
          {"properties": [("action", 'UNLOCK')]}),
-        *_template_items_hide_reveal_actions("clip.hide_tracks", "clip.hide_tracks_clear"),
+        *_template_items_hide_reveal_actions("clip.hide_tracks", "clip.hide_tracks_clear", reveal_property=None),
         ("clip.slide_plane_marker", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, None),
         ("clip.keyframe_insert", {"type": 'I', "value": 'PRESS'}, None),
         ("clip.keyframe_delete", {"type": 'I', "value": 'PRESS', "alt": True}, None),
@@ -4049,7 +4049,7 @@ def km_grease_pencil_paint_mode(params):
         op_menu("GREASE_PENCIL_MT_layer_active", {"type": 'Y', "value": 'PRESS'}),
 
         # Show/hide
-        *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal"),
+        *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal", reveal_property=None),
         # Flip primary and secondary color
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.sample_color", {"type": 'X', "value": 'PRESS', "shift": True}, {"properties": [("merged", False)]}),
@@ -4163,7 +4163,7 @@ def km_grease_pencil_edit_mode(params):
         op_menu("GREASE_PENCIL_MT_draw_delete", {"type": 'I', "value": 'PRESS', "alt": True}),
 
         # Show/hide
-        *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal"),
+        *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal", reveal_property=None),
 
         # Transform Actions.
         *_template_items_transform_actions(params, use_bend=True, use_mirror=True, use_tosphere=True, use_shear=True),
@@ -4399,7 +4399,7 @@ def km_grease_pencil_weight_paint(params):
         *_template_items_context_panel("VIEW3D_PT_greasepencil_weight_context_menu", params.context_menu_event),
 
         # Show/hide layer
-        *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal"),
+        *_template_items_hide_reveal_actions("grease_pencil.layer_hide", "grease_pencil.layer_reveal", reveal_property=None),
 
         *_template_asset_shelf_popup("VIEW3D_AST_brush_gpencil_weight", params.spacebar_action),
     ])
