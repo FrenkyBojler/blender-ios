@@ -745,7 +745,7 @@ void PAINT_OT_mask_flood_fill(wmOperatorType *ot)
   ot->exec = mask_flood_fill_exec;
   ot->poll = sculpt_mode_poll;
 
-  ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* RNA. */
   RNA_def_enum(ot->srna, "mode", mode_items, int(FloodFillMode::Value), "Mode", nullptr);
