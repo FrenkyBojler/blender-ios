@@ -5,5 +5,5 @@ Referenced by commit 53c556d261b048da31143004f56cb0747f71cba3, Fix #160339: Edit
 Referenced by pull request #160540, Fix #160535: Crash transforming vertices with geometry nodes, a deform modifier and "Cage" enabled
 Referenced by issue #160535, Crash transforming vertices with geometry nodes, a deform modifier and "Cage" enabled
 Referenced by pull request #160844, Fix #160535: Crash transforming a mesh with geometry nodes & cage deform
-Referenced by pull request #161224, Fix #161196: Lattice Modifier doesn't display the deformed mesh in Edit Mode Visibility of the modifier and no cage visible with On Cage
+Referenced by pull request #161224, Fix #161196: Modifier edit and cage visibility issues
 Referenced by issue #161363, Crash when switching to Weight Paint on a mesh with a geometry nodes modifier
