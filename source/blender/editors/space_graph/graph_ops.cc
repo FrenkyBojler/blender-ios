@@ -200,7 +200,6 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
   return ret;
 }
 
-
 static void GRAPH_OT_cursor_set(wmOperatorType *ot)
 {
   /* identifiers */

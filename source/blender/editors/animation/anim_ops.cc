@@ -752,7 +752,6 @@ static void change_frame_cancel(bContext *C, wmOperator *op)
 {
   FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
   bScreen *screen = CTX_wm_screen(C);
-
   ED_screen_scrubbing_disable(C, screen, op_data->scrub_resume);
 
   MEM_delete(op_data);
