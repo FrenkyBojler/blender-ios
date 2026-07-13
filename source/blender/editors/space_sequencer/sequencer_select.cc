@@ -182,7 +182,6 @@ static void select_surrounding_handles(Scene *scene, Strip *test) /* XXX BRING B
       neighbor->flag |= SEQ_RIGHTSEL;
     }
     neighbor->flag |= SEQ_SELECT;
-    recurs_sel_strip(neighbor);
   }
   neighbor = find_neighboring_strip(scene, test, seq::SIDE_RIGHT, -1);
   if (neighbor) {
@@ -190,7 +189,6 @@ static void select_surrounding_handles(Scene *scene, Strip *test) /* XXX BRING B
       neighbor->flag |= SEQ_LEFTSEL;
     }
     neighbor->flag |= SEQ_SELECT;
-    recurs_sel_strip(neighbor);
   }
 }
 
@@ -274,17 +272,14 @@ static void select_linked_time_strip(const Scene *scene,
         /* Direct match, copy all selection settings. */
         strip_dest.flag &= ~STRIP_ALLSEL;
         strip_dest.flag |= strip_source->flag & STRIP_ALLSEL;
-        recurs_sel_strip(&strip_dest);
       }
       else if (left_match && handle_clicked == STRIP_HANDLE_LEFT) {
         strip_dest.flag &= ~(SEQ_SELECT | SEQ_LEFTSEL);
         strip_dest.flag |= strip_source->flag & (SEQ_SELECT | SEQ_LEFTSEL);
-        recurs_sel_strip(&strip_dest);
       }
       else if (right_match && handle_clicked == STRIP_HANDLE_RIGHT) {
         strip_dest.flag &= ~(SEQ_SELECT | SEQ_RIGHTSEL);
         strip_dest.flag |= strip_source->flag & (SEQ_SELECT | SEQ_RIGHTSEL);
-        recurs_sel_strip(&strip_dest);
       }
     }
   }
@@ -312,7 +307,6 @@ void select_strip_single(Scene *scene, Strip *strip, bool deselect_all)
   seq::select_active_set(scene, strip);
 
   strip->flag |= SEQ_SELECT;
-  recurs_sel_strip(strip);
 }
 
 rcti strip_int_bounds_get(const Scene *scene, const Strip *strip)
@@ -394,31 +388,6 @@ static void select_neighbor_from_last(Scene *scene, int lr)
   }
 }
 #endif
-
-void recurs_sel_strip(Strip *strip_meta)
-{
-  Strip *strip;
-  strip = static_cast<Strip *>(strip_meta->seqbase.first);
-
-  while (strip) {
-
-    if (strip_meta->flag & (SEQ_LEFTSEL + SEQ_RIGHTSEL)) {
-      strip->flag &= ~STRIP_ALLSEL;
-    }
-    else if (strip_meta->flag & SEQ_SELECT) {
-      strip->flag |= SEQ_SELECT;
-    }
-    else {
-      strip->flag &= ~STRIP_ALLSEL;
-    }
-
-    if (strip->seqbase.first) {
-      recurs_sel_strip(strip);
-    }
-
-    strip = static_cast<Strip *>(strip->next);
-  }
-}
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2])
 {
@@ -525,7 +494,6 @@ void SEQUENCER_OT_select_all(wmOperatorType *ot)
 static void sequencer_select_set_active(Scene *scene, Strip *strip)
 {
   seq::select_active_set(scene, strip);
-  recurs_sel_strip(strip);
 }
 
 static void sequencer_select_side_of_frame(const bContext *C,
@@ -542,7 +510,6 @@ static void sequencer_select_side_of_frame(const bContext *C,
     {
       /* Select left or right. */
       strip_iter.flag |= SEQ_SELECT;
-      recurs_sel_strip(&strip_iter);
     }
   }
 
@@ -600,10 +567,9 @@ static void sequencer_select_linked_handle(const bContext *C,
           }
           else {
             strip->flag |= SEQ_SELECT;
-            neighbor->flag |= SEQ_SELECT;
-            recurs_sel_strip(neighbor);
-            neighbor->flag |= SEQ_RIGHTSEL;
             strip->flag |= SEQ_LEFTSEL;
+            neighbor->flag |= SEQ_SELECT;
+            neighbor->flag |= SEQ_RIGHTSEL;
           }
           break;
         case seq::SIDE_RIGHT:
@@ -614,10 +580,9 @@ static void sequencer_select_linked_handle(const bContext *C,
           }
           else {
             strip->flag |= SEQ_SELECT;
-            neighbor->flag |= SEQ_SELECT;
-            recurs_sel_strip(neighbor);
-            neighbor->flag |= SEQ_LEFTSEL;
             strip->flag |= SEQ_RIGHTSEL;
+            neighbor->flag |= SEQ_SELECT;
+            neighbor->flag |= SEQ_LEFTSEL;
           }
           break;
       }
@@ -1684,13 +1649,11 @@ static bool select_linked_internal(Scene *scene)
     Strip *neighbor = find_neighboring_strip(scene, &strip, seq::SIDE_LEFT, 0);
     if (neighbor) {
       neighbor->flag |= SEQ_SELECT;
-      recurs_sel_strip(neighbor);
       changed = true;
     }
     neighbor = find_neighboring_strip(scene, &strip, seq::SIDE_RIGHT, 0);
     if (neighbor) {
       neighbor->flag |= SEQ_SELECT;
-      recurs_sel_strip(neighbor);
       changed = true;
     }
   }
@@ -1733,7 +1696,6 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
   for (Strip *neighbor : neighbors) {
     if (select_more) {
       neighbor->flag |= SEQ_SELECT;
-      recurs_sel_strip(neighbor);
     }
     else {
       neighbor->flag &= ~SEQ_SELECT;
@@ -1839,7 +1801,6 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
   }
 
   mouse_selection.strip1->flag |= SEQ_SELECT;
-  recurs_sel_strip(mouse_selection.strip1);
 
   bool selected = true;
   while (selected) {
@@ -1996,7 +1957,6 @@ static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *o
     if ((strip.flag & SEQ_LEFTSEL) || (strip.flag & SEQ_RIGHTSEL)) {
       if (!(strip.flag & SEQ_SELECT)) {
         strip.flag |= SEQ_SELECT;
-        recurs_sel_strip(&strip);
       }
     }
   }
@@ -2067,7 +2027,6 @@ static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext *C, wmOpera
 
     if (test) {
       strip.flag |= SEQ_SELECT;
-      recurs_sel_strip(&strip);
     }
   }
 
