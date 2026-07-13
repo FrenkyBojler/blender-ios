@@ -365,7 +365,7 @@ def uv_editor_drag():
     loop = bm.faces[0].loops[0]
     before = tuple(loop[uv_layer].uv)
 
-    yield from _modal_translate(e, ui.get_area_center(area),(100, 50))
+    yield from _modal_translate(e, ui.get_area_center(area), (100, 50))
 
     bmesh.update_edit_mesh(mesh)
 
@@ -405,6 +405,5 @@ def image_editor_pan():
 
     yield from e.middlemouse.cursor_motion(ui.cursor_motion_data_x(window))
     after_cur = tuple(region.view2d.region_to_view(probe_x - region.x, probe_y - region.y))
- 
 
     t.assertNotEqual(after_cur, before_cur, "Image editor view should pan")
