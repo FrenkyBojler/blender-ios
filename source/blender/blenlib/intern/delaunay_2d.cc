@@ -25,6 +25,8 @@
 
 #include "BLI_delaunay_2d.hh"
 
+#include "PRF_profile.hh"
+
 namespace blender::meshintersect {
 
 using namespace blender::math;
@@ -207,7 +209,7 @@ template<typename T> struct CDTVert {
   /** Some edge attached to it. */
   SymEdge<T> *symedge{nullptr};
   /** Set of corresponding vertex input ids. Not used if don't need_ids. */
-  Set<uint32_t> input_ids;
+  VectorSet<uint32_t> input_ids;
   /** Index into array that #CDTArrangement keeps. */
   int index{-1};
   /** Index of a CDTVert that this has merged to. -1 if no merge. */
@@ -225,7 +227,7 @@ template<typename T> struct CDTEdge {
   /** Set of input edge ids that this is part of.
    * If don't need_ids, then should contain 0 if it is a constrained edge,
    * else empty. */
-  Set<uint32_t> input_ids;
+  VectorSet<uint32_t> input_ids;
   /** The directed edges for this edge. */
   SymEdge<T> symedges[2]{SymEdge<T>(), SymEdge<T>()};
 
@@ -238,7 +240,7 @@ template<typename T> struct CDTFace {
   /** Set of input face ids that this is part of.
    * If don't need_ids, then should contain 0 if it is part of a constrained face,
    * else empty. */
-  Set<uint32_t> input_ids;
+  VectorSet<uint32_t> input_ids;
   /** Used by algorithms operating on CDT structures. */
   int visit_index{0};
   /** Marks this face no longer used. */
@@ -955,10 +957,27 @@ CDT_state<T>::CDT_state(
 }
 
 /* Is any id in (range_start, range_start+1, ... , range_end) in id_list? */
-static bool id_range_in_list(const Set<uint32_t> &id_list,
+static bool id_range_in_list(const VectorSet<uint32_t> &id_list,
                              uint32_t range_start,
                              uint32_t range_end)
 {
+  PRF_scope(ProfileCategory::Core);
+  // if (id_list.is_empty()) {
+  //   return false;
+  // }
+  // printf("Check {");
+  // for (uint32_t id : id_list) {
+  //   printf("%u, ", id);
+  // }
+  // printf("} against [%u, %u]\n", range_start, range_end);
+  // if (id_list.is_empty()) {
+  //   return false;
+  // }
+  // for (uint32_t id = range_start; id <= range_end; id++) {
+  //   if (id_list.contains(id)) {
+  //     return true;
+  //   }
+  // }
   for (uint32_t id : id_list) {
     if (id >= range_start && id <= range_end) {
       return true;
@@ -967,16 +986,15 @@ static bool id_range_in_list(const Set<uint32_t> &id_list,
   return false;
 }
 
-static void add_to_input_ids(Set<uint32_t> &dst, uint32_t input_id)
+static void add_to_input_ids(VectorSet<uint32_t> &dst, uint32_t input_id)
 {
+  PRF_scope(ProfileCategory::Core);
   dst.add(input_id);
 }
 
-static void add_list_to_input_ids(Set<uint32_t> &dst, const Set<uint32_t> &src)
+static void add_list_to_input_ids(VectorSet<uint32_t> &dst, const VectorSet<uint32_t> &src)
 {
-  for (uint32_t value : src) {
-    dst.add(value);
-  }
+  dst.add_multiple(src.as_span());
 }
 
 template<typename T> inline bool is_border_edge(const CDTEdge<T> *e, const CDT_state<T> *cdt)
@@ -2323,12 +2341,13 @@ void add_face_ids(CDT_state<T> *cdt_state,
     add_to_input_ids(face->input_ids, face_id);
     SymEdge<T> *se_start = se;
     for (se = se->next; se != se_start; se = se->next) {
+      SymEdge<T> *se_sym = sym(se);
+      CDTFace<T> *face_other = se_sym->face;
+      if (face_other->visit_index == visit) {
+        continue;
+      }
       if (!id_range_in_list(se->edge->input_ids, fedge_start, fedge_end)) {
-        SymEdge<T> *se_sym = sym(se);
-        CDTFace<T> *face_other = se_sym->face;
-        if (face_other->visit_index != visit) {
-          stack.append(se_sym);
-        }
+        stack.append(se_sym);
       }
     }
   }
@@ -3267,9 +3286,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
         if (i < cdt_state->input_vert_num) {
           result.vert_orig[i_out].append(uint32_t(i));
         }
-        for (uint32_t vert : v->input_ids) {
-          result.vert_orig[i_out].append(vert);
-        }
+        result.vert_orig[i_out].extend(v->input_ids.as_span());
         result.intersected_edges_orig[i_out] = v->intersected_edges;
       }
       ++i_out;
@@ -3291,9 +3308,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
       int vo2 = vert_to_output_map[e->symedges[1].vert->index];
       result.edge[e_out] = int2(vo1, vo2);
       if (cdt_state->need_ids) {
-        for (uint32_t edge : e->input_ids) {
-          result.edge_orig[e_out].append(edge);
-        }
+        result.edge_orig[e_out].extend(e->input_ids.as_span());
       }
       ++e_out;
     }
@@ -3318,9 +3333,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
         se = se->next;
       } while (se != se_start);
       if (cdt_state->need_ids) {
-        for (uint32_t face : f->input_ids) {
-          result.face_orig[f_out].append(face);
-        }
+        result.face_orig[f_out].extend(f->input_ids.as_span());
       }
       ++f_out;
     }
