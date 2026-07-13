@@ -7,7 +7,6 @@
  */
 
 /* Allow using deprecated functionality for .blend file I/O. */
-#include "BKE_bvh.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <algorithm>
@@ -54,6 +53,7 @@
 #include "BKE_anim_path.h"
 #include "BKE_animsys.hh"
 #include "BKE_armature.hh"
+#include "BKE_bvh.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_cachefile.hh"
 #include "BKE_camera.h"

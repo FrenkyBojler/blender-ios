@@ -7,9 +7,9 @@
  */
 
 #include "BKE_bvh.hh"
-#include "BLI_math_geom.hh"
-#include "BLI_math_matrix.hh"
-#include "BLI_task.hh"
+#include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_task_c.hh"
 
 #include "BLT_translation.hh"
 

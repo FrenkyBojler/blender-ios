@@ -171,8 +171,8 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
         }
         return;
       }
-      const bke::bvh::OptionallyOwnedTree &bvh = bvh_trees_[group_index];
-      const std::optional<bke::bvh::ClosestPointResult> result = bvh.tree->closest_point(position);
+      const bke::bvh::Tree &bvh = *bvh_trees_[group_index].tree;
+      const std::optional<bke::bvh::ClosestPointResult> result = bvh.closest_point(position);
       if (!result) {
         triangle_index[i] = -1;
         sample_position[i] = float3(0, 0, 0);
