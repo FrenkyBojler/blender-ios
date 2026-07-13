@@ -1377,6 +1377,7 @@ void dc_tri(CDTArrangement<T> *cdt,
             SymEdge<T> **r_le,
             SymEdge<T> **r_re)
 {
+  PRF_scope(ProfileCategory::Core);
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "DC_TRI start=" << start << " end=" << end << "\n";
@@ -1575,6 +1576,7 @@ void dc_tri(CDTArrangement<T> *cdt,
 /* Guibas-Stolfi Divide-and_Conquer algorithm. */
 template<typename T> void dc_triangulate(CDTArrangement<T> *cdt, Array<SiteInfo<T>> &sites)
 {
+  PRF_scope(ProfileCategory::Core);
   /* Compress sites in place to eliminated verts that merge to others. */
   int i = 0;
   int j = 0;
@@ -1615,6 +1617,7 @@ template<typename T> void dc_triangulate(CDTArrangement<T> *cdt, Array<SiteInfo<
  */
 template<typename T> void initial_triangulation(CDTArrangement<T> *cdt)
 {
+  PRF_scope(ProfileCategory::Core);
   int n = cdt->verts.size();
   if (n <= 1) {
     return;
@@ -1818,6 +1821,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
                                   CrossData<T> *cd_next,
                                   const T epsilon)
 {
+  PRF_scope(ProfileCategory::Core);
   CDTVert<T> *va = t->vert;
   CDTVert<T> *vb = t->next->vert;
   CDTVert<T> *vc = t->next->next->vert;
@@ -1916,6 +1920,7 @@ bool get_next_crossing_from_vert(CDT_state<T> *cdt_state,
                                  CrossData<T> *cd_next,
                                  const CDTVert<T> *v2)
 {
+  PRF_scope(ProfileCategory::Core);
   SymEdge<T> *tstart = cd->vert->symedge;
   SymEdge<T> *t = tstart;
   CDTVert<T> *vcur = cd->vert;
@@ -1967,6 +1972,7 @@ void get_next_crossing_from_edge(CrossData<T> *cd,
                                  const CDTVert<T> *v2,
                                  const T epsilon)
 {
+  PRF_scope(ProfileCategory::Core);
   CDTVert<T> *va = cd->in->vert;
   CDTVert<T> *vb = cd->in->next->vert;
   VecBase<T, 2> curco = interpolate(va->co.exact, vb->co.exact, cd->lambda);
@@ -2020,6 +2026,7 @@ template<typename T>
 void add_edge_constraint(
     CDT_state<T> *cdt_state, CDTVert<T> *v1, CDTVert<T> *v2, uint32_t input_id, LinkNode **r_edges)
 {
+  PRF_scope(ProfileCategory::Core);
   constexpr int dbg_level = 0;
   if (dbg_level > 0) {
     std::cout << "\nADD EDGE CONSTRAINT\n" << vertname(v1) << " " << vertname(v2) << "\n";
@@ -2255,6 +2262,7 @@ void add_edge_constraint(
  */
 template<typename T> void add_edge_constraints(CDT_state<T> *cdt_state, const CDT_input<T> &input)
 {
+  PRF_scope(ProfileCategory::Core);
   uint32_t ne = uint32_t(input.edge.size());
   int nv = input.vert.size();
   for (uint32_t i = 0; i < ne; i++) {
@@ -2299,6 +2307,7 @@ void add_face_ids(CDT_state<T> *cdt_state,
                   uint32_t fedge_start,
                   uint32_t fedge_end)
 {
+  PRF_scope(ProfileCategory::Core);
   /* Can't loop forever since eventually would visit every face. */
   cdt_state->visit_count++;
   int visit = cdt_state->visit_count;
@@ -2356,6 +2365,7 @@ int add_face_constraints(CDT_state<T> *cdt_state,
                          CDT_output_type output_type,
                          const bool need_winding)
 {
+  PRF_scope(ProfileCategory::Core);
   int nv = input.vert.size();
   const GroupedSpan<int> input_faces(input.face_offsets, input.face_vert_indices);
   SymEdge<T> *face_symedge0 = nullptr;
@@ -2532,6 +2542,7 @@ template<typename T> void dissolve_symedge(CDT_state<T> *cdt_state, SymEdge<T> *
  */
 template<typename T> void remove_non_constraint_edges(CDT_state<T> *cdt_state)
 {
+  PRF_scope(ProfileCategory::Core);
   for (CDTEdge<T> *e : cdt_state->cdt.edges) {
     SymEdge<T> *se = &e->symedges[0];
     if (!is_deleted_edge(e) && !is_constrained_edge(e)) {
@@ -2583,6 +2594,7 @@ template<typename T> struct EdgeToSort {
 
 template<typename T> void remove_non_constraint_edges_leave_valid_bmesh(CDT_state<T> *cdt_state)
 {
+  PRF_scope(ProfileCategory::Core);
   CDTArrangement<T> *cdt = &cdt_state->cdt;
   size_t nedges = cdt->edges.size();
   if (nedges == 0) {
@@ -2632,6 +2644,7 @@ template<typename T> void remove_non_constraint_edges_leave_valid_bmesh(CDT_stat
 
 template<typename T> void remove_outer_edges_until_constraints(CDT_state<T> *cdt_state)
 {
+  PRF_scope(ProfileCategory::Core);
   int visit = ++cdt_state->visit_count;
 
   cdt_state->cdt.outer_face->visit_index = visit;
@@ -2682,6 +2695,7 @@ template<typename T> void remove_outer_edges_until_constraints(CDT_state<T> *cdt
 
 template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
 {
+  PRF_scope(ProfileCategory::Core);
   CDTArrangement<T> *cdt = &cdt_state->cdt;
   for (int i : cdt->faces.index_range()) {
     CDTFace<T> *f = cdt->faces[i];
@@ -2794,6 +2808,7 @@ void flood_fill_region_values(const Map<int2, Value> &region_pair_value,
  */
 template<typename T> void detect_holes_with_fillrule_even_odd(CDT_state<T> *cdt_state)
 {
+  PRF_scope(ProfileCategory::Core);
   /* Algorithm:
    * - Flood-fill faces into regions (connected through non-constrained edges).
    * - For each region, seed its parity from boundary edges into `outer_face`.
@@ -2956,6 +2971,7 @@ template<typename T> void detect_holes_with_fillrule_even_odd(CDT_state<T> *cdt_
  */
 template<typename T> void detect_holes_with_fillrule_nonzero(CDT_state<T> *cdt_state)
 {
+  PRF_scope(ProfileCategory::Core);
   /* Algorithm:
    * - Flood-fill faces into regions (connected through non-constrained edges).
    * - For each region, seed its winding from boundary edges into `outer_face`.
@@ -3145,6 +3161,7 @@ template<typename T> void detect_holes_with_fillrule_nonzero(CDT_state<T> *cdt_s
 template<typename T>
 void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type output_type)
 {
+  PRF_scope(ProfileCategory::Core);
   CDTArrangement<T> *cdt = &cdt_state->cdt;
   if (cdt->edges.is_empty()) {
     return;
@@ -3196,6 +3213,7 @@ void prepare_cdt_for_output(CDT_state<T> *cdt_state, const CDT_output_type outpu
 template<typename T>
 CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_type)
 {
+  PRF_scope(ProfileCategory::Core);
   CDT_output_type oty = output_type;
   prepare_cdt_for_output(cdt_state, oty);
   CDT_result<T> result;
@@ -3324,6 +3342,7 @@ template<typename T> void add_input_verts(CDT_state<T> *cdt_state, const CDT_inp
 template<typename T>
 CDT_result<T> delaunay_calc(const CDT_input<T> &input, CDT_output_type output_type)
 {
+  PRF_scope(ProfileCategory::Core);
   int nv = input.vert.size();
   int ne = input.edge.size();
   int nf = input.face_offsets.size();
