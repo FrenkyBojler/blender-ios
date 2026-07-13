@@ -501,7 +501,7 @@ void SourceProcessor::parse_includes(Parser &parser)
       metadata_.create_infos_dependencies.emplace_back(dependency_name);
     }
 
-    if (dependency_name == "BLI_utildefines_variadic.h") {
+    if (dependency_name == "BLI_utildefines_variadic.hh") {
       /* Skip GLSL-C++ stubs. They are only for IDE linting. */
       parser.erase(tokens.front(), tokens.back());
       return;
@@ -684,7 +684,7 @@ void SourceProcessor::lower_binary_literals(Parser &parser)
 
 string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str)
 {
-  Parser parser(str, error_handler);
+  IntermediateForm<FullLexer, DummyParser> parser(str, error_handler);
 
   auto process_shared_var = [&](Token shared_tok, Token type, Token name, Token decl_end) {
     if (shared_tok.str() == "shared") {
