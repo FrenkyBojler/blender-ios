@@ -163,6 +163,10 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
 
   /* execute the events */
   switch (event->type) {
+    case EVT_ESCKEY:
+      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+      ret = OPERATOR_FINISHED;
+
     case MOUSEMOVE:
       /* set the new values */
       graphview_cursor_setprops(C, op, event);
@@ -196,19 +200,6 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
   return ret;
 }
 
-static void graphview_cursor_cancel(bContext *C, wmOperator *op)
-{
-  Scene *scene = CTX_data_scene(C);
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
-
-  ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
-  bScreen *screen = CTX_wm_screen(C);
-  if (screen) {
-    ED_screen_scrubbing_disable(C, screen, scrub_resume);
-  }
-  MEM_delete(scrub_resume);
-  op->customdata = nullptr;
-}
 
 static void GRAPH_OT_cursor_set(wmOperatorType *ot)
 {
@@ -221,7 +212,6 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   ot->exec = graphview_cursor_exec;
   ot->invoke = graphview_cursor_invoke;
   ot->modal = graphview_cursor_modal;
-  ot->cancel = graphview_cursor_cancel;
   ot->poll = graphview_cursor_poll;
 
   /* flags */
