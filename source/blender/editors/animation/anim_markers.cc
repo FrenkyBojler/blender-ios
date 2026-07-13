@@ -2191,33 +2191,17 @@ static bool markers_write_copy_paste_file(Main *bmain_src,
       return IDWALK_RET_NOP;
     }
 
-    /* The only IDs left here should be markers bound to camera. */
+    /* The only IDs left here should be cameras bound to marker. */
     BLI_assert(GS(id_src->name) == ID_OB);
 
     Object *ob_src = id_cast<Object *>(id_src);
     BLI_assert(ob_src->type == OB_CAMERA);
 
-    auto partial_write_dependencies_filter_cb =
-        [](LibraryIDLinkCallbackData *cb_deps_data,
-           PartialWriteContext::IDAddOptions /*options*/) -> PartialWriteContext::IDAddOperations {
-      ID *id_deps_src = *cb_deps_data->id_pointer;
-
-      /* Only the camera objects + their data. */
-      if (GS(id_deps_src->name) == ID_CA) {
-        return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
-      }
-
-      if (GS(id_deps_src->name) == ID_OB) {
-        Object *ob_deps_src = id_cast<Object *>(id_deps_src);
-        if (ob_deps_src->type == OB_CAMERA) {
-          return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
-        }
-      }
-
-      return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
-    };
+    /* We never paste these camera objects (which is why we don't need to copy deps like
+     * camera-data). We just copy them to keep the marker bound, and do a lookup for any existing
+     * camera object on paste. */
     *cb_data->id_pointer = copy_buffer.id_add(
-        id_src, {PartialWriteContext::IDAddOperations::NOP}, partial_write_dependencies_filter_cb);
+        id_src, {PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES});
     return IDWALK_RET_NOP;
   };
   BKE_library_foreach_ID_link(
@@ -2364,30 +2348,44 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
 
   deselect_markers(&scene_dst->markers);
 
-  /* Make sure we have all data IDs we need in bmain_dst. Remap the IDs if we already have them.
-   * This has to happen BEFORE we move the markers over to scene_dst. their ID mapping will not be
-   * correct otherwise. */
   Main *bmain_dst = CTX_data_main(C);
-  MainMergeReport merge_reports = {};
-  /* We need to ensure that the source 'clipboard marked' main Scene is always merged into
-   * destination Main, even in case there would be a name collision with an existing ID (see also
-   * #158049). */
-  Set<ID *> force_merge_ids = {id_cast<ID *>(scene_src)};
-  /* NOTE: BKE_main_merge will free bmain_src! */
-  BKE_main_merge(bmain_dst, &force_merge_ids, &bmain_src, merge_reports);
 
   /* Copy markers across scenes. */
-  int overlapping_markers = 0;
+  int overlapping_count = 0;
+  int missing_camera_count = 0;
   TimeMarker *marker_new;
   for (TimeMarker &marker : scene_src->markers) {
     marker_new = MEM_dupalloc(&marker);
     marker_new->prev = marker_new->next = nullptr;
     marker_new->frame += ofs;
 
+    /* For camera-bound markers, lookup same-named object in scene. */
+    if (marker_new->camera) {
+      char *camera_name = marker_new->camera->id.name + 2;
+      marker_new->camera = BKE_scene_object_find_by_name(*bmain_dst, scene_dst, camera_name);
+      if (!marker_new->camera) {
+        /* Bound markers usually don't have a name, so copy over the camera's name in this case. */
+        if (STRNLEN(marker_new->name) == 0) {
+          STRNCPY(marker_new->name, camera_name);
+        }
+
+        printf("Marker %s at frame %d is missing camera object %s in scene %s\n",
+               marker_new->name,
+               marker_new->frame,
+               camera_name,
+               scene_dst->id.name);
+        missing_camera_count++;
+      }
+    }
+
     /* Keep track of the number of overlapping markers, to report to user later. */
     for (TimeMarker &existing_marker : scene_dst->markers) {
       if (existing_marker.frame == marker_new->frame) {
-        overlapping_markers++;
+        printf("Marker %s at frame %d is overlapping with marker %s\n",
+               marker_new->name,
+               marker_new->frame,
+               existing_marker.name);
+        overlapping_count++;
         break;
       }
     }
@@ -2395,21 +2393,19 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
     BLI_addtail(&scene_dst->markers, marker_new);
   }
 
-  /* BKE_main_merge will copy the scene_src and its action into bmain_dst. Remove them as
-   * we merge the data from these manually.
-   */
-  BKE_id_delete(bmain_dst, scene_src);
-
+  BKE_main_free(bmain_src);
   DEG_relations_tag_update(bmain_dst);
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
-  if (overlapping_markers > 0) {
+  if (overlapping_count > 0 || missing_camera_count > 0) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "%d timeline markers pasted (%d overlap with existing markers)",
+                "%d timeline markers pasted (%d overlap with existing markers, %d cameras missing "
+                "in scene)",
                 num_markers_to_paste,
-                overlapping_markers);
+                overlapping_count,
+                missing_camera_count);
   }
   else {
     BKE_reportf(op->reports, RPT_INFO, "%d timeline markers pasted", num_markers_to_paste);
