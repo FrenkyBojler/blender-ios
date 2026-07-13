@@ -755,6 +755,9 @@ static void change_frame_cancel(bContext *C, wmOperator *op)
 
   ED_screen_scrubbing_disable(C, screen, op_data->scrub_resume);
 
+  MEM_delete(op_data);
+  op->customdata = nullptr;
+
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq != nullptr) {

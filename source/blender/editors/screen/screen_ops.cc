@@ -6906,10 +6906,10 @@ ScrubResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
 
 void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState *resume)
 {
+  screen->scrubbing = false;
   if (resume) {
     ED_screen_animation_play(C, int(resume->play_sync), int(resume->play_mode));
   }
-  screen->scrubbing = false;
 }
 
 static wmOperatorStatus screen_animation_play_exec(bContext *C, wmOperator *op)
