@@ -2389,8 +2389,8 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
     BKE_reportf(op->reports,
                 RPT_WARNING,
                 "%d timeline markers pasted (%d overlap with existing markers)",
-                overlapping_markers,
-                num_markers_to_paste);
+                num_markers_to_paste,
+                overlapping_markers);
   }
   else {
     BKE_reportf(op->reports, RPT_INFO, "%d timeline markers pasted", num_markers_to_paste);
