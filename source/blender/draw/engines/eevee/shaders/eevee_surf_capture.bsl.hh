@@ -24,7 +24,9 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 
 float4 closure_to_rgba_capture(Closure /*cl*/)
 {
-  return float4(0.0f);
+  float3 transmittance = g_transmittance;
+  closure_weights_reset(0.0f);
+  return float4(0.0f, 0.0f, 0.0f, saturate(1.0f - average(transmittance)));
 }
 
 namespace eevee {
@@ -59,7 +61,7 @@ void surf_capture([[resource_table]] SurfaceCapture &srt,
 
   for (int i = 0; i < CLOSURE_BIN_COUNT; i++) {
     ClosureUndetermined cl = g_closure_get_resolved(uchar(i), 1.0f);
-    if (cl.weight <= CLOSURE_WEIGHT_CUTOFF) {
+    if (cl.weight() <= CLOSURE_WEIGHT_CUTOFF) {
       continue;
     }
     if (!closure_has_transmission(cl.type)) {
