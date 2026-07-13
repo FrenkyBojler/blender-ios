@@ -112,7 +112,8 @@ static void hit_test(TopLevelAS &tlas, Span<Ray> rays, uint intersection_mask = 
 
 static void test_ray_tracing_empty_tlas()
 {
-  SUPPORTS_RAY_QUERY()
+  // SUPPORTS_RAY_QUERY()
+  BLI_assert(GPU_ray_query_support());
 
   TopLevelASPtr tlas(GPU_ray_tracing_tlas_alloc(__func__));
   tlas->build();
@@ -139,7 +140,8 @@ GPU_TEST(ray_tracing_empty_tlas)
 
 static void test_ray_tracing_inside_cube()
 {
-  SUPPORTS_RAY_QUERY()
+  // SUPPORTS_RAY_QUERY()
+  BLI_assert(GPU_ray_query_support());
 
   VertBufPtr vertex_buf = build_vertices();
   IndexBufPtr index_buf = build_indices();
@@ -175,7 +177,8 @@ GPU_TEST(ray_tracing_inside_cube)
 
 static void test_ray_tracing_instance_mask()
 {
-  SUPPORTS_RAY_QUERY()
+  // SUPPORTS_RAY_QUERY()
+  BLI_assert(GPU_ray_query_support());
 
   VertBufPtr vertex_buf = build_vertices();
   IndexBufPtr index_buf = build_indices();
@@ -275,7 +278,8 @@ GPU_TEST(ray_tracing_instance_mask)
 
 static void test_ray_tracing_instance_update()
 {
-  SUPPORTS_RAY_QUERY()
+  // SUPPORTS_RAY_QUERY()
+  BLI_assert(GPU_ray_query_support());
 
   VertBufPtr vertex_buf = build_vertices();
   IndexBufPtr index_buf = build_indices();
