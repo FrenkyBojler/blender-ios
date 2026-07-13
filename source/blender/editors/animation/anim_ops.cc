@@ -77,7 +77,7 @@ class FrameChangeModalData {
    */
  public:
   AnimKeylist *keylist;
-  /** Playback state to restore when scrubbing ends, or nullptr if playback wasn't running. */
+  /** Playback state to restore when scrubbing ends. */
   ScrubResumeState *scrub_resume;
 
   FrameChangeModalData()

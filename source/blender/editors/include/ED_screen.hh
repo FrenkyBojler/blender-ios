@@ -551,16 +551,11 @@ void ED_reset_audio_device(bContext *C);
 wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 
 /**
- * Start scrubbing on \a screen: pause any running animation playback (returning its settings so
- * it can be resumed afterwards) and set the scrubbing flag. Returns nullptr if playback wasn't
- * running, in which case #ED_screen_scrubbing_disable won't resume it. The caller owns the
- * returned pointer (allocated with #MEM_new) and is responsible for freeing it with #MEM_delete.
+ * Start scrubbing, returns playback state.
  */
 ScrubResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen);
 /**
- * Stop scrubbing on \a screen: clear the scrubbing flag and resume playback if it was paused by
- * #ED_screen_scrubbing_enable, using the settings recorded in \a resume. \a resume may be
- * nullptr, in which case playback is not resumed. Ownership of \a resume is not affected.
+ * Stop scrubbing, resumes playback by ScrubResumeState.
  */
 void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState *resume);
 
