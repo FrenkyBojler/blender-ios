@@ -2806,7 +2806,8 @@ class WM_OT_batch_rename(Operator):
             ('ACTION_CLIP', "Action Clips", "", 'ACTION', 17),
             None,
             ('SCENE', "Scenes", "", 'SCENE_DATA', 18),
-            ('BRUSH', "Brushes", "", 'BRUSH_DATA', 19),
+            ('MARKER', "Timeline Markers", "", 'MARKER_HLT', 19),
+            ('BRUSH', "Brushes", "", 'BRUSH_DATA', 20),
         ),
         translation_context=i18n_contexts.id_id,
         description="Type of data to rename",
@@ -3030,6 +3031,12 @@ class WM_OT_batch_rename(Operator):
                     ),
                     "name",
                     iface_("Scene(s)"),
+                )
+            elif data_type == 'MARKER':
+                data = (
+                    [marker for marker in context.scene.timeline_markers if marker.select or not only_selected],
+                    "name",
+                    iface_("Timeline Marker(s)"),
                 )
             elif data_type == 'BRUSH':
                 data = (
