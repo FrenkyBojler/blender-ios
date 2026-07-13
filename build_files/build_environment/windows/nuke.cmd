@@ -3,19 +3,27 @@ REM This is a helper script to easily force a rebuild of a single dependency
 REM calling nuke depname in c:\db will remove all build artifacts of the 
 REM dependency and the next time you call build the dep will be build from 
 REM scratch. 
-if "%1"=="" goto EOF:
-set ROOT=%~dp0\build\
+@echo off
+REM depname required, else bail
+if "%~1"=="" goto :EOF
+REM %~dp0 already end backslash, no extra dash needed
+set "ROOT=%~dp0build"
 
-REM walk every subfolder under "s" (vs1764D, vs1564R, x64, debug, build, arm64, future names)
-REM %%D loop var, checks two names each folder: %1 and external_%1
-for /d /r "%ROOT%\s" %%D in (%1 external_%1) do (
-  REM nul trick = confirm folder real, not junk match
-  if exist "%%D\nul" echo removing "%%D" && rd /s /q "%%D"
+REM two folder name patterns: plain and external_ prefix
+for %%N in (%1 external_%1) do (
+  REM dir /s = full list first, no live-mutate walk like old for /r
+  for /f "delims=" %%D in ('dir /ad /b /s "%ROOT%\s\%%N" 2^>nul') do (
+    REM parent folder may already delete child match, skip if gone
+    if exist "%%D" (
+      echo removing "%%D"
+      rd /s /q "%%D"
+    )
+  )
 )
-
-REM walk every subfolder under "output" (win64_vc15, winarm64_vc15, future ones)
-for /d /r "%ROOT%\output" %%D in (%1) do (
-  if exist "%%D\nul" echo removing "%%D" && rd /s /q "%%D"
+REM output tree only plain name, no external_ variant there
+for /f "delims=" %%D in ('dir /ad /b /s "%ROOT%\output\%1" 2^>nul') do (
+  if exist "%%D" (
+    echo removing "%%D"
+    rd /s /q "%%D"
+  )
 )
-
-:EOF
