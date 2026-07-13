@@ -7,7 +7,7 @@
 #include "BKE_bvh.hh"
 #include "sculpt_intern.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_c.hh"
 
 #include "DNA_mesh_types.h"
 

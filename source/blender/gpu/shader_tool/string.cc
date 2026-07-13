@@ -42,10 +42,30 @@ void SourceProcessor::lower_assert(Parser &parser, [[maybe_unused]] const string
     string replacement;
 #ifdef WITH_GPU_SHADER_ASSERT
     string condition = string(tokens[1].scope().str());
+
+    auto escape = [](string s) {
+      string result;
+      for (char c : s) {
+        if (c == '%') {
+          result += "%%";
+        }
+        else if (c == '\\') {
+          result += "\\\\";
+        }
+        else if (c == '\"') {
+          result += "\\\"";
+        }
+        else {
+          result += c;
+        }
+      }
+      return result;
+    };
+
     replacement += "if (!" + condition + ") ";
     replacement += "{";
     replacement += " printf(\"";
-    replacement += "Assertion failed: " + condition + ", ";
+    replacement += "Assertion failed: " + escape(condition) + ", ";
     replacement += "file " + filename + ", ";
     replacement += "line " + to_string(tokens[1].line_number()) + ", ";
     replacement += "thread (%u,%u,%u).\\n";
@@ -62,6 +82,9 @@ void SourceProcessor::lower_assert(Parser &parser, [[maybe_unused]] const string
 void SourceProcessor::lower_strings(Parser &parser)
 {
   parser().foreach_token(String, [&](const Token &token) {
+    if (token.scope().type() == ScopeType::Preprocessor) {
+      return;
+    }
     uint32_t hash = hash_string(string(token.str()));
     metadata::PrintfFormat format = {hash, string(token.str())};
     metadata_.printf_formats.emplace_back(format);

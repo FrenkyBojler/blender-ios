@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::GreasePencil})
       .description("Geometry to replace materials on");
-  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geometry().align_with_previous();
   b.add_input<decl::Material>("Old"_ustr);
   b.add_input<decl::Material>("New"_ustr).translation_context(BLT_I18NCONTEXT_ID_MATERIAL);
 }
@@ -60,7 +60,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeReplaceMaterial", GEO_NODE_REPLACE_MATERIAL);
+  geo_node_type_base(&ntype, "GeometryNodeReplaceMaterial"_ustr, GEO_NODE_REPLACE_MATERIAL);
   ntype.ui_name = "Replace Material";
   ntype.ui_description = "Swap one material with another";
   ntype.enum_name_legacy = "REPLACE_MATERIAL";

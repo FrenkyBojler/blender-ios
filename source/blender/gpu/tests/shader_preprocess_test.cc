@@ -15,17 +15,13 @@ static std::string process_test_string(std::string str,
                                        shader::Language language = shader::Language::BLENDER_GLSL)
 {
   using namespace shader;
-  SourceProcessor processor(
-      str,
-      "test.bsl",
-      language,
-      [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
-        if (first_error.empty()) {
-          first_error = err_msg;
-        }
-      });
+  SourceProcessor processor(str, "test.bsl", language);
 
-  auto [result, metadata] = processor.convert();
+  auto [result, metadata, error] = processor.convert();
+
+  if (error) {
+    first_error = error.value().message;
+  }
 
   if (r_metadata != nullptr) {
     *r_metadata = metadata;
@@ -682,13 +678,45 @@ static void test_preprocess_template()
   {
     string input = R"(
 template<typename T>
+void func() { T::fn(); }
+template void func<A>();
+)";
+    string expect = R"(
+#line 3
+void funcTA() { A_fn(); }
+#line 5
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+template<typename T>
 void func(T a) {a;}
 template void func<float>(float a);
+template<typename T>
+void foo(T &a) {a;}
+template void foo<float>(float &a);
+
+void f(float a)
+{
+  func(a);
+  foo(a);
+}
 )";
     string expect = R"(
 #line 3
 void func(float a) {a;}
-#line 5
+#line 6
+void foo(_ref(float ,a)) {a;}
+#line 9
+void f(float a)
+{
+  func(a);
+  foo(a);
+}
 )";
     string error;
     string output = process_test_string(input, error);
@@ -844,7 +872,7 @@ static void test_preprocess_template_struct()
 template<typename T>
 struct A {
   T a;
-  A method(T b) const 
+  A method(T b) const
   {
     return A<T>{b};
   }
@@ -857,7 +885,7 @@ struct ATfloat {
   float a;
 #line 9
 };
-
+#line 12
 #ifndef GPU_METAL
 ATfloat ATfloat_ctor_();
 ATfloat _method(const ATfloat this_, float b);
@@ -959,15 +987,9 @@ void fn(A<int> a)
 #line 4
 struct N_ATint {
   int i;
-
-
-
-
-
-
-#line 19
+#line 10
 };
-#line 22
+#line 14
 #ifndef GPU_METAL
 N_ATint N_ATint_ctor_();
 void N_ATint_fn1(int a);
@@ -1082,15 +1104,15 @@ static void test_preprocess_cleanup()
   {
     string input = R"(
 #line 2
-int b = 0;          
-            
+int b = 0;
+
 #if 0
-           
+
 int a = 1;
 #elif 1
 #line 321
 #line 321
-int a = 0;          
+int a = 0;
 #endif
 )";
     string expect = R"(
@@ -1418,6 +1440,12 @@ void func([[resource_table]] Resources &srt)
   } else {
     test;
   }
+
+  if (srt.use_color_band) [[static_branch]] {
+    if (srt.use_color_band) [[static_branch]] {
+      test;
+    }
+  }
 }
 )";
     string expect = R"(
@@ -1522,13 +1550,28 @@ void func(Resources  srt)
          {
     test;
   }
+#endif
+
+#if SRT_CONSTANT_use_color_band
+#line 38
+                                                               {
+
+#if SRT_CONSTANT_use_color_band
+#line 39
+                                                                 {
+      test;
+    }
 
 #endif
-#line 37
+#line 42
+  }
+
+#endif
+#line 43
 }
 
 #endif
-#line 38
+#line 44
 )";
     string error;
     string output = process_test_string(input, error);
@@ -2012,6 +2055,22 @@ static void test_preprocess_swizzle()
 }
 GPU_TEST(preprocess_swizzle);
 
+static void test_preprocess_binary_literals()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(0b1 0b10u 0b10001000100010001000100010001000)";
+    string expect = R"(1 2u 2290649224)";
+    string error;
+    string output = process_test_local(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_binary_literals);
+
 static void test_preprocess_enum()
 {
   using namespace shader;
@@ -2317,6 +2376,76 @@ void U_fn();
 }
 GPU_TEST(preprocess_empty_struct);
 
+static void test_preprocess_structured_bindings()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+struct S {
+  int i;
+  float b;
+};
+
+S test()
+{
+  return S{};
+}
+
+void fn(S u, S &v)
+{
+  S t;
+  S &r = t;
+  {
+    int u;
+    int t;
+  }
+  auto [a, b] = S{};
+  auto [c, d] = test();
+  auto [e, f] = t;
+  auto [g, h] = u;
+  auto [i, j] = r;
+  auto [k, l] = v;
+}
+)";
+    string expect = R"(
+struct S {
+  int i;
+  float b;
+};
+#line 2
+                 S S_ctor_() {S r;r.i=0;r.b=0.0f;return r;}
+#line 7
+S test()
+{
+  return S_ctor_();
+}
+
+void fn(S u, _ref(S ,v))
+{
+  S t;
+
+  {
+    int u;
+    int t;
+  }
+  S _u0= S_ctor_();int a=_u0.i;float b=_u0.b;
+  S _u1= test();int c=_u1.i;float d=_u1.b;
+  S _u2= t;int e=_u2.i;float f=_u2.b;
+  S _u3= u;int g=_u3.i;float h=_u3.b;
+  S _u4= t;int i=_u4.i;float j=_u4.b;
+  S _u5= v;int k=_u5.i;float l=_u5.b;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_structured_bindings);
+
 static void test_preprocess_struct_methods()
 {
   using namespace shader;
@@ -2505,8 +2634,6 @@ static void test_preprocess_srt_mutations()
   using namespace std;
   using namespace shader::parser;
 
-  report_callback no_err_report = [](int, int, string, const char *) {};
-
   {
     string input = R"(
 float fn([[resource_table]] SRT &srt) {
@@ -2570,8 +2697,6 @@ static void test_preprocess_entry_point_resources()
 {
   using namespace std;
   using namespace shader::parser;
-
-  report_callback no_err_report = [](int, int, string, const char *) {};
 
   {
     string input = R"(
@@ -2681,11 +2806,11 @@ struct ns_VertInTfloat {
 #if defined(GPU_VERTEX_SHADER)
 #line 29
   Resources srt = Resources_ctor_();
-  gl_BaseInstance;
+  gpu_BaseInstance;
   gl_PointSize;
   gl_ClipDistance;
   gl_Layer;
-  gl_ViewportIndex;
+  gpu_ViewportIndex;
   gl_Position;
 
 #endif
@@ -2708,7 +2833,7 @@ struct ns_VertInTfloat {
 #line 48
   Resources srt = Resources_ctor_();
   gl_Layer;
-  gl_ViewportIndex;
+  gpu_ViewportIndex;
   gl_FragDepth;
   gl_FragStencilRefARB;
   gl_FragCoord;
@@ -2771,6 +2896,7 @@ GPU_SHADER_CREATE_INFO(ns_vertex_function_infos_)
 ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_VertInTfloat)
 VERTEX_OUT(ns_VertOut_t)
+BUILTINS(BuiltinBits::INSTANCE_ID)
 BUILTINS(BuiltinBits::POINT_SIZE)
 BUILTINS(BuiltinBits::LAYER)
 BUILTINS(BuiltinBits::VIEWPORT_INDEX)
@@ -2778,7 +2904,7 @@ BUILTINS(BuiltinBits::CLIP_DISTANCES)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
-DEPTH_WRITE(GREATER)
+DEPTH_WRITE(DepthWrite::GREATER)
 BUILTINS(BuiltinBits::STENCIL_REF)
 BUILTINS(BuiltinBits::POINT_COORD)
 BUILTINS(BuiltinBits::FRONT_FACING)
@@ -2815,8 +2941,6 @@ static void test_preprocess_pipeline_description()
 {
   using namespace std;
   using namespace shader::parser;
-
-  report_callback no_err_report = [](int, int, string, const char *) {};
 
   {
     string input = R"(
@@ -2991,7 +3115,7 @@ static void test_preprocess_parser()
 
   using IntermediateForm = IntermediateForm<FullLexer, FullParser>;
 
-  report_callback no_err_report = [](int, int, string, const char *) {};
+  ErrorHandler err_handler;
 
   {
     string input = R"(
@@ -3009,7 +3133,7 @@ static void test_preprocess_parser()
 )";
     string expect = R"(
 1;1;1;1;1;1;1;1;1;1;1+1;)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, err_handler).token_types_str(), expect);
   }
   {
     string input = R"(
@@ -3018,8 +3142,8 @@ static void test_preprocess_parser()
     string expect = R"(
 [[A(1,1,A),A,A(A)]])";
     string scopes = R"(GABbcmmmbbcm)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
-    EXPECT_EQ(IntermediateForm(input, no_err_report).scope_types_str, scopes);
+    EXPECT_EQ(IntermediateForm(input, err_handler).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, err_handler).scope_types_str, scopes);
   }
   {
     string input = R"(
@@ -3032,7 +3156,7 @@ class B {
 )";
     string expect = R"(
 sA{AA=1;};SA{AA;};)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, err_handler).token_types_str(), expect);
   }
   {
     string input = R"(
@@ -3047,7 +3171,7 @@ a
 )";
     string expect = R"(
 AZZAZAZA)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, err_handler).token_types_str(), expect);
   }
   {
     string input = R"(
@@ -3057,8 +3181,8 @@ namespace T::U::V {}
     string expect = R"(
 nA{}nA::A::A{})";
     string expect_scopes = R"(GNN)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
-    EXPECT_EQ(IntermediateForm(input, no_err_report).scope_types_str, expect_scopes);
+    EXPECT_EQ(IntermediateForm(input, err_handler).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, err_handler).scope_types_str, expect_scopes);
   }
   {
     string input = R"(
@@ -3074,10 +3198,10 @@ void f(int t = 0) {
 )";
     string expect = R"(
 AA(AA=1){AA=1,A=1,A={1};{A=A=A,AP;i(AEA){r;}}})";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, err_handler).token_types_str(), expect);
   }
   {
-    IntermediateForm parser("float i;", no_err_report);
+    IntermediateForm parser("float i;", err_handler);
     parser.insert_after(Token(parser, 0), "A ");
     parser.insert_after(Token(parser, 0), "B  ");
     EXPECT_EQ(parser.result_get(), "float A B  i;");
@@ -3088,7 +3212,7 @@ A
 #line 100
 B
 )";
-    IntermediateForm parser(input, no_err_report);
+    IntermediateForm parser(input, err_handler);
     string expect = R"(
 A#A1A)";
     EXPECT_EQ(parser.token_types_str(), expect);
@@ -3112,7 +3236,7 @@ match(, const, bool, , foo, , ;)
 match([a], , int, , bar, [0], ;)
 )";
 
-    IntermediateForm parser(input, no_err_report);
+    IntermediateForm parser(input, err_handler);
 
     string result = "\n";
     parser().foreach_declaration([&](Scope attributes,
@@ -3140,7 +3264,6 @@ GPU_TEST(preprocess_parser);
 static int test_expression(std::string str)
 {
   using namespace shader::parser;
-  report_callback no_err_report = [](int, int, std::string, const char *) {};
   ExpressionParser parser;
   parser.lexical_analysis(str);
   try {
