@@ -2291,8 +2291,7 @@ static void rna_def_node_socket_id(BlenderRNA *brna, const char *identifier)
 
   srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
   RNA_def_struct_ui_text(srna, "ID Node Socket", "ID socket of a node");
-  //RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_ID);
-  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_COLLECTION);
+  RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_ID);
   RNA_def_struct_sdna(srna, "bNodeSocket");
 
   RNA_def_struct_sdna_from(srna, "bNodeSocketValueID", "default_value");

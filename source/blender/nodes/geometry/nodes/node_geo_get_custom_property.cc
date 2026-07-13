@@ -42,7 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   ADD_TYPED_OUTPUT(decl::Bool, "ValueBool"_ustr, IDP_BOOLEAN)
   ADD_TYPED_OUTPUT(decl::Float, "ValueFloat"_ustr, IDP_FLOAT)
   ADD_TYPED_OUTPUT(decl::Int, "ValueInt"_ustr, IDP_INT)
-  ADD_TYPED_OUTPUT(decl::String, "ValueInt"_ustr, IDP_STRING)
+  ADD_TYPED_OUTPUT(decl::String, "ValueString"_ustr, IDP_STRING)
 
   b.add_output<decl::Bool>("Exists"_ustr).default_value(false);
 
@@ -75,7 +75,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   
-  auto prop = IDP_GetPropertyFromGroup(group, name);
+  IDProperty* prop = IDP_GetPropertyFromGroup(group, name);
   if (prop == nullptr) {
     params.set_default_remaining_outputs();
     return;
@@ -83,19 +83,21 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   params.set_output("Exists"_ustr, true);
 
+  // TODO: i think we need to forcibly disconnect outputs when the type changes.
+
   switch (type) {
     case IDP_STRING:
         params.set_output("ValueString"_ustr, IDP_coerce_to_string_or_empty(prop));
-        return;
+        break;
     case IDP_INT:
         params.set_output("ValueInt"_ustr, IDP_coerce_to_int_or_zero(prop));
-        return;
+        break;
     case IDP_FLOAT:
         params.set_output("ValueFloat"_ustr, IDP_coerce_to_float_or_zero(prop));
-        return;
+        break;
     case IDP_BOOLEAN:
         params.set_output("ValueBool"_ustr, IDP_coerce_to_bool_or_false(prop));
-        return;
+        break;
     default:
         BLI_assert_unreachable();
   }

@@ -961,11 +961,11 @@ bool IDP_coerce_to_bool_or_false(const IDProperty* prop)
     case IDP_BOOLEAN:
       return IDP_bool_get(prop);
     case IDP_DOUBLE:
-      return IDP_double_get(prop) == 0.0f;
+      return IDP_double_get(prop) != 0.0f;
     case IDP_FLOAT:
-      return IDP_float_get(prop) == 0.0f;
+      return IDP_float_get(prop) != 0.0f;
     case IDP_INT:
-      return IDP_int_get(prop) == 0;
+      return IDP_int_get(prop) != 0;
     default:
       return false;
   }
