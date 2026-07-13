@@ -170,8 +170,6 @@ ScreenTraceHitData raytrace_planar(ViewMatrices view,
   float t = 0.0f, time = 0.0f;
   bool hit = false;
   constexpr int max_steps = 32;
-  /* Fast math optimizations can lead to deltas slightly below zero. */
-  constexpr float epsilon = -1e-7f;
   for (int iter = 1; !hit && (time < ssray.max_time) && (iter < max_steps); iter++) {
     float stride = 1.0f + float(iter) * rt_data.quality;
 
