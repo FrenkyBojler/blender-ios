@@ -54,7 +54,6 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
     ATTR_NONNULL(1, 2, 3);
 
 void ED_operatortypes_scene();
-void ED_operatortypes_scene_compositor();
 
 /* -------------------------------------------------------------------- */
 /** \name Scene FPS Management
@@ -82,6 +81,15 @@ bool ED_scene_fps_average_calc(const Scene *scene, SceneFPS_State *r_state) ATTR
  * Clear run-time data for accumulating animation playback average times.
  */
 void ED_scene_fps_average_clear(Scene *scene) ATTR_NONNULL(1);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Scene Compositor
+ * \{ */
+
+void ED_operatortypes_scene_compositor();
+void ED_menutypes_scene_compositor();
 
 /** \} */
 

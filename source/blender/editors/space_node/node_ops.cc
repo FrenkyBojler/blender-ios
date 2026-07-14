@@ -122,8 +122,6 @@ void node_operatortypes()
 
   WM_operatortype_append(NODE_OT_link_drag_operation_test);
 
-  node_scene_compositor_effect_add_asset_register();
-
   for (bke::bNodeType *ntype : bke::node_types_get()) {
     if (ntype->register_operators) {
       ntype->register_operators();

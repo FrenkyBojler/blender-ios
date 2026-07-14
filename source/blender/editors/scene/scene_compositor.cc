@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -19,22 +20,35 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "BKE_asset.hh"
 #include "BKE_compositor.hh"
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
+#include "BKE_screen.hh"
 
+#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+
+#include "AS_asset_catalog.hh"
+#include "AS_asset_catalog_tree.hh"
+#include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
+#include "NOD_composite.hh"
 #include "NOD_defaults.hh"
 
+#include "ED_asset.hh"
 #include "ED_asset_import.hh"
 #include "ED_asset_menu_utils.hh"
+#include "ED_object.hh"
 
 namespace blender {
 
@@ -436,6 +450,205 @@ static void SCENE_OT_add_compositor_effect_node_group_asset(wmOperatorType *ot)
 }
 
 /* --------------------------------------------------------------------
+ * Root Asset Catalogues Menu.
+ */
+
+static ed::asset::AssetItemTree &get_static_item_tree()
+{
+  static ed::asset::AssetItemTree tree;
+  return tree;
+}
+
+static ed::asset::AssetItemTree build_catalog_tree(const bContext &C)
+{
+  ed::asset::AssetFilterSettings type_filter{};
+  type_filter.id_types = FILTER_ID_NT;
+  auto meta_data_filter = [&](const AssetMetaData &meta_data) {
+    const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
+    if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_COMPOSIT) {
+      return false;
+    }
+    const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
+        &meta_data, "compositor_node_asset_traits_flag");
+    if (traits_flag == nullptr || !(IDP_int_get(traits_flag) & COMPOSIT_NODE_ASSET_SCENE_EFFECT)) {
+      return false;
+    }
+    return true;
+  };
+  const AssetLibraryReference library = asset_system::all_library_reference();
+  asset_system::all_library_reload_catalogs_if_dirty();
+  return ed::asset::build_filtered_all_catalog_tree(
+      library, C, type_filter, meta_data_filter, ntreeType_Composite->asset_catalog_path_prefix);
+}
+
+static bool unassigned_local_poll(const Main &bmain)
+{
+  for (const bNodeTree &group : bmain.nodetrees) {
+    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
+    if (ID_IS_ASSET(&group.id)) {
+      continue;
+    }
+    if (!group.compositor_node_asset_traits ||
+        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_SCENE_EFFECT))
+    {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+static void root_catalogs_draw(const bContext *C, Menu *menu)
+{
+  ui::Layout &layout = *menu->layout;
+
+  AssetLibraryReference all_library_ref = asset_system::all_library_reference();
+  const bool loading_finished = ed::asset::list::is_loaded(&all_library_ref);
+
+  ed::asset::AssetItemTree &tree = get_static_item_tree();
+  tree = build_catalog_tree(*C);
+  if (!tree.catalogs.is_empty() || loading_finished) {
+    layout.separator();
+
+    if (!loading_finished) {
+      layout.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
+    }
+
+    tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
+      ed::asset::draw_menu_for_catalog(item, "SEQUENCER_MT_add_effect_catalog_assets", layout);
+    });
+  }
+
+  if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(C))) {
+    layout.separator();
+    layout.menu("SCENE_MT_add_compositor_effect_unassigned_assets",
+                IFACE_("Unassigned"),
+                ICON_FILE_HIDDEN);
+  }
+}
+
+static MenuType SCENE_MT_add_compositor_effect_root_catalogs()
+{
+  MenuType type{};
+  STRNCPY_UTF8(type.idname, "SCENE_MT_add_compositor_effect_root_catalogs");
+  type.draw = root_catalogs_draw;
+  type.listener = ed::asset::list::asset_reading_region_listen_fn;
+  type.flag = MenuTypeFlag::ContextDependent;
+  return type;
+}
+
+/* --------------------------------------------------------------------
+ * Catalogue Assets Menu.
+ */
+
+static void catalog_assets_draw(const bContext *C, Menu *menu)
+{
+  ed::asset::AssetItemTree &tree = get_static_item_tree();
+
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
+  if (!menu_path) {
+    return;
+  }
+  const Span<asset_system::AssetRepresentation *> assets = tree.assets_per_path.lookup(
+      menu_path->data());
+  const asset_system::AssetCatalogTreeItem *catalog_item = tree.catalogs.find_item(
+      menu_path->data());
+  BLI_assert(catalog_item != nullptr);
+
+  if (assets.is_empty() && !catalog_item->has_children()) {
+    return;
+  }
+
+  ui::Layout &layout = *menu->layout;
+
+  bool first = true;
+  const auto ensure_separator = [&]() {
+    if (first) {
+      layout.separator();
+      first = false;
+    }
+  };
+
+  wmOperatorType *ot = WM_operatortype_find("SCENE_OT_add_compositor_effect_node_group_asset",
+                                            true);
+  for (const asset_system::AssetRepresentation *asset : assets) {
+    ensure_separator();
+    ed::asset::draw_asset_menu_item(asset, ot->idname, layout);
+  }
+
+  catalog_item->foreach_child([&](const asset_system::AssetCatalogTreeItem &item) {
+    ensure_separator();
+    ed::asset::draw_menu_for_catalog(
+        item, "SCENE_MT_add_compositor_effect_catalog_assets", layout);
+  });
+}
+
+static MenuType SCENE_MT_add_compositor_effect_catalog_assets()
+{
+  MenuType type{};
+  STRNCPY_UTF8(type.idname, "SCENE_MT_add_compositor_effect_catalog_assets");
+  type.draw = catalog_assets_draw;
+  type.listener = ed::asset::list::asset_reading_region_listen_fn;
+  type.flag = MenuTypeFlag::ContextDependent;
+  return type;
+}
+
+/* --------------------------------------------------------------------
+ * Unassigned Assets Menu.
+ */
+
+static void unassigned_assets_draw(const bContext *C, Menu *menu)
+{
+  Main &bmain = *CTX_data_main(C);
+  ed::asset::AssetItemTree &tree = get_static_item_tree();
+  ui::Layout &layout = *menu->layout;
+  wmOperatorType *ot = WM_operatortype_find("SCENE_OT_add_compositor_effect_node_group_asset",
+                                            true);
+  for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
+    ed::asset::draw_asset_menu_item(asset, ot->idname, layout);
+  }
+
+  bool first = true;
+  bool add_separator = !tree.unassigned_assets.is_empty();
+  for (const bNodeTree &group : bmain.nodetrees) {
+    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
+    if (ID_IS_ASSET(&group.id)) {
+      continue;
+    }
+    if (!group.compositor_node_asset_traits ||
+        !(group.compositor_node_asset_traits->flag & COMPOSIT_NODE_ASSET_SCENE_EFFECT))
+    {
+      continue;
+    }
+
+    if (add_separator) {
+      layout.separator();
+      add_separator = false;
+    }
+    if (first) {
+      layout.label(IFACE_("Non-Assets"), ICON_NONE);
+      first = false;
+    }
+
+    PointerRNA props_ptr = layout.op(
+        ot, group.id.name + 2, ICON_NONE, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
+    WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group.id);
+  }
+}
+
+static MenuType SCENE_MT_add_compositor_effect_unassigned_assets()
+{
+  MenuType type{};
+  STRNCPY_UTF8(type.idname, "SCENE_MT_add_compositor_effect_unassigned_assets");
+  type.draw = unassigned_assets_draw;
+  type.listener = ed::asset::list::asset_reading_region_listen_fn;
+  type.description = N_(
+      "Effect node group assets not assigned to a catalog.\n"
+      "Catalogs can be assigned in the Asset Browser");
+  return type;
+}
+
+/* --------------------------------------------------------------------
  * Operator Registration.
  */
 
@@ -449,6 +662,17 @@ void ED_operatortypes_scene_compositor()
   WM_operatortype_append(SCENE_OT_new_compositor_effect_node_group);
   WM_operatortype_append(SCENE_OT_duplicate_compositor_effect_node_group);
   WM_operatortype_append(SCENE_OT_add_compositor_effect_node_group_asset);
+}
+
+/* --------------------------------------------------------------------
+ * Menu Registration.
+ */
+
+void ED_menutypes_scene_compositor()
+{
+  WM_menutype_add(MEM_new<MenuType>(__func__, SCENE_MT_add_compositor_effect_root_catalogs()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, SCENE_MT_add_compositor_effect_catalog_assets()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, SCENE_MT_add_compositor_effect_unassigned_assets()));
 }
 
 }  // namespace blender

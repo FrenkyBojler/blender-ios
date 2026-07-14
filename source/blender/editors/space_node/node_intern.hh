@@ -503,10 +503,6 @@ void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
-/* `node_add_scene_compositor_effect_assets.cc` */
-
-void node_scene_compositor_effect_add_asset_register();
-
 /* `node_group.cc` */
 
 UString node_group_idname(const bContext *C);
