@@ -585,11 +585,17 @@ bool is_viewport_compositor_used(const bContext &context)
  */
 
 void add_depsgraph_relations(Scene &scene,
-                             const bNodeTree &node_group,
+                             const SceneCompositorEffect &effect,
                              DepsNodeHandle *compositor_output_depsgraph_node)
 {
   nodes::EvalDependencies evaluation_dependencies = nodes::gather_eval_dependencies_recursive(
-      node_group);
+      *effect.node_group);
+
+  IDP_foreach_property(effect.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+    if (ID *id = IDP_ID_get(property)) {
+      evaluation_dependencies.add_generic_id_full(id);
+    }
+  });
 
   for (ID *id : evaluation_dependencies.ids.values()) {
     switch (ID_Type(GS(id->name))) {

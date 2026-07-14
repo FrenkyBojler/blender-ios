@@ -175,10 +175,10 @@ bool is_viewport_compositor_used(const bContext &context);
  * Depsgraph.
  */
 
-/* Add the depsgraph relations needed by the given compositor node group in the given scene. A
+/* Add the depsgraph relations needed by the given scene compositor effect in the given scene. A
  * handle for the compositor output depsgraph node is given to be the target of the relation. */
 void add_depsgraph_relations(Scene &scene,
-                             const bNodeTree &node_group,
+                             const SceneCompositorEffect &effect,
                              DepsNodeHandle *compositor_output_depsgraph_node);
 
 /* --------------------------------------------------------------------

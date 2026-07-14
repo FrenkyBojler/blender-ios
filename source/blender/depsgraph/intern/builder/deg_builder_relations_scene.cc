@@ -89,7 +89,7 @@ void DepsgraphRelationBuilder::build_scene_compositor(Scene *scene)
 
     DepsNodeHandle handle = this->create_node_handle(node_output_key);
     bke::compositor::add_depsgraph_relations(
-        *scene, *effect.node_group, reinterpret_cast<blender::DepsNodeHandle *>(&handle));
+        *scene, effect, reinterpret_cast<blender::DepsNodeHandle *>(&handle));
   }
 }
 
