@@ -337,8 +337,12 @@ static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
     RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   }
 
-  ot->prop = RNA_def_enum(
-      ot->srna, "type", custom_library_type_items, 0, "Type", "The kind of asset library to add");
+  ot->prop = RNA_def_enum(ot->srna,
+                          "type",
+                          custom_library_type_items,
+                          int(bUserAssetLibraryAddType::Local),
+                          "Type",
+                          "The kind of asset library to add");
   RNA_def_enum_funcs(ot->prop, custom_library_type_itemf);
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
@@ -1260,7 +1264,7 @@ static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * 
   SpaceUserPref *space = CTX_wm_space_userpref(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
-  ui::textbutton_activate_rna(C, region, space, "search_filter");
+  ED_region_activate_rna_prop(C, region, space, "search_filter", "USERPREF_PT_navigation_bar");
   return OPERATOR_FINISHED;
 }
 

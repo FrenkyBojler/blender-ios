@@ -17,7 +17,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_layer.hh"
 
 #include "RNA_define.hh"
@@ -801,7 +801,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
 
   /* check channel increment or decrement */
   const int channel_delta = (value >= strip->channel) ? 1 : -1;
-  seq::strip_channel_set(strip, value);
+  strip->channel_set(value);
 
   if (seq::transform_test_overlap(scene, seqbase, strip)) {
     seq::transform_seqbase_shuffle_ex(seqbase, strip, scene, channel_delta);
@@ -2021,7 +2021,7 @@ static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, 
   seq::strip_lookup_invalidate(ed);
 
   auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
-  seq::compositor_nodes_update_interface(*sequencer_scene, *cmd);
+  seq::compositor_nodes_update_interface(*bmain, *sequencer_scene, *cmd);
 }
 
 static StructRNA *rna_SequencerCompositorModifierProperties_refine(PointerRNA *ptr)
@@ -2565,7 +2565,7 @@ static void rna_def_strip(BlenderRNA *brna)
       srna, "Strip", "A single container for content in the Video Sequence Editor");
   RNA_def_struct_refine_func(srna, "rna_Strip_refine");
   RNA_def_struct_path_func(srna, "rna_Strip_path");
-  RNA_def_struct_ui_icon(srna, ICON_SEQ_SEQUENCER);
+  RNA_def_struct_ui_icon(srna, ICON_SEQ_STRIP);
   RNA_def_struct_idprops_func(srna, "rna_Strip_idprops");
   RNA_def_struct_system_idprops_func(srna, "rna_Strip_system_idprops");
 
