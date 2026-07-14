@@ -123,6 +123,30 @@ struct HybridFragOut {
   [[frag_color(4)]] float4 gbuf_closure2;
 };
 
+struct HybridNodetreeSurfaceCtx {
+  float closure_rand;
+  float3 emission;
+
+  void eval_directional([[resource_table]] LightRenderData & /*srt*/,
+                        uint index,
+                        LightData /*light*/)
+  {
+    g_data.light_index = index;
+    nodetree_surface(closure_rand);
+    emission += g_emission;
+  }
+
+  void eval_local([[resource_table]] LightRenderData & /*srt*/, uint index, LightData /*light*/)
+  {
+    g_data.light_index = index;
+    nodetree_surface(closure_rand);
+    emission += g_emission;
+  }
+};
+
+template void light::foreach_visible<HybridNodetreeSurfaceCtx, LightRenderData>(
+    const LightRenderData &, float2, float, HybridNodetreeSurfaceCtx &, LightRenderData &);
+
 /* NOTE: This removes the possibility of using gl_FragDepth. */
 [[fragment]] [[early_fragment_tests]]
 void surf_hybrid([[resource_table]] PipelineConstants &pipe,
@@ -157,12 +181,13 @@ void surf_hybrid([[resource_table]] PipelineConstants &pipe,
 
   fragment_displacement();
 
-  eevee::LightSample samp = lights.sample_one(
-      g_data.P, g_data.N, fract(pcg3d(g_data.P).x + sampling.rng_1D_get(SAMPLING_CLOSURE)));
-  g_data.light_index = samp.light_id;
-  g_data.light_weight = samp.weight;
+  HybridNodetreeSurfaceCtx ctx;
+  ctx.closure_rand = closure_rand;
+  ctx.emission = float3(0.0f);
+  const float vPz = dot(view.forward(), g_data.P) - dot(view.forward(), view.position());
+  light::foreach_visible(lights.light_data, frag_co.xy, vPz, ctx, lights.light_data);
 
-  nodetree_surface(closure_rand);
+  g_emission = ctx.emission;
 
   g_holdout = saturate(g_holdout);
 
@@ -181,7 +206,6 @@ void surf_hybrid([[resource_table]] PipelineConstants &pipe,
   }
 
   g_emission *= alpha_rcp;
-  g_emission *= samp.total_weight * safe_rcp(samp.weight);
 
   int2 out_texel = int2(frag_co.xy);
 
