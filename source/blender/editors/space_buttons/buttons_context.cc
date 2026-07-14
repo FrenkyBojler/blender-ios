@@ -582,7 +582,7 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
   return false;
 }
 
-static bool buttons_context_path_scene_compositor_effect(ButsContextPath *path)
+static bool buttons_context_path_compositor(ButsContextPath *path)
 {
   Scene *scene = path->ptr[path->len - 1].data_as<Scene>();
 
@@ -662,7 +662,7 @@ static bool buttons_context_path(
               BCONTEXT_WORLD,
               BCONTEXT_STRIP,
               BCONTEXT_STRIP_MODIFIER,
-              BCONTEXT_SCENE_COMPOSITOR_EFFECTS))
+              BCONTEXT_COMPOSITOR))
     {
       path->ptr[path->len] = RNA_pointer_create_discrete(nullptr, RNA_ViewLayer, view_layer);
       path->len++;
@@ -737,8 +737,8 @@ static bool buttons_context_path(
     case BCONTEXT_STRIP_MODIFIER:
       found = buttons_context_path_strip_modifier(sequencer_scene, path);
       break;
-    case BCONTEXT_SCENE_COMPOSITOR_EFFECTS:
-      found = buttons_context_path_scene_compositor_effect(path);
+    case BCONTEXT_COMPOSITOR:
+      found = buttons_context_path_compositor(path);
       break;
     default:
       found = false;
@@ -950,7 +950,7 @@ const char *buttons_context_dir[] = {
     "volume",
     "strip",
     "strip_modifier",
-    "scene_compositor_effect",
+    "compositor",
     nullptr,
 };
 
@@ -1282,7 +1282,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     set_pointer_type(path, result, RNA_StripModifier);
     return CTX_RESULT_OK;
   }
-  if (CTX_data_equals(member, "scene_compositor_effect")) {
+  if (CTX_data_equals(member, "compositor")) {
     set_pointer_type(path, result, RNA_SceneCompositorEffect);
     return CTX_RESULT_OK;
   }
@@ -1322,7 +1322,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
               BCONTEXT_WORLD,
               BCONTEXT_STRIP,
               BCONTEXT_STRIP_MODIFIER,
-              BCONTEXT_SCENE_COMPOSITOR_EFFECTS) &&
+              BCONTEXT_COMPOSITOR) &&
         ptr->type == RNA_Scene)
     {
       continue;

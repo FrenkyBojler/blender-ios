@@ -629,11 +629,11 @@ const EnumPropertyItem buttons_context_items[] = {
      ICON_SEQ_STRIP_MODIFIER,
      "Strip Modifiers",
      "Strip Modifier Properties"},
-    {BCONTEXT_SCENE_COMPOSITOR_EFFECTS,
-     "SCENE_COMPOSITOR_EFFECTS",
+    {BCONTEXT_COMPOSITOR,
+     "COMPOSITOR",
      ICON_NODE_COMPOSITING,
-     "Scene Compositor Effects",
-     "Scene Compositor Effects Properties"},
+     "Compositor",
+     "Compositor Properties"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -6194,7 +6194,7 @@ static void rna_def_space_properties_filter(StructRNA *srna)
       "show_properties_effects",
       "show_properties_strip",
       "show_properties_strip_modifier",
-      "show_properties_scene_compositor_effects",
+      "show_properties_compositor",
   };
 
   for (const int i : IndexRange(BCONTEXT_TOT)) {

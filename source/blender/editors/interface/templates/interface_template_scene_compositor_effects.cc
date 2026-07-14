@@ -312,7 +312,7 @@ void register_scene_compositor_effects_panel(ARegionType *region_type)
   STRNCPY_UTF8(panel_type->label, "");
   STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   STRNCPY_UTF8(panel_type->active_property, "is_active");
-  STRNCPY_UTF8(panel_type->context, "scene_compositor_effects");
+  STRNCPY_UTF8(panel_type->context, "compositor");
 
   panel_type->draw_header = draw_effect_panel_header;
   panel_type->draw = draw_effect_panel;

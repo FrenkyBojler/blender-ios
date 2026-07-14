@@ -57,7 +57,7 @@ _modules = [
     "properties_output",
     "properties_view_layer",
     "properties_scene",
-    "properties_scene_compositor_effects",
+    "properties_compositor",
     "properties_texture",
     "properties_world",
     "properties_collection",

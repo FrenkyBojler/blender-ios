@@ -32,7 +32,7 @@ class SCENE_MT_add_compositor_effect(Menu):
 class SCENE_PT_compositor_effects(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = "scene_compositor_effects"
+    bl_context = "compositor"
     bl_label = "Effects"
     bl_options = {'HIDE_HEADER'}
 
