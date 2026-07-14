@@ -139,6 +139,11 @@ void BlenderProject::move_variable(int from_index, int to_index)
   BLI_assert(from_index < this->variables.size());
   BLI_assert(to_index < this->variables.size());
 
+  /* No-op. */
+  if (from_index == to_index) {
+    return;
+  }
+
   if (from_index < to_index) {
     std::rotate(this->variables.data() + from_index,
                 this->variables.data() + from_index + 1,
