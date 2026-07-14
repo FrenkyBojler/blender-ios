@@ -278,7 +278,7 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
                                        const bool use_cache)
 {
   /* Add the deform mesh to the geometry set after evaluating all modifiers in case
-   * it's removed.*/
+   * it's removed. */
   GeometryComponentPtr mesh_deform;
   const Mesh &mesh_input = *id_cast<const Mesh *>(ob.data);
 
