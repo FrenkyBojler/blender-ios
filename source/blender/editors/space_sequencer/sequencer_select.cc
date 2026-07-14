@@ -113,6 +113,15 @@ bool deselect_transition_handles(const Scene *scene)
   return changed;
 }
 
+static void deselect_non_transitions(ListBaseT<Strip> *seqbase)
+{
+  for (Strip &strip : *seqbase) {
+    if (!seq::strip_is_transition(&strip)) {
+      strip.flag &= ~STRIP_ALLSEL;
+    }
+  }
+}
+
 Strip *strip_under_mouse_get(const Scene *scene,
                              const SpaceSeq *sseq,
                              const View2D *v2d,
@@ -1180,35 +1189,54 @@ static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
   eStripHandle handle = selection.handle;
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
 
-  // TODO: right now it's possible to first select two handles, then deselect the active strip's
-  // handle, leaving it to a state where handles and non-handles are selected. But does it even
-  // make sense to try and prevent this? I guess this change might not make sense.
-  // Actually, this should do the linked handle selection instead, so it's not a problem.
+  const bool was_selected = (strip->flag & SEQ_SELECT) != 0;
+
+  VectorSet<Strip *> copy_to;
+  if (was_selected) {
+    copy_to = seq::query_selected_strips(seq::active_seqbase_get(scene->ed));
+    copy_to.remove(strip);
+    copy_to.remove_if([](Strip *strip) { return !seq::strip_is_transition(strip); });
+  }
 
   if (deselect_all || (!extend && !deselect && !toggle)) {
     deselect_all_strips(scene);
   }
-  else if (handle == STRIP_HANDLE_NONE) {
-    /* Either only transition handles should be selected, or just the body. */
-    deselect_transition_handles(scene);
-  }
-  else {
-    /* Transition handles and normal strips must not be selected at the same time.
-     * Either only transition handles should be selected, or just the body. */
-    for (Strip &strip : *seqbase) {
-      if (seq::strip_is_transition(&strip)) {
-        if ((strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) == 0) {
-          strip.flag &= ~SEQ_SELECT;
-        }
-      }
-      else {
-        strip.flag &= ~STRIP_ALLSEL;
-      }
-    }
+  else if (ELEM(handle, STRIP_HANDLE_LEFT, STRIP_HANDLE_RIGHT)) {
+    /* Transition handles and normal strips must not be selected at the same time. */
+    deselect_non_transitions(seqbase);
   }
 
   /* Do actual selection. */
-  sequencer_select_strip_impl(ed, strip, handle, extend, deselect, toggle);
+  const eStripFlag new_handle_flag = handle == STRIP_HANDLE_LEFT ? SEQ_LEFTSEL : SEQ_RIGHTSEL;
+  if (toggle) {
+    if (was_selected && handle == STRIP_HANDLE_NONE) {
+      strip->flag &= ~STRIP_ALLSEL;
+    }
+    else if (handle != STRIP_HANDLE_NONE) {
+      strip->flag ^= new_handle_flag;
+    }
+
+    if (!was_selected) {
+      strip->flag |= SEQ_SELECT;
+    }
+  }
+  else if (deselect) {
+    strip->flag &= ~STRIP_ALLSEL;
+  }
+  else {
+    /* Replace or extend the selection. Selection is already cleared earlier if necessary. */
+    const eStripFlag new_flag = SEQ_SELECT |
+                                (handle != STRIP_HANDLE_NONE ? new_handle_flag : SEQ_FLAG_NONE);
+    strip->flag |= new_flag;
+  }
+
+  /* Copy selection to other selected transitions. */
+  if (was_selected) {
+    for (Strip *selected_strip : copy_to) {
+      selected_strip->flag &= ~STRIP_ALLSEL;
+      selected_strip->flag |= strip->flag & STRIP_ALLSEL;
+    }
+  }
 
   /* Select connected transitions. */
   if (!ignore_connections) {
