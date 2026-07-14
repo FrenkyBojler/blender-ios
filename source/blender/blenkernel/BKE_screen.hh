@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -514,6 +515,12 @@ enum class ARegionQuadviewIndex : uint8_t {
   TopRight = 4,
 };
 
+enum ARegionRuntimeFlag : uint8_t {
+  /* Move redo panel in +Y direction to avoid overlaping with other UI elements, see: #62258 */
+  HUD_PADDING = (1 << 0),
+};
+ENUM_OPERATORS(ARegionRuntimeFlag)
+
 struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
@@ -554,6 +561,9 @@ struct ARegionRuntime {
   /** Blend in/out. */
   wmTimer *regiontimer = nullptr;
 
+  /** For calling after building a named block. */
+  Map<std::string, Vector<std::function<void(const bContext &C)>>> post_block_layout_fns;
+
   wmDrawBuffer *draw_buffer = nullptr;
 
   /** Panel categories runtime. */
@@ -572,6 +582,7 @@ struct ARegionRuntime {
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
+  ARegionRuntimeFlag flag = {};
 
   std::string search_filter;
   Set<std::string> categories_search_match;

@@ -1478,7 +1478,8 @@ static wmOperatorStatus outliner_start_filter_exec(bContext *C, wmOperator * /*o
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-  ui::textbutton_activate_rna(C, region, space_outliner, "filter_text");
+
+  ED_region_activate_rna_prop(C, region, space_outliner, "filter_text", "OUTLINER_HT_header");
 
   return OPERATOR_FINISHED;
 }
@@ -1611,15 +1612,25 @@ static void outliner_show_active(SpaceOutliner *space_outliner,
   }
 }
 
-void outliner_scroll_to_active(const bContext *C,
-                               SpaceOutliner *space_outliner,
-                               ARegion *region,
-                               TreeViewContext *tvc)
+void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, short idcode)
 {
+  outliner_set_coordinates(region, space_outliner);
   const View2D *v2d = &region->v2d;
-  TreeElement *active_te = outliner_show_active_get_element(
-      C, space_outliner, tvc->scene, tvc->view_layer);
+  TreeElement *active_te = nullptr;
 
+  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+    TreeStoreElem *tselem = TREESTORE(te);
+    if (tselem->flag & TSE_ACTIVE) {
+      if (tselem->type == TSE_SOME_ID) {
+        if (te->idcode == idcode) {
+          active_te = te;
+        }
+      }
+      else {
+        active_te = te;
+      }
+    }
+  });
   if (active_te) {
     if (!BLI_rctf_isect_y(&v2d->cur, active_te->ys)) {
       outliner_show_active(space_outliner, region, active_te, TREESTORE(active_te)->id);
