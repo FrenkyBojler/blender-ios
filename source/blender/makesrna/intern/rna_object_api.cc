@@ -665,7 +665,7 @@ static void rna_Object_ray_cast(Object *ob,
 
     /* may fail if the mesh has no faces, in that case the ray-cast misses */
     if (mesh_eval->faces_num != 0) {
-      const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
+      const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tris();
       if (const std::optional<bke::bvh::RayHit> hit = bvh_tree.ray_intersect(origin, direction)) {
         if (hit->distance <= distance) {
           *r_success = success = true;
@@ -705,7 +705,7 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
 
   if (mesh_eval->faces_num != 0) {
-    const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
+    const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tris();
     if (const std::optional<bke::bvh::ClosestPointResult> nearest = bvh_tree.closest_point(
             origin, distance))
     {
