@@ -25,9 +25,6 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_geom_iface_info)
 #include "eevee_sampling_lib.bsl.hh"
 #include "eevee_surf_common.bsl.hh"
 
-/* Global thickness because it is needed for closure_to_rgba. */
-Thickness g_thickness;
-
 float4 closure_to_rgba_hybrid(Closure /*cl*/)
 {
   [[resource_table]] const draw::View &views = resource_table_get(draw::View);

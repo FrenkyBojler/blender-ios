@@ -26,6 +26,10 @@
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
+/* Global thickness because it is needed for closure_to_rgba. */
+Thickness g_thickness;
+uint g_resource_id;
+
 uint resource_id_get()
 {
   /* clang-format off */ /* Multi-line macro mess the shader log line. */
@@ -852,7 +856,50 @@ void node_light_evaluation_impl(
 
 void node_shadow_raycast_impl(float3 position, float spread, float4 &color)
 {
-  /*TODO*/
+  /* clang-format off */ /* Multiline macros would break line count. */
+  [[resource_table]] const eevee::LightRenderData &lrd = resource_table_get(eevee::LightRenderData);
+  /* clang-format on */
+  [[resource_table]] eevee::ShadowRenderData &srd = resource_table_get(eevee::ShadowRenderData);
+  [[resource_table]] draw::Infos &infos = resource_table_get(draw::Infos);
+  [[resource_table]] eevee::Uniform &uni = resource_table_get(eevee::Uniform);
+
+  color = float4(1.0f);
+
+#if defined(GPU_FRAGMENT_SHADER)
+
+  LightData light = lrd.light_buf[g_data.light_index];
+
+  if (light.tilemap_index == LIGHT_NO_SHADOW) {
+    return;
+  }
+
+#  if defined(SPECIALIZED_SHADOW_PARAMS) || defined(SRT_CONSTANT_shadow_ray_count)
+  int ray_count = shadow_ray_count;
+  int ray_step_count = shadow_ray_step_count;
+#  else
+  int ray_count = uni.uniform_buf.shadow.ray_count;
+  int ray_step_count = uni.uniform_buf.shadow.step_count;
+#  endif
+
+  ObjectInfos object_infos = object_infos_get();
+
+  float shadow = eevee::shadow_eval(srd,
+                                    light,
+                                    (light.type == LIGHT_SUN) || (light.type == LIGHT_SUN_ORTHO),
+                                    false,
+                                    false,
+                                    gl_FragCoord.xy,
+                                    g_thickness,
+                                    position,
+                                    g_data.Ng,
+                                    g_data.N,
+                                    object_infos.shadow_terminator_normal_offset,
+                                    object_infos.shadow_terminator_geometry_offset,
+                                    ray_count,
+                                    ray_step_count);
+
+  color.rgb = float3(shadow);
+#endif
 }
 
 /** \} */
