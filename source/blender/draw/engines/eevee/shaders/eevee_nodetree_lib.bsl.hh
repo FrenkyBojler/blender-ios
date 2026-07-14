@@ -836,10 +836,15 @@ void node_light_info_impl(float4 &color,
   LightData light = lrd.light_buf[g_data.light_index];
 
   color = float4(light.color, 1.0f);
+  power = 1.0f;  // TODO
   position = light.object_to_world.location();
-  direction = normalize_and_get_length(position - g_data.P, distance);
-
-  /*TODO*/
+  const bool is_directional = (light.type == LIGHT_SUN) || (light.type == LIGHT_SUN_ORTHO);
+  LightVector lv = light_vector_get(light, is_directional, g_data.P);
+  direction = lv.L;
+  distance = lv.dist;
+  attenuation = light_attenuation_surface(light, is_directional, lv);
+  // attenuation *= light_attenuation_facing(light, lv.L, lv.dist, g_data.N, false);
+  attenuation *= eevee::light::power_get(light, LIGHT_VOLUME);  // TODO
 }
 
 void node_light_accumulation_impl(
