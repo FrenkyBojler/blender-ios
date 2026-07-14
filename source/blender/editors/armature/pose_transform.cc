@@ -59,6 +59,7 @@
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
+#include "ANIM_rna.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -726,6 +727,10 @@ static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
     }
   }
 
+  PointerRNA copy_bone_ptr = RNA_pointer_create_discrete(
+      copy_transformable.owner_id(), RNA_PoseBone, &copy_bone);
+  PointerRNA paste_bone_ptr = RNA_pointer_create_discrete(&paste_ob.id, RNA_PoseBone, paste_bone);
+
   /* ID properties */
   if (copy_bone->prop) {
     if (paste_bone->prop) {
@@ -733,6 +738,18 @@ static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
        * matching properties (i.e. ones which will have some impact) on to the target
        * instead of just blindly replacing all. */
       IDP_SyncGroupValues(paste_bone->prop, copy_bone->prop);
+      for (IDProperty &copy_prop : copy_bone->prop->data.group) {
+        IDProperty *other = IDP_GetPropertyFromGroup(paste_bone->prop, copy_prop.name);
+        if (!other || copy_prop.type != other->type) {
+          continue;
+        }
+        PropertyRNA *copy_prop_rna = RNA_struct_find_property(&copy_bone_ptr, copy_prop.name);
+        Array<float> copy_values = animrig::rna_property_get_as_float(copy_bone_ptr,
+                                                                      *copy_prop_rna);
+        PropertyRNA *paste_prop_rna = RNA_struct_find_property(&paste_bone_ptr, copy_prop.name);
+        Array<float> paste_values = animrig::rna_property_get_as_float(paste_bone_ptr,
+                                                                       *paste_prop_rna);
+      }
     }
     else {
       /* no existing properties, so assume that we want copies too? */
