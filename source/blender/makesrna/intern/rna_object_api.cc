@@ -659,21 +659,15 @@ static void rna_Object_ray_cast(Object *ob,
           origin, direction_unit, bounds->min, bounds->max, &distmin, nullptr) &&
       distmin <= distance)
   {
+    const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tris();
+    const bke::bvh::Ray ray(origin, direction, distance);
+    if (const std::optional<bke::bvh::RayHit> hit = bvh_tree.ray_intersect(ray)) {
+      if (hit->distance <= distance) {
+        *r_success = success = true;
 
-    /* No need to managing allocation or freeing of the BVH data.
-     * This is generated and freed as needed. */
-
-    /* may fail if the mesh has no faces, in that case the ray-cast misses */
-    if (mesh_eval->faces_num != 0) {
-      const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tris();
-      if (const std::optional<bke::bvh::RayHit> hit = bvh_tree.ray_intersect(origin, direction)) {
-        if (hit->distance <= distance) {
-          *r_success = success = true;
-
-          copy_v3_v3(r_location, hit->position);
-          copy_v3_v3(r_normal, hit->normal);
-          *r_index = mesh_corner_tri_to_face_index(mesh_eval, hit->index);
-        }
+        copy_v3_v3(r_location, hit->position(ray));
+        copy_v3_v3(r_normal, hit->normal);
+        *r_index = mesh_corner_tri_to_face_index(mesh_eval, hit->index);
       }
     }
   }

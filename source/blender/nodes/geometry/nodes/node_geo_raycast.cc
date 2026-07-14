@@ -234,7 +234,7 @@ class RaycastFunction : public mf::MultiFunction {
         params.uninitialized_single_output_if_required<float3>(4, "Hit Position"),
         params.uninitialized_single_output_if_required<float3>(5, "Hit Normal"),
         params.uninitialized_single_output_if_required<float>(6, "Distance"),
-        params.uninitialized_single_output_if_required<float3>(7, "Barycentric Weight"));
+        params.uninitialized_single_output_if_required<float3>(8, "Barycentric Weight"));
   }
 
   void hash_unique(UniqueHashBytes &hash) const override
