@@ -466,7 +466,7 @@ static void find_points_by_group_index(const Span<int> indices,
                                        MutableSpan<int> r_indices)
 {
   const OffsetIndices offsets = offset_indices::build_reverse_offsets(indices, r_offsets);
-  offset_indices::reverse_indices_in_groups(indices, offsets, r_indices, false);
+  offset_indices::reverse_indices_in_groups(indices, offsets, r_indices);
 }
 
 static int identifiers_to_indices(MutableSpan<int> r_identifiers_to_indices)

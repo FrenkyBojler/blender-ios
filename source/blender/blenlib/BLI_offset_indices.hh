@@ -206,13 +206,12 @@ void sort_groups(OffsetIndices<int> groups, MutableSpan<int> indices);
 /**
  * Where the `group_indices` argument maps elements into buckets, and the `offsets` argument
  * describes the size of each bucket, this function fills `results` with the indices in each bucket
- * grouped by `offsets`. The `sort` argument makes the results deterministic (i.e. the indices in
- * each bucket are sorted), otherwise internal parallelism makes this non-deterministic.
+ * grouped by `offsets`. The results are deterministic, with the indices in each bucket sorted in
+ * ascending order.
  */
 void reverse_indices_in_groups(Span<int> group_indices,
                                OffsetIndices<int> offsets,
-                               MutableSpan<int> results,
-                               bool sort = true);
+                               MutableSpan<int> results);
 
 /**
  * With `indices` divided in a certain number of unique groups, reverse the index mapping so that

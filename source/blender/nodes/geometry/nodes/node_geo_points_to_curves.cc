@@ -63,13 +63,12 @@ static void grouped_sort(const OffsetIndices<int> offsets,
 }
 
 static void find_points_by_group_index(const Span<int> indices_of_curves,
-                                       const bool sort,
                                        MutableSpan<int> r_offsets,
                                        MutableSpan<int> r_indices)
 {
   const OffsetIndices offsets = offset_indices::build_reverse_offsets(indices_of_curves,
                                                                       r_offsets);
-  offset_indices::reverse_indices_in_groups(indices_of_curves, offsets, r_indices, sort);
+  offset_indices::reverse_indices_in_groups(indices_of_curves, offsets, r_indices);
 }
 
 static int identifiers_to_indices(MutableSpan<int> r_identifiers_to_indices)
@@ -153,7 +152,7 @@ static Curves *curves_from_points(const PointCloud &points,
   /* If the weights are specified, use them to sort the points, otherwise use the default sorting
    * implemented by #offset_indices::reverse_indices_in_groups. */
   const bool sort_by_weight = !weights_varray.is_single();
-  find_points_by_group_index(group_ids, !sort_by_weight, offset, indices.as_mutable_span());
+  find_points_by_group_index(group_ids, offset, indices.as_mutable_span());
   if (sort_by_weight) {
     const VArraySpan<float> weights(weights_varray);
     grouped_sort(OffsetIndices<int>(offset), weights, indices);
