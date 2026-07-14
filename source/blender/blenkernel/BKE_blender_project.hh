@@ -137,6 +137,19 @@ void with_blender_project_write_lock(FunctionRef<void()> lambda);
  */
 bool is_valid_project_variable_name(StringRef name);
 
+/**
+ * Turn the given string into a valid project variable name.
+ *
+ * This is accomplished via simple substitution of non-allowed characters.
+ *
+ * The resulting string will pass `is_valid_project_variable_name()` above.
+ *
+ * \see is_valid_project_variable_name()
+ *
+ * \returns The new valid variable name.
+ */
+std::string ensure_is_valid_project_variable_name(StringRef name);
+
 }  // namespace bke
 
 /**

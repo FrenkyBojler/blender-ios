@@ -167,26 +167,41 @@ void with_blender_project_write_lock(FunctionRef<void()> lambda)
 
 bool is_valid_project_variable_name(StringRef name)
 {
+  return name == ensure_is_valid_project_variable_name(name);
+}
+
+std::string ensure_is_valid_project_variable_name(StringRef name)
+{
+  std::string new_name(name);
+
   /* Shouldn't be empty. */
-  if (name.is_empty()) {
-    return false;
+  if (new_name.size() == 0) {
+    new_name.push_back('_');
   }
 
   /* Shouldn't start with a numerical digit. */
-  if (name[0] >= '0' && name[0] <= '9') {
-    return false;
+  if (new_name[0] >= '0' && new_name[0] <= '9') {
+    new_name[0] = '_';
   }
 
-  /* All characters should be alphanumeric or underscore. */
-  for (char c : name) {
+  /* All characters should be alphanumeric or underscore.
+   *
+   * Note: this is utf8-safe because all non-ascii characters get substituted,
+   * and thus any multi-byte code points just end up as multiple underscores
+   * rather than being e.g. only partially substituted. This perhaps isn't a
+   * pleasing result in some cases, but the string always ends up being valid
+   * utf8.
+   */
+  for (int i = 0; i < new_name.size(); i++) {
+    const char c = new_name[i];
     const bool is_valid_identifier_char = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
                                           (c >= '0' && c <= '9') || c == '_';
     if (!is_valid_identifier_char) {
-      return false;
+      new_name[i] = '_';
     }
   }
 
-  return true;
+  return new_name;
 }
 
 }  // namespace bke

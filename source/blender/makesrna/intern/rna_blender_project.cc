@@ -132,22 +132,7 @@ static int rna_ProjectVariable_name_length(PointerRNA *ptr)
 
 static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
-  std::string new_name(value);
-
-  /* Substitute common invalid characters first, rather than just silently
-   * failing on any little issue. This is (probably?) more user friendly
-   * for users setting variable names in the UI. */
-  for (int i = 0; i < new_name.size(); i++) {
-    switch (new_name[i]) {
-      case ' ':
-      case '-': {
-        new_name[i] = '_';
-        break;
-      }
-    }
-  }
-
-  if (!is_valid_project_variable_name(new_name)) {
+  if (!is_valid_project_variable_name(value)) {
     return;
   }
 
@@ -173,9 +158,16 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
     };
 
     var->name[0] = '\0';
-    BLI_uniquename_cb(
-        check_name_is_used, new_name.c_str(), '_', var->name, sizeof(IDProperty::name));
+    BLI_uniquename_cb(check_name_is_used, value, '_', var->name, sizeof(IDProperty::name));
   });
+}
+
+static void rna_ProjectVariable_set_name_safe(PointerRNA ptr, const char *name)
+{
+  std::string new_name = ensure_is_valid_project_variable_name(name);
+
+  rna_ProjectVariable_name_set(&ptr, new_name.c_str());
+  rna_ProjectVariable_update(nullptr, nullptr, &ptr);
 }
 
 static void rna_ProjectVariable_description_get(PointerRNA *ptr, char *value)
@@ -595,6 +587,9 @@ void rna_def_project_variable(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
   srna = RNA_def_struct(brna, "ProjectVariable", nullptr);
   RNA_def_struct_ui_text(srna, "Blender Project Variable", "");
   RNA_def_struct_refine_func(srna, "rna_ProjectVariable_refine");
@@ -625,6 +620,14 @@ void rna_def_project_variable(BlenderRNA *brna)
                                 "rna_ProjectVariable_description_length",
                                 "rna_ProjectVariable_description_set");
   RNA_def_property_update(prop, 0, "rna_ProjectVariable_update");
+
+  func = RNA_def_function(srna, "set_name_safe", "rna_ProjectVariable_set_name_safe");
+  RNA_def_function_ui_description(func,
+                                  "Set the variable's name, substituting invalid characters in "
+                                  "the proposed name rather than failing");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
+  parm = RNA_def_string(func, "name", nullptr, 0, "Name", "New name for the variable");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* Define ProjectVariable subtypes. */
   rna_def_project_variable_string(brna);
