@@ -106,11 +106,11 @@ struct LTCData {
   /**
    * Sample matrix data from the isotropic LTC LUT.
    */
-  static LTCData sample_utility_tx([[resource_table]] const UtilityTexture &util_tx,
-                                   float3 /* N */,
-                                   float3 /* V */,
-                                   float cos_theta,
-                                   float roughness)
+  static LTCData sample_ltc_lut([[resource_table]] const UtilityTexture &util_tx,
+                                float3 /* N */,
+                                float3 /* V */,
+                                float cos_theta,
+                                float roughness)
   {
     /* Sample 4 components from isotropic LTC LUT. */
     const float2 coords = detail::get_isotropic_coords(cos_theta, roughness);
@@ -121,12 +121,12 @@ struct LTCData {
 
     /* Rotate into orthonormal basis around N. */
     /* TODO(not_mark): re-enable, and update tests as this causes precision change. */
-    /* float3x3 T = detail::tangent_basis(N, V);
+    /* float3x3 T = from_incident_vector(N, V);
     Minv = Minv * transpose(T); */
 
     LTCData ltc_data;
     ltc_data.Minv = Minv;
-    ltc_data.form_factor_type = LTCFormFactorType::OnesidedCosineSphereClipped;
+    ltc_data.form_factor_type = LTCFormFactorType::OneSidedCosineSphereClipped;
     /* LTC attenuation linearly disappears from roughness 0.15 to 0.375. */
     /* TODO(not_mark): use attenuation_factor to control ltc bleed. */
     ltc_data.attenuation_factor = saturate((roughness - 0.15f) * 2.5f);
@@ -140,28 +140,28 @@ struct LTCData {
   {
     /* Rotate into orthonormal basis around N. */
     /* TODO(not_mark): re-enable, and update tests as this causes precision change. */
-    /* float3x3 T = detail::tangent_basis(N, V);
+    /* float3x3 T = from_incident_vector(N, V);
     float3x3 Minv = transpose(T); */
     float3x3 Minv = mat3x3_identity();
 
     LTCData ltc_data;
     ltc_data.Minv = Minv;
     ltc_data.attenuation_factor = 0.0;
-    ltc_data.form_factor_type = LTCFormFactorType::OnesidedCosineSphereClipped;
+    ltc_data.form_factor_type = LTCFormFactorType::OneSidedCosineSphereClipped;
     return ltc_data;
   }
 
   /**
    * Sample matrix data from the isotropic LTC LUT and store to ClosureLight packing.
    */
-  static void pack_utility_tx_sample(ClosureLight &cl,
-                                     [[resource_table]] const UtilityTexture &util_tx,
-                                     float3 N,
-                                     float3 V,
-                                     float cos_theta,
-                                     float roughness)
+  static void pack_ltc_lut(ClosureLight &cl,
+                           [[resource_table]] const UtilityTexture &util_tx,
+                           float3 N,
+                           float3 V,
+                           float cos_theta,
+                           float roughness)
   {
-    LTCData ltc_data = LTCData::sample_utility_tx(util_tx, N, V, cos_theta, roughness);
+    LTCData ltc_data = LTCData::sample_ltc_lut(util_tx, N, V, cos_theta, roughness);
     ltc_data.pack_to(cl);
   }
 

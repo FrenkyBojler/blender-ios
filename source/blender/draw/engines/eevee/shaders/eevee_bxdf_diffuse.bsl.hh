@@ -137,7 +137,7 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
 {
   /* A translucent sphere lit by a light outside the sphere transmits the
    * light uniformly over the sphere. To mimic this phenomenon, the LTC evaluation
-   * does not horizon-clip lights if we set `LTCFormFactorType::TwosidedCosineSphere`.
+   * does not horizon-clip lights if we set `LTCFormFactorType::TwoSidedCosineSphere`.
    *
    * For slab model, the approximation has little to no impact on the lighting in practice,
    * only focusing the light a tiny bit. Using the flipped normal is good enough approximation.
@@ -151,7 +151,7 @@ ClosureLight bxdf_translucent_light(ClosureUndetermined cl, float3 V, Thickness 
 
   eevee::LTCData ltc_data = eevee::LTCData::identity(light.N, V);
   if (sphere_with_thickness) {
-    ltc_data.form_factor_type = LTCFormFactorType::TwosidedCosineSphere;
+    ltc_data.form_factor_type = LTCFormFactorType::TwoSidedCosineSphere;
   }
   ltc_data.pack_to(light);
 

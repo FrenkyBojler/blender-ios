@@ -177,11 +177,11 @@ float evaluate_quad(sampler2DArray util_tx, LTCData ltc_data, float3 corners[4])
   // assert(!isnan(form_factor) && !isinf(form_factor));
 
   switch (ltc_data.form_factor_type) {
-    case LTCFormFactorType::OnesidedCosineSphereClipped:
+    case LTCFormFactorType::OneSidedCosineSphereClipped:
       /* TODO(not_mark): apply attenuation here as LTC bleed fix. */
       form_factor *= detail::diffuse_sphere_integral(util_tx, avg_dir_z, form_factor);
       break;
-    default: /* LTCFormFactorType::TwosidedCosineSphere */
+    default: /* LTCFormFactorType::TwoSidedCosineSphere */
       form_factor *= M_1_PI;
       break;
   }
@@ -293,11 +293,11 @@ float evaluate_disk(sampler2DArray util_tx, LTCData ltc_data, float3 disk_points
   // assert(!isnan(form_factor) && !isinf(form_factor));
 
   switch (ltc_data.form_factor_type) {
-    case LTCFormFactorType::OnesidedCosineSphereClipped:
+    case LTCFormFactorType::OneSidedCosineSphereClipped:
       /* TODO(not_mark): apply attenuation here as LTC bleed fix. */
       form_factor *= detail::diffuse_sphere_integral(util_tx, avg_dir.z, form_factor);
       break;
-    default: /* LTCFormFactorType::TwosidedCosineSphere */
+    default: /* LTCFormFactorType::TwoSidedCosineSphere */
       form_factor *= M_1_PI;
       break;
   }

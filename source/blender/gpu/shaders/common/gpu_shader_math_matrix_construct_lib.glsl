@@ -343,4 +343,20 @@ float3x3 from_up_axis(float3 up)
   basis[2] = up;
   return basis;
 }
+
+/**
+ * Create a rotation matrix from an up axis, and an incident vector I.
+ */
+float3x3 from_incident_vector(float3 N, float3 I)
+{
+  float NI = dot(N, I);
+  if (NI > 0.999999f) {
+    /* Mostly for orthographic view and surfel light eval. */
+    return from_up_axis(N);
+  }
+  /* Construct orthonormal basis around N. */
+  float3 T1 = normalize(I - N * NI);
+  float3 T2 = cross(N, T1);
+  return float3x3(T1, T2, N);
+}
 /** \} */

@@ -85,7 +85,7 @@ void eval_single_closure(sampler2DArray util_tx,
   /* TODO(not_mark): remove, and update tests as this causes precision change. */
   /* Load LTC matrix and rotate into orthonormal basis around N. */
   LTCData ltc_data = LTCData::unpack_from(cl);
-  float3x3 T = detail::tangent_basis(cl.N, V);
+  float3x3 T = from_incident_vector(cl.N, V);
   ltc_data.Minv = ltc_data.Minv * transpose(T);
   float ltc_result = light_ltc(util_tx, light, ltc_data, lv, vertices);
 

@@ -421,7 +421,7 @@ ClosureLight bxdf_ggx_light_reflection([[resource_table]] const UtilityTexture &
   ClosureLight light;
   light.N = cl.N;
   light.type = LIGHT_SPECULAR;
-  eevee::LTCData::pack_utility_tx_sample(light, util_tx, light.N, V, cos_theta, cl.roughness);
+  eevee::LTCData::pack_ltc_lut(light, util_tx, light.N, V, cos_theta, cl.roughness);
 
   return light;
 }
@@ -451,8 +451,7 @@ ClosureLight bxdf_ggx_light_transmission([[resource_table]] const UtilityTexture
   /* Reuse the isotropic LTC LUT by using the refracted exitant view as direction. */
   float3 R = refract(-V_transmitted, cl.N, (thickness.value() != 0.0f) ? cl.ior : (1.0f / cl.ior));
   float cos_theta = dot(light.N, R);
-  eevee::LTCData::pack_utility_tx_sample(
-      light, util_tx, light.N, V, cos_theta, perceptual_roughness);
+  eevee::LTCData::pack_ltc_lut(light, util_tx, light.N, V, cos_theta, perceptual_roughness);
 
   return light;
 }
@@ -465,7 +464,7 @@ ClosureLight bxdf_ggx_light_thin_glass_transmission(
   ClosureLight light;
   light.N = -cl.N;
   light.type = LIGHT_TRANSMISSION;
-  eevee::LTCData::pack_utility_tx_sample(light, util_tx, light.N, V, cos_theta, cl.roughness);
+  eevee::LTCData::pack_ltc_lut(light, util_tx, light.N, V, cos_theta, cl.roughness);
 
   return light;
 }

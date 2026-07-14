@@ -25,9 +25,9 @@ struct BsdfEval {
 /* Approximation types for computing the irradiance (form factor on point) of area lights. */
 enum class LTCFormFactorType : uchar {
   /* Form factor of a horizon-clipped sphere affecting a single-sided surface. */
-  OnesidedCosineSphereClipped = 0u,
+  OneSidedCosineSphereClipped = 0u,
   /* Form factor of an unclipped sphere affecting a two-sided surface. */
-  TwosidedCosineSphere = 1u,
+  TwoSidedCosineSphere = 1u,
 };
 
 struct ClosureLight {
