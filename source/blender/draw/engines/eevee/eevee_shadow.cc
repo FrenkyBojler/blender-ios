@@ -1201,10 +1201,15 @@ bool ShadowModule::shadow_update_finished(int loop_count)
   }
 
   int max_updated_view_count = tilemap_pool.tilemaps_data.size() * SHADOW_TILEMAP_LOD;
-  if (max_updated_view_count <= SHADOW_VIEW_MAX) {
+  if (max_updated_view_count <= SHADOW_VIEW_MAX * loop_count) {
     /* There is enough shadow views to cover all tile-map updates.
      * No read-back needed as it is guaranteed that all of them will be updated. */
     return true;
+  }
+
+  if (loop_count == 1) {
+    /* Do not reedback for only 1 loop iter. It's cheaper to just resubmit. */
+    return false;
   }
 
   /* Read back and check if there is still tile-map to update. */
