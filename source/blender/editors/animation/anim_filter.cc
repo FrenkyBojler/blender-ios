@@ -3456,12 +3456,16 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
 
     /* nodetree */
     if (!(ac->filters.flag & ADS_FILTER_NONTREE)) {
+      VectorSet<bNodeTree *> node_trees;
       for (SceneCompositorEffect &effect : sce->compositor_effects) {
-        if (!effect.node_group) {
+        if (!effect.node_group || ID_MISSING(effect.node_group)) {
           continue;
         }
+        node_trees.add(effect.node_group);
+      }
+      for (bNodeTree *node_tree : node_trees) {
         tmp_items += animdata_filter_ds_nodetree(
-            ac, &tmp_data, reinterpret_cast<ID *>(sce), effect.node_group, filter_mode);
+            ac, &tmp_data, reinterpret_cast<ID *>(sce), node_tree, filter_mode);
       }
     }
 
