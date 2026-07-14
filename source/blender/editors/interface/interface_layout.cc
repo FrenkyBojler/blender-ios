@@ -5658,21 +5658,19 @@ static int item_estimate_fit_text_extra_width(Item &item)
     if (button.type == ButtonType::Label) {
       full_width = text_icon_full_width(button.str, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
     }
-    else if (*prop_type == PROP_BOOLEAN) {
+    else if (prop_type && *prop_type == PROP_BOOLEAN) {
       full_width = text_icon_full_width(
-          button.str, button.icon, text_pad_default, UI_FSTYLE_WIDGET);
+          button.str, button.icon, text_pad_compact, UI_FSTYLE_WIDGET);
     }
-    else if (*prop_type == PROP_ENUM) {
+    else if (prop_type && *prop_type == PROP_ENUM) {
       full_width = text_icon_full_width(
           button.str, button.icon, text_pad_compact, UI_FSTYLE_WIDGET);
     }
     else if (button.type == ButtonType::Menu) {
-      full_width = text_icon_full_width(
-          button.str, button.icon, text_pad_compact, UI_FSTYLE_WIDGET);
+      full_width = text_icon_full_width(button.str, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
     }
     else if (button.opptr) {
-      full_width = text_icon_full_width(
-          button.str, button.icon, text_pad_default, UI_FSTYLE_WIDGET);
+      full_width = text_icon_full_width(button.str, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
     }
     button_item.full_width = std::nullopt;
     return std::max(full_width - width, 0);
@@ -5694,7 +5692,11 @@ static int item_estimate_fit_text_extra_width(Item &item)
     return int((layout.size().x * (factor - 1)));
   }
 
-  if (layout.local_direction() == LayoutDirection::Vertical) {
+  const LayoutItemGridFlow *grid_flow = layout.type() == ItemType::LayoutGridFlow ?
+                                            static_cast<const LayoutItemGridFlow *>(&item) :
+                                            nullptr;
+
+  if (layout.local_direction() == LayoutDirection::Vertical && !grid_flow) {
     int max_extra_width = 0;
     for (auto &sub : layout.items()) {
       max_extra_width = std::max(max_extra_width, item_estimate_fit_text_extra_width(*sub));
@@ -5705,22 +5707,33 @@ static int item_estimate_fit_text_extra_width(Item &item)
   int add_extra_width = 0;
   /* For non fixed or non auto fixed sub items add the max fit width per item. */
   int max_extra_width = 0;
-  int max_extra_width_n = 0;
-  const LayoutItemGridFlow *grid_flow = layout.type() == ItemType::LayoutGridFlow ?
-                                            static_cast<const LayoutItemGridFlow *>(&item) :
-                                            nullptr;
-  for (auto &sub : layout.items()) {
-    if (sub->type() != ItemType::Button) {
-      if (sub->fixed_size() || ItemInternal::auto_fixed_size(sub)) {
-        add_extra_width += item_estimate_fit_text_extra_width(*sub);
-        continue;
-      }
+  const LayoutItemFlow *col_flow = layout.type() == ItemType::LayoutColumnFlow ?
+                                       static_cast<const LayoutItemFlow *>(&item) :
+                                       nullptr;
+  const LayoutItemSplit *split = layout.type() == ItemType::LayoutSplit ?
+                                     static_cast<const LayoutItemSplit *>(&item) :
+                                     nullptr;
+
+  const bool even_colums = grid_flow || col_flow || (split && split->percentage == 0.0f);
+
+  for (Item *sub : layout.items()) {
+    const int subitem_fit_width = item_estimate_fit_text_extra_width(*sub);
+    if (even_colums) {
+      max_extra_width = std::max(max_extra_width, subitem_fit_width);
     }
-    max_extra_width = std::max(max_extra_width, item_estimate_fit_text_extra_width(*sub));
-    max_extra_width_n++;
+    else if (split) {
+      add_extra_width = std::max<int>(add_extra_width,
+                                      subitem_fit_width / (sub == layout.items().last() ?
+                                                               1.0f - split->percentage :
+                                                               split->percentage));
+    }
+    add_extra_width += subitem_fit_width;
   }
-  max_extra_width_n = grid_flow ? grid_flow->tot_columns : max_extra_width_n;
-  return add_extra_width + (max_extra_width * max_extra_width_n);
+  int columms = grid_flow                            ? grid_flow->tot_columns :
+                col_flow                             ? col_flow->totcol :
+                (split && split->percentage == 0.0f) ? split->items().size() :
+                                                       0;
+  return add_extra_width + (max_extra_width * columms);
 }
 
 /**
@@ -5792,27 +5805,29 @@ static int2 layout_end(Layout *layout)
   LayoutInternal::layout_estimate(layout);
   LayoutInternal::layout_resolve(layout);
 
-  /* Redo layout for popup that can get widen to properly show text content, usually this is done
-   * just once. */
-  while (std::optional<int> popop_fit_width = layout_estimate_popup_fit_width(layout)) {
-    block->popup_auto_width->width = *popop_fit_width;
-    block->popup_auto_width->oldwidth = *popop_fit_width;
-    if (block->panel) {
-      block->panel->runtime->layout_panels.bodies.clear();
-      block->panel->runtime->layout_panels.headers.clear();
+  if (block->popup_auto_width) {
+    /* Redo layout for popup that can get widen to properly show text content, usually this is done
+     * just once. */
+    while (std::optional<int> popop_fit_width = layout_estimate_popup_fit_width(layout)) {
+      block->popup_auto_width->width = *popop_fit_width;
+      block->popup_auto_width->oldwidth = *popop_fit_width;
+      if (block->panel) {
+        block->panel->runtime->layout_panels.bodies.clear();
+        block->panel->runtime->layout_panels.headers.clear();
+      }
+      items_source_states[0].size.x = block->popup_auto_width->width;
+      for (ItemSourceState &source_state : items_source_states) {
+        item_position(source_state.item,
+                      source_state.pos.x,
+                      source_state.pos.y,
+                      source_state.size.x,
+                      source_state.size.y);
+        source_state.item->fixed_size_set(source_state.fixed_size);
+        ItemInternal::auto_fixed_size_set(source_state.item, source_state.auto_fixed);
+      }
+      LayoutInternal::layout_estimate(layout);
+      LayoutInternal::layout_resolve(layout);
     }
-    items_source_states[0].size.x = block->popup_auto_width->width;
-    for (ItemSourceState &source_state : items_source_states) {
-      item_position(source_state.item,
-                    source_state.pos.x,
-                    source_state.pos.y,
-                    source_state.size.x,
-                    source_state.size.y);
-      source_state.item->fixed_size_set(source_state.fixed_size);
-      ItemInternal::auto_fixed_size_set(source_state.item, source_state.auto_fixed);
-    }
-    LayoutInternal::layout_estimate(layout);
-    LayoutInternal::layout_resolve(layout);
   }
   return layout->offset();
 }
