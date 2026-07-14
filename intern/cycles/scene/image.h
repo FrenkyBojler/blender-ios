@@ -10,6 +10,7 @@
 #include "scene/image_loader.h"
 
 #include "util/colorspace.h"
+#include "util/concurrent_vector.h"
 #include "util/image_metadata.h"
 #include "util/set.h"
 #include "util/thread.h"
@@ -223,6 +224,7 @@ class ImageManager {
   void device_load_image(Device *device,
                          Scene *scene,
                          const size_t image_texture_id,
+                         concurrent_vector<KernelTileDescriptor> &tile_descriptors,
                          Progress &progress);
   void device_free_image(Scene *scene, const size_t image_texture_id);
 

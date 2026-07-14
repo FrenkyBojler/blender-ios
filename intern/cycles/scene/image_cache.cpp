@@ -492,9 +492,10 @@ void ImageCache::free_tile(const KernelTileDescriptor tile)
 
 /* Tile descriptor management. */
 
-void ImageCache::load_image_tiled(DeviceScene &dscene,
-                                  const ImageMetaData &metadata,
-                                  KernelImageTexture &tex)
+void ImageCache::load_image_tile_descriptors(DeviceScene &dscene,
+                                             const ImageMetaData &metadata,
+                                             KernelImageTexture &tex,
+                                             concurrent_vector<KernelTileDescriptor> &tile_descriptors)
 {
   assert(is_power_of_two(metadata.tile_size));
 
@@ -521,37 +522,42 @@ void ImageCache::load_image_tiled(DeviceScene &dscene,
     }
   }
 
+  auto tile_descriptor_start = tile_descriptors.grow_by(levels.size() + num_tiles);
+
+  size_t tile_descriptor_offset = tile_descriptor_start - tile_descriptors.begin(); 
+
+  for (int i = 0; i < levels.size(); i++) {
+    tile_descriptors[tile_descriptor_offset + i] = levels.size() + levels[i];
+  }
+  std::fill_n(tile_descriptor_start + levels.size(), num_tiles, KERNEL_TILE_LOAD_NONE);
+
+  const size_t tile_descriptors_offset = dscene.image_texture_tile_descriptors.size();
+
+  tex.tile_descriptor_offset = tile_descriptors_offset + tile_descriptor_offset;
+  tex.tile_levels = levels.size();
+  tex.tile_num = num_tiles;
+}
+
+void ImageCache::load_image_tiled(DeviceScene &dscene,
+                                  const concurrent_vector<KernelTileDescriptor> &tile_descriptors)
+{
+  if (tile_descriptors.size())
   {
-    /* TODO: Make this more efficient with geometric growth or other methods. */
-    const thread_scoped_lock device_lock(device_mutex);
+    device_vector<KernelTileDescriptor> &device_tile_descriptors = dscene.image_texture_tile_descriptors;
 
-    device_vector<KernelTileDescriptor> &tile_descriptors = dscene.image_texture_tile_descriptors;
-    device_vector<uint8_t> &tile_access = dscene.image_texture_tile_access_state;
+    const size_t device_tile_descriptors_offset = device_tile_descriptors.size();
+    device_tile_descriptors.resize(device_tile_descriptors_offset + tile_descriptors.size());
+    std::copy(tile_descriptors.begin(), tile_descriptors.end(), device_tile_descriptors.data() + device_tile_descriptors_offset);
 
-    const int tile_descriptor_offset = tile_descriptors.size();
-    tile_descriptors.resize(tile_descriptor_offset + levels.size() + num_tiles);
-
-    /* Resize access state to match tile descriptors. */
-    const size_t old_size = tile_access.size();
-    if (tile_descriptors.size() > old_size) {
-      tile_access.resize(tile_descriptors.size());
-      memset(tile_access.data() + old_size,
-             KERNEL_TILE_ACCESS_NONE,
-             tile_descriptors.size() - old_size);
+    device_vector<uint8_t> &device_tile_access = dscene.image_texture_tile_access_state;
+    const size_t old_size = device_tile_access.size();
+    if (device_tile_descriptors.size() > old_size) {
+      device_tile_access.resize(device_tile_descriptors.size());
+      memset(device_tile_access.data() + old_size,
+            KERNEL_TILE_ACCESS_NONE,
+            device_tile_descriptors.size() - old_size);
     }
-
-    stats.resize(tile_descriptors.size());
-
-    KernelTileDescriptor *descr_data = tile_descriptors.data() + tile_descriptor_offset;
-
-    for (int i = 0; i < levels.size(); i++) {
-      descr_data[i] = levels.size() + levels[i];
-    }
-    std::fill_n(descr_data + levels.size(), num_tiles, KERNEL_TILE_LOAD_NONE);
-
-    tex.tile_descriptor_offset = tile_descriptor_offset;
-    tex.tile_levels = levels.size();
-    tex.tile_num = num_tiles;
+    stats.resize(device_tile_descriptors.size());
   }
 }
 
