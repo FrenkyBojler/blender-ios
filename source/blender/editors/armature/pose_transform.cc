@@ -670,20 +670,20 @@ static bPoseChannel *pose_bone_do_paste(Object &paste_ob,
       factor,
       ed::AXIS_MUTABLE_ALL);
 
-  bPoseChannel *copy_pchan = copy_transformable.data<bPoseChannel *>();
+  bPoseChannel *copy_bone = copy_transformable.data<bPoseChannel *>();
   /* B-Bone posing options should also be included... */
-  paste_bone->curve_in_x = interpf(copy_pchan->curve_in_x, paste_bone->curve_in_x, factor);
-  paste_bone->curve_in_z = interpf(copy_pchan->curve_in_z, paste_bone->curve_in_z, factor);
-  paste_bone->curve_out_x = interpf(copy_pchan->curve_out_x, paste_bone->curve_out_x, factor);
-  paste_bone->curve_out_z = interpf(copy_pchan->curve_out_z, paste_bone->curve_out_z, factor);
+  paste_bone->curve_in_x = interpf(copy_bone->curve_in_x, paste_bone->curve_in_x, factor);
+  paste_bone->curve_in_z = interpf(copy_bone->curve_in_z, paste_bone->curve_in_z, factor);
+  paste_bone->curve_out_x = interpf(copy_bone->curve_out_x, paste_bone->curve_out_x, factor);
+  paste_bone->curve_out_z = interpf(copy_bone->curve_out_z, paste_bone->curve_out_z, factor);
 
-  paste_bone->roll1 = interpf(copy_pchan->roll1, paste_bone->roll1, factor);
-  paste_bone->roll2 = interpf(copy_pchan->roll2, paste_bone->roll2, factor);
-  paste_bone->ease1 = interpf(copy_pchan->ease1, paste_bone->ease1, factor);
-  paste_bone->ease2 = interpf(copy_pchan->ease2, paste_bone->ease2, factor);
+  paste_bone->roll1 = interpf(copy_bone->roll1, paste_bone->roll1, factor);
+  paste_bone->roll2 = interpf(copy_bone->roll2, paste_bone->roll2, factor);
+  paste_bone->ease1 = interpf(copy_bone->ease1, paste_bone->ease1, factor);
+  paste_bone->ease2 = interpf(copy_bone->ease2, paste_bone->ease2, factor);
 
-  interp_v3_v3v3(paste_bone->scale_in, paste_bone->scale_in, copy_pchan->scale_in, factor);
-  interp_v3_v3v3(paste_bone->scale_out, paste_bone->scale_out, copy_pchan->scale_out, factor);
+  interp_v3_v3v3(paste_bone->scale_in, paste_bone->scale_in, copy_bone->scale_in, factor);
+  interp_v3_v3v3(paste_bone->scale_out, paste_bone->scale_out, copy_bone->scale_out, factor);
 
   /* Flips pose directly by modifying transform parameters. */
   if (flip) {
@@ -718,25 +718,25 @@ static bPoseChannel *pose_bone_do_paste(Object &paste_ob,
   }
 
   /* ID properties */
-  if (copy_pchan->prop) {
+  if (copy_bone->prop) {
     if (paste_bone->prop) {
       /* If we have existing properties on a bone, just copy over the values of
        * matching properties (i.e. ones which will have some impact) on to the target
        * instead of just blindly replacing all. */
-      IDP_SyncGroupValues(paste_bone->prop, copy_pchan->prop);
+      IDP_SyncGroupValues(paste_bone->prop, copy_bone->prop);
     }
     else {
       /* no existing properties, so assume that we want copies too? */
-      paste_bone->prop = IDP_CopyProperty(copy_pchan->prop);
+      paste_bone->prop = IDP_CopyProperty(copy_bone->prop);
     }
   }
-  if (copy_pchan->system_properties) {
+  if (copy_bone->system_properties) {
     /* Same logic as above for system IDProperties, for now. */
     if (paste_bone->system_properties) {
-      IDP_SyncGroupValues(paste_bone->system_properties, copy_pchan->system_properties);
+      IDP_SyncGroupValues(paste_bone->system_properties, copy_bone->system_properties);
     }
     else {
-      paste_bone->system_properties = IDP_CopyProperty(copy_pchan->system_properties);
+      paste_bone->system_properties = IDP_CopyProperty(copy_bone->system_properties);
     }
   }
 
