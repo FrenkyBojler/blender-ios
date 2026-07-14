@@ -1399,28 +1399,6 @@ static float point_in_tri_winding(const float2 pt,
   return 0.0f;
 }
 
-/* Returns twice winding order of the points of an edge. */
-static int edge_in_polygon_winding_twice(const int edge_id, const Span<float2> poly)
-{
-  /* Double and store as a int to avoid float rounding. */
-  int twice_winding = 0;
-
-  /* We are on the edge so add one half. */
-  twice_winding += 1;
-
-  const float2 &point = poly[edge_id];
-  const float2 &tri_p1 = poly[edge_id != 0 ? 0 : 1];
-  for (const int i : poly.index_range().drop_back(1)) {
-    if (i == edge_id || i + 1 == edge_id) {
-      continue;
-    }
-    const float2 &tri_p2 = poly[i];
-    const float2 &tri_p3 = poly[i + 1];
-    twice_winding += int(point_in_tri_winding(point, tri_p1, tri_p2, tri_p3) * 2);
-  }
-  return twice_winding;
-}
-
 /* Point must not be on a corner, but can be on an edge. */
 static int point_in_polygon_winding_twice(const float2 &point, const Span<float2> poly)
 {
@@ -1632,7 +1610,6 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
                            const IndexMask &clipping_fills,
                            const Span<Segment> all_segments,
                            const OffsetIndices<int> segments_by_curve,
-                           const Span<IntersectionPoint> &intersections,
                            const VArray<int> &fill_id,
                            MutableSpan<bool> all_inside_left,
                            MutableSpan<bool> all_inside_right)
@@ -1918,7 +1895,6 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                    clipping_fills,
                    all_segments,
                    segments_by_curve,
-                   intersections,
                    fill_id,
                    all_inside_left,
                    all_inside_right);
@@ -1935,7 +1911,6 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                      clipping_fills,
                      all_segments,
                      segments_by_curve,
-                     intersections,
                      fill_id,
                      all_inside_left,
                      all_inside_right);
@@ -1954,7 +1929,6 @@ static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_pa
                      clipping_fills,
                      all_segments,
                      segments_by_curve,
-                     intersections,
                      fill_id,
                      all_inside_left,
                      all_inside_right);
