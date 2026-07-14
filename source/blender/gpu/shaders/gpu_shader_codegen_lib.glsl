@@ -254,7 +254,6 @@ struct GlobalData {
   bool is_strand;
 
   uint light_index;
-  float light_weight;
 };
 
 GlobalData g_data;

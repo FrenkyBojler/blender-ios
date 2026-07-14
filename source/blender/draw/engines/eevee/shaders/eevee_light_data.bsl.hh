@@ -17,10 +17,4 @@ struct LightRenderData {
   [[storage(LIGHT_TILE_BUF_SLOT, read)]] const uint (&light_tile_buf)[];
 };
 
-struct LightSample {
-  uint light_id;
-  float weight;
-  float total_weight;
-};
-
 }  // namespace eevee

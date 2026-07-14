@@ -203,58 +203,6 @@ template void foreach_visible<EvalCtx<true>, LightEvalData>(
 template void foreach_visible<EvalCtx<false>, LightEvalData>(
     const LightRenderData &, float2, float, EvalCtx<false> &, LightEvalData &);
 
-struct SampleCtx {
-  float3 P;
-  float3 N;
-  float rand;
-  LightSample samp;
-
-  void eval_light([[resource_table]] const LightEvalData & /*srt*/, uint l_idx, LightData light)
-  {
-    bool is_directional = is_sun_light(light.type);
-
-    LightVector lv = light_vector_get(light, is_directional, P);
-    float NL = dot(N, lv.L) + 2.0;
-    // float attenuation = light_attenuation_surface(light, is_directional, lv);
-    float pdf = NL * safe_rcp(square(lv.dist)) * reduce_max(light.color);
-
-    /* Reservoir sampling. */
-    if (reservoir_sample(pdf, samp.total_weight, rand)) {
-      samp.light_id = l_idx;
-      samp.weight = pdf;
-    }
-  }
-
-  void eval_directional([[resource_table]] const LightEvalData &srt, uint l_idx, LightData light)
-  {
-    eval_light(srt, l_idx, light);
-  }
-
-  void eval_local([[resource_table]] const LightEvalData &srt, uint l_idx, LightData light)
-  {
-    eval_light(srt, l_idx, light);
-  }
-
- private:
-  bool reservoir_sample(float weight, float &total_weight, float &r)
-  {
-    if (weight < 1e-5f) {
-      return false;
-    }
-    total_weight += weight;
-    float x = weight / total_weight;
-    bool chosen = (r < x);
-    /* Assuming that if r is in the interval [0,x] or [x,1], it's still uniformly distributed
-     * within that interval, so remapping to [0,1] again to explore this space of probability. */
-    r = (chosen) ? (r / x) : ((r - x) / (1.0f - x));
-    return chosen;
-  }
-};
-
-template void foreach<SampleCtx, LightEvalData>(const LightRenderData &,
-                                                SampleCtx &,
-                                                LightEvalData &);
-
 /* NOTE: Doesn't init the closure stack. */
 EvalCtx<true> init_from_reflect_ctx(EvalCtx<false> ctx)
 {
@@ -290,21 +238,6 @@ struct LightEvalIterator {
     if (srt.light_closure_eval_count_transmit > 0) [[static_branch]] {
       light::foreach_visible(light_data, ctx.texel, vPz, ctx, srt);
     }
-  }
-
-  LightSample sample_one(float3 P, float3 N, float rand)
-  {
-    light::SampleCtx ctx = {
-        .P = P,
-        .N = N,
-        .rand = rand,
-        .samp = LightSample{},
-    };
-
-    [[resource_table]] LightEvalData &srt = inner;
-    light::foreach(light_data, ctx, srt);
-
-    return ctx.samp;
   }
 };
 
