@@ -398,7 +398,7 @@ static bool buttons_context_path_bone(ButsContextPath *path, SpaceProperties *sb
       if (pin_bone_name && pin_bone_name[0]) {
         edbo = ED_armature_ebone_find_name(arm->edbo, pin_bone_name);
         if (!edbo) {
-          /* No available pinned bone when deleted or undo rename, return false. */
+          /* No available pinned bone when deleted or undo rename. */
           reset_bone_pin_context(sbuts);
         }
       }
