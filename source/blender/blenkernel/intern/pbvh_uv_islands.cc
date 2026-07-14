@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_atomic_disjoint_set.hh"
+#include "BLI_bit_span_ops.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_map.hh"
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
@@ -349,6 +351,9 @@ static UVPrimitive *add_primitive(const MeshData &mesh_data,
   return uv_primitive_ptr;
 }
 
+std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edges,
+                                                  MutableBoundedBitSpan borders_used);
+
 void UVIsland::extract_borders()
 {
   PRF_scope(ProfileCategory::Editor);
@@ -362,8 +367,9 @@ void UVIsland::extract_borders()
     }
   }
 
+  BitVector<128> borders_used(edges.size(), false);
   while (true) {
-    std::optional<UVBorder> border = UVBorder::extract_from_edges(edges);
+    std::optional<UVBorder> border = extract_border_from_edges(edges, borders_used);
     if (!border.has_value()) {
       break;
     }
@@ -952,10 +958,9 @@ void UVIsland::extend_border(const MeshData &mesh_data,
     UVVertex *uv_vertex = border_edge->get_uv_vertex(0);
     UVBorder &border = borders[border_edge->border_index];
 
-    /* If the angle changed, re-queue with new larger angle. */
+    /* If the angle changed, re-queue with new angle. */
     const float angle = border.outside_angle(*border_edge);
     if (angle != entry.angle) {
-      BLI_assert(angle >= entry.angle);
       queue.push({angle, border_edge});
       continue;
     }
@@ -1045,36 +1050,33 @@ void UVIsland::print_debug(const MeshData &mesh_data) const
 /** \name UVBorder
  * \{ */
 
-std::optional<UVBorder> UVBorder::extract_from_edges(Vector<UVBorderEdge> &edges)
+std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edges,
+                                                  MutableBoundedBitSpan borders_used)
 {
   /* Find a part of the border that haven't been extracted yet. */
-  UVBorderEdge *starting_border_edge = nullptr;
-  for (UVBorderEdge &edge : edges) {
-    if (edge.tag == false) {
-      starting_border_edge = &edge;
-      break;
-    }
-  }
-  if (starting_border_edge == nullptr) {
+  const std::optional<int64_t> start_index = bits::find_first_0_index(borders_used);
+  if (!start_index) {
     return std::nullopt;
   }
+  UVBorderEdge &start_edge = edges[*start_index];
   UVBorder border;
-  border.edges.append(*starting_border_edge);
-  starting_border_edge->tag = true;
+  border.edges.append(start_edge);
+  borders_used[*start_index].set();
 
-  float2 first_uv = starting_border_edge->get_uv_vertex(0)->uv;
-  float2 current_uv = starting_border_edge->get_uv_vertex(1)->uv;
+  float2 first_uv = start_edge.get_uv_vertex(0)->uv;
+  float2 current_uv = start_edge.get_uv_vertex(1)->uv;
   while (current_uv != first_uv) {
     bool edge_added = false;
-    for (UVBorderEdge &border_edge : edges) {
-      if (border_edge.tag == true) {
+    for (const int edge_i : edges.index_range()) {
+      if (borders_used[edge_i].test()) {
         continue;
       }
+      UVBorderEdge &border_edge = edges[edge_i];
       int i;
       for (i = 0; i < 2; i++) {
         if (border_edge.edge->vertices[i]->uv == current_uv) {
           border_edge.reverse_order = i == 1;
-          border_edge.tag = true;
+          borders_used[edge_i].set();
           current_uv = border_edge.get_uv_vertex(1)->uv;
           border.edges.append(border_edge);
           edge_added = true;
@@ -1304,10 +1306,10 @@ float UVBorderEdge::length() const
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UVIslands
+/** \name UV islands
  * \{ */
 
-UVIslands::UVIslands(const MeshData &mesh_data)
+Array<UVIsland> build_uv_islands(const MeshData &mesh_data)
 {
   PRF_scope(ProfileCategory::Editor);
 
@@ -1320,7 +1322,7 @@ UVIslands::UVIslands(const MeshData &mesh_data)
       island_tri_offset_data,
       island_tri_index_data);
 
-  islands.resize(mesh_data.uv_island_len);
+  Array<UVIsland> islands(mesh_data.uv_island_len);
 
   /* Add primitive to island. */
   threading::parallel_for(islands.index_range(), 1, [&](const IndexRange range) {
@@ -1332,26 +1334,8 @@ UVIslands::UVIslands(const MeshData &mesh_data)
       }
     }
   });
-}
 
-void UVIslands::extract_borders()
-{
-  PRF_scope(ProfileCategory::Editor);
-  threading::parallel_for(islands.index_range(), 1, [&](const IndexRange range) {
-    for (const int64_t i : range) {
-      islands[i].extract_borders();
-    }
-  });
-}
-
-void UVIslands::extend_borders(const MeshData &mesh_data, const UVIslandsMask &islands_mask)
-{
-  PRF_scope(ProfileCategory::Editor);
-  threading::parallel_for(islands.index_range(), 1, [&](const IndexRange range) {
-    for (const int64_t i : range) {
-      islands[i].extend_border(mesh_data, islands_mask, short(i));
-    }
-  });
+  return islands;
 }
 
 /** \} */
@@ -1418,28 +1402,24 @@ static void add_uv_island(const MeshData &mesh_data,
 
     /* Rasterize. */
     const TriRasterizer rasterizer(p0, p1, p2);
-    float3 row_edge_vals = rasterizer.edge_values(xmin, ymin);
     for (int y = ymin; y <= ymax; y++) {
-      float3 edge_vals = row_edge_vals;
       for (int x = xmin; x <= xmax; x++) {
-        if (rasterizer.inside(edge_vals)) {
+        if (rasterizer.inside(x, y)) {
           tile.mask[int64_t(tile.mask_resolution.x) * y + x] = island_index;
         }
-        edge_vals += rasterizer.dx_step;
       }
-      row_edge_vals += rasterizer.dy_step;
     }
   }
 }
 
-void UVIslandsMask::add(const MeshData &mesh_data, const UVIslands &uv_islands)
+void UVIslandsMask::add(const MeshData &mesh_data, const Span<UVIsland> uv_islands)
 {
   PRF_scope(ProfileCategory::Editor);
 
   threading::parallel_for(IndexRange(tiles.size()), 1, [&](const IndexRange range) {
     for (const int tile_index : range) {
-      for (const int i : uv_islands.islands.index_range()) {
-        add_uv_island(mesh_data, tiles[tile_index], uv_islands.islands[i], i);
+      for (const int i : uv_islands.index_range()) {
+        add_uv_island(mesh_data, tiles[tile_index], uv_islands[i], i);
       }
     }
   });
