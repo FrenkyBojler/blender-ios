@@ -16,6 +16,8 @@
 namespace blender::bke::greasepencil {
 
 std::optional<FillCache> fill_cache_from_fill_ids(const VArray<int> &fill_ids);
+std::pair<Vector<int>, Vector<int>> shapes_from_fill_ids(const VArray<int> &fill_ids,
+                                                         int curves_num);
 
 /* Get the next available fill ID. */
 int get_next_available_fill_id(Span<int> fill_ids);

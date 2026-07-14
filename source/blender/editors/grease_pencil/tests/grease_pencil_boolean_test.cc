@@ -24,7 +24,7 @@
 #include <type_traits>
 
 /* Should tests draw their output to an HTML file? */
-#define DO_DRAW 0
+#define DO_DRAW 1
 
 namespace blender::ed::greasepencil::tests {
 
@@ -154,35 +154,41 @@ class SVGMapping {
 
 static void SVG_add_path(std::ofstream &f,
                          const std::string &class_name,
-                         const VArraySpan<float2> &points,
-                         const IndexMask &polygons,
-                         const OffsetIndices<int> points_by_polygon,
+                         const VArraySpan<float2> &positions,
+                         const GroupedSpan<int> shapes,
+                         const IndexMask &shape_mask,
+                         const OffsetIndices<int> points_by_curve,
                          const VArraySpan<bool> &cyclic,
                          const SVGMapping &mapping)
 {
-  polygons.foreach_index([&](const int64_t polygon_id) {
+  shape_mask.foreach_index([&](const int64_t shape_i) {
     f << "<path class = \"" << class_name << "\" d = \"";
 
-    const IndexRange vert_ids = points_by_polygon[polygon_id];
-    /* TODO. */
-    // if (polygon_id != 0) {
-    //   f << " ";
-    // }
+    const Span<int> shape = shapes[shape_i];
 
-    f << "M ";
-    for (const int i : vert_ids.index_range()) {
-      const float2 &point = points[vert_ids[i]];
+    for (const int pos : shape.index_range()) {
+      const int curve_i = shape[pos];
 
-      if (i == 1) {
-        f << " L ";
+      if (pos != 0) {
+        f << " ";
       }
-      else if (i != 0) {
-        f << ", ";
+
+      f << "M ";
+      const IndexRange points = points_by_curve[curve_i];
+      for (const int i : points.index_range()) {
+        const float2 &pos = positions[points[i]];
+
+        if (i == 1) {
+          f << " L ";
+        }
+        else if (i != 0) {
+          f << ", ";
+        }
+        f << mapping.SX(pos[0]) << "," << mapping.SY(pos[1]);
       }
-      f << mapping.SX(point[0]) << "," << mapping.SY(point[1]);
-    }
-    if (cyclic[polygon_id]) {
-      f << " Z";
+      if (cyclic[curve_i]) {
+        f << " Z";
+      }
     }
 
     f << "\"";
@@ -261,8 +267,10 @@ static void draw_results(const std::string &label,
                          const std::string &type,
                          const bke::CurvesGeometry &src_curves,
                          const bke::CurvesGeometry &dst_curves,
-                         const IndexMask &clipping_fills)
+                         const IndexMask &clipping_shapes)
 {
+  using namespace bke::greasepencil;
+
   if (!DO_DRAW) {
     return;
   }
@@ -276,15 +284,30 @@ static void draw_results(const std::string &label,
   const OffsetIndices<int> dst_points_by_curve = dst_curves.points_by_curve();
   const VArraySpan<bool> src_cyclic = src_curves.cyclic();
   const VArraySpan<bool> dst_cyclic = dst_curves.cyclic();
-  const VArray<float2> src_points = *src_curves.attributes().lookup<float2>(
-      ".positions_2d", bke::AttrDomain::Point);
-  const VArray<float2> dst_points = *dst_curves.attributes().lookup<float2>(
-      ".positions_2d", bke::AttrDomain::Point);
 
-  /* TODO. */
+  const bke::AttributeAccessor src_attributes = src_curves.attributes();
+  const bke::AttributeAccessor dst_attributes = dst_curves.attributes();
+
+  const VArray<float2> src_points = *src_attributes.lookup<float2>(".positions_2d",
+                                                                   bke::AttrDomain::Point);
+  const VArray<float2> dst_points = *dst_attributes.lookup<float2>(".positions_2d",
+                                                                   bke::AttrDomain::Point);
+  const VArray<int> src_fill_ids = *src_attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+  const VArray<int> dst_fill_ids = *dst_attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+
+  auto [src_shape_map, src_shape_offsets] = shapes_from_fill_ids(src_fill_ids,
+                                                                 src_curves.curves_num());
+
+  auto [dst_shape_map, dst_shape_offsets] = shapes_from_fill_ids(dst_fill_ids,
+                                                                 dst_curves.curves_num());
+
+  const GroupedSpan<int> src_shapes = GroupedSpan<int>(src_shape_offsets.as_span(),
+                                                       src_shape_map.as_span());
+  const GroupedSpan<int> dst_shapes = GroupedSpan<int>(dst_shape_offsets.as_span(),
+                                                       dst_shape_map.as_span());
+
   IndexMaskMemory memory;
-  const IndexMask subject_fills = clipping_fills.complement(src_points_by_curve.index_range(),
-                                                            memory);
+  const IndexMask subject_shapes = clipping_shapes.complement(src_shapes.index_range(), memory);
 
   BLI_assert(src_points.is_span());
   const SVGMapping mapping = SVGMapping(*bounds::min_max(src_points.get_internal_span()));
@@ -292,15 +315,28 @@ static void draw_results(const std::string &label,
   f << "<div>\n";
   f << "<svg width=\"" << mapping.view_width << "\" height=\"" << mapping.view_height << "\">\n";
 
-  SVG_add_path(
-      f, type + "-A", src_points, subject_fills, src_points_by_curve, src_cyclic, mapping);
-  SVG_add_path(
-      f, type + "-B", src_points, clipping_fills, src_points_by_curve, src_cyclic, mapping);
+  SVG_add_path(f,
+               type + "-A",
+               src_points,
+               src_shapes,
+               subject_shapes,
+               src_points_by_curve,
+               src_cyclic,
+               mapping);
+  SVG_add_path(f,
+               type + "-B",
+               src_points,
+               src_shapes,
+               clipping_shapes,
+               src_points_by_curve,
+               src_cyclic,
+               mapping);
 
   SVG_add_path(f,
                type + "-C",
                dst_points,
-               dst_points_by_curve.index_range(),
+               dst_shapes,
+               dst_shapes.index_range(),
                dst_points_by_curve,
                dst_cyclic,
                mapping);
@@ -687,6 +723,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
     const IndexRange clipping_fills = IndexRange(0, 1);
+    const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -699,7 +736,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
                                                    {{0.857143, 3.14286}, {0, 2}, {0, 0}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 1", "cut", src_curves, dst_curves, clipping_fills);
+    draw_results("Simple Cut 1", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {{5, 5}, {3, 5}, {1, 3}, {1, 1}, {5, 6}, {6, 5}, {1, 0}, {0, 1}};
@@ -707,6 +744,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
     const IndexRange clipping_fills = IndexRange(0, 1);
+    const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -717,7 +755,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 2", "cut", src_curves, dst_curves, clipping_fills);
+    draw_results("Simple Cut 2", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {{6, 8},
@@ -737,6 +775,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
     const IndexRange clipping_fills = IndexRange(0, 1);
+    const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -750,7 +789,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
                                                    {{1.6, 3.8}, {1.27273, 3.36364}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 3", "cut", src_curves, dst_curves, clipping_fills);
+    draw_results("Simple Cut 3", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {{6, 7},
@@ -770,6 +809,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
     const IndexRange clipping_fills = IndexRange(0, 1);
+    const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -783,7 +823,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
                                                    {{1.42857, 2.57143}, {1, 2}, {1, 0}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Simple Cut 4", "cut", src_curves, dst_curves, clipping_fills);
+    draw_results("Simple Cut 4", "cut", src_curves, dst_curves, clipping_shapes);
   }
   {
     const Array<float2> points = {
@@ -792,6 +832,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<bool> is_cyclic = {true, true};
     const Array<int> fill_ids = {0, 1};
     const IndexRange clipping_fills = IndexRange(0, 1);
+    const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
@@ -804,7 +845,7 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
                                                    {{1.8, 2.8}, {1, 2}, {1, 0}, {2.6, 1.6}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Cyclical Cut", "cut", src_curves, dst_curves, clipping_fills);
+    draw_results("Cyclical Cut", "cut", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
