@@ -504,7 +504,6 @@ class _defs_view3d_select:
 
 
 ToolDefaults = namedtuple("ToolDefaults", ["origin_base", "aspect_base", "origin_depth", "aspect_depth"])
-TrianglesConeFillType = 2
 
 
 class _defs_view3d_add:
@@ -606,9 +605,12 @@ class _defs_view3d_add:
     def cube_add():
         def draw_settings(context, layout, tool, *, extra=False):
             show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
+            if extra:
+                return
 
             props = tool.operator_properties("mesh.primitive_cube_add")
-            layout.prop(props, "subdivisions")
+            if context.mode == 'SCULPT':
+                layout.prop(props, "subdivisions")
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
@@ -635,6 +637,9 @@ class _defs_view3d_add:
                 return
 
             props = tool.operator_properties("mesh.primitive_cone_add")
+            layout.prop(props, "vertices")
+            layout.prop(props, "end_fill_type")
+
             if context.mode == 'SCULPT':
                 layout.prop(props, "rings")
                 layout.prop(props, "fill_segments")
@@ -644,9 +649,6 @@ class _defs_view3d_add:
 
             elif not props.is_property_set("end_fill_type"):
                 props.end_fill_type = 'NGON'
-
-            layout.prop(props, "vertices")
-            layout.prop(props, "end_fill_type")
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
@@ -673,6 +675,9 @@ class _defs_view3d_add:
                 return
 
             props = tool.operator_properties("mesh.primitive_cylinder_add")
+            layout.prop(props, "vertices")
+            layout.prop(props, "end_fill_type")
+
             if context.mode == 'SCULPT':
                 layout.prop(props, "rings")
                 layout.prop(props, "fill_segments")
@@ -682,9 +687,6 @@ class _defs_view3d_add:
 
             elif not props.is_property_set("end_fill_type"):
                 props.end_fill_type = 'NGON'
-
-            layout.prop(props, "vertices")
-            layout.prop(props, "end_fill_type")
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")

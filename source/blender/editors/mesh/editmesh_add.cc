@@ -6,10 +6,12 @@
  * \ingroup edmesh
  */
 
+#include <cstdarg>
 #include <optional>
 
 #include "BLI_math_euler.hh"
 #include "BLI_math_matrix_c.hh"
+#include "BLI_sys_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -22,10 +24,10 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "DEG_depsgraph.hh"
 
-#include "DNA_windowmanager_types.h"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -425,7 +427,6 @@ void MESH_OT_primitive_cube_add(wmOperatorType *ot)
   ot->exec = add_primitive_cube_exec;
   ot->poll = ED_operator_scene_editable;
 
-  /* UI overrides */
   ot->ui = primitive_cube_add_ui;
 
   /* flags */
@@ -632,7 +633,6 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
   ot->exec = add_primitive_cylinder_exec;
   ot->poll = ED_operator_scene_editable;
 
-  /* UI overrides */
   ot->ui = primitive_cylinder_add_ui;
 
   /* flags */
@@ -770,7 +770,6 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   ot->exec = add_primitive_cone_exec;
   ot->poll = ED_operator_scene_editable;
 
-  /* UI overrides */
   ot->ui = primitive_cone_add_ui;
 
   /* flags */
