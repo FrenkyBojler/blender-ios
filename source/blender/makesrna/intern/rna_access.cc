@@ -547,8 +547,8 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
   r_prop_rna_or_id->ptr = ptr;
   r_prop_rna_or_id->rawprop = prop;
 
-  const bool is_ptr_type_prop_or_struct = RNA_struct_is_a(ptr->type, RNA_Property) ||
-                                          RNA_struct_is_a(ptr->type, RNA_Struct);
+  /* True when `ptr` refers to an RNA type/property definition rather than actual data. */
+  const bool is_ptr_type_prop_or_struct = ptr->type && (ptr->type->flag & STRUCT_RNA_DEFINITION);
   BLI_assert((prop->magic == RNA_MAGIC && (prop->flag & PROP_IDPROPERTY) == 0) ||
              !is_ptr_type_prop_or_struct);
 

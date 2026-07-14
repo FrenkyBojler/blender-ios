@@ -3192,6 +3192,7 @@ static void rna_def_struct(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "Struct", nullptr);
   RNA_def_struct_ui_text(srna, "Struct Definition", "RNA structure definition");
   RNA_def_struct_ui_icon(srna, ICON_RNA);
+  RNA_def_struct_flag(srna, STRUCT_RNA_DEFINITION);
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -3297,6 +3298,7 @@ static void rna_def_property(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Property Definition", "RNA property definition");
   RNA_def_struct_refine_func(srna, "rna_Property_refine");
   RNA_def_struct_ui_icon(srna, ICON_RNA);
+  RNA_def_struct_flag(srna, STRUCT_RNA_DEFINITION);
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
