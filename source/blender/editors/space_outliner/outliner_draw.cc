@@ -3756,7 +3756,7 @@ ARegion *tooltip_init(bContext *C,
                       ARegion * /*region*/,
                       int * /*r_pass*/,
                       double * /*pass_delay*/,
-                      bool * /*r_exit_on_event*/)
+                      bool *r_exit_on_event)
 {
   const wmWindow *wm = CTX_wm_window(C);
   const wmEvent *event = wm->runtime->eventstate;
@@ -3770,6 +3770,7 @@ ARegion *tooltip_init(bContext *C,
       id = tselem->id;
       if (id && te->abstract_element && te->abstract_element->tooltip_fn) {
         region = te->abstract_element->tooltip_fn(C, id, event->xy);
+        *r_exit_on_event = true;
       }
     }
   });
@@ -3781,7 +3782,7 @@ static void draw_tooltip(bContext *C, SpaceOutliner * /*space_outliner*/)
 {
   wmWindow *wm = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
-  WM_tooltip_timer_init_ex(C, wm, CTX_wm_area(C), region, tooltip_init, 0.0f);
+  WM_tooltip_timer_init_ex(C, wm, CTX_wm_area(C), region, tooltip_init, 0.5f);
 }
 
 /** \} */
