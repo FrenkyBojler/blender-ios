@@ -632,7 +632,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
 {
   char name[MAXBONENAME];
 
-  /* get the name - if flipping, we must flip this first */
+  /* Get the name of the bone to paste to - if flipping, we must flip this first. */
   if (flip) {
     BLI_string_flip_side_name(name, copy_transformable.name().data(), false, sizeof(name));
   }
@@ -640,19 +640,16 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
     STRNCPY_UTF8(name, copy_transformable.name().data());
   }
 
-  /* only copy when:
-   *  1) channel exists - poses are not meant to add random channels to anymore
-   *  2) if selection-masking is on, channel is selected -
-   *     only selected bones get pasted on, allowing making both sides symmetrical.
-   */
-  bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, name);
+  bPoseChannel *paste_bone = BKE_pose_channel_find_name(paste_ob.pose, name);
   if (r_is_found) {
-    *r_is_found = pchan != nullptr;
+    *r_is_found = paste_bone != nullptr;
   }
-  if (pchan == nullptr) {
+  if (paste_bone == nullptr) {
     return nullptr;
   }
-  if (selOnly && (pchan->flag & POSE_SELECTED) == 0) {
+  /* If selection-masking is on, only selected bones get pasted on, which allows making both sides
+   * symmetrical. */
+  if (selected_only && (paste_bone->flag & POSE_SELECTED) == 0) {
     return nullptr;
   }
   ed::AnimTransformable paste_transformable(*ob, *pchan);
@@ -688,36 +685,35 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   interp_v3_v3v3(pchan->scale_in, pchan->scale_in, copy_pchan->scale_in, factor);
   interp_v3_v3v3(pchan->scale_out, pchan->scale_out, copy_pchan->scale_out, factor);
 
-  /* paste flipped pose? */
+  /* Flips pose directly by modifying transform parameters. */
   if (flip) {
-    pchan->loc[0] *= -1;
+    paste_bone->loc[0] *= -1;
 
-    pchan->curve_in_x *= -1;
-    pchan->curve_out_x *= -1;
-    pchan->roll1 *= -1; /* XXX? */
-    pchan->roll2 *= -1; /* XXX? */
+    paste_bone->curve_in_x *= -1;
+    paste_bone->curve_out_x *= -1;
+    paste_bone->roll1 *= -1; /* XXX? */
+    paste_bone->roll2 *= -1; /* XXX? */
 
-    /* has to be done as eulers... */
-    if (pchan->rotmode > 0) {
-      pchan->eul[1] *= -1;
-      pchan->eul[2] *= -1;
+    if (paste_bone->rotmode > 0) {
+      paste_bone->eul[1] *= -1;
+      paste_bone->eul[2] *= -1;
     }
-    else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
+    else if (paste_bone->rotmode == ROT_MODE_AXISANGLE) {
       float eul[3];
 
-      axis_angle_to_eulO(eul, EULER_ORDER_DEFAULT, pchan->rotAxis, pchan->rotAngle);
+      axis_angle_to_eulO(eul, EULER_ORDER_DEFAULT, paste_bone->rotAxis, paste_bone->rotAngle);
       eul[1] *= -1;
       eul[2] *= -1;
-      eulO_to_axis_angle(pchan->rotAxis, &pchan->rotAngle, eul, EULER_ORDER_DEFAULT);
+      eulO_to_axis_angle(paste_bone->rotAxis, &paste_bone->rotAngle, eul, EULER_ORDER_DEFAULT);
     }
     else {
+      /* Has to be done as eulers. */
       float eul[3];
-
-      normalize_qt(pchan->quat);
-      quat_to_eul(eul, pchan->quat);
+      normalize_qt(paste_bone->quat);
+      quat_to_eul(eul, paste_bone->quat);
       eul[1] *= -1;
       eul[2] *= -1;
-      eul_to_quat(pchan->quat, eul);
+      eul_to_quat(paste_bone->quat, eul);
     }
   }
 
@@ -744,7 +740,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
     }
   }
 
-  return pchan;
+  return paste_bone;
 }
 
 /** \} */
@@ -834,7 +830,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   Scene *scene = CTX_data_scene(C);
   const bool flip = RNA_boolean_get(op->ptr, "flipped");
-  bool selOnly = RNA_boolean_get(op->ptr, "selected_mask");
+  bool selected_only = RNA_boolean_get(op->ptr, "selected_mask");
 
   /* Get KeyingSet to use. */
   KeyingSet *ks = animrig::get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
@@ -882,19 +878,17 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* If selOnly option is enabled, if user hasn't selected any bones,
+  /* If selected_only option is enabled, if user hasn't selected any bones,
    * just go back to default behavior to be more in line with other
-   * pose tools.
-   */
-  if (selOnly) {
+   * pose tools. */
+  if (selected_only) {
     if (CTX_DATA_COUNT(C, selected_pose_bones) == 0) {
-      selOnly = false;
+      selected_only = false;
     }
   }
 
   /* Safely merge all of the channels in the buffer pose into any
-   * existing pose.
-   */
+   * existing pose. */
   int num_pasted_bones = 0;
   int num_skipped_bones = 0;
   int num_copied_bones = 0;
@@ -913,7 +907,8 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
         ob, {*object_from, pchan_from}, selOnly, flip, factor, &is_found);
     if (!pchan_to) {
       if (is_found) {
-        /* The bone was found, but not selected (and selOnly), so nothing was pasted to it. */
+        /* The bone was found, but not selected (and selected_only), so nothing was pasted to it.
+         */
         num_skipped_bones++;
         continue;
       }
@@ -931,8 +926,8 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   BKE_main_free(temp_bmain);
 
   if (num_pasted_bones == 0) {
-    const char *msg = selOnly ? "None of the %d copied bones are selected now" :
-                                "None of the %d copied bones could be pasted";
+    const char *msg = selected_only ? "None of the %d copied bones are selected now" :
+                                      "None of the %d copied bones could be pasted";
     BKE_reportf(op->reports, RPT_WARNING, msg, num_copied_bones);
     /* Return OPERATOR_FINISHED to show the redo panel. It should be possible to
      * turn off "Selected Only" if necessary. */
@@ -979,7 +974,6 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
     ED_pose_recalculate_paths(C, scene, ob, ANIMVIZ_CALC_RANGE_FULL);
   }
 
-  /* Notifiers for updates, */
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
@@ -1447,13 +1441,12 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
 
   FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     if ((ob->adt) && (ob->adt->action)) {
-      /* XXX: this is just like this to avoid contaminating anything else;
-       * just pose values should change, so this should be fine
-       */
+      /* In order to reset only a single pose bone to its keyed values we need to evaluate it and
+       * copy the evaluated data back onto it. */
       bPose *dummyPose = nullptr;
       Object workob{};
 
-      /* execute animation step for current frame using a dummy copy of the pose */
+      /* Execute animation step for current frame using a dummy copy of the pose. */
       BKE_pose_copy_data(&dummyPose, ob->pose, false);
 
       STRNCPY_UTF8(workob.id.name, "OB<ClearTfmWorkOb>");
@@ -1465,12 +1458,11 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
       BKE_animsys_evaluate_animdata(
           &workob.id, workob.adt, &anim_eval_context, ADT_RECALC_ANIM, false);
 
-      /* Copy back values, but on selected bones only. */
       for (bPoseChannel &pchan : dummyPose->chanbase) {
         pose_bone_do_paste(ob, {*ob, pchan}, only_select, 1.0f, false);
       }
 
-      /* free temp data - free manually as was copied without constraints */
+      /* Free temp data - free manually as was copied without constraints. */
       for (bPoseChannel &pchan : dummyPose->chanbase) {
         if (pchan.prop) {
           IDP_FreeProperty(pchan.prop);
@@ -1480,7 +1472,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
         }
       }
 
-      /* was copied without constraints */
+      /* Was copied without constraints. */
       dummyPose->chanbase.free_no_destruct();
       MEM_delete(dummyPose);
     }
@@ -1489,7 +1481,6 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
       BKE_pose_rest(*ob, only_select);
     }
 
-    /* notifiers and updates */
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
   }
