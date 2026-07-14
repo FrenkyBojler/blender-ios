@@ -1,2 +1,2 @@
 Referenced by issue #157962, Vulkan backend makes Blender 5.1 noticeably darker on Linux
-Referenced by issue #158853, pyGPU: Crash on shader compilation
+Referenced by issue #158853, pyGPU: Crash on switching between rendered and material preview IF a shader is compiled
