@@ -31,22 +31,6 @@ float3x3 unpack_isotropic_matrix(float4 v)
   return float3x3(float3(v.x, 0, v.y), float3(0, 1, 0), float3(v.z, 0, v.w));
 }
 
-/**
- * Compute a tangent basis around N, using an incident vector I.
- */
-float3x3 tangent_basis(float3 N, float3 I)
-{
-  float NI = dot(N, I);
-  if (NI > 0.999999f) {
-    /* Mostly for orthographic view and surfel light eval. */
-    return from_up_axis(N);
-  }
-  /* Construct orthonormal basis around N. */
-  float3 T1 = normalize(I - N * NI);
-  float3 T2 = cross(N, T1);
-  return float3x3(T1, T2, N);
-}
-
 }  // namespace detail
 
 /**
