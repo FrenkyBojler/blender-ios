@@ -7,3 +7,4 @@ Referenced by issue #160535, Crash transforming vertices with geometry nodes, a 
 Referenced by pull request #160844, Fix #160535: Crash transforming a mesh with geometry nodes & cage deform
 Referenced by pull request #161224, Fix #161196: Modifier edit and cage visibility issues
 Referenced by issue #161363, Crash when switching to Weight Paint on a mesh with a geometry nodes modifier
+Referenced by commit 9c9cd5d2d0f00bc57668c7a2e7a9b236831e7579, Fix #161196: Modifier edit and cage visibility issues
