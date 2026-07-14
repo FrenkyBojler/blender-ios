@@ -327,9 +327,8 @@ void update_effect_node_group_interface(Main &main, Scene &scene, SceneComposito
       &scene.id, RNA_SceneCompositorEffectProperties, &effect);
   RNA_ensure_and_sync_system_properties(main, properties_ptr, *effect.system_properties);
 
-  if (effect.node_group) {
-    DEG_id_tag_update(&effect.node_group->id, ID_RECALC_NTREE_OUTPUT);
-  }
+  DEG_id_tag_update(&scene.id, ID_RECALC_COMPOSITOR);
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, &scene);
 }
 
 /* --------------------------------------------------------------------

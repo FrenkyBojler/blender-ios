@@ -10,6 +10,7 @@
 
 #include <fmt/format.h>
 
+#include "DNA_ID.h"
 #include "DNA_node_types.h"
 
 #include "BLI_color_types.hh"
@@ -1300,12 +1301,8 @@ static void make_common_fallback_props(StructRNA &srna,
 static void set_scene_compositor_effect_property_update_function(PropertyRNA *property)
 {
   RNA_def_property_update_runtime(
-      property, [](Main * /*bmain*/, Scene * /*scene*/, PointerRNA *property_ptr) {
-        const SceneCompositorEffect *effect = bke::compositor::get_effect_from_property(
-            *property_ptr);
-        if (effect->node_group) {
-          DEG_id_tag_update(&effect->node_group->id, ID_RECALC_NTREE_OUTPUT);
-        }
+      property, [](Main * /*bmain*/, Scene *scene, PointerRNA * /*property_ptr*/) {
+        DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
       });
   RNA_def_property_update_notifier(property, NC_SCENE | ND_COMPO_RESULT);
 }

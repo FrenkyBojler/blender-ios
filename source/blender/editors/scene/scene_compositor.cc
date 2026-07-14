@@ -28,6 +28,7 @@
 
 #include "AS_asset_representation.hh"
 
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "NOD_defaults.hh"
@@ -45,7 +46,9 @@ static wmOperatorStatus add_compositor_effect_exec(bContext *C, wmOperator * /*o
 {
   Scene *scene = CTX_data_scene(C);
   bke::compositor::new_effect(*scene, "Scene Compositor Effect");
+
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
@@ -76,8 +79,11 @@ static wmOperatorStatus remove_compositor_effect_exec(bContext *C, wmOperator *o
 
   bke::compositor::remove_effect(*scene, *effect);
 
-  // TODO: Updates.
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 static void SCENE_OT_remove_compositor_effect(wmOperatorType *ot)
@@ -116,8 +122,11 @@ static wmOperatorStatus duplicate_compositor_effect_exec(bContext *C, wmOperator
 
   bke::compositor::copy_effect(*scene, *effect);
 
-  // TODO: Updates.
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
@@ -162,8 +171,9 @@ static wmOperatorStatus move_compositor_effect_to_index_exec(bContext *C, wmOper
     return OPERATOR_CANCELLED;
   }
 
-  // TODO: Updates.
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
@@ -208,8 +218,9 @@ static wmOperatorStatus set_active_compositor_effect_exec(bContext *C, wmOperato
   }
   bke::compositor::set_active_effect(*scene, *effect);
 
-  // TODO: Updates.
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
@@ -219,6 +230,7 @@ static wmOperatorStatus set_active_compositor_effect_invoke(bContext *C,
 {
   return set_active_compositor_effect_exec(C, op);
 }
+
 static void SCENE_OT_set_active_compositor_effect(wmOperatorType *ot)
 {
   ot->name = "Set Active Scene Compositor Effect";
@@ -261,10 +273,10 @@ static wmOperatorStatus new_compositor_effect_node_group_exec(bContext *C, wmOpe
   }
   active_effect->node_group = node_group;
 
-  // TODO: Updates.
   DEG_relations_tag_update(bmain);
-  BKE_main_ensure_invariants(*bmain, active_effect->node_group->id);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
@@ -307,8 +319,11 @@ static wmOperatorStatus duplicate_compositor_effect_node_group_exec(bContext *C,
   effect->node_group = node_tree;
   id_us_min(&original_node_group->id);
 
-  // TODO: Updates.
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
@@ -382,7 +397,11 @@ static wmOperatorStatus add_compositor_effect_node_group_asset_exec(bContext *C,
   Main &main = *CTX_data_main(C);
   bke::compositor::update_effect_node_group_interface(main, *scene, effect);
 
-  // TODO: Updates.
+  Main *bmain = CTX_data_main(C);
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
+  WM_event_add_notifier(C, NC_SCENE | ND_COMPO_RESULT, scene);
+
   return OPERATOR_FINISHED;
 }
 
