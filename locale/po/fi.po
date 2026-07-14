@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e899b48ea546')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 07:32+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-04-06 09:16+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -7236,12 +7236,20 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Track"
-msgstr "Raide"
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
 
 
 msgid "Math"
 msgstr "Matematiikka"
+
+
+msgid "Names"
+msgstr "Nimet"
 
 
 msgid "Utilities"
@@ -7256,6 +7264,14 @@ msgid "Write"
 msgstr "Kirjoita"
 
 
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
 msgid "UV Mapping"
 msgstr "UV-kartoittaminen"
 
@@ -7264,8 +7280,8 @@ msgid "Select More/Less"
 msgstr "Valitse enemmän/vähemmän"
 
 
-msgid "Instances"
-msgstr "Instanssit"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -7280,52 +7296,36 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "Import"
-msgstr "Tuo"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Random Mask"
-msgstr "Satunnainen maski"
-
-
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
+msgid "Light"
+msgstr "Valo"
 
 
 msgid "Light Probe"
 msgstr "Valoluotain"
 
 
-msgid "Light"
-msgstr "Valo"
-
-
 msgid "Add Image"
 msgstr "Lisää kuva"
+
+
+msgid "Track"
+msgstr "Raide"
+
+
+msgid "Linked"
+msgstr "Linkitetyt"
 
 
 msgid "Hooks"
 msgstr "Koukut"
 
 
-msgid "Names"
-msgstr "Nimet"
+msgid "Random Mask"
+msgstr "Satunnainen maski"
 
 
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
-
-
-msgid "Linked"
-msgstr "Linkitetyt"
 
 
 msgid "Basic"
@@ -17299,6 +17299,10 @@ msgid "network"
 msgstr "verkko"
 
 
+msgid "Utility"
+msgstr "Työkalu"
+
+
 msgid "Add & Subtract"
 msgstr "Lisää & Vähennä"
 
@@ -17317,10 +17321,6 @@ msgstr "Muodon kärkimaalaaminen"
 
 msgid "Mesh Weight Paint"
 msgstr "Muodon painomaalaaminen"
-
-
-msgid "Utility"
-msgstr "Työkalu"
 
 
 msgid "Surface Normal"

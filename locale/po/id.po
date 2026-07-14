@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e899b48ea546')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 07:32+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-06-02 05:12+0000\n"
 "Last-Translator: Fadli Birdie Zeinda <justbirdie00@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15740,36 +15740,32 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "Track"
-msgstr "Lacak"
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Metaball"
+msgstr "Metabola"
 
 
 msgid "Math"
 msgstr "Matematika"
 
 
+msgid "Names"
+msgstr "Nama"
+
+
 msgid "Utilities"
 msgstr "Utilitas"
-
-
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
 
 
 msgid "Sample"
 msgstr "Sampel"
 
 
-msgid "Mirror"
-msgstr "Cermin"
-
-
 msgid "Snap"
 msgstr "Jepret"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
 
 
 msgid "Gizmo"
@@ -15780,52 +15776,48 @@ msgid "Instances"
 msgstr "Contoh-contoh"
 
 
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
-
-
 msgid "Import"
 msgstr "Impor"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
 
 
 msgid "UV"
 msgstr "UV"
 
 
-msgid "Metaball"
-msgstr "Metabola"
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
 
 
-msgid "Asset"
-msgstr "Aset"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Light Probe"
-msgstr "Probe Cahaya"
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Light"
 msgstr "Cahaya"
 
 
+msgid "Light Probe"
+msgstr "Probe Cahaya"
+
+
 msgid "Add Image"
 msgstr "Tambah Gambar"
 
 
-msgid "Hooks"
-msgstr "Kait"
+msgid "Apply"
+msgstr "Tetapkan"
 
 
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
+msgid "Track"
+msgstr "Lacak"
 
 
 msgid "Linked"
@@ -15834,6 +15826,14 @@ msgstr "Terkoleksi"
 
 msgid "Layout"
 msgstr "Tata Letak"
+
+
+msgid "Asset"
+msgstr "Aset"
+
+
+msgid "Hooks"
+msgstr "Kait"
 
 
 msgid "Tracking"
@@ -26042,11 +26042,6 @@ msgstr "Preset Brush"
 msgctxt "Operator"
 msgid "Push"
 msgstr "Dorong"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Ukuran Tulang"
 
 
 msgctxt "Operator"

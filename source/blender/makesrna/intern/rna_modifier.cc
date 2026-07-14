@@ -21,7 +21,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
 #include "BKE_mesh_remap.hh"
@@ -558,9 +558,9 @@ const EnumPropertyItem rna_enum_shrinkwrap_face_cull_items[] = {
 };
 
 const EnumPropertyItem rna_enum_node_warning_type_items[] = {
-    {int(nodes::NodeWarningType::Error), "ERROR", ICON_CANCEL, "Error", ""},
-    {int(nodes::NodeWarningType::Warning), "WARNING", ICON_ERROR, "Warning", ""},
-    {int(nodes::NodeWarningType::Info), "INFO", ICON_INFO, "Info", ""},
+    {int(nodes::NodeWarningType::Error), "ERROR", ICON_STATUS_ERROR_FILLED, "Error", ""},
+    {int(nodes::NodeWarningType::Warning), "WARNING", ICON_STATUS_WARNING_FILLED, "Warning", ""},
+    {int(nodes::NodeWarningType::Info), "INFO", ICON_STATUS_INFO_FILLED, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1930,7 +1930,7 @@ static void rna_NodesModifier_node_group_update(Main *bmain, Scene *scene, Point
   Object *object = id_cast<Object *>(ptr->owner_id);
   NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
   rna_Modifier_dependency_update(bmain, scene, ptr);
-  MOD_nodes_update_interface(object, nmd);
+  MOD_nodes_update_interface(*bmain, object, nmd);
 }
 
 static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
@@ -1973,7 +1973,7 @@ static nodes::eval_log::NodeTreeLog *get_nodes_modifier_log(const Object &object
     return nullptr;
   }
   bke::DataBlockComputeContext data_block_context{nullptr, object.id};
-  bke::ModifierComputeContext modifier_context{&data_block_context, nmd};
+  bke::GeometryNodesModifierComputeContext modifier_context{&data_block_context, nmd};
   return &nmd.runtime->eval_log->get_tree_log(modifier_context.hash());
 }
 
@@ -2206,8 +2206,10 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
                StringRefNull(nmd_bake_b->packed->blob_files[i].name)) ||
               (nmd_bake_a->packed->blob_files[i].data() !=
                nmd_bake_b->packed->blob_files[i].data()))
+          {
             is_different = true;
-          break;
+            break;
+          }
         }
       }
       if (!is_different) {
@@ -2254,7 +2256,7 @@ void rna_NodesModifierBake_override_diff(Main *bmain, RNAPropertyOverrideDiffCon
       BKE_lib_override_library_property_operation_ui_info_set(
           *opop,
           node->name,
-          fmt::format(fmt::runtime(DATA_("{}::{}::{}")),
+          fmt::format("{}::{}::{}",
                       owner_ntree->id.lib ? BKE_id_name(owner_ntree->id.lib->id) : "LOCAL",
                       BKE_id_name(owner_ntree->id),
                       node->name));
@@ -2280,7 +2282,7 @@ bool rna_NodesModifierBake_override_apply(Main *bmain,
    * #override_remove_button_exec), to revert the overridden changes. */
   BLI_assert_msg((((opop->operation == LIBOVERRIDE_OP_CUSTOM) && !removed_opop) ||
                   ((opop->operation == LIBOVERRIDE_OP_REPLACE) &&
-                   (removed_opop && (removed_opop->operation = LIBOVERRIDE_OP_CUSTOM)))),
+                   (removed_opop && (removed_opop->operation == LIBOVERRIDE_OP_CUSTOM)))),
                  "Unsupported RNA override operation on Nodes modifier bakes collection");
 #  endif
 

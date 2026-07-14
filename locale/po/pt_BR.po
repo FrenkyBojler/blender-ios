@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e899b48ea546')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-06-15 07:32+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-04-13 10:12+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -21188,24 +21188,64 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Track"
-msgstr "Rastrear"
+msgid "Face Data"
+msgstr "Dados das faces"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
+msgid "Merge"
+msgstr "Fundir"
+
+
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Metaball"
+msgstr "Meta-esfera"
 
 
 msgid "Math"
 msgstr "Matemática"
 
 
-msgid "Mirror"
-msgstr "Espelhar"
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
 
 
 msgid "Snap"
 msgstr "Atrair"
 
 
-msgid "Rigid Body"
-msgstr "Corpo rígido"
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Import"
+msgstr "Importar"
+
+
+msgid "Mirror"
+msgstr "Espelhar"
 
 
 msgid "UV Mapping"
@@ -21240,8 +21280,8 @@ msgid "Select More/Less"
 msgstr "Selecionar mais ou menos"
 
 
-msgid "Instances"
-msgstr "Instâncias"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -21260,60 +21300,68 @@ msgid "Select Loops"
 msgstr "Selecionar anéis"
 
 
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Relations"
-msgstr "Relações"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
-
-
-msgid "Random Mask"
-msgstr "Máscara Aleatória"
-
-
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Apply"
-msgstr "Aplicar"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
+msgid "Light"
+msgstr "Luz"
 
 
 msgid "Light Probe"
 msgstr "Sonda de Luz"
 
 
-msgid "Light"
-msgstr "Luz"
-
-
 msgid "Add Image"
 msgstr "Adicionar Imagem"
 
 
-msgid "Hooks"
-msgstr "Ganchos"
+msgid "Relations"
+msgstr "Relações"
+
+
+msgid "Rigid Body"
+msgstr "Corpo rígido"
+
+
+msgid "Apply"
+msgstr "Aplicar"
+
+
+msgid "Track"
+msgstr "Rastrear"
+
+
+msgid "Quick Effects"
+msgstr "Efeitos instantâneos"
+
+
+msgid "Linked"
+msgstr "Vinculando"
+
+
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Make Single User"
 msgstr "Tornar usuário único"
 
 
-msgid "Quick Effects"
-msgstr "Efeitos instantâneos"
+msgid "Convert"
+msgstr "Converter"
+
+
+msgid "Hooks"
+msgstr "Ganchos"
+
+
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
+msgid "Random Mask"
+msgstr "Máscara Aleatória"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
 
 
 msgid "Clear Transform"
@@ -21326,10 +21374,6 @@ msgstr "Entre as continuidades"
 
 msgid "Propagate"
 msgstr "Propagar"
-
-
-msgid "Names"
-msgstr "Nomes"
 
 
 msgid "Toggle Bone Options"
@@ -21346,50 +21390,6 @@ msgstr "Desabilitar as opções de ossos"
 
 msgid "Mesh Select Mode"
 msgstr "Modo de seleção de malhas"
-
-
-msgid "Face Data"
-msgstr "Dados das faces"
-
-
-msgid "Merge"
-msgstr "Fundir"
-
-
-msgid "Convert"
-msgstr "Converter"
-
-
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Linked"
-msgstr "Vinculando"
-
-
-msgid "Layout"
-msgstr "Organizar"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
-
-
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
 
 
 msgid "Basic"
@@ -47979,6 +47979,10 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
+msgid "Render Pass"
+msgstr "Passo de renderização"
+
+
 msgid "Motion Tracking"
 msgstr "Captura de movimentos"
 
@@ -47993,10 +47997,6 @@ msgstr "Exibição Quadrante"
 
 msgid "Stereoscopy"
 msgstr "Estereoscopia"
-
-
-msgid "Render Pass"
-msgstr "Passo de renderização"
 
 
 msgid "Bone Constraints"
@@ -48590,11 +48590,6 @@ msgstr "Empurrar"
 msgctxt "Operator"
 msgid "Roll"
 msgstr "Rolagem"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Tamanho dos ossos"
 
 
 msgctxt "Operator"
@@ -64384,10 +64379,6 @@ msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "Sem ambiente (mundo) de \"Corpo rígido\" definido para adicionar uma restrição do tipo \"Corpo rígido\"."
 
 
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "Objeto não possui restrição do tipo \"Corpo rígido\" para remover."
-
-
 msgid "Object '%s' already has a Rigid Body Constraint"
 msgstr "Objeto '%s' já possui uma restrição do tipo \"Corpo rígido\"."
 
@@ -66968,6 +66959,10 @@ msgid "Strings"
 msgstr "Fios"
 
 
+msgid "Top Right"
+msgstr "Topo à Direita"
+
+
 msgid "Text Box Width"
 msgstr "Largura da caixa de texto"
 
@@ -66978,10 +66973,6 @@ msgstr "Altura da caixa de texto"
 
 msgid "Edge Crease"
 msgstr "Vincos de arestas"
-
-
-msgid "Top Right"
-msgstr "Topo à Direita"
 
 
 msgid "Rotate islands for best fit"

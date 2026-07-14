@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'e899b48ea546')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 07:32+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-03-19 12:41+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -4937,20 +4937,48 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Track"
-msgstr "แทร็ค"
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Merge"
+msgstr "ผสาน"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
 
 
 msgid "Math"
 msgstr "คณิตศาสตร์"
 
 
-msgid "Mirror"
-msgstr "กระจกสะท้อน"
+msgid "Names"
+msgstr "ชื่อ"
+
+
+msgid "Pivot Point"
+msgstr "จุดหมุน"
 
 
 msgid "Snap"
 msgstr "ยึดติด"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "แก้ไข"
+
+
+msgid "Mask Edit"
+msgstr "การแก้ไขหน้ากาก"
+
+
+msgid "Import"
+msgstr "นำเข้า"
+
+
+msgid "Mirror"
+msgstr "กระจกสะท้อน"
 
 
 msgid "Local View"
@@ -4977,20 +5005,8 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
-msgid "Import"
-msgstr "นำเข้า"
-
-
 msgid "UV"
 msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Apply"
-msgstr "นำไปใช้"
 
 
 msgid "Light"
@@ -5001,40 +5017,24 @@ msgid "Add Image"
 msgstr "เพิ่มภาพ"
 
 
-msgid "Hooks"
-msgstr "ตะขอ"
+msgid "Apply"
+msgstr "นำไปใช้"
 
 
-msgid "Names"
-msgstr "ชื่อ"
-
-
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Merge"
-msgstr "ผสาน"
+msgid "Track"
+msgstr "แทร็ค"
 
 
 msgid "Layout"
 msgstr "เค้าโครง"
 
 
+msgid "Hooks"
+msgstr "ตะขอ"
+
+
 msgid "Keying"
 msgstr "คีย์"
-
-
-msgid "Pivot Point"
-msgstr "จุดหมุน"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "แก้ไข"
-
-
-msgid "Mask Edit"
-msgstr "การแก้ไขหน้ากาก"
 
 
 msgid "Zoom"
@@ -6299,12 +6299,12 @@ msgid "Single Image"
 msgstr "ภาพเดี่ยว"
 
 
-msgid "Overlays"
-msgstr "วางซ้อน"
-
-
 msgid "View Lock"
 msgstr "ล็อกมุมมอง"
+
+
+msgid "Overlays"
+msgstr "วางซ้อน"
 
 
 msgid "Mask Display"
@@ -6386,11 +6386,6 @@ msgstr "อินเตอร์เฟสผู้ใช้"
 msgctxt "Operator"
 msgid "Measure"
 msgstr "วัดขนาด"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "ขนาดกระดูก"
 
 
 msgctxt "Operator"

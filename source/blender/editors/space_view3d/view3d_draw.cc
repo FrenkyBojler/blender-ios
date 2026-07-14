@@ -768,6 +768,7 @@ static void view3d_grid_steps_ex(const Scene *scene,
     }
   }
   else {
+    len = STEPS_LEN;
     if (rv3d->view != RV3D_VIEW_USER) {
       /* Allow 3 more subdivisions. */
       grid_scale /= powf(v3d->gridsubdiv, 3);
@@ -1781,7 +1782,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   {
     /* Free images which can have changed on frame-change.
      * WARNING(@ideasman42): can be slow so only free animated images. */
-    BKE_image_free_anim_gputextures(G.main);
+    BKE_image_free_anim_gpu_texture_caches(G.main);
   }
 
   GPU_matrix_push_projection();
