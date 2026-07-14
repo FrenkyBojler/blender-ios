@@ -404,8 +404,12 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
         RayHit result;
         result.position = float3(local_hit.co);
         result.normal = float3(local_hit.no);
-        /* TODO: Barycentric coordinates are not computed by the fallback callbacks. */
-        result.bary_coord = float2(0.0f);
+        const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+            data->vert_positions,
+            data->corner_verts,
+            data->corner_tris[local_hit.index],
+            result.position);
+        result.bary_coord = bary_coord.xy();
         result.index = local_hit.index;
         result.distance = local_hit.dist;
         ctx.fn(result);
@@ -434,13 +438,19 @@ static bool closest_point_fn(RTCPointQueryFunctionArguments *args)
   const uint3 tri = indices[args->primID];
 
   float3 nearest_position;
-  closest_on_tri_to_point_v3(
-      nearest_position, &args->query->x, positions[tri[0]], positions[tri[1]], positions[tri[2]]);
+  float3 bary_coord;
+  closest_on_tri_to_point_v3(nearest_position,
+                             bary_coord,
+                             &args->query->x,
+                             positions[tri[0]],
+                             positions[tri[1]],
+                             positions[tri[2]]);
 
   const float distance = math::distance(float3(&args->query->x), nearest_position);
   if (distance < args->query->radius) {
     args->query->radius = distance;
     user_data.result.position = nearest_position;
+    user_data.result.bary_coord = bary_coord.xy();
     user_data.result.index = args->primID;
     user_data.result.geomID = args->geomID;
     return true;
@@ -484,6 +494,9 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
 
   ClosestPointResult result;
   result.position = float3(nearest.co);
+  const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+      data->vert_positions, data->corner_verts, data->corner_tris[nearest.index], result.position);
+  result.bary_coord = bary_coord.xy();
   result.index = nearest.index;
   result.geomID = 0;
   return result;

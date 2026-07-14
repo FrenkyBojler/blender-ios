@@ -136,7 +136,8 @@ static void raycast_to_mesh(const IndexMask &mask,
                             const MutableSpan<int> r_hit_indices,
                             const MutableSpan<float3> r_hit_positions,
                             const MutableSpan<float3> r_hit_normals,
-                            const MutableSpan<float> r_hit_distances)
+                            const MutableSpan<float> r_hit_distances,
+                            const MutableSpan<float3> r_bary_weights)
 {
   const bke::bvh::Tree &tree_data = mesh.bvh_tris();
   mask.foreach_index([&](const int i) {
@@ -163,6 +164,11 @@ static void raycast_to_mesh(const IndexMask &mask,
       if (!r_hit_distances.is_empty()) {
         r_hit_distances[i] = hit->distance;
       }
+      if (!r_bary_weights.is_empty()) {
+        r_bary_weights[i] = float3(hit->bary_coord[0],
+                                   hit->bary_coord[1],
+                                   1.0f - hit->bary_coord[0] - hit->bary_coord[1]);
+      }
     }
     else {
       if (!r_hit.is_empty()) {
@@ -179,6 +185,9 @@ static void raycast_to_mesh(const IndexMask &mask,
       }
       if (!r_hit_distances.is_empty()) {
         r_hit_distances[i] = ray_lengths[i];
+      }
+      if (!r_bary_weights.is_empty()) {
+        r_bary_weights[i] = float3(0);
       }
     }
   });
@@ -203,6 +212,7 @@ class RaycastFunction : public mf::MultiFunction {
       builder.single_output<float3>("Hit Normal", mf::ParamFlag::SupportsUnusedOutput);
       builder.single_output<float>("Distance", mf::ParamFlag::SupportsUnusedOutput);
       builder.single_output<int>("Triangle Index", mf::ParamFlag::SupportsUnusedOutput);
+      builder.single_output<float3>("Barycentric Weight", mf::ParamFlag::SupportsUnusedOutput);
       return signature;
     }();
     this->set_signature(&signature);
@@ -213,16 +223,18 @@ class RaycastFunction : public mf::MultiFunction {
     BLI_assert(target_.has_mesh());
     const Mesh &mesh = *target_.get_mesh();
 
-    raycast_to_mesh(mask,
-                    mesh,
-                    params.readonly_single_input<float3>(0, "Source Position"),
-                    params.readonly_single_input<float3>(1, "Ray Direction"),
-                    params.readonly_single_input<float>(2, "Ray Length"),
-                    params.uninitialized_single_output_if_required<bool>(3, "Is Hit"),
-                    params.uninitialized_single_output_if_required<int>(7, "Triangle Index"),
-                    params.uninitialized_single_output_if_required<float3>(4, "Hit Position"),
-                    params.uninitialized_single_output_if_required<float3>(5, "Hit Normal"),
-                    params.uninitialized_single_output_if_required<float>(6, "Distance"));
+    raycast_to_mesh(
+        mask,
+        mesh,
+        params.readonly_single_input<float3>(0, "Source Position"),
+        params.readonly_single_input<float3>(1, "Ray Direction"),
+        params.readonly_single_input<float>(2, "Ray Length"),
+        params.uninitialized_single_output_if_required<bool>(3, "Is Hit"),
+        params.uninitialized_single_output_if_required<int>(7, "Triangle Index"),
+        params.uninitialized_single_output_if_required<float3>(4, "Hit Position"),
+        params.uninitialized_single_output_if_required<float3>(5, "Hit Normal"),
+        params.uninitialized_single_output_if_required<float>(6, "Distance"),
+        params.uninitialized_single_output_if_required<float3>(7, "Barycentric Weight"));
   }
 
   void hash_unique(UniqueHashBytes &hash) const override
@@ -277,17 +289,25 @@ static void node_geo_exec(GeoNodeExecParams params)
   auto position = params.extract_input<bke::SocketValueVariant>("Source Position"_ustr);
   auto ray_length = params.extract_input<bke::SocketValueVariant>("Ray Length"_ustr);
 
+  const bool attribute_required = params.output_is_required("Attribute"_ustr);
+  const bool bary_weight_required = attribute_required && mapping == GEO_NODE_RAYCAST_INTERPOLATED;
+
   bke::SocketValueVariant is_hit;
   bke::SocketValueVariant hit_position;
   bke::SocketValueVariant hit_normal;
   bke::SocketValueVariant hit_distance;
   bke::SocketValueVariant triangle_index;
-  if (!execute_multi_function_on_value_variant(
-          std::make_unique<RaycastFunction>(target),
-          {&position, &normalized_direction, &ray_length},
-          {&is_hit, &hit_position, &hit_normal, &hit_distance, &triangle_index},
-          params.user_data(),
-          error_message))
+  bke::SocketValueVariant bary_weights;
+  if (!execute_multi_function_on_value_variant(std::make_unique<RaycastFunction>(target),
+                                               {&position, &normalized_direction, &ray_length},
+                                               {&is_hit,
+                                                &hit_position,
+                                                &hit_normal,
+                                                &hit_distance,
+                                                &triangle_index,
+                                                bary_weight_required ? &bary_weights : nullptr},
+                                               params.user_data(),
+                                               error_message))
   {
     params.set_default_remaining_outputs();
     params.error_message_add(NodeWarningType::Error, std::move(error_message));
@@ -299,7 +319,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Hit Normal"_ustr, std::move(hit_normal));
   params.set_output("Hit Distance"_ustr, std::move(hit_distance));
 
-  if (!params.output_is_required("Attribute"_ustr)) {
+  if (!attribute_required) {
     return;
   }
 
@@ -307,18 +327,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::SocketValueVariant triangle_index_copy = triangle_index;
   switch (mapping) {
     case GEO_NODE_RAYCAST_INTERPOLATED: {
-      bke::SocketValueVariant bary_weights;
-      if (!execute_multi_function_on_value_variant(
-              std::make_shared<bke::mesh_surface_sample::BaryWeightFromPositionFn>(target),
-              {&hit_position, &triangle_index_copy},
-              {&bary_weights},
-              params.user_data(),
-              error_message))
-      {
-        params.set_default_remaining_outputs();
-        params.error_message_add(NodeWarningType::Error, std::move(error_message));
-        return;
-      }
       bke::SocketValueVariant sampled_atribute;
       if (!execute_multi_function_on_value_variant(
               std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(target),

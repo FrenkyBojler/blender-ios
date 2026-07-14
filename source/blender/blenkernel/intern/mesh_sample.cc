@@ -380,49 +380,6 @@ float3 compute_bary_coord_in_triangle(const Span<float3> vert_positions,
   return bary_coords;
 }
 
-BaryWeightFromPositionFn::BaryWeightFromPositionFn(GeometrySet geometry)
-    : source_(std::move(geometry))
-{
-  source_.ensure_owns_direct_data();
-  static const mf::Signature signature = []() {
-    mf::Signature signature;
-    mf::SignatureBuilder builder{"Bary Weight from Position", signature};
-    builder.single_input<float3>("Position");
-    builder.single_input<int>("Triangle Index");
-    builder.single_output<float3>("Barycentric Weight");
-    return signature;
-  }();
-  this->set_signature(&signature);
-  const Mesh &mesh = *source_.get_mesh();
-  vert_positions_ = mesh.vert_positions();
-  corner_verts_ = mesh.corner_verts();
-  corner_tris_ = mesh.corner_tris();
-}
-
-void BaryWeightFromPositionFn::call(const IndexMask &mask,
-                                    mf::Params params,
-                                    mf::Context /*context*/) const
-{
-  const VArraySpan<float3> sample_positions = params.readonly_single_input<float3>(0, "Position");
-  const VArraySpan<int> triangle_indices = params.readonly_single_input<int>(1, "Triangle Index");
-  MutableSpan<float3> bary_weights = params.uninitialized_single_output<float3>(
-      2, "Barycentric Weight");
-  sample_barycentric_weights<true>(vert_positions_,
-                                   corner_verts_,
-                                   corner_tris_,
-                                   triangle_indices,
-                                   sample_positions,
-                                   mask,
-                                   bary_weights);
-}
-
-void BaryWeightFromPositionFn::hash_unique(UniqueHashBytes &hash) const
-{
-  static constexpr int8_t id = 0;
-  hash.add(&id);
-  hash.add(source_.get_mesh());
-}
-
 NearestCornerFromPositionFn::NearestCornerFromPositionFn(GeometrySet geometry)
     : source_(std::move(geometry))
 {

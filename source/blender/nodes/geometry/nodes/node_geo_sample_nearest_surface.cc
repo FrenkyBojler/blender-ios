@@ -106,7 +106,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
       builder.single_input<float3>("Position");
       builder.single_input<int>("Sample ID");
       builder.single_output<int>("Triangle Index");
-      builder.single_output<float3>("Sample Position");
+      builder.single_output<float3>("Barycentric Weight");
       builder.single_output<bool>("Is Valid", mf::ParamFlag::SupportsUnusedOutput);
       return signature;
     }();
@@ -154,8 +154,8 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
     const VArray<float3> &positions = params.readonly_single_input<float3>(0, "Position");
     const VArray<int> &sample_ids = params.readonly_single_input<int>(1, "Sample ID");
     MutableSpan<int> triangle_index = params.uninitialized_single_output<int>(2, "Triangle Index");
-    MutableSpan<float3> sample_position = params.uninitialized_single_output<float3>(
-        3, "Sample Position");
+    MutableSpan<float3> bary_weights = params.uninitialized_single_output<float3>(
+        3, "Barycentric Weight");
     MutableSpan<bool> is_valid_span = params.uninitialized_single_output_if_required<bool>(
         4, "Is Valid");
 
@@ -165,7 +165,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
       const int group_index = group_indices_.index_of_try(sample_id);
       if (group_index == -1) {
         triangle_index[i] = -1;
-        sample_position[i] = float3(0, 0, 0);
+        bary_weights[i] = float3(0, 0, 0);
         if (!is_valid_span.is_empty()) {
           is_valid_span[i] = false;
         }
@@ -175,14 +175,16 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
       const std::optional<bke::bvh::ClosestPointResult> result = bvh.closest_point(position);
       if (!result) {
         triangle_index[i] = -1;
-        sample_position[i] = float3(0, 0, 0);
+        bary_weights[i] = float3(0, 0, 0);
         if (!is_valid_span.is_empty()) {
           is_valid_span[i] = false;
         }
         return;
       }
       triangle_index[i] = result->index;
-      sample_position[i] = result->position;
+      bary_weights[i] = float3(result->bary_coord[0],
+                               result->bary_coord[1],
+                               1.0f - result->bary_coord[0] - result->bary_coord[1]);
       if (!is_valid_span.is_empty()) {
         is_valid_span[i] = true;
       }
@@ -232,26 +234,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::string error_message;
 
   bke::SocketValueVariant triangle_index;
-  bke::SocketValueVariant nearest_positions;
+  bke::SocketValueVariant bary_weights;
   bke::SocketValueVariant is_valid;
   if (!execute_multi_function_on_value_variant(
           std::make_shared<SampleNearestSurfaceFunction>(geometry, group_id_field),
           {&sample_position, &sample_group_id},
-          {&triangle_index, &nearest_positions, &is_valid},
-          params.user_data(),
-          error_message))
-  {
-    params.set_default_remaining_outputs();
-    params.error_message_add(NodeWarningType::Error, std::move(error_message));
-    return;
-  }
-
-  bke::SocketValueVariant bary_weights;
-  bke::SocketValueVariant triangle_index_copy = triangle_index;
-  if (!execute_multi_function_on_value_variant(
-          std::make_shared<bke::mesh_surface_sample::BaryWeightFromPositionFn>(geometry),
-          {&nearest_positions, &triangle_index_copy},
-          {&bary_weights},
+          {&triangle_index, &bary_weights, &is_valid},
           params.user_data(),
           error_message))
   {

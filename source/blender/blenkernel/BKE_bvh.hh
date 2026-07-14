@@ -51,6 +51,7 @@ struct RayHit {
 
 struct ClosestPointResult {
   float3 position;
+  float2 bary_coord;
   uint32_t index;
   /* Currently unused. */
   uint32_t geomID;
