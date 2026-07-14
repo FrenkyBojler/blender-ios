@@ -1,2 +1,3 @@
 Referenced by issue #161315, Incorrect UV rotation when rotating about cursor axis with vertex snapping (5.1.2)
 Referenced by issue #161331, Simulation, Cloth Dynamics: Torn pieces from objects that used pinned vertices can float
+Referenced by issue #161397, Default Materials for Geometry Nodes Don't Populate In Modifier Panel (5.2)
