@@ -18,15 +18,15 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_listbase_wrapper.hh"
-#include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_time.h"
+#include "BLI_math_geom.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_time.hh"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -1339,7 +1339,7 @@ static bool wm_xr_panel_cache_update(const bContext *C, wmXrPanel *panel)
   }
 
   bContext *mutable_C = const_cast<bContext *>(C);
-  short prev_alignment = xr_region->alignment;
+  eRegion_Alignment prev_alignment = xr_region->alignment;
   ARegion *prev_region = CTX_wm_region(mutable_C);
   const bool prev_visible = xr_region->runtime->visible;
   rcti panel_rect = panel->panel_rect;
