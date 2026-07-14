@@ -218,7 +218,7 @@ static void view_layer_remove_unset_nodetrees(const Main *bmain, Scene *scene, V
        sce = static_cast<Scene *>(sce->id.next))
   {
     for (SceneCompositorEffect &effect : scene->compositor_effects) {
-      if (!effect.node_group) {
+      if (!effect.node_group || ID_MISSING(effect.node_group)) {
         continue;
       }
       bke::node_tree_remove_layer_n(effect.node_group, scene, act_layer_index);

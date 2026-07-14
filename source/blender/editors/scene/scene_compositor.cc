@@ -88,6 +88,7 @@ static wmOperatorStatus remove_compositor_effect_exec(bContext *C, wmOperator *o
   const std::string name = RNA_string_get(op->ptr, "name");
   SceneCompositorEffect *effect = bke::compositor::get_effect(*scene, name);
   if (!effect) {
+    BKE_reportf(op->reports, RPT_ERROR, "No effect '%s' in scene", name.c_str());
     return OPERATOR_CANCELLED;
   }
 
@@ -124,6 +125,7 @@ static wmOperatorStatus duplicate_compositor_effect_exec(bContext *C, wmOperator
 {
   Scene *scene = CTX_data_scene(C);
   if (scene->compositor_effects.is_empty()) {
+    BKE_report(op->reports, RPT_ERROR, "No effect to duplicate");
     return OPERATOR_CANCELLED;
   }
 
@@ -131,6 +133,12 @@ static wmOperatorStatus duplicate_compositor_effect_exec(bContext *C, wmOperator
   SceneCompositorEffect *effect = name.empty() ? bke::compositor::get_active_effect(*scene) :
                                                  bke::compositor::get_effect(*scene, name);
   if (!effect) {
+    if (name.empty()) {
+      BKE_reportf(op->reports, RPT_ERROR, "No active effect in scene");
+    }
+    else {
+      BKE_reportf(op->reports, RPT_ERROR, "No effect '%s' in scene", name.c_str());
+    }
     return OPERATOR_CANCELLED;
   }
 
@@ -174,6 +182,7 @@ static wmOperatorStatus move_compositor_effect_to_index_exec(bContext *C, wmOper
   const std::string name = RNA_string_get(op->ptr, "name");
   SceneCompositorEffect *effect = bke::compositor::get_effect(*scene, name);
   if (!effect) {
+    BKE_reportf(op->reports, RPT_ERROR, "No effect '%s' in scene", name.c_str());
     return OPERATOR_CANCELLED;
   }
 
@@ -182,6 +191,7 @@ static wmOperatorStatus move_compositor_effect_to_index_exec(bContext *C, wmOper
   const bool successful = BLI_listbase_move_index(
       &scene->compositor_effects, current_index, new_index);
   if (!successful) {
+    BKE_report(op->reports, RPT_ERROR, "Index is out of range");
     return OPERATOR_CANCELLED;
   }
 
@@ -228,6 +238,7 @@ static wmOperatorStatus set_active_compositor_effect_exec(bContext *C, wmOperato
   const std::string name = RNA_string_get(op->ptr, "name");
   SceneCompositorEffect *effect = bke::compositor::get_effect(*scene, name);
   if (!effect) {
+    BKE_reportf(op->reports, RPT_ERROR, "No effect '%s' in scene", name.c_str());
     return OPERATOR_CANCELLED;
   }
   bke::compositor::set_active_effect(*scene, *effect);
@@ -309,17 +320,18 @@ static void SCENE_OT_new_compositor_effect_node_group(wmOperatorType *ot)
  * Duplicate Compositor Effect Node Group Operator.
  */
 
-static wmOperatorStatus duplicate_compositor_effect_node_group_exec(bContext *C,
-                                                                    wmOperator * /*op*/)
+static wmOperatorStatus duplicate_compositor_effect_node_group_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
   if (!effect) {
+    BKE_report(op->reports, RPT_ERROR, "No active effect to duplicate");
     return OPERATOR_CANCELLED;
   }
 
   bNodeTree *original_node_group = effect->node_group;
   if (!original_node_group || ID_MISSING(original_node_group)) {
+    BKE_report(op->reports, RPT_ERROR, "No node group to duplicate");
     return OPERATOR_CANCELLED;
   }
 
@@ -382,6 +394,7 @@ static bNodeTree *get_node_group(const bContext &C,
 {
   bNodeTree *node_group = get_asset_or_local_node_group(C, properties_ptr, reports);
   if (!node_group || ID_MISSING(node_group)) {
+    BKE_report(reports, RPT_ERROR, "Missing node group for asset");
     return nullptr;
   }
   if (node_group->type != NTREE_COMPOSIT) {

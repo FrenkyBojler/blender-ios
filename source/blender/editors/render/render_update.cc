@@ -29,7 +29,6 @@
 #include "BLI_threads.hh"
 
 #include "BKE_brush.hh"
-#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_icons.hh"
 #include "BKE_main.hh"

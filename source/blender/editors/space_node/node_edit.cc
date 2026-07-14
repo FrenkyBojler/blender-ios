@@ -1173,7 +1173,7 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
    * anything smart about check how exactly scene is used. */
   bNode *node = nullptr;
   for (SceneCompositorEffect &effect : sce->compositor_effects) {
-    if (!effect.node_group) {
+    if (!effect.node_group || ID_MISSING(effect.node_group)) {
       continue;
     }
     for (bNode *node_iter : effect.node_group->all_nodes()) {

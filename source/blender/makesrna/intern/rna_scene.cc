@@ -1280,7 +1280,7 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *scene_ptr,
 
   SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
   if (!effect) {
-    bke::compositor::new_effect(*scene, "Scene Compositor Effect");
+    effect = &bke::compositor::new_effect(*scene, "Scene Compositor Effect");
   }
 
   if (effect->node_group) {
@@ -3140,7 +3140,7 @@ static void rna_SceneCompositorEffect_name_set(PointerRNA *ptr, const char *valu
 
 static void rna_SceneCompositorEffect_is_active_set(PointerRNA *ptr, bool is_active)
 {
-  /* We only support setting a effect as active, since we always need an active effect. */
+  /* We only support setting an effect as active, since we always need an active effect. */
   if (!is_active) {
     return;
   }
