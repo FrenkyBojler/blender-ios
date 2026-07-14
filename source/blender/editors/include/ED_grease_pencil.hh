@@ -996,14 +996,14 @@ struct CurveBooleanOpParameters {
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
                                   const bke::CurvesGeometry &curves,
-                                  const std::optional<GroupedSpan<int>> fills,
-                                  const IndexMask &clipping_fills);
+                                  const GroupedSpan<int> shapes,
+                                  const IndexMask &clipping_shapes);
 
 bke::CurvesGeometry curve_boolean_with_planes(const CurveBooleanOpParameters op_params,
                                               const bke::CurvesGeometry &curves,
-                                              const std::optional<GroupedSpan<int>> fills,
+                                              const GroupedSpan<int> shapes,
                                               Span<float4> normal_planes,
-                                              const IndexMask &clipping_fills,
+                                              const IndexMask &clipping_shapes,
                                               const float4x4 &layer_to_world,
                                               const ARegion &region);
 

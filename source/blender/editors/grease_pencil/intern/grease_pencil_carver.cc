@@ -115,24 +115,17 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   op_params.boolean_mode = carver::Operation::Difference;
   op_params.keep_caps = keep_caps;
 
-  bke::greasepencil::Drawing drawing_with_stroke(drawing);
-  drawing_with_stroke.strokes_for_write() = std::move(input_curves);
-  drawing_with_stroke.tag_topology_changed();
+  const VArray<int> input_fill_ids = *input_curves.attributes().lookup<int>(
+      "fill_id", bke::AttrDomain::Curve);
 
-  const std::optional<GroupedSpan<int>> fills = drawing_with_stroke.fills();
-  const int num_fills = fills.has_value() ? fills->size() :
-                                            drawing_with_stroke.strokes().curves_num();
+  auto [shape_map, shape_offsets] = blender::bke::greasepencil::shapes_from_fill_ids(
+      input_fill_ids, input_curves.curves_num());
 
-  const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
+  const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
+  const IndexRange clipping_shapes = IndexRange::from_single(shapes.size() - 1);
 
   bke::CurvesGeometry carved_strokes = carver::curve_boolean_with_planes(
-      op_params,
-      drawing_with_stroke.strokes(),
-      fills,
-      normal_planes,
-      clipping_fills,
-      layer_to_world,
-      region);
+      op_params, input_curves, shapes, normal_planes, clipping_shapes, layer_to_world, region);
 
   carved_strokes.attributes_for_write().remove(".positions_2d");
 

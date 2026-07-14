@@ -297,7 +297,6 @@ static void draw_results(const std::string &label,
 
   auto [src_shape_map, src_shape_offsets] = shapes_from_fill_ids(src_fill_ids,
                                                                  src_curves.curves_num());
-
   auto [dst_shape_map, dst_shape_offsets] = shapes_from_fill_ids(dst_fill_ids,
                                                                  dst_curves.curves_num());
 
@@ -421,23 +420,18 @@ static void expect_boolean_result_coord(const bke::CurvesGeometry &dst_curves,
 static bke::CurvesGeometry test_curve_boolean(const ed::greasepencil::carver::Operation opt,
                                               const bke::CurvesGeometry &src_curves,
                                               const Span<int> fill_ids,
-                                              const IndexMask &clipping_fills)
+                                              const IndexMask &clipping_shapes)
 {
   using namespace bke::greasepencil;
   carver::CurveBooleanOpParameters op_params;
   op_params.boolean_mode = opt;
   op_params.keep_caps = true;
 
-  const std::optional<FillCache> fill_cache = fill_cache_from_fill_ids(
-      VArray<int>::from_span(fill_ids));
-  if (!fill_cache) {
-    return {};
-  }
+  auto [shape_map, shape_offsets] = shapes_from_fill_ids(VArray<int>::from_span(fill_ids),
+                                                         src_curves.curves_num());
+  const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
 
-  const GroupedSpan<int> fills = GroupedSpan<int>(fill_cache->fill_offsets.as_span(),
-                                                  fill_cache->fill_map.as_span());
-
-  return curve_boolean(op_params, src_curves, fills, clipping_fills);
+  return curve_boolean(op_params, src_curves, shapes, clipping_shapes);
 }
 
 class GreasePencilBooleanTest : public bke::BlenderGTestBase {};
@@ -722,14 +716,13 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 9};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(0, 1);
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
 
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{5, 7}, {3, 6}, {2.14286, 4.85714}},
                                                    {{1.61538, 4.15385}, {1.09091, 3.45455}},
@@ -743,14 +736,13 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 8};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(0, 1);
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
 
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{4, 5}, {3, 5}, {1, 3}, {1, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
@@ -774,14 +766,13 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 13};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(0, 1);
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
 
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{6, 8}, {4, 7}, {3.57143, 6.42857}},
                                                    {{3.4, 6.2}, {2.90909, 5.54545}},
@@ -808,14 +799,13 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 13};
     const Array<bool> is_cyclic = {false, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(0, 1);
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
 
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{3.7, 5.6}, {3.45455, 5.27273}},
                                                    {{2.8, 4.4}, {2.63636, 4.18182}},
@@ -831,14 +821,13 @@ TEST_F(GreasePencilBooleanTest, Simple_Cuts)
     const Array<int> points_by_curve = {0, 4, 9};
     const Array<bool> is_cyclic = {true, true};
     const Array<int> fill_ids = {0, 1};
-    const IndexRange clipping_fills = IndexRange(0, 1);
     const IndexRange clipping_shapes = IndexRange(1, 1);
 
     const bke::CurvesGeometry src_curves = create_test_curves(
         points_by_curve, points, fill_ids, is_cyclic);
 
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{4.4, 3.4}, {6, 5}, {4, 5}, {3.2, 4.2}},
                                                    {{2.66667, 3.66667}, {2.33333, 3.33333}},
