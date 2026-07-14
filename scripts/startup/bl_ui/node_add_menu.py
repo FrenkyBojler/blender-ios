@@ -475,6 +475,9 @@ class NODE_MT_group_base(NodeMenu):
         layout = self.layout
         self.draw_group_menu(context, layout)
 
+        if getattr(context, "is_menu_search", False):
+            self.draw_menu(layout, "Group/Inputs")
+
         self.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -484,6 +487,33 @@ class NODE_MT_linked_group_base(NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.draw_linked_groups(context, layout)
+
+
+class NODE_MT_group_input_base(NodeMenu):
+    bl_label = "Inputs"
+
+    @classmethod
+    def draw_group_input(cls, layout, label):
+        props = cls.node_operator(
+            layout, "NodeGroupInput",
+            label=label,
+        )
+
+        props.visible_output = label
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+    def draw(self, context):
+        layout = self.layout
+
+        space_node = context.space_data
+        tree = space_node.edit_tree
+
+        if tree.bl_use_group_interface:
+            for item in tree.interface.items_tree:
+                if item.item_type == 'SOCKET' and item.in_out == 'INPUT':
+                    self.draw_group_input(layout, label=item.name)
 
 
 class NODE_MT_layout_base(NodeMenu):
@@ -500,6 +530,7 @@ class NODE_MT_layout_base(NodeMenu):
 add_base_pathing_dict = {
     "Group": "NODE_MT_group_add",
     "Group/Linked": "NODE_MT_linked_group_add",
+    "Group/Inputs" : "NODE_MT_group_input_add",
     "Layout": "NODE_MT_category_layout",
 }
 
@@ -507,6 +538,7 @@ add_base_pathing_dict = {
 swap_base_pathing_dict = {
     "Group": "NODE_MT_group_swap",
     "Group/Linked": "NODE_MT_linked_group_swap",
+    "Group/Inputs" : "NODE_MT_group_input_swap",
     "Layout": "NODE_MT_layout_swap",
 }
 
@@ -556,6 +588,16 @@ classes = (
         "NODE_MT_linked_group_swap",
         template=SwapNodeMenu,
         layout_base=NODE_MT_linked_group_base,
+        pathing_dict=swap_base_pathing_dict),
+    generate_menu(
+        "NODE_MT_group_input_add",
+        template=AddNodeMenu,
+        layout_base=NODE_MT_group_input_base,
+        pathing_dict=swap_base_pathing_dict),
+    generate_menu(
+        "NODE_MT_group_input_swap",
+        template=SwapNodeMenu,
+        layout_base=NODE_MT_group_input_base,
         pathing_dict=swap_base_pathing_dict),
     generate_menu(
         "NODE_MT_category_layout",
