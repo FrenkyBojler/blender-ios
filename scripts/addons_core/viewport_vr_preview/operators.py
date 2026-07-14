@@ -282,18 +282,19 @@ def viewfinder_camera_gizmo_view3d_redraw_workaround():
     #             The alternative to this is to give the capture camera Gizmo (VIEW3D_GGT_vr_captures) the VR_REDRAWS
     #             option, however this makes it constantly redraw, causing performances to drop.
 
-    window = bpy.context.window
+    for window in bpy.context.window_manager.windows:
+        screen = getattr(window, "screen", None)
+        areas = getattr(screen, "areas", None)
+        if areas is None:
+            continue
 
-    areas = [area for area in window.screen.areas if area.type == 'VIEW_3D']
-    for area in areas:
-        view3d_region = [region for region in area.regions if region.type == 'WINDOW'][0]
-        with bpy.context.temp_override(
-                window=window,
-                area=area,
-                region=view3d_region,
-                screen=window.screen
-        ):
-            bpy.context.region.tag_redraw()
+        for area in areas:
+            if area.type != 'VIEW_3D':
+                continue
+            area.tag_redraw()
+            for region in area.regions:
+                if region.type == 'WINDOW':
+                    region.tag_redraw()
 
 
 def xr_event_match_viewfinder_hand(xr_event, xr_settings):
