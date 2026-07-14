@@ -3606,8 +3606,6 @@ void ED_region_panels_layout_ex(const bContext *C,
   for (ui::Block &block : region->runtime->uiblocks) {
     block_post_layout_callbacks_exec(C, region, &block);
   }
-  /* Clear temporary update flag. */
-  region->flag &= ~RGN_FLAG_SEARCH_FILTER_UPDATE;
 }
 
 void ED_region_draw_overflow_indication(const ScrArea *area,
