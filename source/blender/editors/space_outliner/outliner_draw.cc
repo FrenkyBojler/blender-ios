@@ -21,7 +21,6 @@
 
 #include "BLI_fileops.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_color.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
@@ -3761,13 +3760,12 @@ ARegion *tooltip_init(bContext *C,
   const wmWindow *wm = CTX_wm_window(C);
   const wmEvent *event = wm->runtime->eventstate;
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ID *id = nullptr;
   ARegion *region = nullptr;
 
   tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
     const TreeStoreElem *tselem = TREESTORE(te);
     if (tselem->flag & TSE_HIGHLIGHTED) {
-      id = tselem->id;
+      ID *id = tselem->id;
       if (id && te->abstract_element && te->abstract_element->tooltip_fn) {
         region = te->abstract_element->tooltip_fn(C, id, event->xy);
         *r_exit_on_event = true;
@@ -3778,7 +3776,7 @@ ARegion *tooltip_init(bContext *C,
   return region;
 }
 
-static void draw_tooltip(bContext *C, SpaceOutliner * /*space_outliner*/)
+static void draw_tooltip(bContext *C)
 {
   wmWindow *wm = CTX_wm_window(C);
   ARegion *region = CTX_wm_region(C);
@@ -3930,7 +3928,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 
   block_end(C, block);
   block_draw(C, block);
-  draw_tooltip(const_cast<bContext *>(C), space_outliner);
+  draw_tooltip(const_cast<bContext *>(C));
 
   /* Update total viewable region. */
   outliner_update_viewable_area(

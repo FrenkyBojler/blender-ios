@@ -8,15 +8,13 @@
 
 #pragma once
 
-#include "DNA_image_types.h"
 #include "UI_interface_c.hh"
 #include "tree_element_id.hh"
-
-#include <optional>
 
 namespace blender {
 struct ID;
 struct bContext;
+struct Image;
 
 namespace ed::outliner {
 
