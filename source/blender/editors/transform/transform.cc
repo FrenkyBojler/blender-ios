@@ -796,6 +796,10 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
       }
       return t->vod != nullptr;
     case TFM_MODAL_STRIP_CLAMP:
+      if (t->spacetype != SPACE_SEQ) {
+        return false;
+      }
+      break;
     case TFM_MODAL_STRIP_ASYMMETRIC:
       if (t->spacetype != SPACE_SEQ) {
         return false;

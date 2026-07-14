@@ -154,15 +154,33 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
 static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 {
-  TransSeq *ts = static_cast<TransSeq *>(TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data);
   const Editing *ed = seq::editing_get(scene);
 
-  /* Prevent snaps and change in `values` past `hard_clamp` for all selected retiming keys. */
+  const TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
+  TransSeq *ts = static_cast<TransSeq *>(tc->custom.type.data);
+
+  t->modifiers |= MOD_STRIP_CLAMP_HOLDS;
+
+  /* Prevent snaps and change in `values` past `hard_clamp` for all selected
+     retiming keys. */
   BLI_rcti_init(&ts->hard_clamp, INT_MIN, INT_MAX, 0, 0);
 
-  Map selection = seq::retiming_selection_get(ed);
-  for (auto item : selection.items()) {
-    SeqRetimingKey *key = item.key;
+  TransData *td = tc->data;
+  for (int i = 0; i < tc->data_len; i++, td++) {
+    const TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
+    const Strip *strip = tdseq->strip;
+    const MutableSpan keys = seq::retiming_keys_get(strip);
+    SeqRetimingKey *key = &keys[tdseq->key_index];
+
+    /* Transitions are moved when retiming keys for the same frame are selected in adjacent strips.
+     * If this is the case, soft clamp the transition inside input strip bounds. */
+    const Strip *transition = tdseq->attached_transition;
+    if (transition) {
+      int min_offset = transition->input1->left_handle() - transition->left_handle();
+      int max_offset = transition->input2->right_handle(scene) - transition->right_handle(scene);
+      ts->soft_clamp_min = max_ii(ts->soft_clamp_min, min_offset);
+      ts->soft_clamp_max = min_ii(ts->soft_clamp_max, max_offset);
+    }
 
     /* Transition retiming key. */
     if (seq::retiming_key_is_transition_type(key) &&
@@ -195,7 +213,6 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     }
     /* Non-transition retiming key. */
     else {
-      Strip *strip = item.value;
       SeqRetimingKey *key_prev = key - 1, *key_next = key + 1;
       if (!seq::retiming_is_last_key(strip, key)) {
         /* Ensure that this key cannot pass the next key. */
