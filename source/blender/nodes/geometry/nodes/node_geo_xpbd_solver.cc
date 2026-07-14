@@ -1308,9 +1308,10 @@ class XpbdSolverStep {
          math::normalize(approx_ray_direction_normalized + float3{-0.140f, 0.151f, -0.126f})}};
     int inside_count = 0;
     for (const float3 &dir : dirs) {
-      const std::optional<bke::bvh::RayHit> hit = bvh.ray_intersect(pos, dir);
+      const bke::bvh::Ray ray(pos, dir);
+      const std::optional<bke::bvh::RayHit> hit = bvh.ray_intersect(ray);
       if (hit) {
-        const float3 dir = hit->position - pos;
+        const float3 dir = hit->position(ray) - pos;
         const bool is_inside = math::dot(dir, math::normalize(hit->normal)) > 0.0f;
         inside_count += is_inside ? 1 : -1;
         if (std::abs(inside_count) >= 2) {

@@ -222,8 +222,8 @@ static void statvis_calc_thickness(const MeshRenderData &mr,
         interp_v3_v3v3v3_uv(ray_co, cos[0], cos[1], cos[2], jit_ofs[j]);
         madd_v3_v3fl(ray_co, ray_no, eps_offset);
 
-        const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(
-            ray_co, ray_no, face_dists[index]);
+        const bke::bvh::Ray ray(ray_co, ray_no, face_dists[index]);
+        const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(ray);
         if (hit && hit->distance < face_dists[index]) {
           float angle_fac = fabsf(dot_v3v3(mr.face_normals[index], hit->normal));
           angle_fac = 1.0f - angle_fac;

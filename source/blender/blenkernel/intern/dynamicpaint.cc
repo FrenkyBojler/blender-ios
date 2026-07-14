@@ -3980,7 +3980,8 @@ static void dynamic_paint_paint_mesh_cell_point_cb_ex(void *__restrict userdata,
 
     /* Check volume collision */
     if (ELEM(brush->collision, MOD_DPAINT_COL_VOLUME, MOD_DPAINT_COL_VOLDIST)) {
-      if (const std::optional<bke::bvh::RayHit> hit = treeData.ray_intersect(ray_start, ray_dir)) {
+      const bke::bvh::Ray ray(ray_start, ray_dir);
+      if (const std::optional<bke::bvh::RayHit> hit = treeData.ray_intersect(ray)) {
         /* We hit a triangle, now check if collision point normal is facing the point */
 
         /* For optimization sake, hit point normal isn't calculated in ray cast loop */
@@ -4004,9 +4005,8 @@ static void dynamic_paint_paint_mesh_cell_point_cb_ex(void *__restrict userdata,
           /* Also cast a ray in opposite direction to make sure
            * point is at least surrounded by two brush faces */
           negate_v3(ray_dir);
-
-          if (const std::optional<bke::bvh::RayHit> hit_other = treeData.ray_intersect(ray_start,
-                                                                                       ray_dir))
+          const bke::bvh::Ray other_ray(ray_start, ray_dir);
+          if (const std::optional<bke::bvh::RayHit> hit_other = treeData.ray_intersect(other_ray))
           {
             /* Add factor on super-sample filter. */
             volume_factor = 1.0f;
@@ -4062,9 +4062,8 @@ static void dynamic_paint_paint_mesh_cell_point_cb_ex(void *__restrict userdata,
         }
 
         /* Do a face normal directional ray-cast, and use that distance. */
-        if (const std::optional<bke::bvh::RayHit> hit = treeData.ray_intersect(ray_start,
-                                                                               proj_ray))
-        {
+        const bke::bvh::Ray ray(ray_start, proj_ray);
+        if (const std::optional<bke::bvh::RayHit> hit = treeData.ray_intersect(ray)) {
           proxDist = hit->distance;
 
           /* Calculate final hit coordinates */

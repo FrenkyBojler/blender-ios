@@ -283,14 +283,14 @@ struct AddOperationExecutor {
                         const float3 &ray_end_su)
   {
     const float3 ray_direction_su = ray_end_su - ray_start_su;
-    const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh_eval_->ray_intersect(
-        ray_start_su, ray_direction_su);
+    const bke::bvh::Ray ray(ray_start_su, ray_direction_su);
+    const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh_eval_->ray_intersect(ray);
     if (!ray_hit) {
       return;
     }
     const int tri_index = ray_hit->index;
     const int3 &tri = surface_corner_tris_eval_[tri_index];
-    const float3 brush_pos_su = ray_hit->position;
+    const float3 brush_pos_su = ray_hit->position(ray);
     const float3 bary_coords = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
         surface_positions_eval_, surface_corner_verts_eval_, tri, brush_pos_su);
 

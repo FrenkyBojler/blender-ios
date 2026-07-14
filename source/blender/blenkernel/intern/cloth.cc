@@ -1423,7 +1423,8 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
     max_length = FLT_MAX;
   }
 
-  const std::optional<bke::bvh::RayHit> rayhit = treedata.ray_intersect(co, no, radius);
+  const bke::bvh::Ray ray(co, no, radius);
+  const std::optional<bke::bvh::RayHit> rayhit = treedata.ray_intersect(ray);
   if (!rayhit) {
     return false;
   }
@@ -1446,7 +1447,7 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
         return false;
       }
 
-      float len = len_v3v3(co, rayhit->position);
+      float len = len_v3v3(co, rayhit->position(ray));
       if (len < min_len) {
         min_len = len;
         vert_idx = tmp_vert_idx;
@@ -1526,13 +1527,17 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
     const bke::bvh::Tree &treedata = mesh_to_use.bvh_tris();
     rng = BLI_rng_new_srandom(0);
 
+    const Span<float3> vert_positions = mesh_to_use.vert_positions();
+    const Span<int> corner_verts = mesh_to_use.corner_verts();
+    const Span<int3> corner_tris = mesh_to_use.corner_tris();
+    const Span<float3> vert_normals = mesh_to_use.vert_normals();
     for (int i = 0; i < mvert_num; i++) {
       if (find_internal_spring_target_vertex(
               treedata,
-              mesh_to_use.vert_positions(),
-              mesh_to_use.corner_verts(),
-              mesh_to_use.corner_tris(),
-              mesh_to_use.vert_normals(),
+              vert_positions,
+              corner_verts,
+              corner_tris,
+              vert_normals,
               i,
               rng,
               clmd->sim_parms->internal_spring_max_length,

@@ -340,8 +340,8 @@ int sample_surface_points_projected(
     region_position_to_ray(pos_re, ray_start, ray_end);
     const float3 ray_direction = math::normalize(ray_end - ray_start);
 
-    const std::optional<bke::bvh::RayHit> ray_hit = mesh_bvhtree.ray_intersect(ray_start,
-                                                                               ray_direction);
+    const bke::bvh::Ray ray(ray_start, ray_direction);
+    const std::optional<bke::bvh::RayHit> ray_hit = mesh_bvhtree.ray_intersect(ray);
     if (!ray_hit) {
       continue;
     }
@@ -354,7 +354,7 @@ int sample_surface_points_projected(
     }
 
     const int tri_index = ray_hit->index;
-    const float3 pos = ray_hit->position;
+    const float3 pos = ray_hit->position(ray);
 
     const float3 bary_coords = compute_bary_coord_in_triangle(
         positions, corner_verts, corner_tris[tri_index], pos);

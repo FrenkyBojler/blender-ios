@@ -155,7 +155,7 @@ static void raycast_to_mesh(const IndexMask &mask,
         r_hit_indices[i] = hit->index;
       }
       if (!r_hit_positions.is_empty()) {
-        r_hit_positions[i] = hit->position;
+        r_hit_positions[i] = hit->position(ray);
       }
       if (!r_hit_normals.is_empty()) {
         r_hit_normals[i] = math::normalize(hit->normal);

@@ -27,16 +27,26 @@ struct Ray {
   /* Start of ray segment relative to ray length. */
   float dist_min = 0.0f;
   /* End of ray segment relative to ray length. */
-  float dist_max;
+  float dist_max = std::numeric_limits<float>::max();
+
+  Ray() = default;
+  Ray(const float3 &origin, const float3 &direction) : origin(origin), direction(direction) {}
+  Ray(const float3 &origin, const float3 &direction, const float radius)
+      : origin(origin), direction(direction), dist_max(radius)
+  {
+  }
 };
 
 struct RayHit {
-  float3 position;
   /* Ng. Not normalized. */
   float3 normal;
   float2 bary_coord;
   int index;
   float distance;
+  float3 position(const Ray &ray) const
+  {
+    return ray.origin + ray.direction * distance;
+  }
 };
 
 struct ClosestPointResult {
@@ -74,9 +84,6 @@ class Tree {
   void free();
 
   std::optional<RayHit> ray_intersect(const Ray &ray) const;
-  std::optional<RayHit> ray_intersect(const float3 &origin,
-                                      const float3 &direction,
-                                      float dist_max = std::numeric_limits<float>::max()) const;
 
   void ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const;
 
@@ -92,18 +99,6 @@ struct OptionallyOwnedTree {
 };
 
 OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask);
-
-inline std::optional<RayHit> Tree::ray_intersect(const float3 &origin,
-                                                 const float3 &direction,
-                                                 const float dist_max) const
-{
-  Ray ray;
-  ray.origin = origin;
-  ray.direction = direction;
-  ray.dist_min = 0.0f;
-  ray.dist_max = dist_max;
-  return this->ray_intersect(ray);
-}
 
 }  // namespace bke::bvh
 }  // namespace blender

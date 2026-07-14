@@ -1083,14 +1083,14 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   const float3 ray_end_su = math::transform_point(transforms.world_to_surface, ray_end_wo);
   const float3 ray_direction_su = math::normalize(ray_end_su - ray_start_su);
 
-  const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh_eval.ray_intersect(ray_start_su,
-                                                                                 ray_direction_su);
+  const bke::bvh::Ray ray(ray_start_su, ray_direction_su);
+  const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh_eval.ray_intersect(ray);
   if (!ray_hit) {
     WM_global_report(RPT_ERROR, "Cursor must be over the surface mesh");
     return OPERATOR_CANCELLED;
   }
 
-  const float3 hit_pos_su = ray_hit->position;
+  const float3 hit_pos_su = ray_hit->position(ray);
   const float3 hit_normal_su = math::normalize(ray_hit->normal);
 
   const float3 hit_pos_cu = math::transform_point(transforms.surface_to_curves, hit_pos_su);

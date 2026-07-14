@@ -72,7 +72,8 @@ static inline void raycast(const float3 &ray_origin,
                            const bke::bvh::Tree &tree_data,
                            std::optional<bke::bvh::RayHit> &hit)
 {
-  hit = tree_data.ray_intersect(ray_origin, ray_normal);
+  const bke::bvh::Ray ray(ray_origin, ray_normal);
+  hit = tree_data.ray_intersect(ray);
 }
 
 /**

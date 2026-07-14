@@ -206,10 +206,9 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
     const float3 center_ray_direction_su = math::normalize(center_ray_end_su -
                                                            center_ray_start_su);
 
-    if (const std::optional<bke::bvh::RayHit> hit = surface_bvh.ray_intersect(
-            center_ray_start_su, center_ray_direction_su))
-    {
-      const float3 hit_position_su = hit->position;
+    const bke::bvh::Ray center_ray(center_ray_start_su, center_ray_direction_su);
+    if (const std::optional<bke::bvh::RayHit> hit = surface_bvh.ray_intersect(center_ray)) {
+      const float3 hit_position_su = hit->position(center_ray);
       if (math::distance(center_ray_start_su, center_ray_end_su) >
           math::distance(center_ray_start_su, hit_position_su))
       {
@@ -282,8 +281,8 @@ std::optional<CurvesBrush3D> sample_curves_surface_3d_brush(
 
   const float3 brush_ray_direction_su = brush_ray_end_su - brush_ray_start_su;
 
-  const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh.ray_intersect(
-      brush_ray_start_su, brush_ray_direction_su);
+  const bke::bvh::Ray brush_ray(brush_ray_end_su, brush_ray_direction_su);
+  const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh.ray_intersect(brush_ray);
   if (!ray_hit) {
     return std::nullopt;
   }
@@ -301,7 +300,7 @@ std::optional<CurvesBrush3D> sample_curves_surface_3d_brush(
   const float3 brush_radius_ray_end_cu = math::transform_point(transforms.world_to_curves,
                                                                brush_radius_ray_end_wo);
 
-  const float3 brush_pos_su = ray_hit->position;
+  const float3 brush_pos_su = ray_hit->position(brush_ray);
   const float3 brush_pos_cu = math::transform_point(transforms.surface_to_curves, brush_pos_su);
   const float brush_radius_cu = dist_to_line_v3(
       brush_pos_cu, brush_radius_ray_start_cu, brush_radius_ray_end_cu);

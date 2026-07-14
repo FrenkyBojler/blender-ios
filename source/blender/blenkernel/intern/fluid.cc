@@ -1747,8 +1747,8 @@ static void update_distances(int index,
 
     for (int i = 0; i < ARRAY_SIZE(ray_dirs); i++) {
       normalize_v3(ray_dirs[i]);
-      const std::optional<bke::bvh::RayHit> hit_tree = tree.ray_intersect(
-          ray_start, ray_dirs[i], PHI_MAX);
+      const bke::bvh::Ray ray(ray_start, ray_dirs[i], PHI_MAX);
+      const std::optional<bke::bvh::RayHit> hit_tree = tree.ray_intersect(ray);
       /* Ray did not hit mesh.
        * Current point definitely not inside mesh. Inside mesh as all rays have to hit. */
       if (!hit_tree) {
@@ -1825,17 +1825,16 @@ static void sample_mesh(FluidFlowSettings *ffs,
 
   /* Emission inside the flow object. */
   if (is_gas_flow && ffs->volume_density) {
-    if (const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(
-            ray_start, ray_dir, PHI_MAX))
-    {
+    const bke::bvh::Ray ray(ray_start, ray_dir, PHI_MAX);
+    if (const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(ray)) {
       const float dot = math::dot(float3(ray_dir), math::normalize(hit->normal));
       /* If ray and hit face normal are facing same direction hit point is inside a closed mesh. */
       if (dot >= 0) {
         /* Also cast a ray in opposite direction to make sure point is at least surrounded by two
          * faces. */
         negate_v3(ray_dir);
-        const std::optional<bke::bvh::RayHit> hit_opposite = tree.ray_intersect(
-            ray_start, ray_dir, PHI_MAX);
+        const bke::bvh::Ray opposite_ray(ray_start, ray_dir, PHI_MAX);
+        const std::optional<bke::bvh::RayHit> hit_opposite = tree.ray_intersect(opposite_ray);
         if (hit_opposite) {
           volume_factor = ffs->volume_density;
         }

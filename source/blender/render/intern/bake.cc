@@ -346,14 +346,15 @@ static bool cast_ray_highpoly(const bke::bvh::Tree **treeData,
     normalize_v3(dir_high);
 
     /* cast ray */
+    const bke::bvh::Ray ray(co_high, dir_high);
     if (treeData[i]) {
-      hits[i] = treeData[i]->ray_intersect(co_high, dir_high);
+      hits[i] = treeData[i]->ray_intersect(ray);
     }
 
     if (hits[i]->index != -1) {
       /* distance comparison in world space */
       float hit_world[3];
-      mul_v3_m4v3(hit_world, highpoly[i].obmat, hits[i]->position);
+      mul_v3_m4v3(hit_world, highpoly[i].obmat, hits[i]->position(ray));
       float distance_squared = len_squared_v3v3(hit_world, co);
 
       if (distance_squared < hit_distance_squared) {
@@ -374,7 +375,8 @@ static bool cast_ray_highpoly(const bke::bvh::Tree **treeData,
     pixel_high->seed = pixel_id;
 
     /* ray direction in high poly object space */
-    float dir_high[3];
+    float co_high[3], dir_high[3];
+    mul_v3_m4v3(co_high, highpoly[hit_mesh].imat, co);
     mul_v3_mat3_m4v3(dir_high, highpoly[hit_mesh].imat, dir);
     normalize_v3(dir_high);
 
@@ -401,7 +403,8 @@ static bool cast_ray_highpoly(const bke::bvh::Tree **treeData,
     madd_v3_v3fl(dyco, tmp, -dot_v3v3(dyco, triangle_high->normal));
 
     /* compute barycentric differentials from position differentials */
-    barycentric_differentials_from_position(hits[hit_mesh]->position,
+    const bke::bvh::Ray ray(co_high, dir_high);
+    barycentric_differentials_from_position(hits[hit_mesh]->position(ray),
                                             triangle_high->positions[0],
                                             triangle_high->positions[1],
                                             triangle_high->positions[2],

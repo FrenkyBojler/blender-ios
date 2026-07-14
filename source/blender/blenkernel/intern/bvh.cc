@@ -274,7 +274,7 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   rtc_hit.ray.dir_z = ray.direction.z;
   rtc_hit.ray.tnear = ray.dist_min;
   rtc_hit.ray.tfar = ray.dist_max;
-  rtc_hit.ray.time = 0.0f; /* Motion blur time */
+  rtc_hit.ray.time = 0.0f;
   rtc_hit.ray.mask = 0xffffffff;
   rtc_hit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
   rtc_hit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
@@ -286,9 +286,6 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   }
 
   RayHit hit;
-  hit.position = float3(rtc_hit.ray.org_x + rtc_hit.ray.tfar * rtc_hit.ray.dir_x,
-                        rtc_hit.ray.org_y + rtc_hit.ray.tfar * rtc_hit.ray.dir_y,
-                        rtc_hit.ray.org_z + rtc_hit.ray.tfar * rtc_hit.ray.dir_z);
   hit.normal = float3(rtc_hit.hit.Ng_x, rtc_hit.hit.Ng_y, rtc_hit.hit.Ng_z);
   hit.bary_coord = float2(rtc_hit.hit.u, rtc_hit.hit.v);
   hit.index = rtc_hit.hit.primID;
@@ -363,7 +360,6 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
     const RTCRay rtc_ray = rtcGetRayFromRayN(filter_args->ray, filter_args->N, 0);
 
     RayHit hit;
-    hit.position = ctx->origin + rtc_ray.tfar * ctx->direction;
     hit.normal = float3(rtc_hit.Ng_x, rtc_hit.Ng_y, rtc_hit.Ng_z);
     hit.bary_coord = float2(rtc_hit.u, rtc_hit.v);
     hit.index = int(rtc_hit.primID);

@@ -460,12 +460,13 @@ struct SlideOperationExecutor {
     float best_dist_sq_su = FLT_MAX;
     int best_tri_index_eval;
     float3 best_hit_pos_su;
-    const bke::bvh::Ray ray{ray_start_su, ray_direction_su, 0.0f, FLT_MAX};
+    const bke::bvh::Ray ray(ray_start_su, ray_direction_su);
     surface_bvh_eval_->ray_intersect_all(ray, [&](const bke::bvh::RayHit &hit) {
-      const float dist_sq_su = math::distance_squared(hit.position, point_su);
+      const float3 hit_pos_su = hit.position(ray);
+      const float dist_sq_su = math::distance_squared(hit_pos_su, point_su);
       if (dist_sq_su < best_dist_sq_su) {
         best_dist_sq_su = dist_sq_su;
-        best_hit_pos_su = hit.position;
+        best_hit_pos_su = hit_pos_su;
         best_tri_index_eval = hit.index;
       }
     });

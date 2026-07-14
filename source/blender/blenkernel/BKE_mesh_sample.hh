@@ -23,11 +23,9 @@ namespace blender {
 struct Mesh;
 
 class RandomNumberGenerator;
-namespace bke {
-namespace bvh {
+namespace bke::bvh {
 class Tree;
 }
-}  // namespace bke
 
 namespace bke::mesh_surface_sample {
 
