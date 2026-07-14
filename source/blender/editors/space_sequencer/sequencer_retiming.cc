@@ -949,6 +949,23 @@ static void realize_fake_keys_in_rect(const Scene *scene, Strip *strip, const rc
   }
 }
 
+static bool has_overlapping_transition(const Scene *scene,
+                                       const View2D *v2d,
+                                       const SpaceSeq *sseq,
+                                       const Span<Strip *> effects,
+                                       const int frame)
+{
+  for (Strip *effect_strip : effects) {
+    if (!strip_overlaps_retiming_region(scene, sseq, v2d, effect_strip)) {
+      continue;
+    }
+    if (frame > effect_strip->left_handle() && frame < effect_strip->right_handle(scene)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
@@ -998,19 +1015,9 @@ wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
 
       /* If there isn't enough space a transition strip may overlap the retiming key, potentially
        * obscuring the key. In this case don't select the key. */
-      bool overlapping_transition = false;
-      for (Strip *effect_strip : effects) {
-        if (!strip_overlaps_retiming_region(scene, sseq, v2d, effect_strip)) {
-          continue;
-        }
-        if (key_frame > effect_strip->left_handle() &&
-            key_frame < effect_strip->right_handle(scene))
-        {
-          overlapping_transition = true;
-          break;
-        }
-      }
-      if (overlapping_transition) {
+      // TODO: I think this should not be done, and the keys should always be drawn in front of the
+      // transitions instead
+      if (has_overlapping_transition(scene, v2d, sseq, effects, key_frame)) {
         continue;
       }
 

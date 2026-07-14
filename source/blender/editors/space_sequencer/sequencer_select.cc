@@ -414,6 +414,21 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene)
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 }
 
+static bool has_transition_handles_selected(Scene *scene)
+
+{
+  /* It should be the case that there are only transition handles selected if and only if the
+   * active strip is a transition and has a handle selected. */
+  Strip *active = seq::select_active_get(scene);
+
+  if (active && seq::strip_is_transition(active)) {
+    if ((active->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2245,13 +2260,19 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
   }
 
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
-  const bool handles = RNA_boolean_get(op->ptr, "include_handles");
+  const bool include_handles = RNA_boolean_get(op->ptr, "include_handles");
   const bool select = (sel_op != SEL_OP_SUB);
 
-  bool changed = false;
+  const bool has_transition_handles = has_transition_handles_selected(scene);
 
+  bool changed = false;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     changed |= deselect_all_strips(scene);
+  }
+  /* Deselect transition handles first if box selecting entire strips, so transition handles and
+   * non-transitions aren't selected at the same time. */
+  else if (has_transition_handles && !include_handles) {
+    changed |= deselect_transition_handles(scene);
   }
 
   rctf rectf;
@@ -2269,9 +2290,20 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
   }
 
   for (Strip &strip : *ed->current_strips()) {
+    if (include_handles) {
+      /* Select exclusively transition or non-transition handles based on the previous selection
+       * state. Transition handles and non-transition handles must not be selected at the same
+       * time. */
+      if (has_transition_handles && !seq::strip_is_transition(&strip)) {
+        continue;
+      }
+      if (!has_transition_handles && seq::strip_is_transition(&strip)) {
+        continue;
+      }
+    }
     rctf rq = strip_bounds_get(scene, sseq, v2d, &strip);
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      if (handles) {
+      if (include_handles) {
         /* Get the clickable handle size, ignoring padding. */
         float handsize = inner_clickable_handle_size_get(scene, &strip, v2d) * 4;
 
