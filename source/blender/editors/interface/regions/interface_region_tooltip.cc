@@ -94,31 +94,6 @@ namespace blender::ui {
 
 #define TIP_MAXWIDTH 600
 
-struct TooltipFormat {
-  TooltipStyle style;
-  TooltipColorID color_id;
-};
-
-struct TooltipField {
-  std::string text;
-  std::string text_suffix;
-  struct {
-    /** X cursor position at the end of the last line. */
-    uint x_pos;
-    /** Number of lines, 1 or more with word-wrap. */
-    uint lines;
-  } geom;
-  TooltipFormat format;
-  std::optional<TooltipImage> image;
-};
-
-struct TooltipData {
-  rcti bbox;
-  Vector<TooltipField> fields;
-  uiFontStyle fstyle;
-  int wrap_width;
-  int toth, lineh;
-};
 
 BLI_STATIC_ASSERT(int(TIP_LC_MAX) == int(TIP_LC_ALERT) + 1, "invalid lc-max");
 
@@ -1417,7 +1392,7 @@ static std::unique_ptr<TooltipData> tooltip_data_from_custom_func(bContext *C, B
   return data->fields.is_empty() ? nullptr : std::move(data);
 }
 
-static ARegion *tooltip_create_with_data(bContext *C,
+ARegion *tooltip_create_with_data(bContext *C,
                                          std::unique_ptr<TooltipData> data_uptr,
                                          const float init_position[2],
                                          const rcti *init_rect_overlap)
@@ -1780,7 +1755,7 @@ ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
   return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
 }
 
-static void tooltip_from_image(Image &ima, TooltipData &data)
+void tooltip_from_image(Image &ima, TooltipData &data)
 {
   if (ima.filepath[0]) {
     char root[FILE_MAX];

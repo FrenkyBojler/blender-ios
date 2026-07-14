@@ -3031,6 +3031,32 @@ void butstore_unregister(ButStore *bs_handle, Button **but_p);
 
 /* interface_region_tooltip.cc */
 
+struct TooltipFormat {
+  TooltipStyle style;
+  TooltipColorID color_id;
+};
+
+struct TooltipField {
+  std::string text;
+  std::string text_suffix;
+  struct {
+    /** X cursor position at the end of the last line. */
+    uint x_pos;
+    /** Number of lines, 1 or more with word-wrap. */
+    uint lines;
+  } geom;
+  TooltipFormat format;
+  std::optional<TooltipImage> image;
+};
+
+struct TooltipData {
+  rcti bbox;
+  Vector<TooltipField> fields;
+  uiFontStyle fstyle;
+  int wrap_width;
+  int toth, lineh;
+};
+
 /**
  * \param is_quick_tip: See #button_func_quick_tooltip_set for what a quick tooltip is.
  */
@@ -3045,7 +3071,11 @@ ARegion *tooltip_create_from_button_or_extra_icon(bContext *C,
                                                   bool is_quick_tip);
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
 
-ARegion *tooltip_create_from_outliner_element(bContext *C, ID *id, const int x, const int y);
+void tooltip_from_image(Image &ima, TooltipData &data);
+ARegion *tooltip_create_with_data(bContext *C,
+                                         std::unique_ptr<TooltipData> data_uptr,
+                                         const float init_position[2],
+                                         const rcti *init_rect_overlap);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 

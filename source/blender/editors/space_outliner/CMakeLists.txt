@@ -104,6 +104,7 @@ set(SRC
   tree/tree_element_id_curve.hh
   tree/tree_element_id_gpencil_legacy.hh
   tree/tree_element_id_grease_pencil.hh
+  tree/tree_element_id_image.hh
   tree/tree_element_id_library.hh
   tree/tree_element_id_linestyle.hh
   tree/tree_element_id_mesh.hh

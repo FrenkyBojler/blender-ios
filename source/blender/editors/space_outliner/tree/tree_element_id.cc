@@ -28,6 +28,7 @@
 #include "tree_element_id_scene.hh"
 #include "tree_element_id_texture.hh"
 #include "tree_element_shapekey.hh"
+#include "tree_element_id_image.hh"
 
 #include "tree_element_id.hh"
 
@@ -70,6 +71,8 @@ std::unique_ptr<TreeElementID> TreeElementID::create_from_id(TreeElement &legacy
     case ID_KE:
       /* Shape Key is handled separately, see #TreeElementShapeKeyBase. */
       return nullptr;
+    case ID_IM:
+      return std::make_unique<TreeElementIDImage>(legacy_te, id);
     case ID_MA:
     case ID_LT:
     case ID_LA:
@@ -88,7 +91,6 @@ std::unique_ptr<TreeElementID> TreeElementID::create_from_id(TreeElement &legacy
     case ID_PT:
     case ID_VO:
     case ID_WM:
-    case ID_IM:
     case ID_VF:
     case ID_TXT:
     case ID_SO:

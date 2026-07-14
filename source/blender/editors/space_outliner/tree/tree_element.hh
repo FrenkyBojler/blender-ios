@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <optional>
+#include <functional>
 
 #include "BLI_string_ref.hh"
 #include "DNA_listBase.h"
@@ -19,6 +20,8 @@ namespace blender {
 
 struct ID;
 struct SpaceOutliner;
+struct bContext;
+struct ARegion;
 
 namespace ed::outliner {
 
@@ -44,6 +47,7 @@ class AbstractTreeElement {
   friend class AbstractTreeDisplay;
 
  public:
+ std::function<ARegion *(bContext *C, ID *id, const int xy[2])> tooltip_fn;
   virtual ~AbstractTreeElement() = default;
 
   static std::unique_ptr<AbstractTreeElement> create_from_type(int type,

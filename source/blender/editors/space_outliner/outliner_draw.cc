@@ -3762,19 +3762,19 @@ ARegion *tooltip_init(bContext *C,
   const wmEvent *event = wm->runtime->eventstate;
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ID *id = nullptr;
+  ARegion *region = nullptr;
 
   tree_iterator::all_open(*space_outliner, [&](const TreeElement *te) {
     const TreeStoreElem *tselem = TREESTORE(te);
-    if ((tselem->flag & TSE_HIGHLIGHTED) && tselem->id && (GS(tselem->id->name) == ID_IM)) {
+    if (tselem->flag & TSE_HIGHLIGHTED) {
       id = tselem->id;
+      if (id && te->abstract_element && te->abstract_element->tooltip_fn) {
+        region = te->abstract_element->tooltip_fn(C, id, event->xy);
+      }
     }
   });
 
-  if (id != nullptr) {
-    return ui::tooltip_create_from_outliner_element(C, id, event->xy[0], event->xy[1]);
-  }
-
-  return nullptr;
+  return region;
 }
 
 static void draw_tooltip(bContext *C, SpaceOutliner * /*space_outliner*/)

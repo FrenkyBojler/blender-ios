@@ -1,0 +1,41 @@
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup spoutliner
+ */
+
+#pragma once
+
+#include "tree_element_id.hh"
+#include "DNA_image_types.h"
+#include "UI_interface_c.hh"
+
+#include <optional>
+
+namespace blender {
+struct ID;
+struct bContext;
+
+namespace ed::outliner {
+
+ARegion *image_tooltip_fn(bContext *C, ID *id, const int xy[2])
+{
+  std::unique_ptr<ui::TooltipData> data = std::make_unique<ui::TooltipData>();
+  tooltip_from_image(*id_cast<Image *>(id), *data);
+  const float init_position[2] = {float(xy[0]) + 35.0f * UI_SCALE_FAC,
+                                  float(xy[1]) + 35.0f * UI_SCALE_FAC};
+  return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
+}
+
+class TreeElementIDImage final : public TreeElementID {
+ public:
+  TreeElementIDImage(TreeElement &legacy_te, ID &id) : TreeElementID(legacy_te, id) 
+  {
+    this->tooltip_fn = image_tooltip_fn;
+  }
+};
+
+}  // namespace ed::outliner
+}  // namespace blender
