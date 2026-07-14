@@ -1585,11 +1585,8 @@ void OUTLINER_OT_hide(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ot->prop = RNA_def_boolean(ot->srna,
-                              "unselected",
-                              false,
-                              "Unselected",
-                              "Hide unselected objects");
+  ot->prop = RNA_def_boolean(
+      ot->srna, "unselected", false, "Unselected", "Hide unselected objects");
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 }
 
