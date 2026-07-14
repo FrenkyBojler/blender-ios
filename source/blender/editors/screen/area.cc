@@ -636,6 +636,32 @@ void ED_region_tag_redraw(ARegion *region)
   }
 }
 
+void ED_region_activate_rna_prop(bContext *C,
+                                 ARegion *region,
+                                 const void *data,
+                                 StringRefNull prop_name,
+                                 StringRefNull block_name)
+{
+  /* Try first to open the button, otherwise try after region redraw. */
+  if (!(region->runtime->do_draw & (RGN_DRAW | RGN_DRAWING)) &&
+      ui::textbutton_activate_rna(C, region, data, prop_name.data(), block_name))
+  {
+    return;
+  }
+  region->runtime->post_block_layout_fns
+      .lookup_or_add_cb_as(block_name,
+                           []() { return Vector<std::function<void(const bContext &C)>>{}; })
+      .append([data, prop_name = std::string(prop_name), block_name](const bContext &C) {
+        ARegion *region = CTX_wm_region(&C);
+        ui::textbutton_activate_rna(&C, region, data, prop_name.c_str(), block_name);
+      });
+
+  if (region->flag & RGN_FLAG_HIDDEN) {
+    ED_region_toggle_hidden(C, region);
+  }
+  ED_region_tag_redraw(region);
+}
+
 void ED_region_tag_redraw_cursor(ARegion *region)
 {
   if (region) {
@@ -762,6 +788,22 @@ void ED_area_tag_region_size_update(ScrArea *area, ARegion *changed_region)
       continue;
     }
     ED_region_tag_redraw(following_region);
+  }
+}
+
+void ED_area_hud_region_set_padding_flag(ScrArea *area,
+                                         ARegion *changed_region,
+                                         const bool set_padding)
+{
+  ARegion *hud_region = BKE_area_find_region_type(area, RGN_TYPE_HUD);
+  if (hud_region == nullptr) {
+    return;
+  }
+
+  if (set_padding != bool(hud_region->runtime->flag & bke::ARegionRuntimeFlag::HUD_PADDING)) {
+    SET_FLAG_FROM_TEST(
+        hud_region->runtime->flag, set_padding, bke::ARegionRuntimeFlag::HUD_PADDING);
+    ED_area_tag_region_size_update(area, changed_region);
   }
 }
 
@@ -1679,6 +1721,9 @@ static void region_rect_recursive(
                     max_ii(0, BLI_rcti_size_y(overlap_remainder) - UI_UNIT_Y / 2));
     region->winrct.xmin = overlap_remainder_margin.xmin + region->runtime->offset_x;
     region->winrct.ymin = overlap_remainder_margin.ymin + region->runtime->offset_y;
+    if (region->runtime->flag & bke::ARegionRuntimeFlag::HUD_PADDING) {
+      region->winrct.ymin += UI_UNIT_Y;
+    }
     region->winrct.xmax = region->winrct.xmin + prefsizex - 1;
     region->winrct.ymax = region->winrct.ymin + prefsizey - 1;
 
@@ -3211,7 +3256,7 @@ static void ed_panel_draw(const bContext *C,
     }
   }
 
-  block_end(C, block);
+  block_end(C, block, true);
 
   /* Draw child panels. */
   if (open || search_filter_active) {
@@ -3499,6 +3544,9 @@ void ED_region_panels_layout_ex(const bContext *C,
 
   if (use_categories) {
     region->runtime->category = category;
+  }
+  for (ui::Block &block : region->runtime->uiblocks) {
+    block_post_layout_callbacks_exec(C, region, &block);
   }
 }
 
