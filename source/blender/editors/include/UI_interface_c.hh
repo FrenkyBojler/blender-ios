@@ -428,10 +428,11 @@ enum {
 /** Size of tooltip text. */
 #define UI_DEFAULT_TOOLTIP_POINTS 11.0f
 
+static constexpr const char *panel_category_search_block_name = "panel_category_search_block";
+
 #define UI_PANEL_WIDTH 340
 #define UI_COMPACT_PANEL_WIDTH 160
 #define UI_SIDEBAR_PANEL_WIDTH 280
-static constexpr const char *panel_category_search_block_name = "panel_category_search_block";
 #define UI_NAVIGATION_REGION_WIDTH UI_COMPACT_PANEL_WIDTH
 #define UI_NARROW_NAVIGATION_REGION_WIDTH 100
 
