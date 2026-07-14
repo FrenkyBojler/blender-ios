@@ -7054,21 +7054,19 @@ template void scatter_data_bmesh<float3>(Span<float3>,
                                          const Set<BMVert *, 0> &,
                                          MutableSpan<float3>);
 
-void calc_local_positions(const SculptSession &ss,
-                          const Span<float3> vert_positions,
+void calc_local_positions(const Span<float3> vert_positions,
                           const Span<int> verts,
                           const float4x4 &mat,
+                          const float3 &plane_center,
+                          const float3 &view_normal,
                           const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float3> local_positions)
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(local_positions.size() == verts.size());
-  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
-  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
-    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
-                                           ss.filter_cache->view_normal;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
     float4 test_plane;
-    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    plane_from_point_normal_v3(test_plane, plane_center, view_normal);
     for (const int i : verts.index_range()) {
       float3 projected;
       closest_to_plane_normalized_v3(projected, test_plane, vert_positions[verts[i]]);
@@ -7082,20 +7080,18 @@ void calc_local_positions(const SculptSession &ss,
   }
 }
 
-void calc_local_positions(const SculptSession &ss,
-                          const Span<float3> positions,
+void calc_local_positions(const Span<float3> positions,
                           const float4x4 &mat,
+                          const float3 &plane_center,
+                          const float3 &view_normal,
                           const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float3> local_positions)
 {
   PRF_scope(ProfileCategory::Editor);
   BLI_assert(local_positions.size() == positions.size());
-  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
-  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
-    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
-                                           ss.filter_cache->view_normal;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
     float4 test_plane;
-    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    plane_from_point_normal_v3(test_plane, plane_center, view_normal);
     for (const int i : positions.index_range()) {
       float3 projected;
       closest_to_plane_normalized_v3(projected, test_plane, positions[i]);
@@ -7109,10 +7105,11 @@ void calc_local_positions(const SculptSession &ss,
   }
 }
 
-void calc_local_positions(const SculptSession &ss,
-                          const Span<float3> vert_positions,
+void calc_local_positions(const Span<float3> vert_positions,
                           const Span<int> verts,
                           const float4x4 &mat,
+                          const float3 &plane_center,
+                          const float3 &view_normal,
                           const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions)
@@ -7121,12 +7118,9 @@ void calc_local_positions(const SculptSession &ss,
   BLI_assert(xy_positions.size() == verts.size());
   BLI_assert(z_positions.size() == verts.size());
 
-  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
-  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
-    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
-                                           ss.filter_cache->view_normal;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
     float4 test_plane;
-    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    plane_from_point_normal_v3(test_plane, plane_center, view_normal);
     for (const int i : verts.index_range()) {
       float3 projected;
       closest_to_plane_normalized_v3(projected, test_plane, vert_positions[verts[i]]);
@@ -7146,9 +7140,10 @@ void calc_local_positions(const SculptSession &ss,
   }
 }
 
-void calc_local_positions(const SculptSession &ss,
-                          const Span<float3> positions,
+void calc_local_positions(const Span<float3> positions,
                           const float4x4 &mat,
+                          const float3 &plane_center,
+                          const float3 &view_normal,
                           const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions)
@@ -7157,12 +7152,9 @@ void calc_local_positions(const SculptSession &ss,
   BLI_assert(xy_positions.size() == positions.size());
   BLI_assert(z_positions.size() == positions.size());
 
-  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
-  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
-    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
-                                           ss.filter_cache->view_normal;
+  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
     float4 test_plane;
-    plane_from_point_normal_v3(test_plane, test_location, view_normal);
+    plane_from_point_normal_v3(test_plane, plane_center, view_normal);
     for (const int i : positions.index_range()) {
       float3 projected;
       closest_to_plane_normalized_v3(projected, test_plane, positions[i]);
@@ -7327,8 +7319,13 @@ void calc_cube_tip_factors_common_mesh_indexed(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(verts.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(
-      ss, vert_positions, verts, mat, eBrushFalloffShape(brush.falloff_shape), local_positions);
+  calc_local_positions(vert_positions,
+                       verts,
+                       mat,
+                       cache.location_symm,
+                       cache.view_normal_symm,
+                       eBrushFalloffShape(brush.falloff_shape),
+                       local_positions);
 
   /* Find the cube distance. */
   calc_brush_cube_distances<float3>(brush, local_positions, distances);
@@ -7410,8 +7407,12 @@ void calc_cube_tip_factors_common_grids(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(positions.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(
-      ss, positions, mat, eBrushFalloffShape(brush.falloff_shape), local_positions);
+  calc_local_positions(positions,
+                       mat,
+                       cache.location_symm,
+                       cache.view_normal_symm,
+                       eBrushFalloffShape(brush.falloff_shape),
+                       local_positions);
 
   /* Find the cube distance. */
   r_distances.resize(positions.size());
@@ -7491,8 +7492,12 @@ void calc_cube_tip_factors_common_bmesh(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(verts.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(
-      ss, positions, mat, eBrushFalloffShape(brush.falloff_shape), local_positions);
+  calc_local_positions(positions,
+                       mat,
+                       cache.location_symm,
+                       cache.view_normal_symm,
+                       eBrushFalloffShape(brush.falloff_shape),
+                       local_positions);
 
   /* Find the cube distance. */
   r_distances.resize(verts.size());

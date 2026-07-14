@@ -120,10 +120,11 @@ static void calc_faces(const Depsgraph &depsgraph,
   MutableSpan<float2> xy_positions = tls.xy_positions;
   MutableSpan<float> z_positions = tls.z_positions;
 
-  calc_local_positions(ss,
-                       position_data.eval,
+  calc_local_positions(position_data.eval,
                        verts,
                        mat,
+                       cache.location_symm,
+                       cache.view_normal_symm,
                        eBrushFalloffShape(brush.falloff_shape),
                        xy_positions,
                        z_positions);
@@ -184,8 +185,13 @@ static void calc_grids(const Depsgraph &depsgraph,
   MutableSpan<float2> xy_positions = tls.xy_positions;
   MutableSpan<float> z_positions = tls.z_positions;
 
-  calc_local_positions(
-      ss, positions, mat, eBrushFalloffShape(brush.falloff_shape), xy_positions, z_positions);
+  calc_local_positions(positions,
+                       mat,
+                       cache.location_symm,
+                       cache.view_normal_symm,
+                       eBrushFalloffShape(brush.falloff_shape),
+                       xy_positions,
+                       z_positions);
   if (eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_TUBE) {
     z_positions.fill(brush.plane_offset);
   }
@@ -242,8 +248,13 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   MutableSpan<float2> xy_positions = tls.xy_positions;
   MutableSpan<float> z_positions = tls.z_positions;
 
-  calc_local_positions(
-      ss, positions, mat, eBrushFalloffShape(brush.falloff_shape), xy_positions, z_positions);
+  calc_local_positions(positions,
+                       mat,
+                       cache.location_symm,
+                       cache.view_normal_symm,
+                       eBrushFalloffShape(brush.falloff_shape),
+                       xy_positions,
+                       z_positions);
   if (eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_TUBE) {
     z_positions.fill(brush.plane_offset);
   }
