@@ -36,6 +36,7 @@
 #include <opentimelineio/stack.h>
 #include <opentimelineio/timeline.h>
 #include <opentimelineio/track.h>
+#include <opentimelineio/transition.h>
 
 #include "SEQ_add.hh"
 #include "SEQ_utils.hh"
@@ -114,6 +115,45 @@ static void image_strip_init(
   if (missing_frames_error) {
     BKE_reportf(
         reports, RPT_ERROR, "Image Sequence Strip '%s' Contains Missing Frames", params->name);
+  }
+}
+
+static void add_transition(Scene *scene, ListBaseT<Strip> *seqbase, TransitionParams &params)
+{
+  int in_offset = params.otio_transition->in_offset().to_frames();
+  int out_offset = params.otio_transition->out_offset().to_frames();
+
+  int right_handle = params.input1->right_handle(scene);
+  params.input1->right_handle_set(scene, right_handle - in_offset);
+
+  int left_handle = params.input2->left_handle();
+  params.input2->left_handle_set(scene, left_handle + out_offset);
+
+  seq::LoadData load_data;
+  memset(&load_data, 0, sizeof(seq::LoadData));
+  load_data.start_frame = right_handle;
+  load_data.channel = params.channel;
+  load_data.allow_invalid_file = true;
+  load_data.fit_method = SEQ_SCALE_TO_FIT;
+  load_data.flags |= seq::SEQ_LOAD_SET_VIEW_TRANSFORM;
+  load_data.flags &= ~seq::SEQ_LOAD_MOVIE_SYNC_FPS;
+  load_data.image.count = 1;
+  load_data.image.length = 1;
+  STRNCPY(load_data.name, params.otio_transition->name().c_str());
+  load_data.effect.type = STRIP_TYPE_CROSS;
+  load_data.effect.input1 = params.input1;
+  load_data.effect.input2 = params.input2;
+  load_data.effect.length = in_offset + out_offset;
+
+  seq::add_effect_strip(scene, seqbase, &load_data);
+}
+
+static void add_transitions(Scene *scene,
+                            ListBaseT<Strip> *seqbase,
+                            std::vector<TransitionParams> &transition_params)
+{
+  for (TransitionParams &params : transition_params) {
+    add_transition(scene, seqbase, params);
   }
 }
 
@@ -198,15 +238,24 @@ static Strip *add_item_recursive(Main *bmain,
     return nullptr;
   }
   else if (auto stack = dynamic_cast<Stack *>(item)) {
+
     strip = seq::add_meta_strip(scene, seqbase, &load_data);
     int meta_end_frame = std::numeric_limits<int>::min();
     int channel_meta = 1;
+
     for (const auto &t : stack->children()) {
       if (auto track = dynamic_cast<Track *>(t.value)) {
+
         int left_handle_meta = 1;
         bool is_sound_clip = track->kind() == Track::Kind::audio ? true : false;
+
+        std::vector<TransitionParams> transition_params;
+        TransitionParams transition_params_curr;
+        transition_params_curr.set_channel(channel_meta);
+
         for (auto &child : track->children()) {
           if (auto item = dynamic_cast<Item *>(child.value)) {
+
             Strip *strip_child = add_item_recursive(bmain,
                                                     scene,
                                                     &strip->seqbase,
@@ -220,9 +269,18 @@ static Strip *add_item_recursive(Main *bmain,
               meta_end_frame = max_ii(strip_child->right_handle(scene), meta_end_frame);
             }
 
+            if (transition_params_curr.set_input(strip_child)) {
+              transition_params.push_back(transition_params_curr);
+              transition_params_curr.reset();
+            }
+
             left_handle_meta += item->trimmed_range().duration().to_frames();
           }
+          else if (auto transition = dynamic_cast<Transition *>(child.value)) {
+            transition_params_curr.set_transition(transition);
+          }
         }
+        add_transitions(scene, &strip->seqbase, transition_params);
         ++channel_meta;
       }
     }
@@ -296,21 +354,38 @@ void build_blender_timeline(Main *bmain,
   int channel = 1;
   for (const auto &t : timeline->tracks()->children()) {
     if (auto track = dynamic_cast<Track *>(t.value)) {
+
       int left_handle = 1;
       bool is_sound_clip = track->kind() == Track::Kind::audio ? true : false;
+
+      std::vector<TransitionParams> transition_params;
+      TransitionParams transition_params_curr;
+      transition_params_curr.set_channel(channel);
+
       for (auto &child : track->children()) {
         if (auto item = dynamic_cast<Item *>(child.value)) {
-          add_item_recursive(bmain,
-                             scene,
-                             &scene->ed->seqbase,
-                             item,
-                             channel,
-                             left_handle,
-                             is_sound_clip,
-                             reports);
+
+          Strip *strip_added = add_item_recursive(bmain,
+                                                  scene,
+                                                  &scene->ed->seqbase,
+                                                  item,
+                                                  channel,
+                                                  left_handle,
+                                                  is_sound_clip,
+                                                  reports);
+
           left_handle += item->trimmed_range().duration().to_frames();
+
+          if (transition_params_curr.set_input(strip_added)) {
+            transition_params.push_back(transition_params_curr);
+            transition_params_curr.reset();
+          }
+        }
+        else if (auto transition = dynamic_cast<Transition *>(child.value)) {
+          transition_params_curr.set_transition(transition);
         }
       }
+      add_transitions(scene, &scene->ed->seqbase, transition_params);
       ++channel;
     }
   }
