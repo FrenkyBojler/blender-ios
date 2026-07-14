@@ -88,34 +88,33 @@ StringRefNull BlenderProject::get_root_path() const
 
 IDProperty *BlenderProject::new_variable(StringRef name, eIDPropertyType type)
 {
-  IDProperty *prop = nullptr;
+  std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> prop;
   switch (type) {
     case eIDPropertyType::IDP_INT: {
-      prop = IDP_NewInt(0, name, eIDPropertyFlag(0));
+      prop = idprop::create(name, int32_t(0), eIDPropertyFlag(0));
       break;
     }
 
     case eIDPropertyType::IDP_FLOAT: {
-      IDPropertyTemplate value;
-      value.f = 0.0f;
-      prop = IDP_New(eIDPropertyType::IDP_FLOAT, &value, name, eIDPropertyFlag(0));
+      prop = idprop::create(name, 0.0f, eIDPropertyFlag(0));
       break;
     }
 
     case eIDPropertyType::IDP_STRING: {
-      prop = IDP_NewString("", name, eIDPropertyFlag(0));
+      prop = idprop::create(name, "", eIDPropertyFlag(0));
       break;
     }
 
     default:
       /* Other IDProperty types not yet supported by project variables. */
       BLI_assert_unreachable();
+      return nullptr;
   }
 
-  IDP_ui_data_ensure(prop);
+  IDP_ui_data_ensure(prop.get());
   prop->ui_data->description = BLI_strdup("");
 
-  this->variables.append(std::unique_ptr<IDProperty, idprop::IDPropertyDeleter>(prop));
+  this->variables.append(std::move(prop));
 
   this->is_dirty = true;
 
