@@ -45,13 +45,12 @@ body:
             Test [daily builds](https://builder.blender.org/) to verify if the issue is already fixed.
             Test [previous versions](https://download.blender.org/release/) to find an older working version.
       placeholder: |
-               Broken: 5.0.0, branch: blender-v5.0-release, commit date: 2025-11-18 09:54, hash: `a37564c4df7a`
-               Broken: (If applicable: Previous version that was also broken)
+               Broken: (Newest version of Blender you're experiencing the issue with)
+               Broken: (If applicable: Previous version that is also broken)
                Worked: (Optional: Newest version of Blender that worked as expected)
       value: |
-               Broken: (Example: 5.0.0, branch: blender-v5.0-release, commit date: 2025-11-18 09:54, hash: `a37564c4df7a`)
-               Broken: (If applicable: Previous version that was also broken)
-               Worked: (Optional: Newest version of Blender that worked as expected)
+               Broken:
+               Worked:
     validations:
       required: true
 
