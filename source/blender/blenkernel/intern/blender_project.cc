@@ -123,7 +123,7 @@ IDProperty *BlenderProject::new_variable(StringRef name, eIDPropertyType type)
 
 int BlenderProject::remove_variable(IDProperty *var)
 {
-  for (int i = 0; i < this->variables.size(); i++) {
+  for (int i : this->variables.index_range()) {
     if (this->variables[i].get() == var) {
       this->variables.remove(i);
       this->is_dirty = true;
