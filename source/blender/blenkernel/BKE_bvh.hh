@@ -47,9 +47,18 @@ struct ClosestPointResult {
 };
 
 class Tree {
+ public:
+  struct FallbackTree {
+    virtual ~FallbackTree() = default;
+  };
+
  private:
+#ifdef WITH_EMBREE
   RTCDeviceTy *rtc_device = nullptr;
   RTCSceneTy *rtc_scene = nullptr;
+#else
+  std::unique_ptr<FallbackTree> fallback_tree_;
+#endif
 
  public:
   Tree();
@@ -98,6 +107,3 @@ inline std::optional<RayHit> Tree::ray_intersect(const float3 &origin,
 
 }  // namespace bke::bvh
 }  // namespace blender
-
-// const bke::bvh::Tree &tree = depth_mesh->bvh_tree();
-// const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(ray_start, ray_direction);

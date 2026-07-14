@@ -1,15 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_bvh.hh"
-
+#include "BLI_index_mask.hh"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
+
 #include "DNA_mesh_types.h"
 
-#include "BLI_index_mask.hh"
-
+#include "BKE_bvh.hh"
+#include "BKE_bvhutils.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
+#include "BKE_mesh_sample.hh"
 
 #ifdef WITH_EMBREE
 
@@ -57,25 +59,37 @@
 #    define SIMD_SET_FLUSH_TO_ZERO
 #  endif
 
+#endif /* WITH_EMBREE */
+
 namespace blender::bke::bvh {
 
 Tree::Tree()
 {
+#ifdef WITH_EMBREE
   SIMD_SET_FLUSH_TO_ZERO;
+#endif
 };
 
 Tree::Tree(Tree &&other)
-    : rtc_device(std::exchange(other.rtc_device, nullptr)),
-      rtc_scene(std::exchange(other.rtc_scene, nullptr))
 {
+#ifdef WITH_EMBREE
+  rtc_device = std::exchange(other.rtc_device, nullptr);
+  rtc_scene = std::exchange(other.rtc_scene, nullptr);
+#else /* WITH_EMBREE */
+  fallback_tree_ = std::move(other.fallback_tree_);
+#endif
 }
 
 Tree &Tree::operator=(Tree &&other)
 {
   if (this != &other) {
+#ifdef WITH_EMBREE
     this->free();
     this->rtc_device = std::exchange(other.rtc_device, nullptr);
     this->rtc_scene = std::exchange(other.rtc_scene, nullptr);
+#else /* WITH_EMBREE */
+    this->fallback_tree_ = std::move(other.fallback_tree_);
+#endif
   }
   return *this;
 }
@@ -84,6 +98,8 @@ Tree::~Tree()
 {
   this->free();
 }
+
+#ifdef WITH_EMBREE
 
 static void rtc_error_func(void * /*userPtr*/, RTCError /*error*/, const char * /*str*/) {}
 
@@ -97,13 +113,21 @@ static bool rtc_progress_func(void * /*user_ptr*/, const double /*n*/)
   return true;
 }
 
+#endif /* WITH_EMBREE */
+
 void Tree::free()
 {
+#ifdef WITH_EMBREE
   rtcReleaseScene(this->rtc_scene);
   this->rtc_scene = nullptr;
   rtcReleaseDevice(this->rtc_device);
   this->rtc_device = nullptr;
+#else /* WITH_EMBREE */
+  this->fallback_tree_.reset();
+#endif
 }
+
+#ifdef WITH_EMBREE
 
 struct BvhBuildContext {
   RTCDevice device;
@@ -179,9 +203,35 @@ static void add_mesh_faces(const BvhBuildContext &ctx,
   rtcReleaseGeometry(geom_id);
 }
 
+#else /* WITH_EMBREE */
+
+struct MeshFallbackTree : public Tree::FallbackTree {
+  BVHTreeFromMesh bvh_from_mesh;
+
+  MeshFallbackTree(const Mesh &mesh, const IndexMask &mask)
+  {
+    bvh_from_mesh = bvhtree_from_mesh_corner_tris_ex(
+        mesh.vert_positions(), mesh.faces(), mesh.corner_verts(), mesh.corner_tris(), mask);
+  }
+  ~MeshFallbackTree() override = default;
+};
+
+/**
+ * The BVH callbacks take a mutable `void *` user-data pointer even though they only read from it.
+ * The tree data is logically const here, so casting away const is safe.
+ */
+static BVHTreeFromMesh *fallback_mesh_data(const Tree::FallbackTree &fallback_tree)
+{
+  const MeshFallbackTree &mesh_tree = static_cast<const MeshFallbackTree &>(fallback_tree);
+  return const_cast<BVHTreeFromMesh *>(&mesh_tree.bvh_from_mesh);
+}
+
+#endif
+
 Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 {
   Tree tree;
+#ifdef WITH_EMBREE
   tree.rtc_device = rtcNewDevice("verbose=0");
 
   rtcSetDeviceErrorFunction(tree.rtc_device, rtc_error_func, nullptr);
@@ -200,6 +250,9 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 
   rtcSetSceneProgressMonitorFunction(tree.rtc_scene, rtc_progress_func, nullptr);
   rtcCommitScene(tree.rtc_scene);
+#else  /* WITH_EMBREE */
+  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, face_mask);
+#endif /* WITH_EMBREE */
 
   return tree;
 }
@@ -211,6 +264,7 @@ Tree Tree::from_single_mesh(const Mesh &mesh)
 
 std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
 {
+#ifdef WITH_EMBREE
   RTCRayHit rtc_hit;
   rtc_hit.ray.org_x = ray.origin.x;
   rtc_hit.ray.org_y = ray.origin.y;
@@ -240,10 +294,37 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   hit.index = rtc_hit.hit.primID;
   hit.distance = rtc_hit.ray.tfar;
   return hit;
+#else /* WITH_EMBREE */
+  BVHTreeFromMesh *data = fallback_mesh_data(*this->fallback_tree_);
+  if (!data->tree) {
+    return std::nullopt;
+  }
+
+  BVHTreeRayHit bvh_hit;
+  bvh_hit.index = -1;
+  bvh_hit.dist = ray.dist_max;
+  /* TODO: #ray.dist_min is not supported by #BLI_bvhtree_ray_cast. */
+  BLI_bvhtree_ray_cast(
+      data->tree, ray.origin, ray.direction, 0.0f, &bvh_hit, data->raycast_callback, data);
+  if (bvh_hit.index == -1) {
+    return std::nullopt;
+  }
+
+  RayHit hit;
+  hit.position = float3(bvh_hit.co);
+  hit.normal = float3(bvh_hit.no);
+  const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+      data->vert_positions, data->corner_verts, data->corner_tris[bvh_hit.index], hit.position);
+  hit.bary_coord = bary_coord.xy();
+  hit.index = bvh_hit.index;
+  hit.distance = bvh_hit.dist;
+  return hit;
+#endif
 }
 
 void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const
 {
+#ifdef WITH_EMBREE
   struct AllHitsContext {
     RTCRayQueryContext rtc_context;
     FunctionRef<void(const RayHit &)> *fn;
@@ -294,7 +375,50 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
   };
 
   rtcIntersect1(this->rtc_scene, &rtc_hit, &args);
+#else /* WITH_EMBREE */
+  BVHTreeFromMesh *data = fallback_mesh_data(*this->fallback_tree_);
+  if (!data->tree) {
+    return;
+  }
+
+  struct AllHitsContext {
+    const BVHTreeFromMesh *data;
+    FunctionRef<void(const RayHit &)> fn;
+  };
+  AllHitsContext ctx{data, fn};
+
+  BLI_bvhtree_ray_cast_all(
+      data->tree,
+      ray.origin,
+      ray.direction,
+      0.0f,
+      ray.dist_max,
+      [](void *userdata, const int index, const BVHTreeRay *bvh_ray, BVHTreeRayHit *hit) {
+        AllHitsContext &ctx = *static_cast<AllHitsContext *>(userdata);
+        /* Run the intersection test into a local hit so the traversal distance stays at its
+         * maximum and every intersection is reported rather than only the closest one. */
+        BVHTreeRayHit local_hit;
+        local_hit.index = -1;
+        local_hit.dist = hit->dist;
+        ctx.data->raycast_callback(
+            const_cast<BVHTreeFromMesh *>(ctx.data), index, bvh_ray, &local_hit);
+        if (local_hit.index == -1) {
+          return;
+        }
+        RayHit result;
+        result.position = float3(local_hit.co);
+        result.normal = float3(local_hit.no);
+        /* TODO: Barycentric coordinates are not computed by the fallback callbacks. */
+        result.bary_coord = float2(0.0f);
+        result.index = local_hit.index;
+        result.distance = local_hit.dist;
+        ctx.fn(result);
+      },
+      &ctx);
+#endif
 }
+
+#ifdef WITH_EMBREE
 
 struct ClosestPointUserData {
   RTCScene rtc_scene;
@@ -328,9 +452,12 @@ static bool closest_point_fn(RTCPointQueryFunctionArguments *args)
   return false;
 }
 
+#endif /* WITH_EMBREE */
+
 std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
                                                       const float radius) const
 {
+#ifdef WITH_EMBREE
   RTCPointQuery query{};
   query.x = point.x;
   query.y = point.y;
@@ -345,10 +472,31 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
     return std::nullopt;
   }
   return result;
+#else /* WITH_EMBREE */
+  BVHTreeFromMesh *data = fallback_mesh_data(*this->fallback_tree_);
+  if (!data->tree) {
+    return std::nullopt;
+  }
+
+  BVHTreeNearest nearest;
+  nearest.index = -1;
+  nearest.dist_sq = radius * radius;
+  BLI_bvhtree_find_nearest(data->tree, point, &nearest, data->nearest_callback, data);
+  if (nearest.index == -1) {
+    return std::nullopt;
+  }
+
+  ClosestPointResult result;
+  result.position = float3(nearest.co);
+  result.index = nearest.index;
+  result.geomID = 0;
+  return result;
+#endif
 }
 
 void Tree::range_query(const float3 &point, const float radius, FunctionRef<bool(int)> fn) const
 {
+#ifdef WITH_EMBREE
   RTCPointQuery query{};
   query.x = point.x;
   query.y = point.y;
@@ -366,6 +514,25 @@ void Tree::range_query(const float3 &point, const float radius, FunctionRef<bool
         return fn(args->primID);
       },
       &fn);
+#else /* WITH_EMBREE */
+  BVHTreeFromMesh *data = fallback_mesh_data(*this->fallback_tree_);
+  if (!data->tree) {
+    return;
+  }
+  /* The kdop range query cannot stop traversal early, so once #fn requests termination by
+   * returning false, skip calling it for the remaining indices to match Embree's behavior. */
+  bool stop = false;
+  BLI_bvhtree_range_query_cpp(
+      *data->tree,
+      point,
+      radius,
+      [&](const int index, const float3 & /*co*/, const float /*dist_sq*/) {
+        if (stop) {
+          continue;
+        }
+        stop = !fn(index);
+      });
+#endif
 }
 
 OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask)
@@ -382,33 +549,3 @@ OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &
 }
 
 }  // namespace blender::bke::bvh
-
-#else /* WITH_BVH_EMBREE */
-
-namespace blender::bke::bvh {
-
-Tree::Tree() {}
-
-Tree::~Tree() {}
-
-void Tree::free() {}
-
-void Tree::build_single_mesh(const Mesh &mesh)
-{
-  UNUSED_VARS(mesh);
-}
-
-bool Tree::ray_intersect1(const Ray &ray, Hit &r_hit) const
-{
-  UNUSED_VARS(ray, r_hit);
-  return false;
-}
-
-void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const
-{
-  UNUSED_VARS(ray, fn);
-}
-
-}  // namespace blender::bke::bvh
-
-#endif /* WITH_BVH_EMBREE */
