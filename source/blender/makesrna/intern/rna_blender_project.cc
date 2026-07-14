@@ -165,7 +165,7 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
           /* Skip this var itself. */
           continue;
         }
-        if (STREQ(other_var->name, name.c_str())) {
+        if (other_var->name == name) {
           return true;
         }
       }
