@@ -2080,10 +2080,10 @@ bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button 
 
 void block_post_layout_callbacks_exec(const bContext *C, ARegion *region, Block *block)
 {
-  if (Vector<std::function<void(const bContext &C)>> *callbacks =
+  if (const Vector<std::function<void(const bContext &C)>> *callbacks =
           region->runtime->post_block_layout_fns.lookup_ptr_as(block->name))
   {
-    for (std::function<void(const bContext &C)> &callback : *callbacks) {
+    for (const std::function<void(const bContext &C)> &callback : *callbacks) {
       callback(*C);
     }
   }

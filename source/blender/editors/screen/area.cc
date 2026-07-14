@@ -640,7 +640,7 @@ void ED_region_activate_rna_prop(bContext *C,
                                  ARegion *region,
                                  const void *data,
                                  StringRefNull prop_name,
-                                 std::string block_name)
+                                 StringRefNull block_name)
 {
   /* Try first to open the button, otherwise try after region redraw. */
   if (!(region->runtime->do_draw & (RGN_DRAW | RGN_DRAWING)) &&
@@ -657,7 +657,7 @@ void ED_region_activate_rna_prop(bContext *C,
       });
 
   if (region->flag & RGN_FLAG_HIDDEN) {
-    ED_region_toggle_hidden(const_cast<bContext *>(C), region);
+    ED_region_toggle_hidden(C, region);
   }
   ED_region_tag_redraw(region);
 }
