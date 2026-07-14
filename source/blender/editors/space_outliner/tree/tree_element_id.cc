@@ -20,6 +20,7 @@
 #include "tree_element_id_curve.hh"
 #include "tree_element_id_gpencil_legacy.hh"
 #include "tree_element_id_grease_pencil.hh"
+#include "tree_element_id_image.hh"
 #include "tree_element_id_library.hh"
 #include "tree_element_id_linestyle.hh"
 #include "tree_element_id_mesh.hh"
@@ -28,7 +29,6 @@
 #include "tree_element_id_scene.hh"
 #include "tree_element_id_texture.hh"
 #include "tree_element_shapekey.hh"
-#include "tree_element_id_image.hh"
 
 #include "tree_element_id.hh"
 

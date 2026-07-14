@@ -94,7 +94,6 @@ namespace blender::ui {
 
 #define TIP_MAXWIDTH 600
 
-
 BLI_STATIC_ASSERT(int(TIP_LC_MAX) == int(TIP_LC_ALERT) + 1, "invalid lc-max");
 
 void tooltip_text_field_add(TooltipData &data,
@@ -1393,9 +1392,9 @@ static std::unique_ptr<TooltipData> tooltip_data_from_custom_func(bContext *C, B
 }
 
 ARegion *tooltip_create_with_data(bContext *C,
-                                         std::unique_ptr<TooltipData> data_uptr,
-                                         const float init_position[2],
-                                         const rcti *init_rect_overlap)
+                                  std::unique_ptr<TooltipData> data_uptr,
+                                  const float init_position[2],
+                                  const rcti *init_rect_overlap)
 {
   wmWindow *win = CTX_wm_window(C);
   const int2 win_size = WM_window_native_pixel_size(win);

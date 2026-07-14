@@ -3073,9 +3073,9 @@ ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
 
 void tooltip_from_image(Image &ima, TooltipData &data);
 ARegion *tooltip_create_with_data(bContext *C,
-                                         std::unique_ptr<TooltipData> data_uptr,
-                                         const float init_position[2],
-                                         const rcti *init_rect_overlap);
+                                  std::unique_ptr<TooltipData> data_uptr,
+                                  const float init_position[2],
+                                  const rcti *init_rect_overlap);
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 

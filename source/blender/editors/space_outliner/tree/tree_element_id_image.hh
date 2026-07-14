@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include "tree_element_id.hh"
 #include "DNA_image_types.h"
 #include "UI_interface_c.hh"
+#include "tree_element_id.hh"
 
 #include <optional>
 
@@ -31,7 +31,7 @@ ARegion *image_tooltip_fn(bContext *C, ID *id, const int xy[2])
 
 class TreeElementIDImage final : public TreeElementID {
  public:
-  TreeElementIDImage(TreeElement &legacy_te, ID &id) : TreeElementID(legacy_te, id) 
+  TreeElementIDImage(TreeElement &legacy_te, ID &id) : TreeElementID(legacy_te, id)
   {
     this->tooltip_fn = image_tooltip_fn;
   }
