@@ -3512,6 +3512,7 @@ static void rna_def_function(BlenderRNA *brna)
   PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "Function", nullptr);
+  RNA_def_struct_flag(srna, STRUCT_RNA_DEFINITION);
   RNA_def_struct_ui_text(srna, "Function Definition", "RNA function definition");
   RNA_def_struct_ui_icon(srna, ICON_RNA);
 
@@ -3804,6 +3805,7 @@ static void rna_def_enum_property(BlenderRNA *brna, StructRNA *srna)
       "Includes UI elements (separators and section headings).");
 
   srna = RNA_def_struct(brna, "EnumPropertyItem", nullptr);
+  RNA_def_struct_flag(srna, STRUCT_RNA_DEFINITION);
   RNA_def_struct_ui_text(
       srna, "Enum Item Definition", "Definition of a choice in an RNA enum property");
   RNA_def_struct_ui_icon(srna, ICON_RNA);
@@ -3954,6 +3956,7 @@ void RNA_def_rna(BlenderRNA *brna)
 
   /* Blender RNA */
   srna = RNA_def_struct(brna, "BlenderRNA", nullptr);
+  RNA_def_struct_flag(srna, STRUCT_RNA_DEFINITION);
   RNA_def_struct_ui_text(srna, "Blender RNA", "Blender RNA structure definitions");
   RNA_def_struct_ui_icon(srna, ICON_RNA);
 
