@@ -24,6 +24,9 @@ static int node_shader_gpu_light_info(GPUMaterial *mat,
                                       GPUNodeStack *in,
                                       GPUNodeStack *out)
 {
+  // TODO: Use a different flag.
+  GPU_material_flag_set(mat, GPU_MATFLAG_SHADER_TO_RGBA);
+
   return GPU_stack_link(mat, node, "node_light_info", in, out);
 }
 
