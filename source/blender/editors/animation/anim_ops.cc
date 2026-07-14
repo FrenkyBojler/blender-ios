@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <optional>
 
 #include "BLI_listbase.hh"
 #include "BLI_math_base_c.hh"
@@ -713,7 +714,7 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
-  op_data->pre_scrubbing = ED_screen_scrubbing_enable(C, screen);
+  op_data->pre_scrubbing = ED_screen_scrubbing_enable(*C, *screen);
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -746,10 +747,11 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
 
 static void change_frame_cancel(bContext *C, wmOperator *op)
 {
-  std::optional<FrameChangeModalData> *op_data = static_cast<std::optional<FrameChangeModalData>>(op->customdata);
+  FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
   bScreen *screen = CTX_wm_screen(C);
-  ED_screen_scrubbing_disable(C, screen, op_data->pre_scrubbing);
-
+  if (screen) {
+    ED_screen_scrubbing_disable(*C, *screen, op_data->pre_scrubbing);
+  }
   MEM_delete(op_data);
   op->customdata = nullptr;
 
@@ -822,8 +824,9 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     ED_workspace_status_text(C, nullptr);
     bScreen *screen = CTX_wm_screen(C);
     FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
-    ED_screen_scrubbing_disable(C, screen, op_data->pre_scrubbing);
-
+    if (screen) {
+      ED_screen_scrubbing_disable(*C, *screen, op_data->pre_scrubbing);
+    }
     MEM_delete(op_data);
     op->customdata = nullptr;
 

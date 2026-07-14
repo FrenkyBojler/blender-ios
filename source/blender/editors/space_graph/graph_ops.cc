@@ -7,6 +7,7 @@
  */
 
 #include <cstdlib>
+#include <optional>
 
 #include "DNA_scene_types.h"
 
@@ -147,7 +148,10 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 
   /* Signal that a scrubbing operating is starting */
   if (screen) {
-    op->customdata = ED_screen_scrubbing_enable(C, screen);
+    const std::optional<PreScrubbingState> pre_scrubbing = ED_screen_scrubbing_enable(*C, *screen);
+    if (pre_scrubbing) {
+      op->customdata = MEM_new<PreScrubbingState>(__func__, *pre_scrubbing);
+    }
   }
 
   /* add temp handler */
@@ -191,7 +195,11 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     PreScrubbingState *pre_scrubbing = static_cast<PreScrubbingState *>(op->customdata);
     bScreen *screen = CTX_wm_screen(C);
     if (screen) {
-      ED_screen_scrubbing_disable(C, screen, pre_scrubbing);
+      std::optional<PreScrubbingState> resume;
+      if (pre_scrubbing) {
+        resume = *pre_scrubbing;
+      }
+      ED_screen_scrubbing_disable(*C, *screen, resume);
     }
     MEM_delete(pre_scrubbing);
     op->customdata = nullptr;

@@ -72,7 +72,8 @@ enum class PlaySyncMode : int8_t {
 };
 
 /**
- * Playback state, meaningful naming for #ED_screen_scrubbing_enable int flags, consumed by #ED_screen_scrubbing_disable.
+ * Playback state captured by #ED_screen_scrubbing_enable when scrubbing starts,
+ * consumed by #ED_screen_scrubbing_disable to resume playback.
  */
 struct PreScrubbingState {
   PlaySyncMode play_sync = PlaySyncMode::UNCHANGED;

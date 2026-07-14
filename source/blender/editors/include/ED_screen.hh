@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -551,13 +553,23 @@ void ED_reset_audio_device(bContext *C);
 wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 
 /**
- * Start scrubbing, returns playback state.
+ * Start scrubbing, returns optional playback state.
+ * \param C the current context, which is used to find the screen that is currently managing the
+animation playback
+ * \param screen the screen that is currently being used to scrub.
+
  */
-PreScrubbingState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen);
+std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen &screen);
 /**
- * Stop scrubbing, resumes playback by ScrubResumeState.
+ * Stop scrubbing, resumes playback by state.
+ * \param C the current context, which is used to find the screen that is currently managing the
+ animation playback
+ * \param screen the screen that is currently being used to scrub.
+ * \param resume saved playback data.
  */
-void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const PreScrubbingState *resume);
+void ED_screen_scrubbing_disable(bContext &C,
+                                 bScreen &screen,
+                                 const std::optional<PreScrubbingState> &resume);
 
 /**
  * Find window that owns the animation timer.

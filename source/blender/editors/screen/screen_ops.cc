@@ -6883,31 +6883,36 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   return start_playback(C, sync, mode);
 }
 
-std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
+std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen &screen)
 {
-  std::optional<PreScrubbingState> resume;
-  bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(C));
-  if (play_screen && play_screen->animtimer) {
-    const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
-    if (sad != nullptr) {
-      resume->play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
-                                                                 PlaybackDirection::FORWARDS;
-      resume->play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
-                              PlaySyncMode::ON :
-                              ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
-                                                                     PlaySyncMode::UNCHANGED);
-      stop_playback(C);
-    }
+  screen.scrubbing = true;
+
+  bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(&C));
+  if (!play_screen || !play_screen->animtimer) {
+    return std::nullopt;
   }
-  screen->scrubbing = true;
+  const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
+  if (sad == nullptr) {
+    return std::nullopt;
+  }
+  PreScrubbingState resume;
+  resume.play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
+                                                           PlaybackDirection::FORWARDS;
+  resume.play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
+                         PlaySyncMode::ON :
+                         ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
+                                                                PlaySyncMode::UNCHANGED);
+  stop_playback(&C);
   return resume;
 }
 
-void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, std::optional<PreScrubbingState> resume)
+void ED_screen_scrubbing_disable(bContext &C,
+                                 bScreen &screen,
+                                 const std::optional<PreScrubbingState> &resume)
 {
-  screen->scrubbing = false;
+  screen.scrubbing = false;
   if (resume.has_value()) {
-    ED_screen_animation_play(C, int(resume->play_sync), int(resume->play_mode));
+    ED_screen_animation_play(&C, int(resume->play_sync), int(resume->play_mode));
   }
 }
 
