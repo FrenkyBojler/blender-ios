@@ -188,7 +188,7 @@ void BKE_animdata_fix_paths(ID &id,
 /**
  * Function overload that generates the DriverMap and discards it immediately. When calling that
  * function more than once, create a DriverMap using `BKE_animdata_build_driver_target_map` instead
- * and pass to other version of this function.
+ * and pass it to the other version of this function.
  */
 void BKE_animdata_fix_paths(ID &id,
                             StringRef prefix,
