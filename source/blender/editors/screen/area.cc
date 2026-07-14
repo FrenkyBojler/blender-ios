@@ -483,9 +483,6 @@ void ED_region_do_layout(bContext *C, ARegion *region)
 
   ui::theme::theme_set(area ? area->spacetype : 0, at->regionid);
   at->layout(C, region);
-
-  /* Clear temporary update flag. */
-  region->flag &= ~RGN_FLAG_SEARCH_FILTER_UPDATE;
 }
 
 void ED_region_do_draw(bContext *C, ARegion *region)
@@ -3609,6 +3606,8 @@ void ED_region_panels_layout_ex(const bContext *C,
   for (ui::Block &block : region->runtime->uiblocks) {
     block_post_layout_callbacks_exec(C, region, &block);
   }
+  /* Clear temporary update flag. */
+  region->flag &= ~RGN_FLAG_SEARCH_FILTER_UPDATE;
 }
 
 void ED_region_draw_overflow_indication(const ScrArea *area,
