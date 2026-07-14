@@ -1830,18 +1830,6 @@ void tooltip_from_image(Image &ima, TooltipData &data)
   }
 }
 
-ARegion *tooltip_create_from_outliner_element(bContext *C, ID *id, const int x, const int y)
-{
-  if (GS(id->name) == ID_IM) {
-    std::unique_ptr<TooltipData> data = std::make_unique<TooltipData>();
-    tooltip_from_image(*id_cast<Image *>(id), *data);
-    const float init_position[2] = {float(x) + 35.0f * UI_SCALE_FAC,
-                                    float(y) + 35.0f * UI_SCALE_FAC};
-    return tooltip_create_with_data(C, std::move(data), init_position, nullptr);
-  }
-  return nullptr;
-}
-
 static void tooltip_from_clip(MovieClip &clip, TooltipData &data)
 {
   if (clip.filepath[0]) {
