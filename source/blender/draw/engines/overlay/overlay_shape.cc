@@ -256,17 +256,46 @@ static Vector<Vertex> sphere_axes_circles(const float radius,
 
 /* Returns lines segment geometry forming 3 circles, one on each axis. */
 
-static Vector<Vertex> fisheye_tria_verts()
+static Vector<Vertex> tria_verts(const VertexClass vclass,bool wire = false)
 {
-  Vector<Vertex> verts;
+
+
+/*     const Vector<float2> triangle =  */
+    Vector<Vertex> verts;
+     verts.append({{-1.0f, 0.0f, 0.0f}, vclass});
+     if(wire)
+     {
+     verts.append({{1.0f, 0.0f, 0.0f}, vclass});
+     }
+     verts.append({{1.0f, 0.0f,0.0f}, vclass});
+
+     if(wire)
+     {
+     verts.append({{0.0f, 1.0f,0.0f}, vclass});
+     }
+     
+     
+     verts.append({{0.0f, 1.0f,0.0f}, vclass});
+     if(wire)
+     {
+     verts.append({{-1.0f, 0.0f, 0.0f}, vclass});
+     }
+
+     
+    /* Wire */
+/*     append_line_loop(verts, triangle, 1.0f, vclass); */
+
+
+
+/*   Vector<Vertex> verts;
   float scale = 0.7f;
   float width = 0.21f * scale;
   float length = 0.2f * scale;
   float margin = 0.0f;
 
-  verts.append({{width, margin, 0.0}, VCLASS_CAMERA_FISHEYE_TRIA});
-  verts.append({{0.0, margin + length, 0.0}, VCLASS_CAMERA_FISHEYE_TRIA});
-  verts.append({{-width, margin, 0.0}, VCLASS_CAMERA_FISHEYE_TRIA});
+  verts.append({{width, margin, 0.0}, vclass});
+  verts.append({{0.0, margin + length, 0.0}, vclass});
+  verts.append({{-width, margin, 0.0}, vclass}); */
   return verts;
 }
 
@@ -305,7 +334,8 @@ static Vector<Vertex> fisheye_latitude_ring_verts()
   return verts;
 }
 
-static Vector<Vertex> fisheye_longitude_arc_verts()
+static Vector<Vertex> fisheye_longitude_arc_verts(bool dashed = false,
+                                                  const VertexClass vclass = VCLASS_NONE)
 {
   const float radius = 1.0f;
   const int segments = 96;
@@ -313,6 +343,12 @@ static Vector<Vertex> fisheye_longitude_arc_verts()
   Vector<float2> arc = arc_vertices(radius, segments - 1, true);
 
   for (int i : IndexRange(segments)) {
+
+    if (dashed) {
+      if (i % 2 == 0) {
+        continue;
+      }
+    }
 
     if (i >= segments - 1) {
       continue;
@@ -322,7 +358,32 @@ static Vector<Vertex> fisheye_longitude_arc_verts()
 
       float2 cv = arc[(i + j) % segments];
 
-      verts.append({{0.0f, -cv[1], cv[0]}, VCLASS_CAMERA_FISHEYE_LONGITUDE});
+      verts.append({{0.0f, -cv[1], cv[0]}, VCLASS_CAMERA_FISHEYE_LONGITUDE | vclass});
+    }
+  }
+
+  return verts;
+}
+
+static Vector<Vertex> equirectangular_latitude_arc_verts(const VertexClass vclass = VCLASS_NONE)
+{
+  const float radius = 1.0f;
+  const int segments = 96;
+  Vector<Vertex> verts;
+  Vector<float2> arc = arc_vertices(radius, segments);
+
+  for (int i : IndexRange(segments)) {
+
+    /*     int segs = 2;
+        if (i >= segments - 1) {
+          segs = 1;
+        } */
+
+    for (int j : IndexRange(2)) {
+
+      float2 cv = arc[(i + j) % segments];
+
+      verts.append({{0.0f, -cv[1], cv[0]}, VCLASS_CAMERA_EQUIRECTANGULAR_LONGITUDE | vclass});
     }
   }
 
@@ -971,6 +1032,7 @@ ShapeCache::ShapeCache()
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
 
     verts.clear();
+
     /* Triangle */
     for (const float2 &point : triangle) {
       verts.append({{point.x, point.y, 1.0f}, VCLASS_CAMERA_FRAME});
@@ -1014,12 +1076,44 @@ ShapeCache::ShapeCache()
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
 
+  {
+
+    Vector<Vertex> verts = fisheye_longitude_arc_verts(true, VCLASS_CAMERA_EQUIRECTANGULAR_LATITUDE);
+
+    camera_equirectangular_longitude = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+  {
+    Vector<Vertex> verts = fisheye_longitude_arc_verts(
+        false, VCLASS_CAMERA_EQUIRECTANGULAR_LATITUDE | VCLASS_CAMERA_EQUIRECTANGULAR_LEFT);
+    camera_equirectangular_left = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+  {
+    Vector<Vertex> verts3 = fisheye_longitude_arc_verts(
+        false, VCLASS_CAMERA_EQUIRECTANGULAR_LATITUDE | VCLASS_CAMERA_EQUIRECTANGULAR_RIGHT);
+
+    camera_equirectangular_right = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts3), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
   /*Fisheye latitude ring*/
   {
 
     Vector<Vertex> verts = fisheye_latitude_ring_verts();
 
     camera_fisheye_latitude = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+  }
+
+  /*Equirectangular latitude rings*/
+  {
+
+    Vector<Vertex> verts = equirectangular_latitude_arc_verts();
+
+    camera_equirectangular_latitude = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
   }
 
@@ -1034,11 +1128,34 @@ ShapeCache::ShapeCache()
   /*Fisheye camera tria */
   {
 
-    Vector<Vertex> verts = fisheye_tria_verts();
+    Vector<Vertex> verts = tria_verts(VCLASS_CAMERA_FISHEYE_TRIA,true);
+ 
+    camera_fisheye_tria_wire = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    
+    verts = tria_verts(VCLASS_CAMERA_FISHEYE_TRIA);
 
     camera_fisheye_tria = BatchPtr(
         GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+
+
   }
+  /* Equirectangular Tria*/
+  {
+    Vector<Vertex> verts = tria_verts(VCLASS_CAMERA_EQUIRECTANGULAR_TRIA,true);
+ 
+    camera_equirectangular_tria_wire = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_LINES, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+    
+    verts = tria_verts(VCLASS_CAMERA_EQUIRECTANGULAR_TRIA);
+
+    camera_equirectangular_tria = BatchPtr(
+        GPU_batch_create_ex(GPU_PRIM_TRIS, vbo_from_vector(verts), nullptr, GPU_BATCH_OWNS_VBO));
+
+
+
+  }
+
   /* spheres */
   {
     Vector<VertShaded> verts;

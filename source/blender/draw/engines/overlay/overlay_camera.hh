@@ -40,12 +40,6 @@ struct CameraInstanceData : public ExtraInstanceData {
   float &clip_end = matrix[3][3];
   float &mist_end = matrix[3][3];
 
-  float &fisheye_fov = matrix[0][3];
-  float &dome_angle = matrix[1][3];
-  float &aspect = matrix[1][3];
-  float &shift_x = matrix[2][3];
-  float &shift_y = matrix[3][3];
-
   CameraInstanceData(const CameraInstanceData &data)
       : CameraInstanceData(data.object_to_world, data.color_)
   {
@@ -64,6 +58,9 @@ struct CameraPanoramicData : public CameraPanoramicInstanceData {
   float &center_y = matrix[3][3];
   float &depth = color_[3];
 
+  float &fisheye_fov = pano_params0.x;
+  float &longitude_angle = pano_params1.x;
+
   float &longitude_min = pano_params0.x;
   float &longitude_max = pano_params0.y;
   float &latitude_min = pano_params0.z;
@@ -80,6 +77,11 @@ struct CameraPanoramicData : public CameraPanoramicInstanceData {
   float &central_cylindrical_range_v_min = pano_params0.z;
   float &central_cylindrical_range_v_max = pano_params0.w;
   float &central_cylindrical_radius = pano_params1.x;
+
+  float &latitude_position = pano_params1.y;
+  float &shift_x = pano_params1.y;
+  float &shift_y = pano_params1.z;
+  float &aspect = pano_params1.w;
 
   CameraPanoramicData(const CameraPanoramicData &data)
       : CameraPanoramicData(data.object_to_world, data.color_)
@@ -123,13 +125,36 @@ class Cameras : Overlay {
     CameraInstanceBuf tria_wire_buf = {selection_type_, "camera_tria_wire_buf"};
     CameraInstanceBuf volume_buf = {selection_type_, "camera_volume_buf"};
     CameraInstanceBuf volume_wire_buf = {selection_type_, "camera_volume_wire_buf"};
-    CameraInstanceBuf fisheye_frame_buf = {selection_type_, "camera_fisheye_frame_buf"};
-    CameraInstanceBuf fisheye_longitude_buf = {selection_type_, "camera_fisheye_longitude_buf"};
-    CameraInstanceBuf fisheye_latitude_buf = {selection_type_, "camera_fisheye_latitude_buf"};
-    CameraInstanceBuf fisheye_tria_buf = {selection_type_, "camera_fisheye_tria_buf"};
-    CameraInstanceBuf fisheye_tria_wire_buf = {selection_type_, "camera_fisheye_tria_wire_buf"};
-    CameraPanoInstanceBuf pano_frame_buf = {selection_type_, "camera_pano_frame_buf"};
     CameraInstanceBuf sphere_solid_buf = {selection_type_, "camera_sphere_solid_buf"};
+    
+    CameraPanoInstanceBuf fisheye_tria_buf = {selection_type_, "camera_fisheye_tria_buf"};
+    CameraPanoInstanceBuf fisheye_tria_wire_buf = {selection_type_,
+                                                   "camera_fisheye_tria_wire_buf"};
+    CameraPanoInstanceBuf fisheye_frame_buf = {selection_type_, "camera_fisheye_frame_buf"};
+    CameraPanoInstanceBuf fisheye_longitude_buf = {selection_type_,
+                                                   "camera_fisheye_longitude_buf"};
+    CameraPanoInstanceBuf fisheye_latitude_buf = {selection_type_, "camera_fisheye_latitude_buf"};
+
+
+    CameraPanoInstanceBuf equirectangular_tria_buf = {selection_type_,
+                                                      "camera_equirectangular_tria_buf"};
+    CameraPanoInstanceBuf equirectangular_tria_wire_buf = {selection_type_,
+                                                      "camera_equirectangular_tria_wire_buf"};
+    CameraPanoInstanceBuf equirectangular_longitude_buf = {selection_type_,
+                                                           "camera_equirectangular_longitude_buf"};
+    CameraPanoInstanceBuf equirectangular_latitude_buf = {selection_type_,
+                                                          "camera_equirectangular_latitude_buf"};
+
+    CameraPanoInstanceBuf equirectangular_left_buf = {selection_type_,
+                                                      "camera_equirectangular_left_buf"};
+    CameraPanoInstanceBuf equirectangular_right_buf = {selection_type_,
+                                                       "camera_equirectangular_right_buf"};
+    
+    
+    
+
+    
+
     LinePrimitiveBuf stereo_connect_lines = {selection_type_, "camera_dashed_lines_buf"};
     LinePrimitiveBuf tracking_path = {selection_type_, "camera_tracking_path_buf"};
     Empties::CallBuffers empties{selection_type_};
@@ -157,17 +182,27 @@ class Cameras : Overlay {
 
     if (extras_enabled_ || motion_tracking_enabled_) {
       call_buffers_.distances_buf.clear();
-      call_buffers_.frame_buf.clear();
+      call_buffers_.frame_buf.clear();      
       call_buffers_.tria_buf.clear();
       call_buffers_.tria_wire_buf.clear();
       call_buffers_.volume_buf.clear();
       call_buffers_.volume_wire_buf.clear();
+
       call_buffers_.fisheye_frame_buf.clear();
-      call_buffers_.fisheye_longitude_buf.clear();
-      call_buffers_.fisheye_latitude_buf.clear();
       call_buffers_.fisheye_tria_buf.clear();
       call_buffers_.fisheye_tria_wire_buf.clear();
-      call_buffers_.pano_frame_buf.clear();
+      call_buffers_.fisheye_longitude_buf.clear();
+      call_buffers_.fisheye_latitude_buf.clear();
+
+      call_buffers_.equirectangular_tria_buf.clear();
+      call_buffers_.equirectangular_tria_wire_buf.clear();
+      call_buffers_.equirectangular_longitude_buf.clear();
+      call_buffers_.equirectangular_latitude_buf.clear();
+      call_buffers_.equirectangular_left_buf.clear();
+      call_buffers_.equirectangular_right_buf.clear();
+          
+      
+
       call_buffers_.sphere_solid_buf.clear();
       call_buffers_.stereo_connect_lines.clear();
       call_buffers_.tracking_path.clear();
@@ -255,14 +290,6 @@ class Cameras : Overlay {
       call_buffers_.frame_buf.end_sync(sub_pass, res.shapes.camera_frame.get());
       call_buffers_.tria_buf.end_sync(sub_pass, res.shapes.camera_tria.get());
       call_buffers_.tria_wire_buf.end_sync(sub_pass, res.shapes.camera_tria_wire.get());
-      call_buffers_.fisheye_frame_buf.end_sync(sub_pass, res.shapes.camera_fisheye_frame.get());
-      call_buffers_.fisheye_longitude_buf.end_sync(sub_pass,
-                                                   res.shapes.camera_fisheye_longitude.get());
-      call_buffers_.fisheye_latitude_buf.end_sync(sub_pass,
-                                                  res.shapes.camera_fisheye_latitude.get());
-      call_buffers_.fisheye_tria_buf.end_sync(sub_pass, res.shapes.camera_fisheye_tria.get());
-      call_buffers_.fisheye_tria_wire_buf.end_sync(sub_pass,
-                                                   res.shapes.camera_fisheye_tria_wire.get());
       call_buffers_.sphere_solid_buf.end_sync(sub_pass, res.shapes.sphere_low_detail.get());
     }
 
@@ -272,7 +299,34 @@ class Cameras : Overlay {
                              DRW_STATE_DEPTH_LESS_EQUAL,
                          state.clipping_plane_count);
       sub_pass.shader_set(res.shaders->extra_camera_pano.get());
-      call_buffers_.pano_frame_buf.end_sync(sub_pass, res.shapes.camera_frame.get());
+
+      call_buffers_.fisheye_frame_buf.end_sync(sub_pass, res.shapes.camera_fisheye_frame.get());
+      call_buffers_.fisheye_tria_buf.end_sync(sub_pass, res.shapes.camera_fisheye_tria.get());
+      call_buffers_.fisheye_tria_wire_buf.end_sync(sub_pass,
+                                                   res.shapes.camera_fisheye_tria_wire.get());
+      call_buffers_.fisheye_longitude_buf.end_sync(sub_pass,
+                                                   res.shapes.camera_fisheye_longitude.get());
+      call_buffers_.fisheye_latitude_buf.end_sync(sub_pass,
+                                                  res.shapes.camera_fisheye_latitude.get());
+
+      
+      call_buffers_.equirectangular_tria_buf.end_sync(
+          sub_pass, res.shapes.camera_equirectangular_tria.get());
+      call_buffers_.equirectangular_tria_wire_buf.end_sync(
+          sub_pass, res.shapes.camera_equirectangular_tria_wire.get());
+      call_buffers_.equirectangular_left_buf.end_sync(
+          sub_pass, res.shapes.camera_equirectangular_left.get());
+      call_buffers_.equirectangular_right_buf.end_sync(
+          sub_pass, res.shapes.camera_equirectangular_right.get());
+      call_buffers_.equirectangular_longitude_buf.end_sync(
+          sub_pass, res.shapes.camera_equirectangular_longitude.get());
+      call_buffers_.equirectangular_latitude_buf.end_sync(
+          sub_pass, res.shapes.camera_equirectangular_latitude.get());
+
+      
+
+
+      
     }
 
     {
@@ -369,16 +423,15 @@ class Cameras : Overlay {
     const bool is_select = res.is_selection();
     const bool is_active = (ob == camera_object);
     const bool is_camera_view = (is_active && (rv3d->persp == RV3D_CAMOB));
+
+    const bool is_panoramic = cam.type == CAM_PANO;
     const bool is_equisolid = cam.panorama_type == CAM_PANORAMA_FISHEYE_EQUISOLID;
     const bool is_equidistant = cam.panorama_type == CAM_PANORAMA_FISHEYE_EQUIDISTANT;
     const bool is_mirrorball = cam.panorama_type == CAM_PANORAMA_MIRRORBALL;
-    const bool is_panoramic = cam.type == CAM_PANO && (is_equisolid || is_equidistant || is_mirrorball);
+
     const bool is_equirectangular = cam.panorama_type == CAM_PANORAMA_EQUIRECTANGULAR;
     const bool is_lens_polynomial = cam.panorama_type == CAM_PANORAMA_FISHEYE_LENS_POLYNOMIAL;
     const bool is_central_cylindrical = cam.panorama_type == CAM_PANORAMA_CENTRAL_CYLINDRICAL;
-    const bool is_panoramic_ext = cam.type == CAM_PANO &&
-                                        (is_equirectangular || is_lens_polynomial ||
-                                         is_central_cylindrical);
 
     const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
     const bool is_stereo3d_view = (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
@@ -455,51 +508,18 @@ class Cameras : Overlay {
             *DEG_get_bmain(state.depsgraph), data, select_id, scene, v3d, res, ob);
       }
       else {
-        if (is_panoramic) {
+        if (is_equidistant || is_mirrorball || is_equirectangular || is_equisolid) {
 
-          if(is_mirrorball)
-          {
-            data.fisheye_fov = M_PI*2;
-          }
-          else
-          {
-             data.fisheye_fov = cam.fisheye_fov;
-          }
-         
-          data.shift_x = cam.shiftx;
-          data.shift_y = cam.shifty;
-          data.aspect = aspect_ratio.x < aspect_ratio.y ? aspect_ratio.x : -aspect_ratio.y;
-          data.matrix.x_axis() *= cam.drawsize;
-          data.matrix.y_axis() *= cam.drawsize;
-          data.matrix.z_axis() *= cam.drawsize;
-
-          call_buffers_.fisheye_tria_buf.append(data, select_id);
-
-          if (is_equidistant) {
-            data.matrix.x_axis() *= aspect_ratio.x;
-            data.matrix.y_axis() *= aspect_ratio.y;
-          }
-
-          call_buffers_.fisheye_latitude_buf.append(data, select_id);
-
-          for (int axis : IndexRange(4)) {
-            data.dome_angle = (90 * axis) * M_PI / 180.0;
-            call_buffers_.fisheye_longitude_buf.append(data, select_id);
-          }
-
-          if (is_equisolid) {
-            data.matrix.x_axis() *= aspect_ratio.x;
-            data.matrix.y_axis() *= aspect_ratio.y;
-          }
-
-          call_buffers_.fisheye_frame_buf.append(data, select_id);
-        }
-        else if (is_panoramic_ext) {
           CameraPanoramicData pano_data(data.matrix, data.color_);
+
+          pano_data.shift_x = cam.shiftx;
+          pano_data.shift_y = cam.shifty;
+          pano_data.aspect = aspect_ratio.x < aspect_ratio.y ? aspect_ratio.x : -aspect_ratio.y;
 
           if (is_equirectangular) {
             pano_data.longitude_min = cam.longitude_min;
             pano_data.longitude_max = cam.longitude_max;
+            /*            printf("longitude_min %f \n",pano_data.longitude_min); */
             pano_data.latitude_min = cam.latitude_min;
             pano_data.latitude_max = cam.latitude_max;
           }
@@ -518,8 +538,74 @@ class Cameras : Overlay {
             pano_data.central_cylindrical_radius = cam.central_cylindrical_radius;
           }
 
-          call_buffers_.pano_frame_buf.append(pano_data, select_id);
+
+
+          if (is_mirrorball) {
+            pano_data.fisheye_fov = M_PI * 2;
+          }
+          else if (is_equirectangular) {
+          }
+          else {
+            pano_data.fisheye_fov = cam.fisheye_fov;
+          }
+
+          pano_data.matrix.x_axis() *= cam.drawsize;
+          pano_data.matrix.y_axis() *= cam.drawsize;
+          pano_data.matrix.z_axis() *= cam.drawsize;
+
+          if (is_equidistant || is_equisolid || is_mirrorball) {
+            
+            (is_active ? call_buffers_.fisheye_tria_buf : call_buffers_.fisheye_tria_wire_buf).append(pano_data, select_id);
+          }
+
+          if (is_equidistant) {
+            pano_data.matrix.x_axis() *= aspect_ratio.x;
+            pano_data.matrix.y_axis() *= aspect_ratio.y;
+          }
+
+          if (is_equirectangular) {
+            (is_active ? call_buffers_.equirectangular_tria_buf : call_buffers_.equirectangular_tria_wire_buf).append(pano_data, select_id);
+            
+            pano_data.latitude_position = 1.0f;
+            call_buffers_.equirectangular_latitude_buf.append(pano_data, select_id);
+            pano_data.latitude_position = -1.0f;
+            call_buffers_.equirectangular_latitude_buf.append(pano_data, select_id);
+          }
+
+          if (is_equidistant || is_equisolid) {
+            pano_data.latitude_position = 0.0f;
+            call_buffers_.fisheye_latitude_buf.append(pano_data, select_id);
+          }
+
+          for (int axis : IndexRange(4)) {
+            pano_data.longitude_angle = DEG2RAD(90 * axis);
+
+            if (is_equirectangular) {
+              call_buffers_.equirectangular_longitude_buf.append(pano_data, select_id);
+            }
+            else if(is_equisolid || is_equidistant || is_mirrorball) {
+              call_buffers_.fisheye_longitude_buf.append(pano_data, select_id);
+            }
+          }
+
+          if (is_equirectangular) {
+            pano_data.longitude_angle = DEG2RAD(180);
+            call_buffers_.equirectangular_left_buf.append(pano_data, select_id);
+            call_buffers_.equirectangular_right_buf.append(pano_data, select_id);
+          }
+
+          if (is_equisolid) {
+            pano_data.matrix.x_axis() *= aspect_ratio.x;
+            pano_data.matrix.y_axis() *= aspect_ratio.y;
+          }
+
+          if(is_equisolid || is_equidistant)
+          {
+          pano_data.shift_x = shift.x;
+          call_buffers_.fisheye_frame_buf.append(pano_data, select_id);
+          }
         }
+
         else {
 
           call_buffers_.frame_buf.append(data, select_id);
