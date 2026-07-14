@@ -158,10 +158,6 @@ using DriverMap = Map<ID *, Vector<DriverTarget *>>;
  * Build a map from an ID to all the `DriverTarget`s where it is being used.
  */
 DriverMap BKE_animdata_build_driver_target_map(Main &bmain);
-/**
- * Convenience function in places where Main is not available. Uses `G.main`.
- */
-DriverMap BKE_animdata_build_driver_target_map();
 
 /**
  * Search and replace `old_infix` with `new_infix` for all rna paths that reference the given ID
@@ -188,6 +184,18 @@ void BKE_animdata_fix_paths(ID &id,
                             StringRef new_infix,
                             bool verify_paths,
                             const DriverMap &driver_map);
+
+/**
+ * Function overload that generates the DriverMap and discards it immediately. When calling that
+ * function more than once, create a DriverMap using `BKE_animdata_build_driver_target_map` instead
+ * and pass to other version of this function.
+ */
+void BKE_animdata_fix_paths(ID &id,
+                            StringRef prefix,
+                            StringRef old_infix,
+                            StringRef new_infix,
+                            bool verify_paths,
+                            Main &bmain);
 
 /**
  * Remove any animation data (F-Curves from Actions, and drivers) that have an

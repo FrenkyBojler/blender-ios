@@ -90,6 +90,7 @@ static const EnumPropertyItem rna_enum_glow_blend_modes_items[] = {
 #  include "BLI_string.hh"
 #  include "BLI_string_utf8.hh"
 
+#  include "BKE_global.hh"
 #  include "BKE_lib_id.hh"
 #  include "BKE_shader_fx.hh"
 
@@ -148,13 +149,12 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
     BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
 
     /* Fix all the animation data which may link to this. */
-    const DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(ob->id,
                            "shader_effects",
                            RNA_path_name_to_infix(oldname),
                            RNA_path_name_to_infix(gmd->name),
                            /*verify_paths=*/true,
-                           driver_map);
+                           *G_MAIN);
   }
 }
 

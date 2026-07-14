@@ -25,6 +25,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_global.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
@@ -2717,13 +2718,12 @@ static void rna_Node_name_set(PointerRNA *ptr, const char *value)
   bke::node_unique_name(*ntree, *node);
 
   /* fix all the animation data which may link to this */
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(ntree->id,
                          "nodes",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(node->name),
                          /*verify_paths=*/true,
-                         driver_map);
+                         *G_MAIN);
 }
 
 static int rna_Node_color_tag_get(PointerRNA *ptr)

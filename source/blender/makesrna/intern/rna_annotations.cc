@@ -31,6 +31,7 @@
 #  include "BLI_string_utils.hh"
 
 #  include "BKE_animsys.hh"
+#  include "BKE_global.hh"
 #  include "BKE_gpencil_geom_legacy.h"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_icons.hh"
@@ -173,13 +174,12 @@ static void rna_annotation_layer_info_set(PointerRNA *ptr, const char *value)
 
   /* now fix animation paths */
   if (ptr->owner_id) {
-    const DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(*ptr->owner_id,
                            "layers",
                            RNA_path_name_to_infix(oldname),
                            RNA_path_name_to_infix(gpl->info),
                            /*verify_paths=*/true,
-                           driver_map);
+                           *G_MAIN);
   }
 
   /* Fix mask layers. */

@@ -4367,13 +4367,12 @@ void GreasePencil::rename_node(Main &bmain,
 
   /* Update layer name dependencies. */
   if (node.is_layer()) {
-    const DriverMap driver_map = BKE_animdata_build_driver_target_map(bmain);
     BKE_animdata_fix_paths(this->id,
                            "layers",
                            RNA_path_name_to_infix(old_name),
                            RNA_path_name_to_infix(node.name()),
                            /*verify_paths=*/true,
-                           driver_map);
+                           bmain);
     /* Update names in layer masks. */
     for (bke::greasepencil::Layer *layer : this->layers_for_write()) {
       for (GreasePencilLayerMask &mask : layer->masks) {

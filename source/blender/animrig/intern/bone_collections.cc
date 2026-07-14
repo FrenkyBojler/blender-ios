@@ -20,6 +20,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_animsys.hh"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
@@ -606,7 +607,7 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
 
   /* Bone collections can be reached via .collections (4.0+) and .collections_all (4.1+).
    * Animation data from 4.0 should have been versioned to only use `.collections_all`. */
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*G_MAIN);
   BKE_animdata_fix_paths(armature->id,
                          "collections",
                          RNA_path_name_to_infix(old_name),

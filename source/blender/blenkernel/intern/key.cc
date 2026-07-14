@@ -43,6 +43,7 @@
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
@@ -1927,12 +1928,11 @@ void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
                  sizeof(kb->name));
 
   /* Fix all the animation data which may link to this. */
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(key->id,
                          "key_blocks",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(kb->name),
                          /*verify_paths=*/true,
-                         driver_map);
+                         *G_MAIN);
 }
 }  // namespace blender

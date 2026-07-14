@@ -36,6 +36,7 @@
 #include "BKE_curve.hh"
 #include "BKE_idtype.hh"
 
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -373,13 +374,12 @@ void BKE_mask_layer_rename(Mask *mask,
   BKE_mask_layer_unique_name(mask, masklay);
 
   /* now fix animation paths */
-  DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(mask->id,
                          "layers",
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(masklay->name),
                          /*verify_paths=*/true,
-                         driver_map);
+                         *G_MAIN);
 }
 
 MaskLayer *BKE_mask_layer_copy(const MaskLayer *masklay)

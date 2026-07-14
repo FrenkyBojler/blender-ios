@@ -758,7 +758,7 @@ static std::optional<std::string> rna_path_rename_fix(ID &owner_id,
  */
 static std::string infix_to_name(const StringRef infix)
 {
-  /* An empty name infix would be `[""]` so for characters. */
+  /* An empty name infix would be `[""]` so four characters. */
   BLI_assert(infix.size() >= 4);
   std::string unescaped;
   unescaped.resize(infix.size() - 4);
@@ -1003,11 +1003,6 @@ DriverMap BKE_animdata_build_driver_target_map(Main &bmain)
   return map;
 }
 
-DriverMap BKE_animdata_build_driver_target_map()
-{
-  return BKE_animdata_build_driver_target_map(*G.main);
-}
-
 void BKE_animdata_fix_paths(ID &id,
                             const StringRef prefix,
                             const StringRef old_infix,
@@ -1050,6 +1045,17 @@ void BKE_animdata_fix_paths(ID &id,
   if (is_changed) {
     DEG_id_tag_update(&id, ID_RECALC_SYNC_TO_EVAL);
   }
+}
+
+void BKE_animdata_fix_paths(ID &id,
+                            StringRef prefix,
+                            StringRef old_infix,
+                            StringRef new_infix,
+                            bool verify_paths,
+                            Main &bmain)
+{
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(bmain);
+  BKE_animdata_fix_paths(id, prefix, old_infix, new_infix, verify_paths, driver_map);
 }
 
 /* Remove FCurves with Prefix  -------------------------------------- */

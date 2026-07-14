@@ -28,6 +28,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_animsys.hh"
+#include "BKE_global.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -504,13 +505,12 @@ void ensure_unique_name(Strip *strip, Scene *scene)
 
   STRNCPY_UTF8(name, strip->name + 2);
   strip_unique_name_set(scene, &scene->ed->seqbase, strip);
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(scene->id,
                          "sequence_editor.strips_all",
                          RNA_path_name_to_infix(name),
                          RNA_path_name_to_infix(strip->name + 2),
                          /*verify_paths=*/false,
-                         driver_map);
+                         *G_MAIN);
 
   if (strip->type == STRIP_TYPE_META) {
     for (Strip &strip_child : strip->seqbase) {

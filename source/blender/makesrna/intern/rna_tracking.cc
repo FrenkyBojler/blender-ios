@@ -34,6 +34,7 @@
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_animsys.hh"
+#  include "BKE_global.hh"
 #  include "BKE_movieclip.hh"
 #  include "BKE_node_tree_update.hh"
 #  include "BKE_report.hh"
@@ -277,13 +278,12 @@ static void rna_trackingTrack_name_set(PointerRNA *ptr, const char *value)
   char rna_path_prefix[MAX_NAME * 2 + 64];
   BKE_tracking_get_rna_path_prefix_for_track(
       &clip->tracking, track, rna_path_prefix, sizeof(rna_path_prefix));
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(clip->id,
                          rna_path_prefix,
                          RNA_path_name_to_infix(old_name),
                          RNA_path_name_to_infix(track->name),
                          /* verify_paths= */ true,
-                         driver_map);
+                         *G_MAIN);
 }
 
 static bool rna_trackingTrack_select_get(PointerRNA *ptr)
@@ -367,13 +367,12 @@ static void rna_trackingPlaneTrack_name_set(PointerRNA *ptr, const char *value)
   char rna_path[MAX_NAME * 2 + 64];
   BKE_tracking_get_rna_path_prefix_for_plane_track(
       &clip->tracking, plane_track, rna_path, sizeof(rna_path));
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(clip->id,
                          rna_path,
                          RNA_path_name_to_infix(old_name),
                          RNA_path_name_to_infix(plane_track->name),
                          /* verify_paths= */ true,
-                         driver_map);
+                         *G_MAIN);
 }
 
 static std::optional<std::string> rna_trackingCamera_path(const PointerRNA * /*ptr*/)

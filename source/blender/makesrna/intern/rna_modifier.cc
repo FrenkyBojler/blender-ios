@@ -24,6 +24,7 @@
 #include "BKE_animsys.hh"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
+#include "BKE_global.hh"
 #include "BKE_mesh_remap.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -928,13 +929,12 @@ static void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
     Object *ob = id_cast<Object *>(ptr->owner_id);
     BKE_modifier_unique_name(&ob->modifiers, md);
 
-    const DriverMap driver_map = BKE_animdata_build_driver_target_map();
     BKE_animdata_fix_paths(ob->id,
                            "modifiers",
                            RNA_path_name_to_infix(oldname),
                            RNA_path_name_to_infix(md->name),
                            /*verify_paths=*/true,
-                           driver_map);
+                           *G_MAIN);
   }
 }
 
@@ -2527,13 +2527,12 @@ static void rna_GreasePencilDashModifierSegment_name_set(PointerRNA *ptr, const 
   BLI_str_escape(name_esc, dmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
   SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(*ptr->owner_id,
                          rna_path_prefix,
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(dash_segment->name),
                          /*verify_paths=*/true,
-                         driver_map);
+                         *G_MAIN);
 }
 
 static void rna_GreasePencilDashModifier_segments_begin(CollectionPropertyIterator *iter,
@@ -2637,13 +2636,12 @@ static void rna_GreasePencilTimeModifierSegment_name_set(PointerRNA *ptr, const 
   BLI_str_escape(name_esc, tmd->modifier.name, sizeof(name_esc));
   char rna_path_prefix[36 + sizeof(name_esc) + 1];
   SNPRINTF_UTF8(rna_path_prefix, "modifiers[\"%s\"].segments", name_esc);
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map();
   BKE_animdata_fix_paths(*ptr->owner_id,
                          rna_path_prefix,
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(segment->name),
                          /*verify_paths=*/true,
-                         driver_map);
+                         *G_MAIN);
 }
 
 static void rna_GreasePencilTimeModifier_segments_begin(CollectionPropertyIterator *iter,
