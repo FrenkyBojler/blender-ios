@@ -378,6 +378,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
             self.node_operator(layout, "GeometryNodeTool3DCursor")
         self.node_operator(layout, "GeometryNodeInputActiveCamera")
         self.node_operator(layout, "GeometryNodeBoneInfo")
+        self.node_operator(layout, "GeometryNodeGetBoneNames")
         self.node_operator_with_outputs(
             context,
             layout,

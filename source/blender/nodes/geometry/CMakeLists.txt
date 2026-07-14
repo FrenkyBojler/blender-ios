@@ -100,6 +100,7 @@ set(SRC
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
   nodes/node_geo_get_attribute_names.cc
+  nodes/node_geo_get_bone_names.cc
   nodes/node_geo_get_bundle_item.cc
   nodes/node_geo_get_geometry_bundle.cc
   nodes/node_geo_get_geometry_component.cc
