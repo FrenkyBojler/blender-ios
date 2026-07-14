@@ -148,18 +148,15 @@ static void get_closest_mesh_tris(const Mesh &mesh,
   const bke::bvh::Tree &tree = mesh.bvh_tris();
   mask.foreach_index([&](const int i) {
     const float3 position = positions[i];
-    const std::optional<bke::bvh::ClosestPointResult> nearest = tree.closest_point(position);
-    if (!nearest) {
-      return;
-    }
+    const bke::bvh::ClosestPointResult nearest = *tree.closest_point(position);
     if (!r_tri_indices.is_empty()) {
-      r_tri_indices[i] = nearest->index;
+      r_tri_indices[i] = nearest.index;
     }
     if (!r_distances_sq.is_empty()) {
-      r_distances_sq[i] = math::distance_squared(position, nearest->position);
+      r_distances_sq[i] = math::distance_squared(position, nearest.position);
     }
     if (!r_positions.is_empty()) {
-      r_positions[i] = nearest->position;
+      r_positions[i] = nearest.position;
     }
   });
 }
