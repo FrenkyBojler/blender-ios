@@ -3278,8 +3278,8 @@ static wmOperatorStatus region_start_filter_exec(bContext *C, wmOperator * /*op*
     panel_region_width_set(region, aspect, new_width);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
   }
-  ui::textbutton_activate_rna(C, region, region, "search_filter");
-  ED_region_tag_redraw(region);
+  ED_region_activate_rna_prop(
+      C, region, region, "search_filter", panel_category_search_block_name);
   return OPERATOR_FINISHED;
 }
 
