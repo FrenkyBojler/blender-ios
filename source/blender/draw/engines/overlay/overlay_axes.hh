@@ -72,11 +72,9 @@ class Axes : Overlay {
     float4x4 target = ob->object_to_world();
 
     if (use_xform_sculpt_pivot_axis) {
-      SculptSession *ss = ob->runtime->sculpt_session;
-      float4x4 local_pivot_orientation = math::from_loc_rot<float4x4>(
+      const SculptSession *ss = ob->runtime->sculpt_session;
+      const float4x4 local_pivot_orientation = math::from_loc_rot<float4x4>(
           ss->pivot_pos, math::Quaternion(ss->pivot_rot));
-      // Delete this comment: note that this is incorrect since the sculpt pivot is specified as a
-      // transform of the object origin
       target = target * local_pivot_orientation;
     }
 
