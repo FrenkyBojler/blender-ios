@@ -58,13 +58,13 @@ enum {
   ANIMPLAY_FLAG_USE_NEXT_FRAME = (1 << 4),
 };
 
-/** matching the mode argument of #ED_screen_animation_play. */
+/**Matching the mode argument of #ED_screen_animation_play. */
 enum class PlaybackDirection : int8_t {
   BACKWARDS = -1,
   FORWARDS = 1,
 };
 
-/** matching the sync argument of #ED_screen_animation_play. */
+/** Matching the sync argument of #ED_screen_animation_play. */
 enum class PlaySyncMode : int8_t {
   UNCHANGED = -1,
   OFF = 0,
@@ -74,7 +74,7 @@ enum class PlaySyncMode : int8_t {
 /**
  * Playback state, meaningful naming for #ED_screen_scrubbing_enable int flags, consumed by #ED_screen_scrubbing_disable.
  */
-struct ScrubResumeState {
+struct PlaybackResumeState {
   PlaySyncMode play_sync = PlaySyncMode::UNCHANGED;
   PlaybackDirection play_mode = PlaybackDirection::FORWARDS;
 };

@@ -188,12 +188,12 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
   }
 
   if (ret != OPERATOR_RUNNING_MODAL) {
-    ScrubResumeState *scrub_resume = static_cast<ScrubResumeState *>(op->customdata);
+    PlaybackResumeState *playback_resume = static_cast<PlaybackResumeState *>(op->customdata);
     bScreen *screen = CTX_wm_screen(C);
     if (screen) {
-      ED_screen_scrubbing_disable(C, screen, scrub_resume);
+      ED_screen_scrubbing_disable(C, screen, playback_resume);
     }
-    MEM_delete(scrub_resume);
+    MEM_delete(playback_resume);
     op->customdata = nullptr;
   }
 

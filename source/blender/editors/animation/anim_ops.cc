@@ -78,12 +78,12 @@ class FrameChangeModalData {
  public:
   AnimKeylist *keylist;
   /** Playback state to restore when scrubbing ends. */
-  ScrubResumeState *scrub_resume;
+  PlaybackResumeState *playback_resume;
 
   FrameChangeModalData()
   {
     keylist = nullptr;
-    scrub_resume = nullptr;
+    playback_resume = nullptr;
   }
 
   ~FrameChangeModalData()
@@ -91,8 +91,8 @@ class FrameChangeModalData {
     if (keylist) {
       ED_keylist_free(keylist);
     }
-    if (scrub_resume) {
-      MEM_delete(scrub_resume);
+    if (playback_resume) {
+      MEM_delete(playback_resume);
     }
   }
 };
@@ -717,7 +717,7 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
     RNA_boolean_set(op->ptr, "snap", true);
   }
 
-  op_data->scrub_resume = ED_screen_scrubbing_enable(C, screen);
+  op_data->playback_resume = ED_screen_scrubbing_enable(C, screen);
 
   if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -752,7 +752,7 @@ static void change_frame_cancel(bContext *C, wmOperator *op)
 {
   FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
   bScreen *screen = CTX_wm_screen(C);
-  ED_screen_scrubbing_disable(C, screen, op_data->scrub_resume);
+  ED_screen_scrubbing_disable(C, screen, op_data->playback_resume);
 
   MEM_delete(op_data);
   op->customdata = nullptr;
@@ -826,7 +826,7 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     ED_workspace_status_text(C, nullptr);
     bScreen *screen = CTX_wm_screen(C);
     FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
-    ED_screen_scrubbing_disable(C, screen, op_data->scrub_resume);
+    ED_screen_scrubbing_disable(C, screen, op_data->playback_resume);
 
     MEM_delete(op_data);
     op->customdata = nullptr;

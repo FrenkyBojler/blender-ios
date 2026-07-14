@@ -553,11 +553,11 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Start scrubbing, returns playback state.
  */
-ScrubResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen);
+PlaybackResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen);
 /**
  * Stop scrubbing, resumes playback by ScrubResumeState.
  */
-void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState *resume);
+void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const PlaybackResumeState *resume);
 
 /**
  * Find window that owns the animation timer.

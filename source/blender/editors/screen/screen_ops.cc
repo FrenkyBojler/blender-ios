@@ -6883,14 +6883,14 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   return start_playback(C, sync, mode);
 }
 
-ScrubResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
+PlaybackResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
 {
-  ScrubResumeState *resume = nullptr;
+  PlaybackResumeState *resume = nullptr;
   bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(C));
   if (play_screen && play_screen->animtimer) {
     const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
     if (sad != nullptr) {
-      resume = MEM_new<ScrubResumeState>(__func__);
+      resume = MEM_new<PlaybackResumeState>(__func__);
       resume->play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
                                                                  PlaybackDirection::FORWARDS;
       resume->play_sync = (sad->flag & ANIMPLAY_FLAG_SYNC) ?
@@ -6904,7 +6904,7 @@ ScrubResumeState *ED_screen_scrubbing_enable(bContext *C, bScreen *screen)
   return resume;
 }
 
-void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const ScrubResumeState *resume)
+void ED_screen_scrubbing_disable(bContext *C, bScreen *screen, const PlaybackResumeState *resume)
 {
   screen->scrubbing = false;
   if (resume) {
