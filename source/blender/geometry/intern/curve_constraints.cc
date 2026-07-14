@@ -113,10 +113,8 @@ void solve_length_and_collision_constraints(const OffsetIndices<int> points_by_c
               const float3 ray_direction_su = math::normalize_and_get_length(pos_diff_su,
                                                                              max_ray_length_su);
 
-              bke::bvh::Ray ray{};
-              ray.origin = start_pos_su;
-              ray.direction = ray_direction_su;
-              ray.dist_max = max_ray_length_su + surface_collision_distance;
+              const bke::bvh::Ray ray(
+                  start_pos_su, ray_direction_su, max_ray_length_su + surface_collision_distance);
 
               const std::optional<bke::bvh::RayHit> hit = surface_bvh.ray_intersect(ray);
               if (!hit) {
