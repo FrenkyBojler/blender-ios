@@ -21,8 +21,11 @@
 namespace blender {
 
 struct Scene;
+struct BlendWriter;
+struct BlendDataReader;
 struct Main;
 struct ViewLayer;
+struct LibraryForeachIDData;
 struct ImBuf;
 struct bContext;
 struct SceneCompositorEffect;
@@ -123,13 +126,27 @@ void rename_effect(Scene &scene,
 SceneCompositorEffect &new_effect(Scene &scene, StringRef name);
 
 /* Copy the given compositor effect in the given scene. */
-SceneCompositorEffect &copy_effect(Scene &scene, SceneCompositorEffect &source_effect);
+SceneCompositorEffect &duplicate_effect(Scene &scene, SceneCompositorEffect &source_effect);
 
 /* Removes the given compositor effect from the given scene. */
 void remove_effect(Scene &scene, SceneCompositorEffect &effect);
 
-/* Removes all compositor effects from the given scene. */
-void clear_effects(Scene &scene);
+/* Copy the effects from the given source scene to the given destination scene using the given ID
+ * copying flags. */
+void copy_effects(Scene &target_scene, const Scene &source_scene, const int flags);
+
+/* Frees all compositor effects in the given scene. */
+void free_effects(Scene &scene);
+
+/* Walk over each ID in the effects of the given scene executing the callback defined by the given
+ * data. */
+void for_each_id_in_effects(const Scene &scene, LibraryForeachIDData &data);
+
+/* Write the effects of the given scene to the given blend file writer. */
+void write_effects(const Scene &scene, BlendWriter &writer);
+
+/* Read the effects of the given scene from the given blend file reader. */
+void read_effects(Scene &scene, BlendDataReader &reader);
 
 /* Gets the effect that the given property belongs to. */
 const SceneCompositorEffect *get_effect_from_property(const PointerRNA &property_ptr);

@@ -134,7 +134,7 @@ static wmOperatorStatus duplicate_compositor_effect_exec(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
 
-  bke::compositor::copy_effect(*scene, *effect);
+  bke::compositor::duplicate_effect(*scene, *effect);
 
   Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
@@ -282,7 +282,6 @@ static wmOperatorStatus new_compositor_effect_node_group_exec(bContext *C, wmOpe
   SceneCompositorEffect *active_effect = bke::compositor::get_active_effect(*scene);
   if (!active_effect) {
     SceneCompositorEffect &effect = bke::compositor::new_effect(*scene, "Scene Compositor Effect");
-    effect.flags |= SceneCompositorEffectFlags::IsActive;
     active_effect = &effect;
   }
   active_effect->node_group = node_group;

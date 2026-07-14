@@ -367,14 +367,7 @@ static void scene_copy_data(Main *bmain,
 
   BKE_scene_copy_data_eevee(scene_dst, scene_src);
 
-  scene_dst->compositor_effects.clear_no_delete();
-  for (const SceneCompositorEffect &effect : scene_src->compositor_effects) {
-    SceneCompositorEffect *new_effect = MEM_dupalloc(&effect);
-    BLI_addtail(&scene_dst->compositor_effects, new_effect);
-    if (effect.system_properties) {
-      new_effect->system_properties = IDP_CopyProperty_ex(effect.system_properties, flag);
-    }
-  }
+  bke::compositor::copy_effects(*scene_dst, *scene_src, flag_subdata);
 
   scene_dst->runtime = MEM_new<SceneRuntime>(__func__);
 }
@@ -452,12 +445,7 @@ static void scene_free_data(ID *id)
     scene->display.shading.prop = nullptr;
   }
 
-  for (const SceneCompositorEffect &effect : scene->compositor_effects) {
-    if (effect.system_properties) {
-      IDP_FreeProperty_ex(effect.system_properties, false);
-    }
-  }
-  scene->compositor_effects.free_no_destruct();
+  bke::compositor::free_effects(*scene);
 
   /* These are freed on `do_versions`. */
   BLI_assert(scene->layer_properties == nullptr);
@@ -880,17 +868,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IDWALK_CB_USER);
 
-  for (SceneCompositorEffect &effect : scene->compositor_effects) {
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, effect.node_group, IDWALK_CB_USER);
-    if (effect.system_properties) {
-      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
-          data,
-          IDP_foreach_property(
-              effect.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-                BKE_lib_query_idpropertiesForeachIDLink_callback(property, data);
-              }));
-    }
-  }
+  bke::compositor::for_each_id_in_effects(*scene, *data);
 
   if (scene->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
@@ -1325,12 +1303,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   BKE_screen_view3d_shading_blend_write(writer, &sce->display.shading);
 
-  writer->write_struct_list(&sce->compositor_effects);
-  for (const SceneCompositorEffect &effect : sce->compositor_effects) {
-    if (effect.system_properties) {
-      IDP_BlendWrite(writer, effect.system_properties);
-    }
-  }
+  bke::compositor::write_effects(*sce, *writer);
 
   /* Freed on `do_versions()`. */
   BLI_assert(sce->layer_properties == nullptr);
@@ -1574,11 +1547,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, IDProperty, &sce->layer_properties);
   IDP_BlendDataRead(reader, &sce->layer_properties);
 
-  BLO_read_struct_list(reader, SceneCompositorEffect, &sce->compositor_effects);
-  for (SceneCompositorEffect &effect : sce->compositor_effects) {
-    BLO_read_struct(reader, IDProperty, &effect.system_properties);
-    IDP_BlendDataRead(reader, &effect.system_properties);
-  }
+  bke::compositor::read_effects(*sce, *reader);
 }
 
 /* patch for missing scene IDs, can't be in do-versions */

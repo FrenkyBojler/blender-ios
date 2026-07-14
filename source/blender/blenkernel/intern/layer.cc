@@ -578,7 +578,7 @@ void BKE_view_layer_rename(Main *bmain, Scene *scene, ViewLayer *view_layer, con
                  sizeof(view_layer->name));
 
   for (const SceneCompositorEffect &effect : scene->compositor_effects) {
-    if (!effect.node_group) {
+    if (!effect.node_group || ID_MISSING(effect.node_group)) {
       continue;
     }
 

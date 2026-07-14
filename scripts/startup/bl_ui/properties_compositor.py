@@ -25,8 +25,8 @@ class SCENE_MT_add_compositor_effect(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
-        layout.operator("scene.add_compositor_effect", text="Add Effect", icon='ADD')
         layout.menu_contents("SCENE_MT_add_compositor_effect_root_catalogs")
+        layout.operator("scene.add_compositor_effect", text="Add Effect", icon='ADD')
 
 
 class SCENE_PT_compositor_effects(Panel):
@@ -38,10 +38,7 @@ class SCENE_PT_compositor_effects(Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-
         layout.operator("wm.call_menu", text="Add Effect", icon='ADD').name = "SCENE_MT_add_compositor_effect"
-
         layout.template_scene_compositor_effects()
 
 

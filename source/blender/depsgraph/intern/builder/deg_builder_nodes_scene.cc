@@ -80,6 +80,7 @@ void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
 
   for (SceneCompositorEffect &effect : scene->compositor_effects) {
     build_nodetree(effect.node_group);
+    build_idproperties(effect.system_properties);
   }
 }
 

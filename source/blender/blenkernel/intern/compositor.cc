@@ -29,6 +29,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "BLO_read_write.hh"
+
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.hh"
 #include "BKE_compositor.hh"
@@ -37,6 +39,7 @@
 #include "BKE_cryptomatte.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -262,7 +265,7 @@ SceneCompositorEffect &new_effect(Scene &scene, StringRef name)
   return effect;
 }
 
-SceneCompositorEffect &copy_effect(Scene &scene, SceneCompositorEffect &source_effect)
+SceneCompositorEffect &duplicate_effect(Scene &scene, SceneCompositorEffect &source_effect)
 {
   SceneCompositorEffect &new_effect = *MEM_dupalloc(&source_effect);
   if (source_effect.node_group) {
@@ -286,12 +289,61 @@ void remove_effect(Scene &scene, SceneCompositorEffect &effect)
   }
 }
 
-void clear_effects(Scene &scene)
+void copy_effects(Scene &target_scene, const Scene &source_scene, const int flags)
 {
-  for (SceneCompositorEffect &effect : scene.compositor_effects) {
+  free_effects(target_scene);
+  for (const SceneCompositorEffect &effect : source_scene.compositor_effects) {
+    SceneCompositorEffect *new_effect = MEM_dupalloc(&effect);
+    BLI_addtail(&target_scene.compositor_effects, new_effect);
+    if (effect.system_properties) {
+      new_effect->system_properties = IDP_CopyProperty_ex(effect.system_properties, flags);
+    }
+  }
+}
+
+void free_effects(Scene &scene)
+{
+  for (const SceneCompositorEffect &effect : scene.compositor_effects) {
+    if (effect.system_properties) {
+      IDP_FreeProperty_ex(effect.system_properties, false);
+    }
     MEM_delete(&effect);
   }
-  BLI_listbase_clear(&scene.compositor_effects);
+  scene.compositor_effects.clear_no_delete();
+}
+
+void for_each_id_in_effects(const Scene &scene, LibraryForeachIDData &data)
+{
+  for (SceneCompositorEffect &effect : scene.compositor_effects) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(&data, effect.node_group, IDWALK_CB_USER);
+    if (effect.system_properties) {
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          &data,
+          IDP_foreach_property(
+              effect.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
+                BKE_lib_query_idpropertiesForeachIDLink_callback(property, &data);
+              }));
+    }
+  }
+}
+
+void write_effects(const Scene &scene, BlendWriter &writer)
+{
+  writer.write_struct_list(&scene.compositor_effects);
+  for (const SceneCompositorEffect &effect : scene.compositor_effects) {
+    if (effect.system_properties) {
+      IDP_BlendWrite(&writer, effect.system_properties);
+    }
+  }
+}
+
+void read_effects(Scene &scene, BlendDataReader &reader)
+{
+  BLO_read_struct_list(&reader, SceneCompositorEffect, &scene.compositor_effects);
+  for (SceneCompositorEffect &effect : scene.compositor_effects) {
+    BLO_read_struct(&reader, IDProperty, &effect.system_properties);
+    IDP_BlendDataRead(&reader, &effect.system_properties);
+  }
 }
 
 const SceneCompositorEffect *get_effect_from_property(const PointerRNA &property_ptr)
