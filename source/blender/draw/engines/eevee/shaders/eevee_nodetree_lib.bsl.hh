@@ -843,7 +843,6 @@ void node_light_info_impl(float4 &color,
   direction = lv.L;
   distance = lv.dist;
   attenuation = light_attenuation_surface(light, is_directional, lv);
-  // attenuation *= light_attenuation_facing(light, lv.L, lv.dist, g_data.N, false);
   attenuation *= eevee::light::power_get(light, LIGHT_VOLUME);  // TODO
 }
 
@@ -856,7 +855,31 @@ void node_light_accumulation_impl(
 void node_light_evaluation_impl(
     float3 position, float3 normal, float roughness, float4 &color, float &factor)
 {
-  /*TODO*/
+  return;  // WIP
+  /* clang-format off */ /* Multiline macros would break line count. */
+  [[resource_table]] const eevee::LightRenderData &lrd = resource_table_get(eevee::LightRenderData);
+  /* clang-format on */
+  [[resource_table]] UtilityTexture &util_tx = resource_table_get(UtilityTexture);
+
+  LightData light = lrd.light_buf[g_data.light_index];
+
+  const bool is_directional = (light.type == LIGHT_SUN) || (light.type == LIGHT_SUN_ORTHO);
+  LightVector lv = light_vector_get(light, is_directional, position);
+  LightVertices light_shape_vertices = light_shape_corners(light, lv);
+
+  const ViewMatrices view = view_matrices_get();
+  const float3 V = view.world_incident_vector(position);
+
+  /* TODO(not_mark): remove, and update tests as this causes precision change. */
+  /* Load LTC matrix and rotate into orthonormal basis around N. */
+  eevee::LTCData ltc_data = eevee::LTCData::sample_ltc_lut(
+      util_tx, normal, V, dot(normal, V), roughness);
+  float3x3 T = from_incident_vector(normal, V);
+  ltc_data.Minv = ltc_data.Minv * transpose(T);
+  float ltc_result = light_ltc(util_tx.utility_tx, light, ltc_data, lv, light_shape_vertices);
+  // ltc_result *= light_attenuation_facing(light, lv.L, lv.dist, normal, false);
+
+  factor = ltc_result;
 }
 
 void node_shadow_raycast_impl(float3 position, float spread, float4 &color)
