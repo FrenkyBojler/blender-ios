@@ -613,6 +613,29 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
  * \{ */
 
 /**
+ * Blend bbone values on `paste_bone` towards `copy_bone`. At factor 1 the values of `copy_bone`
+ * are copied.
+ */
+static void blend_bbone_values(const bPoseChannel &copy_bone,
+                               bPoseChannel &paste_bone,
+                               const float factor)
+{
+  /* B-Bone posing options should also be included... */
+  paste_bone.curve_in_x = interpf(copy_bone.curve_in_x, paste_bone.curve_in_x, factor);
+  paste_bone.curve_in_z = interpf(copy_bone.curve_in_z, paste_bone.curve_in_z, factor);
+  paste_bone.curve_out_x = interpf(copy_bone.curve_out_x, paste_bone.curve_out_x, factor);
+  paste_bone.curve_out_z = interpf(copy_bone.curve_out_z, paste_bone.curve_out_z, factor);
+
+  paste_bone.roll1 = interpf(copy_bone.roll1, paste_bone.roll1, factor);
+  paste_bone.roll2 = interpf(copy_bone.roll2, paste_bone.roll2, factor);
+  paste_bone.ease1 = interpf(copy_bone.ease1, paste_bone.ease1, factor);
+  paste_bone.ease2 = interpf(copy_bone.ease2, paste_bone.ease2, factor);
+
+  interp_v3_v3v3(paste_bone.scale_in, paste_bone.scale_in, copy_bone.scale_in, factor);
+  interp_v3_v3v3(paste_bone.scale_out, paste_bone.scale_out, copy_bone.scale_out, factor);
+}
+
+/**
  * Perform paste pose, for a single bone.
  *
  * \param paste_ob: Object where bone to paste to lives
@@ -623,7 +646,7 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
  * helps to distinguish between "not found" and "found, but skipped because not selected" cases.
  * \return The channel of the bone that was pasted to, or nullptr if no paste was performed.
  */
-static bPoseChannel *pose_bone_do_paste(Object &paste_ob,
+static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
                                         const ed::AnimTransformable &copy_transformable,
                                         const bool selected_only,
                                         const bool flip,
@@ -652,11 +675,8 @@ static bPoseChannel *pose_bone_do_paste(Object &paste_ob,
   if (selected_only && (paste_bone->flag & POSE_SELECTED) == 0) {
     return nullptr;
   }
-  ed::AnimTransformable paste_transformable(paste_ob, *paste_bone);
 
-  /* only loc rot size
-   * - only copies transform info for the pose
-   */
+  ed::AnimTransformable paste_transformable(paste_ob, *paste_bone);
   paste_transformable.blend_property_to(
       ed::AnimTransformable::PropertyType::LOCATION,
       copy_transformable.get_property(ed::AnimTransformable::PropertyType::LOCATION),
@@ -672,18 +692,7 @@ static bPoseChannel *pose_bone_do_paste(Object &paste_ob,
 
   bPoseChannel *copy_bone = copy_transformable.data<bPoseChannel *>();
   /* B-Bone posing options should also be included... */
-  paste_bone->curve_in_x = interpf(copy_bone->curve_in_x, paste_bone->curve_in_x, factor);
-  paste_bone->curve_in_z = interpf(copy_bone->curve_in_z, paste_bone->curve_in_z, factor);
-  paste_bone->curve_out_x = interpf(copy_bone->curve_out_x, paste_bone->curve_out_x, factor);
-  paste_bone->curve_out_z = interpf(copy_bone->curve_out_z, paste_bone->curve_out_z, factor);
-
-  paste_bone->roll1 = interpf(copy_bone->roll1, paste_bone->roll1, factor);
-  paste_bone->roll2 = interpf(copy_bone->roll2, paste_bone->roll2, factor);
-  paste_bone->ease1 = interpf(copy_bone->ease1, paste_bone->ease1, factor);
-  paste_bone->ease2 = interpf(copy_bone->ease2, paste_bone->ease2, factor);
-
-  interp_v3_v3v3(paste_bone->scale_in, paste_bone->scale_in, copy_bone->scale_in, factor);
-  interp_v3_v3v3(paste_bone->scale_out, paste_bone->scale_out, copy_bone->scale_out, factor);
+  blend_bbone_values(*copy_bone, *paste_bone, factor);
 
   /* Flips pose directly by modifying transform parameters. */
   if (flip) {
@@ -903,7 +912,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
 
     /* Try to perform paste on this bone. */
     bool is_found;
-    bPoseChannel *pchan_to = pose_bone_do_paste(
+    bPoseChannel *pchan_to = pose_bone_blend_to(
         *ob, {*object_from, pchan_from}, selected_only, flip, factor, &is_found);
     if (!pchan_to) {
       if (is_found) {
@@ -1428,6 +1437,40 @@ void POSE_OT_transforms_clear(wmOperatorType *ot)
 /** \name Clear User Transforms Operator
  * \{ */
 
+static void pose_bone_copy_transform_values(Object &paste_ob,
+                                            const bPoseChannel &copy_bone,
+                                            const bool selected_only)
+{
+  bPoseChannel *paste_bone = BKE_pose_channel_find_name(paste_ob.pose, copy_bone.name);
+  if (paste_bone == nullptr) {
+    return;
+  }
+  if (selected_only && (paste_bone->flag & POSE_SELECTED) == 0) {
+    return;
+  }
+
+  copy_v3_v3(paste_bone->loc, copy_bone.loc);
+  copy_v3_v3(paste_bone->eul, copy_bone.eul);
+  copy_v3_v3(paste_bone->rotAxis, copy_bone.rotAxis);
+  paste_bone->rotAngle = copy_bone.rotAngle;
+  copy_v4_v4(paste_bone->quat, copy_bone.quat);
+  copy_v3_v3(paste_bone->scale, copy_bone.scale);
+
+  blend_bbone_values(copy_bone, *paste_bone, 1.0);
+
+  /* ID properties */
+  if (copy_bone.prop && paste_bone->prop) {
+    /* If we have existing properties on a bone, just copy over the values of
+     * matching properties (i.e. ones which will have some impact) on to the target
+     * instead of just blindly replacing all. */
+    IDP_SyncGroupValues(paste_bone->prop, copy_bone.prop);
+  }
+  if (copy_bone.system_properties && paste_bone->prop) {
+    /* Same logic as above for system IDProperties. */
+    IDP_SyncGroupValues(paste_bone->system_properties, copy_bone.system_properties);
+  }
+}
+
 static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1459,7 +1502,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
           &workob.id, workob.adt, &anim_eval_context, ADT_RECALC_ANIM, false);
 
       for (bPoseChannel &pchan : dummyPose->chanbase) {
-        pose_bone_do_paste(*ob, {*ob, pchan}, only_select, 1.0f, false);
+        pose_bone_copy_transform_values(*ob, pchan, only_select);
       }
 
       /* Free temp data - free manually as was copied without constraints. */
