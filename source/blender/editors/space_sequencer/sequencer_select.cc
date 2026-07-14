@@ -2485,7 +2485,6 @@ static bool rcti_in_lasso(const rcti rect, const Span<int2> mcoords)
   return false;
 }
 
-// TODO: strip and transition selection state
 static bool do_lasso_select_timeline(bContext *C,
                                      const Span<int2> mcoords,
                                      ARegion *region,
@@ -2498,6 +2497,8 @@ static bool do_lasso_select_timeline(bContext *C,
 
   bool changed = false;
   const bool select = (sel_op != SEL_OP_SUB);
+
+  changed |= deselect_transition_handles(scene);
 
   for (Strip &strip : ed->seqbase) {
     rctf strip_rct = strip_bounds_get(scene, sseq, v2d, &strip);
