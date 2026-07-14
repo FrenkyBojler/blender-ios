@@ -1438,7 +1438,7 @@ ID *buttons_context_id_path(const bContext *C)
 
     /* For Bone tab, pin it with the Object instead of the Armature data-block.
      * The path for the Bone tab is: Object → Armature → Bone/EditBone
-     * However the owner_id of the PoseBone is the same as the owner_id of the Object, just return.
+     * However the owner_id of the PoseBone is just the id of the Object, return it.
      * The path for the Bone Constraints tab is: Object → PoseBone */
     if (sbuts->mainb == BCONTEXT_BONE && sbuts->flag & SB_PIN_CONTEXT) {
       if (ELEM(ptr->type, RNA_Bone, RNA_EditBone, RNA_Armature) && ptr->data) {
