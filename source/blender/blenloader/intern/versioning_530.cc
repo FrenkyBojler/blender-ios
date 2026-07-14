@@ -34,28 +34,24 @@ namespace blender {
 
 static void do_version_node_curve_to_mesh_scale_input_anisotropic(bNodeTree *tree)
 {
-  Set<bNode *> curve_to_mesh_nodes;
   for (bNode &node : tree->nodes) {
     if (STREQ(node.idname, "GeometryNodeCurveToMesh")) {
-      curve_to_mesh_nodes.add(&node);
+      bNodeSocket *socket = bke::node_find_socket(node, SOCK_IN, "Scale"_ustr);
+      if (socket && socket->type == SOCK_FLOAT) {
+        /* Convert from float to vector */
+        socket->type = SOCK_VECTOR;
+        STRNCPY_UTF8(socket->idname, "NodeSocketVector");
+        auto *old_value = static_cast<bNodeSocketValueFloat *>(socket->default_value);
+        auto *new_value = MEM_new<bNodeSocketValueVector>(__func__);
+        new_value->value[0] = old_value->value;
+        new_value->value[1] = old_value->value;
+        new_value->value[2] = old_value->value;
+        socket->default_value = new_value;
+        MEM_delete(old_value);
+      }
     }
   }
 
-  for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
-    bNodeSocket *socket = bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale"_ustr);
-    if (socket && socket->type == SOCK_FLOAT) {
-      /* Convert from float to vector */
-      socket->type = SOCK_VECTOR;
-      STRNCPY_UTF8(socket->idname, "NodeSocketVector");
-      auto *old_value = static_cast<bNodeSocketValueFloat *>(socket->default_value);
-      auto *new_value = MEM_new<bNodeSocketValueVector>(__func__);
-      new_value->value[0] = old_value->value;
-      new_value->value[1] = old_value->value;
-      new_value->value[2] = old_value->value;
-      socket->default_value = new_value;
-      MEM_delete(old_value);
-    }
-  }
   version_socket_update_is_used(tree);
 }
 
