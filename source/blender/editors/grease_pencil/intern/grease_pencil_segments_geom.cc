@@ -1540,10 +1540,12 @@ class WindingState {
   }
 };
 
+constexpr float epms = 0.01f;
+
 /* Calculate the winding states for left and right of the segment. */
 static std::pair<WindingState, WindingState> LR_states_from_segment(
     const Segment &segment,
-    const Span<float2> points,
+    const Span<float2> all_positions,
     const OffsetIndices<int> points_by_curve,
     const std::optional<GroupedSpan<int>> fills,
     const IndexMask &mask_fills,
@@ -1554,34 +1556,35 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   const int curve_i = segment.curve;
 
-  if (fill_id[curve_i] != 0) {
-    if (!segment.is_loop()) {
-      const IndexRange points_i = points_by_curve[curve_i];
-      const Span<float2> poly_i = points.slice(points_i);
-      const int winding_twice_i = edge_in_polygon_winding_twice(
-          segment.edge(Side::Start).x - points_i.first(), poly_i);
-
-      /* Each state represents a point infinitesimally offset to the left and right. */
-      state_L.add_to_curve(curve_i, int((winding_twice_i + 1) / 2));
-      state_R.add_to_curve(curve_i, int((winding_twice_i - 1) / 2));
-    }
-    else {
-      state_L.add_to_curve(curve_i, 1);
-    }
-  }
-
-  float2 first_point = points[segment.src_points.first()];
+  float2 point1;
+  float2 point2;
 
   if (segment.has_intersection(Side::Start)) {
-    first_point = points[segment.edge(Side::Start).y];
+    point1 = math::interpolate(all_positions[segment.edge(Side::Start)[0]],
+                               all_positions[segment.edge(Side::Start)[1]],
+                               segment.intersection_factor[Side::Start]);
+  }
+  else {
+    point1 = all_positions[segment.src_points.first()];
   }
 
-  /* If there are no control points in the segment calculate the starting point. */
-  if (segment.points_num() == 0) {
-    first_point = math::interpolate(points[segment.edge(Side::Start).x],
-                                    points[segment.edge(Side::Start).y],
-                                    segment.intersection_factor[Side::Start]);
+  if (segment.edge(Side::Start)[0] == segment.edge(Side::End)[0] && segment.points_num() == 0) {
+    point2 = math::interpolate(all_positions[segment.edge(Side::End)[0]],
+                               all_positions[segment.edge(Side::End)[1]],
+                               segment.intersection_factor[Side::End]);
   }
+  else {
+    point2 = all_positions[segment.edge(Side::Start)[1]];
+  }
+
+  const float2 line_dir = math::normalize(point2 - point1);
+  /* Direction to the left. */
+  const float2 tan_dir = float2(-line_dir.y, line_dir.x);
+
+  const float2 mid_point = math::interpolate(point1, point2, 0.35421f);
+
+  const float2 l_point = mid_point + tan_dir * epms;
+  const float2 r_point = mid_point - tan_dir * epms;
 
   mask_fills.foreach_index([&](const int fill_i) {
     const Span<int> curves_j = (*fills)[fill_i];
@@ -1590,14 +1593,30 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
         return;
       }
 
-      if (fill_id[curve_j] != 0) {
-        const Span<float2> poly_j = points.slice(points_by_curve[curve_j]);
-        const int winding_j = point_in_polygon_winding_int(first_point, poly_j);
-        state_L.add_to_curve(curve_j, winding_j);
-        state_R.add_to_curve(curve_j, winding_j);
-      }
+      const IndexRange points_j = points_by_curve[curve_j];
+
+      const Span<float2> poly_j = all_positions.slice(points_j);
+
+      const int l_winding_i = point_in_polygon_winding_int(l_point, poly_j);
+      const int r_winding_i = point_in_polygon_winding_int(r_point, poly_j);
+
+      state_L.add_to_curve(curve_j, l_winding_i);
+      state_R.add_to_curve(curve_j, r_winding_i);
     }
   });
+
+  /* Self check. */
+  if (fill_id[curve_i] != 0) {
+    const IndexRange points_i = points_by_curve[curve_i];
+
+    const Span<float2> poly_i = all_positions.slice(points_i);
+
+    const int l_winding_i = point_in_polygon_winding_int(l_point, poly_i);
+    const int r_winding_i = point_in_polygon_winding_int(r_point, poly_i);
+
+    state_L.add_to_curve(curve_i, l_winding_i);
+    state_R.add_to_curve(curve_i, r_winding_i);
+  }
 
   return {state_L, state_R};
 }
@@ -1624,16 +1643,16 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
     return;
   }
 
-  const Segment &first_segment = all_segments[segments.first()];
   const IndexMask &mask_fills = is_subj ?
                                     clipping_fills :
                                     (subj_fill_id == -1 ? IndexRange(0) :
                                                           IndexRange::from_single(subj_fill_id));
-  auto [state_L, state_R] = LR_states_from_segment(
-      first_segment, points, points_by_curve, fills, mask_fills, fill_id);
 
   for (const int seg_i : segments) {
     const Segment &this_segment = all_segments[seg_i];
+
+    auto [state_L, state_R] = LR_states_from_segment(
+        this_segment, points, points_by_curve, fills, mask_fills, fill_id);
 
     if (fill_id[curve_k] != 0) {
       all_inside_left[seg_i] = state_L.is_contributing(
@@ -1644,27 +1663,6 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
     else {
       all_inside_left[seg_i] = state_L.is_in_fills(clipping_fills, *fills);
       all_inside_right[seg_i] = state_R.is_in_fills(clipping_fills, *fills);
-    }
-
-    if (!this_segment.has_intersection(Side::End)) {
-      continue;
-    }
-    const int int_p_end = this_segment.intersection_index[1];
-    const IntersectionPoint &inter_end = intersections[int_p_end];
-
-    const int other_curve_k = inter_end.other_curve(curve_k);
-
-    if (fill_id[other_curve_k] != 0) {
-      const int point_k = curve_k == inter_end.curve_i ? inter_end.point_i : inter_end.point_j;
-      const int point_other = curve_k != inter_end.curve_i ? inter_end.point_i : inter_end.point_j;
-      const float2 &point1 = points[point_k];
-      const float2 &point_other1 = points[point_other];
-      const float2 &point_other2 = points[(point_other + 1) % points.size()];
-      const bool ccw = cross_tri_v2(point1, point_other1, point_other2) > 0.0;
-
-      /* Crossing a line going left to right is incrementing. */
-      state_L.add_to_curve(other_curve_k, ccw ? -1 : 1);
-      state_R.add_to_curve(other_curve_k, ccw ? -1 : 1);
     }
   }
 }
