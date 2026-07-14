@@ -433,7 +433,7 @@ static PointerRNA rna_ProjectVariables_new(BlenderProject *project,
       for (const std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> &other_var :
            project->variables)
       {
-        if (StringRef(other_var->name) == name) {
+        if (other_var->name == name) {
           return true;
         }
       }
