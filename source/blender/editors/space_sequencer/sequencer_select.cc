@@ -2678,7 +2678,7 @@ static bool check_circle_intersection_in_timeline(const rctf *rect,
 
   return ((dx * dx) / (x_radius * x_radius) + (dy * dy) / (y_radius * y_radius) <= 1.0f);
 }
-// TODO: how transition and strip selection state works
+
 static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 {
   const int radius = RNA_int_get(op->ptr, "radius");
@@ -2694,13 +2694,16 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
 
-  if (use_pre_deselect && WM_gesture_is_modal_first(gesture)) {
-    deselect_all_strips(scene);
-    sequencer_select_do_updates(C, scene);
-  }
-
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
+  }
+
+  bool changed = false;
+  if (use_pre_deselect && WM_gesture_is_modal_first(gesture)) {
+    changed |= deselect_all_strips(scene);
+  }
+  else {
+    changed |= deselect_transition_handles(scene);
   }
 
   float2 view_mval;
@@ -2715,7 +2718,6 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 
   float x_radius = radius / ui::view2d_scale_get_x(v2d);
   float y_radius = radius / ui::view2d_scale_get_y(v2d);
-  bool changed = false;
   for (Strip &strip : *ed->current_strips()) {
     rctf rq = strip_bounds_get(scene, sseq, v2d, &strip);
     /* Use custom function to check the distance because in timeline the circle is a ellipse. */
