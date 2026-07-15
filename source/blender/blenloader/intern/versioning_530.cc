@@ -13,8 +13,10 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase_iterator.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_sys_types.hh"
 
+#include "BKE_compositor.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -31,14 +33,57 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-void do_versions_after_linking_530(FileData * /*fd*/, Main * /*bmain*/)
+void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
+    for (Scene &scene : bmain->scenes) {
+      bNodeTree *node_group = version_get_scene_compositor_node_tree(bmain, &scene);
+      if (!node_group) {
+        continue;
+      }
+
+      SceneCompositorEffect &effect = bke::compositor::new_effect(scene,
+                                                                  "Scene Compositor Effect");
+      effect.node_group = node_group;
+      if (!node_group->compositor_node_asset_traits) {
+        node_group->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+      }
+      node_group->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_EFFECT;
+      bke::node_update_asset_metadata(*node_group);
+      scene.compositing_node_group = nullptr;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
+}
+
+/* Assign COMPOSIT_NODE_ASSET_SCENE_EFFECT if the node group can be a suitable scene compositor
+ * effect. It is suitable if it has a color output and a color input as its first socket. */
+static void update_node_group_asset_traits_for_scene_compositor_effects(bNodeTree &node_group)
+{
+  node_group.ensure_interface_cache();
+  if (node_group.interface_outputs().is_empty() || node_group.interface_inputs().is_empty()) {
+    return;
+  }
+
+  if (StringRef(node_group.interface_outputs().first()->socket_type) != "NodeSocketColor") {
+    return;
+  }
+
+  if (StringRef(node_group.interface_inputs().first()->socket_type) != "NodeSocketColor") {
+    return;
+  }
+
+  if (!node_group.compositor_node_asset_traits) {
+    node_group.compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+  }
+  node_group.compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_EFFECT;
+  bke::node_update_asset_metadata(node_group);
 }
 
 void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
@@ -125,6 +170,16 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         view_layer.eevee.denoising_pass_flags =
             EEVEE_DENOISING_PASS_USE_ALBEDO_ROUGHNESS_WEIGHTING;
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
+    for (bNodeTree &node_group : bmain->nodetrees) {
+      if (node_group.type != NTREE_COMPOSIT) {
+        continue;
+      }
+
+      update_node_group_asset_traits_for_scene_compositor_effects(node_group);
     }
   }
 
