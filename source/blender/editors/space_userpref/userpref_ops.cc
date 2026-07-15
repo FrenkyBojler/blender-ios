@@ -14,14 +14,14 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
@@ -337,8 +337,12 @@ static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
     RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   }
 
-  ot->prop = RNA_def_enum(
-      ot->srna, "type", custom_library_type_items, 0, "Type", "The kind of asset library to add");
+  ot->prop = RNA_def_enum(ot->srna,
+                          "type",
+                          custom_library_type_items,
+                          int(bUserAssetLibraryAddType::Local),
+                          "Type",
+                          "The kind of asset library to add");
   RNA_def_enum_funcs(ot->prop, custom_library_type_itemf);
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
@@ -1260,7 +1264,7 @@ static wmOperatorStatus preferences_start_filter_exec(bContext *C, wmOperator * 
   SpaceUserPref *space = CTX_wm_space_userpref(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
-  ui::textbutton_activate_rna(C, region, space, "search_filter");
+  ED_region_activate_rna_prop(C, region, space, "search_filter", "USERPREF_PT_navigation_bar");
   return OPERATOR_FINISHED;
 }
 

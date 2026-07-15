@@ -17,7 +17,7 @@
 
 #include "WM_types.hh"
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 
 namespace blender {
 
@@ -78,6 +78,16 @@ void ED_region_tag_redraw_partial(ARegion *region, const rcti *rct, bool rebuild
 void ED_region_tag_redraw_cursor(ARegion *region);
 void ED_region_tag_redraw_no_rebuild(ARegion *region);
 void ED_region_tag_refresh_ui(ARegion *region);
+/**
+ * Attempt to activate an button referencing an RNA property in the \a region, it may redraw the
+ * region so it can try one more time.
+ * \param block_name: name of the block to lookup the text button in.
+ */
+void ED_region_activate_rna_prop(bContext *C,
+                                 ARegion *region,
+                                 const void *data,
+                                 StringRefNull prop_name,
+                                 StringRefNull block_name);
 /**
  * Tag editor overlays to be redrawn. If in doubt about which parts need to be redrawn (partial
  * clipping rectangle set), redraw everything.
@@ -243,6 +253,9 @@ void ED_area_tag_redraw(ScrArea *area);
 void ED_area_tag_redraw_no_rebuild(ScrArea *area);
 void ED_area_tag_redraw_regiontype(ScrArea *area, int regiontype);
 void ED_area_tag_refresh(ScrArea *area);
+void ED_area_hud_region_set_padding_flag(ScrArea *area,
+                                         ARegion *changed_region,
+                                         const bool set_padding = false);
 /**
  * For regions that change the region size in their #ARegionType.layout() callback: Mark the area
  * as having a changed region size, requiring refitting of regions within the area.
@@ -355,7 +368,20 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen);
  */
 void ED_screen_animation_timer(
     bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable);
+/**
+ * Remove the animation timer, same as calling ED_screen_animation_timer(..., enable=0).
+ */
+void ED_screen_animation_timer_remove(wmWindowManager *wm, wmWindow *win);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
+/**
+ * Stop the animation in all screens where should_stop_fn(screen) returns true.
+ *
+ * The callback is only called for screens that have an animation timer.
+ */
+void ED_screen_animation_stop(Main *bmain,
+                              wmWindowManager *wm,
+                              FunctionRef<bool(const bScreen &screen)> should_stop_fn);
+
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);
 /**
@@ -613,17 +639,21 @@ bool ED_operator_buttons_active(bContext *C);
 bool ED_operator_node_active(bContext *C);
 bool ED_operator_node_editable(bContext *C);
 bool ED_operator_graphedit_active(bContext *C);
+bool ED_operator_region_graphedit_active(bContext *C);
 bool ED_operator_sequencer_active(bContext *C);
 bool ED_operator_sequencer_active_editable(bContext *C);
 bool ED_operator_image_active(bContext *C);
 bool ED_operator_nla_active(bContext *C);
+bool ED_operator_region_nla_active(bContext *C);
 bool ED_operator_info_active(bContext *C);
+bool ED_operator_region_info_active(bContext *C);
 bool ED_operator_console_active(bContext *C);
 bool ED_operator_preferences_active(bContext *C);
 
 /** Only check there is an active object (no visibility check). */
 bool ED_operator_object_active_only(bContext *C);
 bool ED_operator_object_active(bContext *C);
+bool ED_operator_object_active_objectmode(bContext *C);
 bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob);
 bool ED_operator_object_active_editable(bContext *C);
 
@@ -637,6 +667,8 @@ bool ED_operator_object_active_from_view_layer(bContext *C);
 bool ED_operator_object_active_local_editable_ex(bContext *C, const Object *ob);
 bool ED_operator_object_active_local_editable(bContext *C);
 bool ED_operator_object_active_editable_mesh(bContext *C);
+bool ED_operator_object_active_editable_obdata_from_view_layer_ex(bContext *C, short obtype);
+bool ED_operator_object_active_editable_mesh_from_view_layer(bContext *C);
 bool ED_operator_object_active_editable_font(bContext *C);
 bool ED_operator_editable_mesh(bContext *C);
 bool ED_operator_editmesh(bContext *C);
