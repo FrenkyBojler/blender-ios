@@ -1760,6 +1760,9 @@ class WM_OT_properties_edit(Operator):
             else:
                 return [False] * self.array_length
         elif prop_type_new == 'STRING':
+            prop_type_old = self.get_property_type(item, name_old)
+            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'INT_ARRAY', 'FLOAT_ARRAY', 'BOOL_ARRAY'}:
+                return self.default_string
             return self.convert_custom_property_to_string(item, name_old)
         elif prop_type_new == 'DATA_BLOCK':
             if id_type_old != id_type_new:
