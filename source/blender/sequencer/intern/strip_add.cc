@@ -187,6 +187,17 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
     strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
 
+  if (load_data->effect.type == STRIP_TYPE_COLOR) {
+    SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
+    colvars->width = scene->r.xsch;
+    colvars->height = scene->r.ysch;
+  }
+  else if (load_data->effect.type == STRIP_TYPE_TEXT) {
+    TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
+    textvars->runtime = MEM_new<seq::TextVarsRuntime>(__func__);
+    seq::text_effect_update_runtime(nullptr, *textvars, int2(scene->r.xsch, scene->r.ysch));
+  }
+
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
 

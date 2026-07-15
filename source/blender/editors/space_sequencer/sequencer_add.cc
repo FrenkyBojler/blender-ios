@@ -2044,16 +2044,12 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   if (strip->type == STRIP_TYPE_COLOR) {
     SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
     RNA_float_get_array(op->ptr, "color", colvars->col);
-    colvars->width = RNA_struct_property_is_set(op->ptr, "width") ? RNA_int_get(op->ptr, "width") :
-                                                                    scene->r.xsch;
-    colvars->height = RNA_struct_property_is_set(op->ptr, "height") ?
-                          RNA_int_get(op->ptr, "height") :
-                          scene->r.ysch;
-  }
-  else if (strip->type == STRIP_TYPE_TEXT) {
-    TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
-    textvars->runtime = MEM_new<seq::TextVarsRuntime>(__func__);
-    seq::text_effect_update_runtime(nullptr, *textvars, int2(scene->r.xsch, scene->r.ysch));
+    if (RNA_struct_property_is_set(op->ptr, "width")) {
+      colvars->width = RNA_int_get(op->ptr, "width");
+    }
+    if (RNA_struct_property_is_set(op->ptr, "height")) {
+      colvars->height = RNA_int_get(op->ptr, "height");
+    }
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
