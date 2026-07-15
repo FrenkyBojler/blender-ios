@@ -45,6 +45,40 @@ points must change (and the proposed `bpy.types.ObjectModeType` +
   `CLAUDENOTE:` ones) against the code and the comment guidelines below;
   leave only accurate, guideline-conforming comments.
 
+### Building (this environment)
+
+The build uses the presets in `CMakePresets.json` (Ninja + `clang-cl`,
+`sccache` enabled). Default to the **`relwithdebinfo`** preset (optimized with
+debug info). `clang-cl` is not on `PATH` and the presets need the MSVC
+developer environment active, so run cmake through the wrapper
+`claudeMemory/scripts/bl_env.bat`, which activates `vcvars64` and prepends the
+clang-cl / cmake / ninja / sccache directories:
+
+```
+claudeMemory\scripts\bl_env.bat cmake --preset relwithdebinfo          # configure
+claudeMemory\scripts\bl_env.bat cmake --build --preset relwithdebinfo  # build
+```
+
+Precompiled libraries live at `lib/windows_x64`. Build output lands in
+`../build_windows_x64_clang_RelWithDebInfo` (the presets place build dirs
+beside the source tree, not inside it). Other presets: `release`, `debug`,
+`asan`.
+
+### Debugging (this environment)
+
+- **Native C++** (SculptCore engine, C bridge): attach a debugger to
+  `blender.exe`, or launch it. RelWithDebInfo ships full symbols in
+  `../build_windows_x64_clang_RelWithDebInfo/source/creator/RelWithDebInfo/blender_private.pdb`.
+  Ready-made VS Code configs (`cppvsdbg`) are in `.vscode/launch.json`.
+- **Remote Python**: `claudeMemory/scripts/remote_repl.py` is a main-thread-safe
+  TCP REPL (socket recv on a background thread, `exec` marshalled onto the main
+  thread via `bpy.app.timers` -- `bpy` is not thread-safe). Launch with
+  `blender.exe --python claudeMemory/scripts/remote_repl.py` (default
+  `127.0.0.1:4444`); drive it with `remote_repl.py --client` or any socket
+  tool (NUL-terminated commands). Set `BLENDER_DEBUGPY_PORT` to also start a
+  `debugpy` listener for the "Python: Attach to Blender" VS Code config.
+- `.vscode/launch.json` is dev scaffolding; delete `.vscode/` before the PR.
+
 ### Before the final PR (cleanup checklist)
 
 This scaffolding is *not* part of the upstream contribution. Before opening
