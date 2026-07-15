@@ -552,6 +552,31 @@ Set<std::string> get_used_passes(const Scene &scene,
   return used_passes;
 }
 
+bool is_viewport_compositor_used(const Scene &scene,
+                                 const View3D &view_3d,
+                                 const RegionView3D &region_view_3d)
+{
+  if (!has_any_enabled_effect(scene, ExecutionMode::Preview)) {
+    return false;
+  }
+
+  if (view_3d.shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
+    return false;
+  }
+
+  if (!ELEM(view_3d.shading.type, OB_MATERIAL, OB_TEXTURE, OB_RENDER)) {
+    return false;
+  }
+
+  if (view_3d.shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
+      region_view_3d.persp != RV3D_CAMOB)
+  {
+    return false;
+  }
+
+  return true;
+}
+
 bool is_viewport_compositor_used(const bContext &context)
 {
   const Scene *scene = CTX_data_scene(&context);
@@ -566,16 +591,14 @@ bool is_viewport_compositor_used(const bContext &context)
       const SpaceLink &space = *static_cast<const SpaceLink *>(area.spacedata.first);
       if (space.spacetype == SPACE_VIEW3D) {
         const View3D &view_3d = reinterpret_cast<const View3D &>(space);
-
-        if (view_3d.shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
-          continue;
+        for (ARegion &region : area.regionbase) {
+          if (region.regiontype == RGN_TYPE_WINDOW) {
+            const RegionView3D &region_view_3d = *static_cast<RegionView3D *>(region.regiondata);
+            if (is_viewport_compositor_used(*scene, view_3d, region_view_3d)) {
+              return true;
+            }
+          }
         }
-
-        if (!(view_3d.shading.type >= OB_MATERIAL)) {
-          continue;
-        }
-
-        return true;
       }
     }
   }

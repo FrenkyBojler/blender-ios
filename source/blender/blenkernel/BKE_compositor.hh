@@ -21,6 +21,8 @@
 namespace blender {
 
 struct Scene;
+struct View3D;
+struct RegionView3D;
 struct BlendWriter;
 struct BlendDataReader;
 struct Main;
@@ -167,8 +169,12 @@ Set<std::string> get_used_passes(const Scene &scene,
                                  const ViewLayer *view_layer,
                                  ExecutionMode mode);
 
-/* Checks if the viewport compositor is currently being used. This is similar to
- * DRWContext::is_viewport_compositor_enabled but checks all 3D views. */
+/* Checks if the viewport compositor is currently being used in the given 3D viewport. */
+bool is_viewport_compositor_used(const Scene &scene,
+                                 const View3D &view_3d,
+                                 const RegionView3D &region_view_3d);
+
+/* Checks if the viewport compositor is currently being used in any 3D viewport. */
 bool is_viewport_compositor_used(const bContext &context);
 
 /* --------------------------------------------------------------------

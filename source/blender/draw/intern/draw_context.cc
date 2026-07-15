@@ -2249,35 +2249,11 @@ bool DRWContext::is_transforming() const
 
 bool DRWContext::is_viewport_compositor_enabled() const
 {
-  if (!this->v3d) {
+  if (!this->v3d || !this->rv3d) {
     return false;
   }
 
-  if (this->v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_DISABLED) {
-    return false;
-  }
-
-  if (!(this->v3d->shading.type >= OB_MATERIAL)) {
-    return false;
-  }
-
-  if (!bke::compositor::has_any_enabled_effect(*this->scene,
-                                               bke::compositor::ExecutionMode::Preview))
-  {
-    return false;
-  }
-
-  if (!this->rv3d) {
-    return false;
-  }
-
-  if (this->v3d->shading.use_compositor == V3D_SHADING_USE_COMPOSITOR_CAMERA &&
-      this->rv3d->persp != RV3D_CAMOB)
-  {
-    return false;
-  }
-
-  return true;
+  return bke::compositor::is_viewport_compositor_used(*this->scene, *this->v3d, *this->rv3d);
 }
 
 /** \} */
