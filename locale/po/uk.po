@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-06-19 12:12+0000\n"
 "Last-Translator: Gamfid <gamfid@users.noreply.translate.blender.org>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -10612,10 +10612,6 @@ msgid "sin(x) / x"
 msgstr "sin(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Фазовий Множник"
-
-
 msgid "Scale factor determining the 'speed' of the function"
 msgstr "Коефіцієнт масштабу, що визначає 'швидкість' функції"
 
@@ -14012,6 +14008,10 @@ msgstr "Підніжок"
 
 msgid "Tool Header"
 msgstr "Заголовок Засобу"
+
+
+msgid "Scrubbing"
+msgstr "Шкряботіння"
 
 
 msgid "The space where the panel is going to be used in"
@@ -26380,6 +26380,106 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
+msgid "Face Data"
+msgstr "Дані граней"
+
+
+msgid "Select by Face Strength"
+msgstr "Вибрати за Силою Грані"
+
+
+msgid "Set Face Strength"
+msgstr "Задати Силу Грані"
+
+
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Merge"
+msgstr "Об'єднання"
+
+
+msgid "Show/Hide"
+msgstr "Показати/приховати"
+
+
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Sample"
+msgstr "Вибірка"
+
+
+msgid "Pivot Point"
+msgstr "Точка Опертя"
+
+
+msgid "Snap"
+msgstr "Підхоп"
+
+
+msgid "Primitives"
+msgstr "Примітиви"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Спад Пропорційного Редагування"
+
+
+msgid "Mask Edit"
+msgstr "Редагування Маски"
+
+
+msgid "Automasking"
+msgstr "Автомаскування"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
+
+
+msgid "Vertex Group Locks"
+msgstr "Блокування Груп Вершин"
+
+
+msgid "Import"
+msgstr "Імпортувати"
+
+
+msgid "Mirror"
+msgstr "Дзеркалення"
+
+
+msgid "UV Mapping"
+msgstr "Розкладання UV"
+
+
 msgid "Local View"
 msgstr "Огляд Локально"
 
@@ -26408,6 +26508,10 @@ msgid "Select More/Less"
 msgstr "Вибрати більше/менше"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Select Similar"
 msgstr "Вибрати подібні"
 
@@ -26428,18 +26532,6 @@ msgid "Assign Material"
 msgstr "Призначити Матеріал"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
-msgid "Metaball"
-msgstr "Метакуля"
-
-
 msgid "Light"
 msgstr "Слабко"
 
@@ -26456,16 +26548,8 @@ msgid "Relations"
 msgstr "Зв'язки"
 
 
-msgid "Sample"
-msgstr "Вибірка"
-
-
 msgid "Rigid Body"
 msgstr "Тверде тіло"
-
-
-msgid "Primitives"
-msgstr "Примітиви"
 
 
 msgid "Apply"
@@ -26480,12 +26564,12 @@ msgid "Quick Effects"
 msgstr "Швидкі ефекти"
 
 
-msgid "Show/Hide"
-msgstr "Показати/приховати"
+msgid "Linked"
+msgstr "Пов'язане"
 
 
-msgid "Clean Up"
-msgstr "Вичищення"
+msgid "Layout"
+msgstr "Розстановка"
 
 
 msgid "Asset"
@@ -26508,20 +26592,20 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
-msgid "Vertex Group Locks"
-msgstr "Блокування Груп Вершин"
-
-
-msgid "Import"
-msgstr "Імпортувати"
-
-
 msgid "Sculpt Set Pivot"
 msgstr "Ліплення Задати Опертя"
 
 
 msgid "Face Sets Init"
 msgstr "Ініціація Наборів Граней"
+
+
+msgid "Keying"
+msgstr "Ключування"
+
+
+msgid "Tracking"
+msgstr "Стеження"
 
 
 msgid "Clear Transform"
@@ -26534,14 +26618,6 @@ msgstr "У проміжках"
 
 msgid "Propagate"
 msgstr "Поширити"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Names"
-msgstr "Назви"
 
 
 msgid "Toggle Bone Options"
@@ -26558,82 +26634,6 @@ msgstr "Відключити параметри кісток"
 
 msgid "Mesh Select Mode"
 msgstr "Режим Вибору Сіті"
-
-
-msgid "Face Data"
-msgstr "Дані граней"
-
-
-msgid "Select by Face Strength"
-msgstr "Вибрати за Силою Грані"
-
-
-msgid "Set Face Strength"
-msgstr "Задати Силу Грані"
-
-
-msgid "Merge"
-msgstr "Об'єднання"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
-
-
-msgid "Linked"
-msgstr "Пов'язане"
-
-
-msgid "Layout"
-msgstr "Розстановка"
-
-
-msgid "Pivot Point"
-msgstr "Точка Опертя"
-
-
-msgid "Snap"
-msgstr "Підхоп"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Спад Пропорційного Редагування"
-
-
-msgid "Mask Edit"
-msgstr "Редагування Маски"
-
-
-msgid "Automasking"
-msgstr "Автомаскування"
-
-
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
-
-
-msgid "Keying"
-msgstr "Ключування"
-
-
-msgid "Tracking"
-msgstr "Стеження"
-
-
-msgid "Mirror"
-msgstr "Дзеркалення"
-
-
-msgid "UV Mapping"
-msgstr "Розкладання UV"
 
 
 msgid "Basic"
@@ -60706,54 +60706,6 @@ msgid "Panel containing UI elements"
 msgstr "Панель, що містить елементи Інтерфейсу Користувача"
 
 
-msgid "Measurement"
-msgstr "Вимірювання"
-
-
-msgid "Curve Edit Mode"
-msgstr "Режим Редагування Кривої"
-
-
-msgid "Transform Orientations"
-msgstr "Орієнтації Трансформ"
-
-
-msgid "Stroke Placement"
-msgstr "Розміщення Штриха"
-
-
-msgid "Drawing Plane"
-msgstr "Площина Рисування"
-
-
-msgid "Guides"
-msgstr "Напрямні"
-
-
-msgid "Quad View"
-msgstr "Чотирибічний Огляд"
-
-
-msgid "Onion Skin"
-msgstr "Покрив Калькою"
-
-
-msgid "Stereoscopy"
-msgstr "Стереоскопія"
-
-
-msgid "Multi Frame"
-msgstr "Багато Кадр"
-
-
-msgid "Auto-Masking"
-msgstr "Авто-Маскування"
-
-
-msgid "VR"
-msgstr "ВР"
-
-
 msgid "Active Tool"
 msgstr "Активний Засіб"
 
@@ -60782,12 +60734,60 @@ msgid "Overlays"
 msgstr "Накладки"
 
 
+msgid "Guides"
+msgstr "Напрямні"
+
+
 msgid "Motion Tracking"
 msgstr "Відстеження руху"
 
 
 msgid "Mesh Edit Mode"
 msgstr "Режим Редагування Сіті"
+
+
+msgid "Measurement"
+msgstr "Вимірювання"
+
+
+msgid "Curve Edit Mode"
+msgstr "Режим Редагування Кривої"
+
+
+msgid "Transform Orientations"
+msgstr "Орієнтації Трансформ"
+
+
+msgid "Stroke Placement"
+msgstr "Розміщення Штриха"
+
+
+msgid "Drawing Plane"
+msgstr "Площина Рисування"
+
+
+msgid "Quad View"
+msgstr "Чотирибічний Огляд"
+
+
+msgid "Onion Skin"
+msgstr "Покрив Калькою"
+
+
+msgid "Stereoscopy"
+msgstr "Стереоскопія"
+
+
+msgid "Multi Frame"
+msgstr "Багато Кадр"
+
+
+msgid "Auto-Masking"
+msgstr "Авто-Маскування"
+
+
+msgid "VR"
+msgstr "ВР"
 
 
 msgid "Chain Scaling"
@@ -79649,10 +79649,6 @@ msgid "Duplicate Marker to Scene"
 msgstr "Дублювати Маркер у Сцену"
 
 
-msgid "Scrubbing"
-msgstr "Шкряботіння"
-
-
 msgid "Limit to Frame Range"
 msgstr "Лімітувати Діапазоном Кадрів"
 
@@ -84603,10 +84599,6 @@ msgstr "Пов'язані або блоки даних заміщення біб
 
 msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "Немає світу твердого тіла для додавання примусу твердого тіла"
-
-
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "Об'єкт не має примусу твердого тіла"
 
 
 msgid "Object '%s' already has a Rigid Body Constraint"

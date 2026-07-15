@@ -33,7 +33,7 @@
 
 #include "BLI_utildefines.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_report.hh"
@@ -1269,7 +1269,8 @@ static bool but_is_rna_undo(const Button *but)
     return false;
   }
 
-  return ID_CHECK_UNDO(but->rnapoin.owner_id) && RNA_struct_undo_check(but->rnapoin.type);
+  return ID_CHECK_UNDO(but->rnapoin.owner_id) &&
+         RNA_property_undo_check(but->rnaprop, but->rnapoin.type);
 }
 
 /* assigns automatic keybindings to menu items for fast access

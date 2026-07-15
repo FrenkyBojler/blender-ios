@@ -56,18 +56,6 @@
 
 namespace blender {
 
-struct NodeInsertOfsData {
-  bNodeTree *ntree = nullptr;
-  bNode *insert = nullptr; /* First inserted node, used as the frame attachment reference. */
-  bNode *prev = nullptr, *next = nullptr; /* Previous/next node in the chain. */
-  Vector<bNode *> insert_nodes;
-  std::optional<rctf> insert_bounds;
-
-  wmTimer *anim_timer = nullptr;
-
-  float offset_x = 0.0f; /* Offset to apply to node chain. */
-};
-
 namespace ed::space_node {
 
 static void node_insert_offset_data_create(SpaceNode &snode,
@@ -86,14 +74,14 @@ static void node_insert_offset_data_create(SpaceNode &snode,
     return;
   }
 
-  NodeInsertOfsData *iofsd = MEM_new<NodeInsertOfsData>(__func__);
+  auto iofsd = std::make_unique<NodeInsertOfsData>();
   iofsd->insert = &insert;
   iofsd->insert_nodes.extend(insert_nodes);
   iofsd->insert_bounds = insert_bounds;
   iofsd->prev = &prev;
   iofsd->next = &next;
 
-  snode.runtime->iofsd = iofsd;
+  snode.runtime->iofsd = std::move(iofsd);
 }
 
 static void node_insert_offset_data_create(SpaceNode &snode,
@@ -3147,16 +3135,18 @@ static void node_shake_preview_apply_insert_target(SpaceNode &snode,
     bke::node_remove_link(&ntree, *old_link);
   }
 
-  bke::node_add_link(ntree,
-                     *target.fromnode,
-                     *target.fromsock,
-                     *preview.group_input_node,
-                     *preview.group_input);
+  bNodeLink &input_link = bke::node_add_link(ntree,
+                                             *target.fromnode,
+                                             *target.fromsock,
+                                             *preview.group_input_node,
+                                             *preview.group_input);
+  bke::node_link_set_mute(ntree, input_link, target.link_muted);
   bNodeLink &output_link = bke::node_add_link(ntree,
                                               *preview.group_output_node,
                                               *preview.group_output,
                                               *target.tonode,
                                               *target.tosock);
+  bke::node_link_set_mute(ntree, output_link, target.link_muted);
   node_link_multi_input_sort_id_set(ntree, output_link, target.multi_input_sort_id);
   affected_nodes.add(preview.group_input_node);
   affected_nodes.add(target.tonode);
@@ -3323,6 +3313,7 @@ static void node_shake_preview_insert_flags_set(bNodeTree &node_tree,
   target.tonode = selink->tonode;
   target.tosock = selink->tosock;
   target.multi_input_sort_id = selink->multi_input_sort_id;
+  target.link_muted = selink->is_muted();
   target.valid = valid;
   preview.insert_target = target;
 }
@@ -3492,17 +3483,19 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     bNode *to_node = old_link->tonode;
 
     const bool group_input_is_linked = group_candidate.input->is_directly_linked();
+    const bool old_link_muted = old_link->is_muted();
 
     old_link->fromnode = group_candidate.output_node;
     old_link->fromsock = group_candidate.output;
     BKE_ntree_update_tag_link_changed(&ntree);
 
     if (!group_input_is_linked) {
-      bke::node_add_link(ntree,
-                         *from_node,
-                         *from_socket,
-                         *group_candidate.input_node,
-                         *group_candidate.input);
+      bNodeLink &link_from = bke::node_add_link(ntree,
+                                                *from_node,
+                                                *from_socket,
+                                                *group_candidate.input_node,
+                                                *group_candidate.input);
+      bke::node_link_set_mute(ntree, link_from, old_link_muted);
     }
 
     rctf insert_bounds;
@@ -3565,6 +3558,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   bNode *to_node = old_link->tonode;
 
   const bool best_input_is_linked = best_input && best_input->is_directly_linked();
+  const bool old_link_muted = old_link->is_muted();
 
   if (best_output != nullptr) {
     /* Relink the "start" of the existing link to the newly inserted node. */
@@ -3580,7 +3574,9 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     /* Don't change an existing link. */
     if (!best_input_is_linked) {
       /* Add a new link that connects the node on the left to the newly inserted node. */
-      bke::node_add_link(ntree, *from_node, *from_socket, *node_to_insert, *best_input);
+      bNodeLink &link_from = bke::node_add_link(
+          ntree, *from_node, *from_socket, *node_to_insert, *best_input);
+      bke::node_link_set_mute(ntree, link_from, old_link_muted);
     }
   }
 
@@ -3677,64 +3673,69 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   return nullptr;
 }
 
-static bool node_parents_offset_flag_enable_cb(bNode *parent, void * /*userdata*/)
+static void expand_nodes_mask_in_direction(const Span<const bNode *> nodes,
+                                           const bool left_to_right,
+                                           MutableSpan<bool> mask_to_propagate)
 {
-  /* NODE_TEST is used to flag nodes that shouldn't be offset (again) */
-  parent->flag |= NODE_TEST;
+  for (const bNode *node : nodes) {
+    const Span<const bNodeSocket *> sockets = left_to_right ? node->input_sockets() :
+                                                              node->output_sockets();
+    bool &node_value = mask_to_propagate[node->index()];
+    for (const bNodeSocket *socket : sockets) {
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (!(link->tosock->is_visible() && link->fromsock->is_visible())) {
+          continue;
+        }
+        if ((link->flag & NODE_LINK_VALID) == 0) {
+          continue;
+        }
 
-  return true;
-}
-
-static void node_offset_apply(bNode &node, const float offset_x)
-{
-  /* NODE_TEST is used to flag nodes that shouldn't be offset (again) */
-  if ((node.flag & NODE_TEST) == 0) {
-    node.runtime->anim_ofsx = (offset_x / UI_SCALE_FAC);
-    node.flag |= NODE_TEST;
+        const bNodeSocket *other_socket = left_to_right ? link->fromsock : link->tosock;
+        const bNode &other_node = other_socket->owner_node();
+        node_value |= mask_to_propagate[other_node.index()];
+        if (node_value) {
+          break;
+        }
+      }
+      if (node_value) {
+        break;
+      }
+    }
   }
 }
 
-static void node_insert_offset_apply(NodeInsertOfsData &iofsd, const float offset_x)
+static void shift_nodes(bNodeTree &tree,
+                        const bNode &start_node,
+                        const bool left_to_right,
+                        const float value)
 {
-  if (iofsd.insert_nodes.is_empty()) {
-    node_offset_apply(*iofsd.insert, offset_x);
-    return;
-  }
-  for (bNode *node : iofsd.insert_nodes) {
-    node_offset_apply(*node, offset_x);
+  const Span<bNode *> nodes = tree.all_nodes();
+  Array<bool> shift_mask(nodes.size(), false);
+
+  const Span<const bNode *> sorted_nodes = left_to_right ? tree.toposort_left_to_right() :
+                                                           tree.toposort_right_to_left();
+  shift_mask[start_node.index()] = true;
+  expand_nodes_mask_in_direction(
+      sorted_nodes.drop_front(sorted_nodes.first_index(&start_node)), left_to_right, shift_mask);
+
+  for (const int index : nodes.index_range()) {
+    if (shift_mask[index]) {
+      nodes[index]->runtime->anim_ofsx = value;
+    }
   }
 }
 
-#define NODE_INSOFS_ANIM_DURATION 0.25f
-
-/**
- * Callback that applies NodeInsertOfsData.offset_x to a node or its parent,
- * considering the logic needed for offsetting nodes after link insert
- */
-static bool node_link_insert_offset_chain_cb(bNode *fromnode,
-                                             bNode *tonode,
-                                             void *userdata,
-                                             const bool reversed)
+static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd, const bool right_alignment)
 {
-  NodeInsertOfsData *data = static_cast<NodeInsertOfsData *>(userdata);
-  bNode *ofs_node = reversed ? fromnode : tonode;
-
-  node_offset_apply(*ofs_node, data->offset_x);
-
-  return true;
-}
-
-static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
-                                          ARegion *region,
-                                          const int mouse_xy[2],
-                                          const bool right_alignment)
-{
-  bNodeTree *ntree = iofsd->ntree;
+  bNodeTree &ntree = *iofsd->ntree;
   bNode &insert = *iofsd->insert;
-  bNode *prev = iofsd->prev, *next = iofsd->next;
-  bNode *init_parent = insert.parent; /* store old insert.parent for restoring later */
+  bNode &prev = *iofsd->prev;
+  bNode &next = *iofsd->next;
 
-  const float min_margin = U.node_margin * UI_SCALE_FAC;
+  ntree.ensure_topology_cache();
+
+  /* The draw bounds of newly inserted nodes may not be updated yet. For a group insertion, use
+   * the bounds captured while the nodes were positioned. */
   rctf totr_insert;
   if (iofsd->insert_bounds.has_value()) {
     totr_insert = *iofsd->insert_bounds;
@@ -3742,110 +3743,49 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   else {
     node_to_updated_rect(insert, totr_insert);
   }
-  const float width = BLI_rctf_size_x(&totr_insert);
-  const bool needs_alignment = (next->runtime->draw_bounds.xmin -
-                                prev->runtime->draw_bounds.xmax) < (width + (min_margin * 2.0f));
 
-  float margin = width;
+  const float gap_left = totr_insert.xmin - prev.runtime->draw_bounds.xmax;
+  const float gap_right = next.runtime->draw_bounds.xmin - totr_insert.xmax;
+  const float front_gap = right_alignment ? gap_right : gap_left;
+  const float back_gap = right_alignment ? gap_left : gap_right;
+  const float min_margin = U.node_margin * UI_SCALE_FAC;
 
-  /* NODE_TEST will be used later, so disable for all nodes */
-  bke::node_tree_node_flag_set(*ntree, NODE_TEST, false);
+  const bool need_offset_insert = back_gap < min_margin;
+  const bool need_offset_side = (front_gap < min_margin) ||
+                                (back_gap + front_gap) < min_margin * 2;
 
-  const float gap_left = totr_insert.xmin - prev->runtime->draw_bounds.xmax;
-  const float gap_right = next->runtime->draw_bounds.xmin - totr_insert.xmax;
-  if (gap_left >= min_margin && gap_right >= min_margin) {
+  if (!(need_offset_insert || need_offset_side)) {
     return false;
   }
 
-  /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
-   * later. */
-  insert.parent = node_find_frame_to_attach(*region, *ntree, mouse_xy);
+  const float insert_node_offset = (min_margin - back_gap) * float(need_offset_insert);
+  const float side_offset = min_margin - front_gap + insert_node_offset;
 
-  /* This makes sure nodes are also correctly offset when inserting a node on top of a frame
-   * without actually making it a part of the frame (because mouse isn't intersecting it)
-   * - logic here is similar to node_find_frame_to_attach. */
-  if (!insert.parent ||
-      (prev->parent && (prev->parent == next->parent) && (prev->parent != insert.parent)))
-  {
-    rctf totr_frame;
+  const float shift_sign = right_alignment ? 1.0f : -1.0f;
 
-    /* check nodes front to back */
-    for (bNode *frame : tree_draw_order_calc_nodes_reversed(*ntree)) {
-      /* skip selected, those are the nodes we want to attach */
-      if (!frame->is_frame() || (frame->flag & NODE_SELECT)) {
-        continue;
-      }
-
-      /* for some reason frame y coords aren't correct yet */
-      node_to_updated_rect(*frame, totr_frame);
-
-      if (BLI_rctf_isect_x(&totr_frame, totr_insert.xmin) &&
-          BLI_rctf_isect_x(&totr_frame, totr_insert.xmax))
-      {
-        if (BLI_rctf_isect_y(&totr_frame, totr_insert.ymin) ||
-            BLI_rctf_isect_y(&totr_frame, totr_insert.ymax))
-        {
-          /* frame isn't insert.parent actually, but this is needed to make offsetting
-           * nodes work correctly for above checked cases (it is restored later) */
-          insert.parent = frame;
-          break;
-        }
-      }
-    }
+  if (need_offset_side) {
+    shift_nodes(ntree,
+                right_alignment ? next : prev,
+                right_alignment,
+                shift_sign * side_offset / UI_SCALE_FAC);
   }
 
-  /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
-
-  float dist = right_alignment ? gap_left : gap_right;
-  /* distance between insert_node and prev is smaller than min margin */
-  if (dist < min_margin) {
-    const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
-
-    node_insert_offset_apply(*iofsd, addval);
-
-    totr_insert.xmin += addval;
-    totr_insert.xmax += addval;
-    margin += min_margin;
+  /* Propagation can include the inserted chain or cycle. Override all inserted nodes afterward so
+   * they move together by the insertion offset, rather than by the neighboring-chain offset. */
+  const float inserted_offset = shift_sign * insert_node_offset / UI_SCALE_FAC;
+  if (iofsd->insert_nodes.is_empty()) {
+    insert.runtime->anim_ofsx = inserted_offset;
   }
-
-  /* *** ensure offset at the right (or left for right_alignment case) of insert_node *** */
-
-  dist = right_alignment ? next->runtime->draw_bounds.xmin - totr_insert.xmax :
-                           totr_insert.xmin - prev->runtime->draw_bounds.xmax;
-  /* distance between insert_node and next is smaller than min margin */
-  if (dist < min_margin) {
-    const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
-    if (needs_alignment) {
-      bNode *offs_node = right_alignment ? next : prev;
-      node_offset_apply(*offs_node, addval);
-      margin = addval;
-    }
-    /* enough room is available, but we want to ensure the min margin at the right */
-    else {
-      /* offset inserted node so that min margin is kept at the right */
-      node_insert_offset_apply(*iofsd, -addval);
-    }
-  }
-
-  if (needs_alignment) {
-    iofsd->offset_x = margin;
-
-    /* Flag inserted nodes and their parents so the chain offset does not move them */
+  else {
     for (bNode *node : iofsd->insert_nodes) {
-      node->flag |= NODE_TEST;
-      bke::node_parents_iterator(node, node_parents_offset_flag_enable_cb, nullptr);
+      node->runtime->anim_ofsx = inserted_offset;
     }
-    /* iterate over entire chain and apply offsets */
-    bke::node_chain_iterator(ntree,
-                             right_alignment ? next : prev,
-                             node_link_insert_offset_chain_cb,
-                             iofsd,
-                             !right_alignment);
   }
 
-  insert.parent = init_parent;
   return true;
 }
+
+#define NODE_INSOFS_ANIM_DURATION 0.25f
 
 /**
  * Modal handler for insert offset animation
@@ -3893,7 +3833,7 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
       node->runtime->anim_ofsx = 0.0f;
     }
 
-    MEM_delete(iofsd);
+    delete iofsd;
 
     return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
   }
@@ -3905,12 +3845,11 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
 
 static wmOperatorStatus node_insert_offset_invoke(bContext *C,
                                                   wmOperator *op,
-                                                  const wmEvent *event)
+                                                  const wmEvent * /*event*/)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
-  NodeInsertOfsData *iofsd = snode->runtime->iofsd;
-  snode->runtime->iofsd = nullptr;
-  op->customdata = iofsd;
+  NodeInsertOfsData *iofsd = snode->runtime->iofsd.get();
+  op->customdata = snode->runtime->iofsd.release();
 
   if (!iofsd || !iofsd->insert) {
     return OPERATOR_CANCELLED;
@@ -3921,9 +3860,9 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   iofsd->ntree = snode->edittree;
 
   const bool offset_applied = node_link_insert_offset_ntree(
-      iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
+      iofsd, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
   if (!offset_applied) {
-    MEM_delete(iofsd);
+    delete iofsd;
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }

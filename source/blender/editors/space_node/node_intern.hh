@@ -26,7 +26,6 @@
 namespace blender {
 
 struct ARegion;
-struct NodeInsertOfsData;
 struct View2D;
 struct bContext;
 struct bNode;
@@ -101,10 +100,10 @@ struct NodeAndSocket {
     return in_out == SOCK_OUT;
   }
 
-  const bNodeSocket &find_socket_in_node(const bNode &other_node) const;
-  bNodeSocket &find_socket_in_node(bNode &other_node) const;
+  const bNodeSocket *find_socket_in_node(const bNode &other_node) const;
+  bNodeSocket *find_socket_in_node(bNode &other_node) const;
 
-  const bNodeSocket &find_socket() const
+  const bNodeSocket *find_socket() const
   {
     return find_socket_in_node(this->node);
   }
@@ -178,10 +177,10 @@ struct MutableNodeAndSocket {
     return in_out == SOCK_OUT;
   }
 
-  const bNodeSocket &find_socket_in_node(const bNode &other_node) const;
-  bNodeSocket &find_socket_in_node(bNode &other_node) const;
+  const bNodeSocket *find_socket_in_node(const bNode &other_node) const;
+  bNodeSocket *find_socket_in_node(bNode &other_node) const;
 
-  bNodeSocket &find_socket() const
+  bNodeSocket *find_socket() const
   {
     return find_socket_in_node(this->node);
   }
@@ -286,9 +285,25 @@ struct NodeShakeDetachPreview {
     bNode *tonode = nullptr;
     bNodeSocket *tosock = nullptr;
     int multi_input_sort_id = 0;
+    bool link_muted = false;
     bool valid = false;
   };
   std::optional<InsertTarget> insert_target;
+};
+
+struct NodeInsertOfsData {
+  bNodeTree *ntree = nullptr;
+  /** First inserted node, used as the insertion reference. */
+  bNode *insert = nullptr;
+  /** Previous/next node in the chain. */
+  bNode *prev = nullptr;
+  bNode *next = nullptr;
+
+  /** All inserted nodes and their combined bounds for group/shake insertion. */
+  Vector<bNode *> insert_nodes;
+  std::optional<rctf> insert_bounds;
+
+  wmTimer *anim_timer = nullptr;
 };
 
 struct SpaceNode_Runtime {
@@ -307,7 +322,7 @@ struct SpaceNode_Runtime {
 
   /* XXX hack for translate_attach op-macros to pass data from transform op to insert_offset op */
   /** Temporary data for node insert offset (in UI called Auto-offset). */
-  NodeInsertOfsData *iofsd;
+  std::unique_ptr<NodeInsertOfsData> iofsd;
 
   /**
    * Use this to store data for the displayed node tree. It has an entry for every distinct
