@@ -2655,6 +2655,7 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
   /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
   prop = nullptr;
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *bprop));
 
   bool value = property_boolean_get(ptr, prop_rna_or_id);
   if (bprop->get_transform) {
@@ -2675,6 +2676,7 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
   prop = nullptr;
   IDProperty *idprop = prop_rna_or_id.idprop;
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *bprop));
 
   if (bprop->set_transform) {
     /* Get raw, untransformed (aka 'storage') value. */
@@ -2815,6 +2817,7 @@ void RNA_property_boolean_get_array(PointerRNA *ptr, PropertyRNA *prop, bool *va
   /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
   prop = nullptr;
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *bprop));
 
   MutableSpan<bool> r_values(values, int64_t(prop_rna_or_id.array_len));
   values = nullptr; /* Do not access this 'raw' pointer anymore in code below. */
@@ -2888,6 +2891,7 @@ void RNA_property_boolean_set_array(PointerRNA *ptr, PropertyRNA *prop, const bo
   IDProperty *idprop = prop_rna_or_id.idprop;
   PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(rna_prop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *bprop));
 
   const int64_t values_num = int64_t(prop_rna_or_id.array_len);
   Span<bool> final_values(values, values_num);
@@ -3025,6 +3029,7 @@ bool RNA_property_boolean_get_default(PointerRNA *ptr, PropertyRNA *prop)
 {
   /* TODO: Make defaults work for IDProperties. */
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(rna_ensure_property(prop));
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *bprop));
 
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) == false);
@@ -3060,6 +3065,7 @@ bool RNA_property_boolean_get_default(PointerRNA *ptr, PropertyRNA *prop)
 void RNA_property_boolean_get_default_array(PointerRNA *ptr, PropertyRNA *prop, bool *values)
 {
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(rna_ensure_property(prop));
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *bprop));
 
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) != false);
@@ -3165,6 +3171,7 @@ int RNA_property_int_get(PointerRNA *ptr, PropertyRNA *prop)
   /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
   prop = nullptr;
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *iprop));
 
   int value = property_int_get(ptr, prop_rna_or_id);
   if (iprop->get_transform) {
@@ -3185,6 +3192,7 @@ void RNA_property_int_set(PointerRNA *ptr, PropertyRNA *prop, int value)
   prop = nullptr;
   IDProperty *idprop = prop_rna_or_id.idprop;
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *iprop));
 
   if (iprop->set_transform) {
     /* Get raw, untransformed (aka 'storage') value. */
@@ -3288,6 +3296,7 @@ void RNA_property_int_get_array(PointerRNA *ptr, PropertyRNA *prop, int *values)
   /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
   prop = nullptr;
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *iprop));
 
   MutableSpan<int> r_values(values, int64_t(prop_rna_or_id.array_len));
   values = nullptr; /* Do not access this 'raw' pointer anymore in code below. */
@@ -3393,6 +3402,7 @@ void RNA_property_int_set_array(PointerRNA *ptr, PropertyRNA *prop, const int *v
   IDProperty *idprop = prop_rna_or_id.idprop;
   PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(rna_prop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *iprop));
 
   const int64_t values_num = int64_t(prop_rna_or_id.array_len);
   Span<int> final_values(values, values_num);
@@ -3495,6 +3505,7 @@ void RNA_property_int_set_index(PointerRNA *ptr, PropertyRNA *prop, int index, i
 int RNA_property_int_get_default(PointerRNA *ptr, PropertyRNA *prop)
 {
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(rna_ensure_property(prop));
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *iprop));
 
   if (prop->magic != RNA_MAGIC) {
     const IDProperty *idprop = reinterpret_cast<const IDProperty *>(prop);
@@ -3529,6 +3540,7 @@ bool RNA_property_int_set_default(PropertyRNA *prop, int value)
 void RNA_property_int_get_default_array(PointerRNA *ptr, PropertyRNA *prop, int *values)
 {
   IntPropertyRNA *iprop = reinterpret_cast<IntPropertyRNA *>(rna_ensure_property(prop));
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *iprop));
 
   BLI_assert(RNA_property_type(prop) == PROP_INT);
   BLI_assert(RNA_property_array_check(prop) != false);
@@ -3616,6 +3628,7 @@ float RNA_property_float_get(PointerRNA *ptr, PropertyRNA *prop)
   /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
   prop = nullptr;
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *fprop));
 
   float value = property_float_get(ptr, prop_rna_or_id);
   if (fprop->get_transform) {
@@ -3636,6 +3649,7 @@ void RNA_property_float_set(PointerRNA *ptr, PropertyRNA *prop, float value)
   prop = nullptr;
   IDProperty *idprop = prop_rna_or_id.idprop;
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *fprop));
 
   if (fprop->set_transform) {
     /* Get raw, untransformed (aka 'storage') value. */
@@ -3771,6 +3785,7 @@ void RNA_property_float_get_array(PointerRNA *ptr, PropertyRNA *prop, float *val
   /* Make initial `prop` pointer invalid, to ensure that it is not used anywhere below. */
   prop = nullptr;
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(prop_rna_or_id.rnaprop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *fprop));
 
   MutableSpan<float> r_values(values, int64_t(prop_rna_or_id.array_len));
   values = nullptr; /* Do not access this 'raw' pointer anymore in code below. */
@@ -3876,6 +3891,7 @@ void RNA_property_float_set_array(PointerRNA *ptr, PropertyRNA *prop, const floa
   IDProperty *idprop = prop_rna_or_id.idprop;
   PropertyRNA *rna_prop = prop_rna_or_id.rnaprop;
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(rna_prop);
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *fprop));
 
   const int64_t values_num = int64_t(prop_rna_or_id.array_len);
   Span<float> final_values(values, values_num);
@@ -3989,6 +4005,7 @@ void RNA_property_float_set_index(PointerRNA *ptr, PropertyRNA *prop, int index,
 float RNA_property_float_get_default(PointerRNA *ptr, PropertyRNA *prop)
 {
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(rna_ensure_property(prop));
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *fprop));
 
   BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
   BLI_assert(RNA_property_array_check(prop) == false);
@@ -4027,6 +4044,7 @@ bool RNA_property_float_set_default(PropertyRNA *prop, float value)
 void RNA_property_float_get_default_array(PointerRNA *ptr, PropertyRNA *prop, float *values)
 {
   FloatPropertyRNA *fprop = reinterpret_cast<FloatPropertyRNA *>(rna_ensure_property(prop));
+  BLI_assert(rna_property_can_access_pointer_data(*ptr, *fprop));
 
   BLI_assert(RNA_property_type(prop) == PROP_FLOAT);
   BLI_assert(RNA_property_array_check(prop) != false);
