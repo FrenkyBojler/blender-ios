@@ -637,6 +637,78 @@ static void blend_bbone_values(const bPoseChannel &copy_bone,
 }
 
 /**
+ * Blend the values of `prop` towards `target` based on the given `factor`. At 1.0, the target
+ * values are copied 100%. Properties that cannot be interpolated (ID pointers for example) will
+ * just be copied.
+ */
+static void blend_id_property(IDProperty &prop, const IDProperty &target, const float factor)
+{
+  BLI_assert(prop.type == target.type);
+  BLI_assert(prop.subtype == target.subtype);
+  BLI_assert(prop.len == target.len);
+
+  switch (prop.type) {
+    case IDP_INT: {
+      const int prop_val = IDP_int_get(&prop);
+      const int target_val = IDP_int_get(&target);
+      IDP_int_set(&prop, round_fl_to_int(interpf(target_val, prop_val, factor)));
+      break;
+    }
+    case IDP_FLOAT: {
+      const float prop_val = IDP_float_get(&prop);
+      const float target_val = IDP_float_get(&target);
+      IDP_float_set(&prop, interpf(target_val, prop_val, factor));
+      break;
+    }
+    case IDP_DOUBLE: {
+      const double prop_val = IDP_double_get(&prop);
+      const double target_val = IDP_double_get(&target);
+      IDP_double_set(&prop, interpd(target_val, prop_val, factor));
+      break;
+    }
+    case IDP_ARRAY: {
+      switch (prop.subtype) {
+        case IDP_INT: {
+          int *prop_val = IDP_array_int_get(&prop);
+          const int *target_val = IDP_array_int_get(&target);
+          for (int i = 0; i < prop.len; i++) {
+            prop_val[i] = round_fl_to_int(interpf(target_val[i], prop_val[i], factor));
+          }
+          break;
+        }
+        case IDP_FLOAT: {
+          float *prop_val = IDP_array_float_get(&prop);
+          const float *target_val = IDP_array_float_get(&target);
+          for (int i = 0; i < prop.len; i++) {
+            prop_val[i] = interpf(target_val[i], prop_val[i], factor);
+          }
+          break;
+        }
+        case IDP_DOUBLE: {
+          double *prop_val = IDP_array_double_get(&prop);
+          const double *target_val = IDP_array_double_get(&target);
+          for (int i = 0; i < prop.len; i++) {
+            prop_val[i] = interpd(target_val[i], prop_val[i], factor);
+          }
+          break;
+        }
+        default:
+          if (factor > 0.5) {
+            IDP_CopyPropertyContent(&prop, &target);
+          }
+          break;
+      }
+      break;
+    }
+    default:
+      if (factor > 0.5) {
+        IDP_CopyPropertyContent(&prop, &target);
+      }
+      break;
+  }
+}
+
+/**
  * Perform paste pose, for a single bone.
  *
  * \param paste_ob: Object where bone to paste to lives
@@ -731,25 +803,18 @@ static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
       copy_transformable.owner_id(), RNA_PoseBone, &copy_bone);
   PointerRNA paste_bone_ptr = RNA_pointer_create_discrete(&paste_ob.id, RNA_PoseBone, paste_bone);
 
-  /* ID properties */
+  /* ID properties. */
   if (copy_bone->prop) {
     if (paste_bone->prop) {
-      /* If we have existing properties on a bone, just copy over the values of
-       * matching properties (i.e. ones which will have some impact) on to the target
-       * instead of just blindly replacing all. */
-      IDP_SyncGroupValues(paste_bone->prop, copy_bone->prop);
-      for (IDProperty &copy_prop : copy_bone->prop->data.group) {
-        IDProperty *other = IDP_GetPropertyFromGroup(paste_bone->prop, copy_prop.name);
-        if (!other || copy_prop.type != other->type) {
-          continue;
+      IDP_foreach_property(copy_bone->prop, 0, [&](IDProperty *copy_prop) {
+        IDProperty *other = IDP_GetPropertyFromGroup(paste_bone->prop, copy_prop->name);
+        if (!other || copy_prop->type != other->type || copy_prop->subtype != other->subtype ||
+            copy_prop->len != other->len)
+        {
+          return;
         }
-        PropertyRNA *copy_prop_rna = RNA_struct_find_property(&copy_bone_ptr, copy_prop.name);
-        Array<float> copy_values = animrig::rna_property_get_as_float(copy_bone_ptr,
-                                                                      *copy_prop_rna);
-        PropertyRNA *paste_prop_rna = RNA_struct_find_property(&paste_bone_ptr, copy_prop.name);
-        Array<float> paste_values = animrig::rna_property_get_as_float(paste_bone_ptr,
-                                                                       *paste_prop_rna);
-      }
+        blend_id_property(*other, *copy_prop, factor);
+      });
     }
     else {
       /* no existing properties, so assume that we want copies too? */
