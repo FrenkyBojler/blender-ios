@@ -645,7 +645,6 @@ static void blend_id_property(IDProperty &prop, const IDProperty &target, const 
 {
   BLI_assert(prop.type == target.type);
   BLI_assert(prop.subtype == target.subtype);
-  BLI_assert(prop.len == target.len);
 
   switch (prop.type) {
     case IDP_INT: {
@@ -667,6 +666,10 @@ static void blend_id_property(IDProperty &prop, const IDProperty &target, const 
       break;
     }
     case IDP_ARRAY: {
+      if (prop.len != target.len) {
+        /* For arrays, their length has to match too. */
+        return;
+      }
       switch (prop.subtype) {
         case IDP_INT: {
           int *prop_val = IDP_array_int_get(&prop);
@@ -808,9 +811,7 @@ static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
     if (paste_bone->prop) {
       IDP_foreach_property(copy_bone->prop, 0, [&](IDProperty *copy_prop) {
         IDProperty *other = IDP_GetPropertyFromGroup(paste_bone->prop, copy_prop->name);
-        if (!other || copy_prop->type != other->type || copy_prop->subtype != other->subtype ||
-            copy_prop->len != other->len)
-        {
+        if (!other || copy_prop->type != other->type || copy_prop->subtype != other->subtype) {
           return;
         }
         blend_id_property(*other, *copy_prop, factor);
