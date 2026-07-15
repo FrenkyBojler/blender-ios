@@ -68,17 +68,16 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
            (strip1->left_handle() >= strip2->right_handle(scene))) == 0);
 }
 
-// TODO: rename to transform_test_invalid_overlap and check where this is used (only for
-// shuffling?) TMP
-bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
+bool transform_test_invalid_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
   /* Don't shuffle transitions. */
   if (test->is_transition()) {
     return false;
   }
   for (Strip &strip : *seqbasep) {
-    /* Transitions overlap the strips they're applied on */
-    if ((strip.input1 == test || strip.input2 == test) && strip.is_transition()) {
+    /* Transitions should only ever overlap the strips they're applied on. Don't shuffle based on
+     * them. */
+    if (strip.is_transition()) {
       continue;
     }
     if (flag_is_set(strip.runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
@@ -140,7 +139,7 @@ void transform_set_overlap_flags(const Scene *scene,
       continue;
     }
     if (!strip->is_transition()) {
-      if (transform_test_overlap(scene, seqbasep, strip)) {
+      if (transform_test_invalid_overlap(scene, seqbasep, strip)) {
         strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
         /* Transitions also need to be marked as overlapping so that the draw order is correct.
          * Transitions can't have other transitions applied on them, so no need to do this
@@ -209,7 +208,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
 
   bool use_fallback_translation = false;
 
-  while (transform_test_overlap(evil_scene, seqbasep, test) || channel->is_muted() ||
+  while (transform_test_invalid_overlap(evil_scene, seqbasep, test) || channel->is_muted() ||
          channel->is_locked())
   {
     if ((channel_delta > 0) ? (test->channel + channel_delta >= MAX_CHANNELS) :
@@ -629,7 +628,7 @@ void transform_handle_overlap(Scene *scene,
   /* If any effects still overlap, we need to move them up.
    * In some cases other strips can be overlapping still, see #90646. */
   for (Strip *strip : transformed_strips) {
-    if (transform_test_overlap(scene, seqbasep, strip)) {
+    if (transform_test_invalid_overlap(scene, seqbasep, strip)) {
       transform_seqbase_shuffle(seqbasep, strip, scene);
     }
     strip->runtime->flag &= ~StripRuntimeFlag::Overlap;

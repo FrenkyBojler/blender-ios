@@ -289,7 +289,7 @@ static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
   for (Strip *strip : transformed_strips) {
     /* Handle pre-existing overlapping strips even when operator is canceled.
      * This is necessary for #SEQUENCER_OT_duplicate_move macro for example. */
-    if (seq::transform_test_overlap(scene, seqbase, strip)) {
+    if (seq::transform_test_invalid_overlap(scene, seqbase, strip)) {
       seq::transform_seqbase_shuffle(seqbase, strip, scene);
     }
   }
@@ -302,7 +302,7 @@ static ListBaseT<Strip> *seqbase_active_get(const TransInfo *t)
   return seq::active_seqbase_get(ed);
 }
 
-bool seq_transform_check_overlap(Span<Strip *> transformed_strips)
+bool seq_transform_check_overlap_flags(Span<Strip *> transformed_strips)
 {
   for (Strip *strip : transformed_strips) {
     if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap)) {
@@ -356,15 +356,12 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
   seq::edit_remove_flagged_strips(scene, seqbase_active_get(t));
   vse::sync_active_scene_and_time_with_scene_strip(*t->context);  // TODO: check
 
-  // TODO: should expand and shuffle modes be some kind of special case where the transitions
-  // aren't removed?
-
   /* Last, handle overlap. */
   TransSeq *ts = static_cast<TransSeq *>(tc->custom.type.data);
   ListBaseT<Strip> *seqbasep = seqbase_active_get(t);
   const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &
                                  SEQ_MARKER_TRANS) != 0;
-  if (seq_transform_check_overlap(transformed_strips)) {
+  if (seq_transform_check_overlap_flags(transformed_strips)) {
     seq::transform_handle_overlap(
         scene, seqbasep, transformed_strips, ts->time_dependent_strips, use_sync_markers);
   }

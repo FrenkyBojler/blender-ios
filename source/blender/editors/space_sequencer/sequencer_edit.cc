@@ -699,7 +699,7 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
   /* Test for overlap and shuffle. */
   for (Strip *strip : selected) {
     strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-    if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
+    if (seq::transform_test_invalid_overlap(scene, ed->current_strips(), strip)) {
       seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
     }
   }
@@ -1586,7 +1586,7 @@ static wmOperatorStatus sequencer_reload_exec(bContext *C, wmOperator *op)
       seq::thumbnail_cache_invalidate_strip(scene, &strip);
 
       if (adjust_length) {
-        if (seq::transform_test_overlap(scene, ed->current_strips(), &strip)) {
+        if (seq::transform_test_invalid_overlap(scene, ed->current_strips(), &strip)) {
           seq::transform_seqbase_shuffle(ed->current_strips(), &strip, scene);
         }
       }
@@ -1782,7 +1782,7 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
 
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *active_seqbase = seq::active_seqbase_get(ed);
-  if (seq::transform_test_overlap(scene, active_seqbase, active_strip)) {
+  if (seq::transform_test_invalid_overlap(scene, active_seqbase, active_strip)) {
     seq::transform_seqbase_shuffle(active_seqbase, active_strip, scene);
   }
 
@@ -2291,7 +2291,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     }
 
     for (Strip *strip : to_offset) {
-      if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
+      if (seq::transform_test_invalid_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
     }
@@ -2535,7 +2535,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext *C, wmOperator *op
    * translated. */
   if (region->regiontype == RGN_TYPE_PREVIEW && sequencer_view_preview_only_poll(C)) {
     for (Strip *strip = strip_last->next; strip; strip = strip->next) {
-      if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
+      if (seq::transform_test_invalid_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
       strip->runtime->flag &= ~seq::StripRuntimeFlag::IgnoreChannelLock;
@@ -2814,7 +2814,7 @@ static wmOperatorStatus sequencer_offset_clear_exec(bContext *C, wmOperator * /*
        strip = static_cast<Strip *>(strip->next))
   {
     if (!strip->is_effect() && (strip->flag & SEQ_SELECT)) {
-      if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
+      if (seq::transform_test_invalid_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
     }
@@ -2898,7 +2898,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
 
         if (step > 1) {
           strip_new->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-          if (seq::transform_test_overlap(scene, seqbase, strip_new)) {
+          if (seq::transform_test_invalid_overlap(scene, seqbase, strip_new)) {
             seq::transform_seqbase_shuffle(seqbase, strip_new, scene);
           }
         }
@@ -3069,7 +3069,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   strip_meta->start = meta_start_frame;
   strip_meta->len = meta_end_frame - meta_start_frame;
   seq::select_active_set(scene, strip_meta);
-  if (seq::transform_test_overlap(scene, active_seqbase, strip_meta)) {
+  if (seq::transform_test_invalid_overlap(scene, active_seqbase, strip_meta)) {
     seq::transform_seqbase_shuffle(active_seqbase, strip_meta, scene);
   }
 
@@ -3134,7 +3134,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
   for (Strip &strip : *active_seqbase) {
     if (strip.flag & SEQ_SELECT) {
       strip.runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
-      if (seq::transform_test_overlap(scene, active_seqbase, &strip)) {
+      if (seq::transform_test_invalid_overlap(scene, active_seqbase, &strip)) {
         seq::transform_seqbase_shuffle(active_seqbase, &strip, scene);
       }
     }
@@ -3372,7 +3372,7 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
           (strip_is_parent(&istrip, active_strip) || strip_is_parent(&istrip, strip)))
       {
         /* This may now overlap. */
-        if (seq::transform_test_overlap(scene, seqbase, &istrip)) {
+        if (seq::transform_test_invalid_overlap(scene, seqbase, &istrip)) {
           seq::transform_seqbase_shuffle(seqbase, &istrip, scene);
         }
       }

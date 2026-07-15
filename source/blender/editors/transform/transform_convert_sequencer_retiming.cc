@@ -137,7 +137,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
   vse::sync_active_scene_and_time_with_scene_strip(*t->context);  // TODO: check
 
   /* Last, handle overlap. */
-  if (seq_transform_check_overlap(transformed_strips)) {
+  if (seq_transform_check_overlap_flags(transformed_strips)) {
     const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &
                                    SEQ_MARKER_TRANS) != 0;
     seq::transform_handle_overlap(

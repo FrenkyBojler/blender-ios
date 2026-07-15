@@ -444,7 +444,7 @@ struct TransSeq {
   VectorSet<Strip *> time_dependent_strips;
 };
 
-bool seq_transform_check_overlap(Span<Strip *> transformed_strips);
+bool seq_transform_check_overlap_flags(Span<Strip *> transformed_strips);
 
 /* `transform_convert_sequencer_image.cc` */
 
