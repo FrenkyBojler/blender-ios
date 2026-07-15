@@ -11,7 +11,6 @@
 #include "BKE_gtest_base.hh"
 
 #include "GPU_context.hh"
-#include "GPU_debug.hh"
 #include "GPU_init_exit.hh"
 
 #include "gpu_testing.hh"
@@ -27,6 +26,8 @@ GHOST_IContext *GPUTest::ghost_context_;
 GPUContext *GPUTest::context_;
 
 int32_t GPUTest::prev_g_debug_;
+
+static gpu::DebugCapture debug_capture_;
 
 void GPUTest::SetUpTestSuite(GHOST_TDrawingContextType draw_context_type,
                              GPUBackendType gpu_backend_type,
@@ -55,12 +56,12 @@ void GPUTest::SetUpTestSuite(GHOST_TDrawingContextType draw_context_type,
 
   GPU_render_begin();
   GPU_context_begin_frame(context_);
-  GPU_debug_capture_begin(nullptr);
+  debug_capture_.begin();
 }
 
 void GPUTest::TearDownTestSuite()
 {
-  GPU_debug_capture_end();
+  debug_capture_.end();
   GPU_context_end_frame(context_);
   GPU_render_end();
 
@@ -81,12 +82,13 @@ void GPUTest::SetUp()
   std::stringstream ss;
   ss << info->test_suite_name() << "." << info->name();
   debug_group_name_ = ss.str();
-  GPU_debug_group_begin(debug_group_name_.c_str());
+  debug_group_ = debug_group_name_.c_str();
+  debug_group_.begin();
 }
 
 void GPUTest::TearDown()
 {
-  GPU_debug_group_end();
+  debug_group_.end();
 }
 
 }  // namespace blender::gpu

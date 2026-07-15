@@ -9,6 +9,7 @@
 #include "GHOST_IContext.hh"
 #include "GHOST_ISystem.hh"
 
+#include "GPU_debug.hh"
 #include "GPU_platform.hh"
 
 struct GPUContext;
@@ -26,6 +27,7 @@ class GPUTest : public ::testing::Test {
 
   static int32_t prev_g_debug_;
   std::string debug_group_name_;
+  gpu::DebugGroup debug_group_;
 
  protected:
   static void SetUpTestSuite(GHOST_TDrawingContextType draw_context_type,
