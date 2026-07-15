@@ -68,9 +68,10 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = BKE_light_power(*la) * BKE_light_color(*la);
+  this->color = BKE_light_color(*la);
+  float base_power = BKE_light_power(*la);
   if (la->mode & LA_UNNORMALIZED) {
-    this->color *= BKE_light_area(*la, object_to_world);
+    base_power *= BKE_light_area(*la, object_to_world);
   }
 
   float3 scale;
@@ -92,8 +93,8 @@ void Light::sync(ShadowModule &shadows,
   const bool transmission_visibility = (visibility_flag & OB_HIDE_TRANSMISSION) == 0;
   const bool volume_visibility = (visibility_flag & OB_HIDE_VOLUME_SCATTER) == 0;
 
-  float shape_power = shape_radiance_get();
-  float point_power = point_radiance_get();
+  float shape_power = base_power * shape_radiance_get();
+  float point_power = base_power * point_radiance_get();
   this->power[LIGHT_DIFFUSE] = la->diff_fac * shape_power * diffuse_visibility;
   this->power[LIGHT_SPECULAR] = la->spec_fac * shape_power * glossy_visibility;
   this->power[LIGHT_TRANSMISSION] = la->transmission_fac * shape_power * transmission_visibility;
