@@ -1543,7 +1543,6 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     point1 = all_positions[segment.src_points.first()];
   }
 
-
   if (segment.edge(Side::Start)[0] == segment.edge(Side::End)[0] &&
       (segment.points_num() == 0 ||
        (segment.points_num() == 1 &&
@@ -1966,10 +1965,12 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
 
   Vector<IntersectionPoint> intersections;
 
-  /* TODO. */
-  for (const int shape_id : shapes.index_range().drop_back(1)) {
+  IndexMaskMemory memory;
+  const IndexMask subject_shapes = clipping_shapes.complement(shapes.index_range(), memory);
+
+  subject_shapes.foreach_index([&](const int64_t shape_i) {
     const BooleanResult result = execute_single_boolean(op_params,
-                                                        shape_id,
+                                                        shape_i,
                                                         points,
                                                         shapes,
                                                         points_by_curve,
@@ -1978,8 +1979,8 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                                         fill_ids,
                                                         cyclic);
 
-    results_all.append_result(result, shape_id);
-  }
+    results_all.append_result(result, shape_i);
+  });
 
   if (results_all.segments.is_empty()) {
     return results_all;
