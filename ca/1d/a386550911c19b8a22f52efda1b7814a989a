@@ -1,1 +1,2 @@
 Referenced by commit 1152d37e4c9b894ba8b575cb37aae3ecefdfa2bb, Fix: Images: Excessive threading overhead in GPU partial update
+Referenced by commit f0f7107ff1ab246155536c57e5a334f60dc43326, Fix: Images: Memory leak in GPU upload on failed allocation
