@@ -1543,7 +1543,12 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
     point1 = all_positions[segment.src_points.first()];
   }
 
-  if (segment.edge(Side::Start)[0] == segment.edge(Side::End)[0] && segment.points_num() == 0) {
+
+  if (segment.edge(Side::Start)[0] == segment.edge(Side::End)[0] &&
+      (segment.points_num() == 0 ||
+       (segment.points_num() == 1 &&
+        (!segment.has_intersection(Side::Start) && segment.has_intersection(Side::End)))))
+  {
     point2 = math::interpolate(all_positions[segment.edge(Side::End)[0]],
                                all_positions[segment.edge(Side::End)[1]],
                                segment.intersection_factor[Side::End]);
