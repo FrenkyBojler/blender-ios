@@ -301,7 +301,7 @@ BLI_NOINLINE static void paint_blend_pixels_color_managed(
 
 /**
  * Perform paint pixel blending with computed factors.
- * Templated and specialized for common color spaces since this is a hotspot.
+ * Templated and specialized for common color spaces since this is a hot-spot.
  */
 template<typename PixelT>
 static void paint_blend_pixels(const PaintBlendSettings &settings,
@@ -633,7 +633,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     }
 
     if (tile_data.flags.dirty) {
-      BKE_image_mark_dirty(image_data.image, image_buffer);
+      IMB_mark_dirty(image_buffer);
     }
     pixels_updated |= tile_data.flags.dirty;
   }
