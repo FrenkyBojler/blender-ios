@@ -127,6 +127,17 @@ static PyObject *pygpu_storagebuffer_update(BPyGPUStorageBuf *self, PyObject *ob
     return nullptr;
   }
 
+  /* The backends copy exactly the size the buffer was created with, regardless of how much
+   * data is actually passed in. Providing less would read past the end of `pybuffer`. */
+  if (size_t(pybuffer.len) != self->size) {
+    PyErr_Format(PyExc_ValueError,
+                 "GPUStorageBuf.update(): expected a buffer of size %zu, got %zu",
+                 self->size,
+                 size_t(pybuffer.len));
+    PyBuffer_Release(&pybuffer);
+    return nullptr;
+  }
+
   GPU_storagebuf_update(self->ssbo, pybuffer.buf);
   PyBuffer_Release(&pybuffer);
   Py_RETURN_NONE;

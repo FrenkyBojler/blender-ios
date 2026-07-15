@@ -723,16 +723,16 @@ static PyObject *pygpu_shader_info_uniform_buf(BPyGPUShaderCreateInfo *self, PyO
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_shader_info_storage_buf_doc,
-    ".. method:: storage_buf(slot, qualifier, type_name, name)\n"
+    ".. method:: storage_buf(slot, qualifiers, type_name, name)\n"
     "\n"
     "   Specify a storage buffer variable whose type can be one of those declared in "
     ":meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
     "\n"
     "   :param slot: The storage buffer variable index.\n"
     "   :type slot: int\n"
-    "   :param qualifier: The access qualifiers.\n"
-    "   :type qualifier: " PYDOC_QUALIFIERS_LITERAL
-    "\n"
+    "   :param qualifiers: Set containing values that describe how the storage buffer is to be "
+    "read or written.\n"
+    "   :type qualifiers: set[" PYDOC_QUALIFIERS_LITERAL "]\n"
     "   :param type_name: Name of the data type. "
     "It can be a struct type defined in the source passed through the "
     ":meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
