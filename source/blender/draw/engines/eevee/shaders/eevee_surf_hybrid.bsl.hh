@@ -126,18 +126,33 @@ struct HybridFragOut {
 struct HybridNodetreeSurfaceCtx {
   float closure_rand;
   float3 emission;
+  bool has_run;
 
-  void eval_directional([[resource_table]] LightRenderData & /*srt*/,
-                        uint index,
-                        LightData /*light*/)
+  void eval_directional([[resource_table]] LightRenderData & /*srt*/, uint index, LightData light)
   {
+    LightVector lv = light_vector_get(light, true, g_data.P);
+    if (light_attenuation_surface(light, true, lv) < LIGHT_ATTENUATION_THRESHOLD) {
+      return;
+    }
+    if (all(lessThan(light.color, float3(1e-6f)))) {
+      return;
+    }
+    has_run = true;
     g_data.light_index = index;
     nodetree_surface(closure_rand);
     emission += g_emission;
   }
 
-  void eval_local([[resource_table]] LightRenderData & /*srt*/, uint index, LightData /*light*/)
+  void eval_local([[resource_table]] LightRenderData & /*srt*/, uint index, LightData light)
   {
+    LightVector lv = light_vector_get(light, false, g_data.P);
+    if (light_attenuation_surface(light, false, lv) < LIGHT_ATTENUATION_THRESHOLD) {
+      return;
+    }
+    if (all(lessThan(light.color, float3(1e-6f)))) {
+      return;
+    }
+    has_run = true;
     g_data.light_index = index;
     nodetree_surface(closure_rand);
     emission += g_emission;
@@ -184,8 +199,15 @@ void surf_hybrid([[resource_table]] PipelineConstants &pipe,
   HybridNodetreeSurfaceCtx ctx;
   ctx.closure_rand = closure_rand;
   ctx.emission = float3(0.0f);
+  ctx.has_run = false;
   const float vPz = dot(view.forward(), g_data.P) - dot(view.forward(), view.position());
   light::foreach_visible(lights.light_data, frag_co.xy, vPz, ctx, lights.light_data);
+
+  if (!ctx.has_run) {
+    /* Need to evaluate the nodetree at least once. */
+    g_data.light_index = 0;
+    nodetree_surface(closure_rand);
+  }
 
   g_emission = ctx.emission;
 
