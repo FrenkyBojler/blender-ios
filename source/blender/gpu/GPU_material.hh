@@ -415,8 +415,8 @@ struct GPUNodeStack {
   GPUType type;
   union {
     float vec[4];
-    int4 ivec;
-    bool b;
+    int4 integer_data;
+    bool boolean_data;
   };
   GPUNodeLink *link;
   bool hasinput;

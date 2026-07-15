@@ -9,9 +9,6 @@
  */
 
 #include <cstdio>
-#include <cstring>
-
-#include <array>
 
 #include "MEM_guardedalloc.h"
 
@@ -20,6 +17,7 @@
 #include "BLI_assert.hh"
 #include "BLI_ghash.hh"
 #include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.hh"
 #include "BLI_utildefines.hh"
@@ -57,8 +55,8 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
       return float4(data[0], data[1], data[2], data[3]);
     }
     case GPU_MAT4: {
-      std::array<float, 16> mat4;
-      memcpy(mat4.data(), std::get<const float *>(link->data), sizeof(mat4));
+      float4x4 mat4;
+      copy_m4_m4(mat4.ptr(), static_cast<const float (*)[4]>(std::get<const float *>(link->data)));
       return mat4;
     }
     case GPU_INT:
@@ -101,7 +99,7 @@ Span<const float> gpu_constant_to_float_span(const GPUInputConstantData &data, c
       return Span<const float>(&value.x, 4);
     }
     case GPU_MAT4:
-      return Span<const float>(std::get<std::array<float, 16>>(data).data(), 16);
+      return Span<const float>(std::get<float4x4>(data).base_ptr(), 16);
     default:
       BLI_assert_unreachable();
       return {};
@@ -284,6 +282,48 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
   BLI_addtail(&node->inputs, input);
 }
 
+static GPUNodeLink *gpu_node_stack_constant_link(const GPUNodeStack &stack)
+{
+  switch (stack.type) {
+    case GPU_FLOAT:
+    case GPU_FLOAT2:
+    case GPU_FLOAT3:
+    case GPU_FLOAT4:
+      return GPU_constant(stack.vec);
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      return GPU_constant(&stack.integer_data.x);
+    case GPU_BOOL:
+      return GPU_constant(&stack.boolean_data);
+    default:
+      BLI_assert_unreachable();
+      return nullptr;
+  }
+}
+
+static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
+{
+  switch (stack.type) {
+    case GPU_FLOAT:
+    case GPU_FLOAT2:
+    case GPU_FLOAT3:
+    case GPU_FLOAT4:
+      return GPU_uniform(stack.vec);
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      return GPU_uniform(&stack.integer_data.x);
+    case GPU_BOOL:
+      return GPU_uniform(&stack.boolean_data);
+    default:
+      BLI_assert_unreachable();
+      return nullptr;
+  }
+}
+
 static const char *gpu_uniform_set_function_from_type(eNodeSocketDatatype type)
 {
   switch (type) {
@@ -332,7 +372,7 @@ static GPUNodeLink *gpu_uniformbuffer_link(GPUMaterial *mat,
     return nullptr;
   }
 
-  GPUNodeLink *link = GPU_uniform(stack->vec);
+  GPUNodeLink *link = gpu_node_stack_uniform_link(*stack);
 
   if (in_out == SOCK_IN) {
     GPU_link(mat, gpu_uniform_set_function_from_type(socket->type), link, &stack->link);
@@ -353,7 +393,7 @@ static void gpu_node_input_socket(
     gpu_node_input_link(node, sock->link, sock->type);
   }
   else {
-    gpu_node_input_link(node, GPU_constant(sock->vec), sock->type);
+    gpu_node_input_link(node, gpu_node_stack_constant_link(*sock), sock->type);
   }
 }
 
@@ -1289,7 +1329,7 @@ GPUNodeLink *GPU_node_get_input_link(const bNode &node,
   if (input.link) {
     return input.link;
   }
-  return GPU_uniform(input.vec);
+  return gpu_node_stack_uniform_link(input);
 }
 
 }  // namespace blender

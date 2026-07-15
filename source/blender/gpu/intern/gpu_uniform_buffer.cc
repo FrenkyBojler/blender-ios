@@ -179,9 +179,8 @@ static inline void buffer_fill_from_list(void *data, ListBaseT<LinkData> *inputs
   float *offset = static_cast<float *>(data);
   for (LinkData &link : *inputs) {
     GPUInput *input = static_cast<GPUInput *>(link.data);
-    memcpy(offset,
-           gpu_constant_to_float_span(input->constant_data, input->type).data(),
-           gpu_type_element_count(input->type) * sizeof(float));
+    const Span<const float> span = gpu_constant_to_float_span(input->constant_data, input->type);
+    memcpy(offset, span.data(), static_cast<size_t>(span.size_in_bytes()));
     offset += gpu_type_element_count(get_padded_gpu_type(&link));
   }
 }
