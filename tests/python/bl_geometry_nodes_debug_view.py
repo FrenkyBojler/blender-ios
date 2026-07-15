@@ -41,6 +41,7 @@ class GeometryNodesDebugViewTest(unittest.TestCase):
         bpy.context.collection.objects.link(obj)
         modifier = obj.modifiers.new("Geometry Nodes", 'NODES')
         modifier.node_group = group
+        self.assertFalse(modifier.show_debug_views)
         return obj, modifier
 
     def evaluate(self, obj):
@@ -82,8 +83,11 @@ class GeometryNodesDebugViewTest(unittest.TestCase):
 
     def test_show_socket_preserves_link(self):
         group, viewer = self.create_node_group()
+        self.assertFalse(viewer.is_debug_view)
         viewer.is_debug_view = True
         show_socket = viewer.inputs["Show"]
+        self.assertTrue(show_socket.default_value)
+        show_socket.default_value = False
         boolean = group.nodes.new("FunctionNodeInputBool")
         group.links.new(boolean.outputs["Boolean"], show_socket)
 
@@ -93,6 +97,7 @@ class GeometryNodesDebugViewTest(unittest.TestCase):
 
         viewer.is_debug_view = True
         self.assertFalse(show_socket.is_unavailable)
+        self.assertFalse(show_socket.default_value)
         self.assertEqual(len(show_socket.links), 1)
         self.assertEqual(show_socket.links[0].from_node, boolean)
 

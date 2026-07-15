@@ -2006,11 +2006,14 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
 class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::SideEffectProvider {
  private:
   Span<const lf::FunctionNode *> local_side_effect_nodes_;
+  Span<const lf::FunctionNode *> local_debug_view_nodes_;
 
  public:
   GeometryNodesLazyFunctionSideEffectProvider(
-      Span<const lf::FunctionNode *> local_side_effect_nodes = {})
-      : local_side_effect_nodes_(local_side_effect_nodes)
+      Span<const lf::FunctionNode *> local_side_effect_nodes = {},
+      Span<const lf::FunctionNode *> local_debug_view_nodes = {})
+      : local_side_effect_nodes_(local_side_effect_nodes),
+        local_debug_view_nodes_(local_debug_view_nodes)
   {
   }
 
@@ -2027,6 +2030,9 @@ class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::Si
     Vector<const lf::FunctionNode *> side_effect_nodes =
         call_data.side_effect_nodes->nodes_by_context.lookup(context_hash);
     side_effect_nodes.extend(local_side_effect_nodes_);
+    if (call_data.modifier_data && call_data.modifier_data->show_debug_views) {
+      side_effect_nodes.extend(local_debug_view_nodes_);
+    }
     return side_effect_nodes;
   }
 };
@@ -2619,6 +2625,8 @@ struct GeometryNodesLazyFunctionBuilder {
 
     Vector<const lf::FunctionNode *> &local_side_effect_nodes =
         scope_.construct<Vector<const lf::FunctionNode *>>();
+    Vector<const lf::FunctionNode *> &local_debug_view_nodes =
+        scope_.construct<Vector<const lf::FunctionNode *>>();
     for (const bNode *bnode : btree_.nodes_by_type("GeometryNodeWarning"_ustr)) {
       if (bnode->output_socket(0).is_directly_linked()) {
         /* The warning node is not a side-effect node. Instead, the user explicitly used the output
@@ -2649,7 +2657,7 @@ struct GeometryNodesLazyFunctionBuilder {
       const lf::FunctionNode *lf_node = mapping_->possible_side_effect_node_map.lookup_default(
           bnode->identifier, nullptr);
       if (lf_node) {
-        local_side_effect_nodes.append(lf_node);
+        local_debug_view_nodes.append(lf_node);
       }
     }
 
@@ -2658,7 +2666,8 @@ struct GeometryNodesLazyFunctionBuilder {
         std::move(lf_graph_inputs),
         std::move(lf_graph_outputs),
         &scope_.construct<GeometryNodesLazyFunctionLogger>(*lf_graph_info_),
-        &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>(local_side_effect_nodes),
+        &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>(local_side_effect_nodes,
+                                                                       local_debug_view_nodes),
         nullptr);
   }
 

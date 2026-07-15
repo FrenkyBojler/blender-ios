@@ -53,6 +53,7 @@
 #include "BKE_instances.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_particle.h"
@@ -1866,9 +1867,14 @@ void object_duplilist_preview(Depsgraph *depsgraph,
 bool object_duplilist_debug_view(Depsgraph *depsgraph, Object *ob_eval, DupliList &r_duplilist)
 {
   Object *ob_orig = DEG_get_original(ob_eval);
+  const int required_mode = eModifierMode_Realtime |
+                            (BKE_object_is_in_editmode(ob_orig) ? eModifierMode_Editmode : 0);
   const nodes::eval_log::ViewerNodeLog *viewer_log = nullptr;
   for (ModifierData &md_orig : ob_orig->modifiers) {
     if (md_orig.type != eModifierType_Nodes) {
+      continue;
+    }
+    if (!BKE_modifier_is_enabled(DEG_get_input_scene(depsgraph), &md_orig, required_mode)) {
       continue;
     }
     NodesModifierData &nmd_orig = reinterpret_cast<NodesModifierData &>(md_orig);
