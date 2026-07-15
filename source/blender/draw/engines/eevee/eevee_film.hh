@@ -84,9 +84,10 @@ class Film {
   /**
    * Main accumulation textures containing every render-pass except depth, cryptomatte and
    * combined.
+   * Double buffered to allow for reprojection.
    */
-  Texture color_accum_tx_;
-  Texture value_accum_tx_;
+  SwapChain<Texture, 2> color_accum_tx_;
+  SwapChain<Texture, 2> value_accum_tx_;
   /** Depth accumulation texture. Separated because using a different format. */
   Texture depth_tx_;
   /** Cryptomatte texture. Separated because it requires full floats. */

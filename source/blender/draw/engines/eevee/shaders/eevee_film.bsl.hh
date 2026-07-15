@@ -132,6 +132,8 @@ struct Film {
 
   /* Color History for TAA needs to be sampler to leverage bilinear sampling. */
   [[sampler(5)]] sampler2D in_combined_tx;
+  [[sampler(7)]] sampler2DArray in_color_tx;
+  [[sampler(8)]] sampler2DArray in_value_tx;
 
   [[image(0, read, SFLOAT_32)]] const image2DArray in_weight_img;
   [[image(1, write, SFLOAT_32)]] image2DArray out_weight_img;
@@ -139,8 +141,8 @@ struct Film {
   /* Accumulation buffers. */
   [[image(2, read_write, SFLOAT_16_16_16_16)]] image2D out_combined_img;
   [[image(3, read_write, SFLOAT_32)]] image2D depth_img;
-  [[image(4, read_write, SFLOAT_16_16_16_16)]] image2DArray color_accum_img;
-  [[image(5, read_write, SFLOAT_16)]] image2DArray value_accum_img;
+  [[image(4, write, SFLOAT_16_16_16_16)]] image2DArray color_accum_img;
+  [[image(5, write, SFLOAT_16)]] image2DArray value_accum_img;
   [[image(6, read_write, SFLOAT_32)]] image2D denoising_depth_img;
 
   [[resource_table]] srt_t<Cryptomatte> cryptomatte;
@@ -448,6 +450,70 @@ struct Film {
 #endif
   }
 
+  /* Same as sample_catmull_rom() above but for a single layer of an array texture. */
+  float4 sample_catmull_rom_layer(sampler2DArray color_tx, int layer, float2 input_texel)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
+    float2 center_texel;
+    float2 inter_texel = modf(input_texel, center_texel);
+    float2 weights[4];
+    get_catmull_rom_weights(inter_texel, weights);
+
+    center_texel += 0.5f;
+
+    float2 weight_12 = weights[1] + weights[2];
+    float2 uv_12 = (center_texel + weights[2] / weight_12) * uni.uniform_buf.film.extent_inv;
+    float2 uv_0 = (center_texel - 1.0f) * uni.uniform_buf.film.extent_inv;
+    float2 uv_3 = (center_texel + 2.0f) * uni.uniform_buf.film.extent_inv;
+
+    float4 color;
+    float4 weight_cross = weight_12.xyyx * float4(weights[0].yx, weights[3].xy);
+    float weight_center = weight_12.x * weight_12.y;
+
+    float layer_f = float(layer);
+    color = textureLod(color_tx, float3(uv_12, layer_f), 0.0f) * weight_center;
+    color += textureLod(color_tx, float3(uv_12.x, uv_0.y, layer_f), 0.0f) * weight_cross.x;
+    color += textureLod(color_tx, float3(uv_0.x, uv_12.y, layer_f), 0.0f) * weight_cross.y;
+    color += textureLod(color_tx, float3(uv_3.x, uv_12.y, layer_f), 0.0f) * weight_cross.z;
+    color += textureLod(color_tx, float3(uv_12.x, uv_3.y, layer_f), 0.0f) * weight_cross.w;
+    return color / (weight_center + reduce_add(weight_cross));
+  }
+
+  /* Blend factor (0 = full history, 1 = full new sample) for reprojected render-passes.
+   * Simplified variant of what store_combined() uses for Combined: no neighborhood clipping,
+   * since that needs each pass' raw per-sample values, which aren't kept around. */
+  float reprojection_blend_factor(float2 history_texel, float velocity)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
+    float blend = mix(0.05f, 0.20f, saturate(velocity * 0.02f));
+
+    if (any(lessThan(history_texel, float2(0.0f))) ||
+        any(greaterThanEqual(history_texel, float2(uni.uniform_buf.film.extent))))
+    {
+      /* Discard out of view history. */
+      blend = 1.0f;
+    }
+    if (uni.uniform_buf.film.use_history == false) {
+      /* Discard history if invalid. */
+      blend = 1.0f;
+    }
+    return blend;
+  }
+
+  /* Luma weighted blend between history and new sample, mirrors store_combined(). */
+  float4 blend_reprojected_sample(float4 history, float4 new_sample, float blend)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
+    float luma_dst = dot(history.rgb, float3(1.0f / 3.0f));
+    float luma_src = dot(new_sample.rgb, float3(1.0f / 3.0f));
+    float weight_dst = luma_weight(uni, luma_dst) * (1.0f - blend);
+    float weight_src = luma_weight(uni, luma_src) * blend;
+    return (history * weight_dst + new_sample * weight_src) / (weight_dst + weight_src);
+  }
+
   /* Return history clipping bounding box in YCoCg color space. */
   void combined_neighbor_boundbox(int2 texel, float4 &min_c, float4 &max_c)
   {
@@ -690,6 +756,7 @@ struct Film {
   }
 
   void store_color(FilmSample dst,
+                   int2 src_texel,
                    int pass_id,
                    float4 color,
                    float4 &display,
@@ -699,14 +766,26 @@ struct Film {
       return;
     }
 
-    float4 data_film = imageLoadFast(color_accum_img, int3(dst.texel, pass_id));
+    if (use_reprojection) {
+      float2 motion = pixel_history_motion_vector(src_texel);
+      float2 history_texel = float2(dst.texel) + motion;
+      float blend = reprojection_blend_factor(history_texel, length(motion));
 
-    color = (data_film * dst.weight + color) * dst.weight_sum_inv;
+      float4 new_sample = color / weight_accumulation(dst.texel);
+      float4 history = sample_catmull_rom_layer(in_color_tx, pass_id, history_texel);
+      color = blend_reprojected_sample(history, new_sample, blend);
+    }
+    else {
+      /* Everything is static. Use render accumulation. */
+      float4 data_film = texelFetch(in_color_tx, int3(dst.texel, pass_id), 0);
+      color = (data_film * dst.weight + color) * dst.weight_sum_inv;
+    }
 
     store_color_ex(dst, pass_id, color, display, do_clamp_negative_values);
   }
 
   void store_color_and_light(FilmSample dst,
+                             int2 src_texel,
                              int color_pass_id,
                              int light_pass_id,
                              float4 color,
@@ -717,31 +796,64 @@ struct Film {
       return;
     }
 
-    float4 color_film = imageLoadFast(color_accum_img, int3(dst.texel, color_pass_id));
-    color = (color_film * dst.weight + color) * dst.weight_sum_inv;
+    float4 color_history;
+    float blend = 0.0f;
+    float2 history_texel = float2(dst.texel);
+    if (use_reprojection) {
+      float2 motion = pixel_history_motion_vector(src_texel);
+      history_texel += motion;
+      blend = reprojection_blend_factor(history_texel, length(motion));
+
+      float4 new_color = color / weight_accumulation(dst.texel);
+      color_history = sample_catmull_rom_layer(in_color_tx, color_pass_id, history_texel);
+      color = blend_reprojected_sample(color_history, new_color, blend);
+    }
+    else {
+      color_history = texelFetch(in_color_tx, int3(dst.texel, color_pass_id), 0);
+      color = (color_history * dst.weight + color) * dst.weight_sum_inv;
+    }
     store_color_ex(dst, color_pass_id, color, display, true);
 
     if (light_pass_id == -1) {
       return;
     }
 
-    float4 light_film = imageLoadFast(color_accum_img, int3(dst.texel, light_pass_id));
-    /* Undivide. */
-    light_film *= color_film;
-    light = (light_film * dst.weight + light) * dst.weight_sum_inv;
-    light = safe_divide_even_color(light, color);
+    if (use_reprojection) {
+      float4 light_ratio_history = sample_catmull_rom_layer(
+          in_color_tx, light_pass_id, history_texel);
+      float4 light_history = light_ratio_history * color_history; /* Undivide. */
+      float4 new_light = light / weight_accumulation(dst.texel);
+      light = blend_reprojected_sample(light_history, new_light, blend);
+      light = safe_divide_even_color(light, color);
+    }
+    else {
+      float4 light_film = texelFetch(in_color_tx, int3(dst.texel, light_pass_id), 0);
+      light_film *= color_history; /* Undivide. */
+      light = (light_film * dst.weight + light) * dst.weight_sum_inv;
+      light = safe_divide_even_color(light, color);
+    }
     store_color_ex(dst, light_pass_id, light, display, true);
   }
 
-  void store_value(FilmSample dst, int pass_id, float value, float4 &display)
+  void store_value(FilmSample dst, int2 src_texel, int pass_id, float value, float4 &display)
   {
     if (pass_id == -1) {
       return;
     }
 
-    float data_film = imageLoadFast(value_accum_img, int3(dst.texel, pass_id)).x;
+    if (use_reprojection) {
+      float2 motion = pixel_history_motion_vector(src_texel);
+      float2 history_texel = float2(dst.texel) + motion;
+      float blend = reprojection_blend_factor(history_texel, length(motion));
 
-    value = (data_film * dst.weight + value) * dst.weight_sum_inv;
+      float new_sample = value / weight_accumulation(dst.texel);
+      float history = sample_catmull_rom_layer(in_value_tx, pass_id, history_texel).x;
+      value = mix(history, new_sample, blend);
+    }
+    else {
+      float data_film = texelFetch(in_value_tx, int3(dst.texel, pass_id), 0).x;
+      value = (data_film * dst.weight + value) * dst.weight_sum_inv;
+    }
 
     /* Filter NaNs. */
     if (isnan(value)) {
@@ -886,15 +998,26 @@ struct Film {
       }
       else {
         out_depth = imageLoadFast(depth_img, texel_film).r;
-        if (display_id == -1) {
-          /* NOP. */
+        /* store_data above was not called so copy the previous value into the
+         * texture to keep history valid for next frame */
+        if (normal_id != -1) {
+          float4 v = texelFetch(in_color_tx, int3(texel_film, normal_id), 0);
+          imageStoreFast(color_accum_img, int3(texel_film, normal_id), v);
+          if (display_id == normal_id) {
+            out_color = v;
+          }
         }
-        else if (display_id == normal_id) {
-          out_color = imageLoadFast(color_accum_img, int3(texel_film, display_id));
+        if (uni.uniform_buf.film.position_id != -1) {
+          float4 v = texelFetch(
+              in_color_tx, int3(texel_film, uni.uniform_buf.film.position_id), 0);
+          imageStoreFast(color_accum_img, int3(texel_film, uni.uniform_buf.film.position_id), v);
+          if (display_id == uni.uniform_buf.film.position_id) {
+            out_color = v;
+          }
         }
-        else if (display_id == uni.uniform_buf.film.position_id) {
-          out_color = imageLoadFast(color_accum_img,
-                                    int3(texel_film, uni.uniform_buf.film.position_id));
+        if (uni.uniform_buf.film.vector_id != -1) {
+          float4 v = texelFetch(in_color_tx, int3(texel_film, uni.uniform_buf.film.vector_id), 0);
+          imageStoreFast(color_accum_img, int3(texel_film, uni.uniform_buf.film.vector_id), v);
         }
       }
     }
@@ -905,8 +1028,9 @@ struct Film {
       float4 diffuse_light_accum = float4(0.0f);
       float4 specular_light_accum = float4(0.0f);
 
-      for (int i = 0; i < samples_len; i++) {
-        FilmSample src = sample_get(i, texel_film);
+      FilmSample src;
+      for (int i = samples_len - 1; i >= 0; i--) {
+        src = sample_get(i, texel_film);
         sample_accum(src,
                      uni.uniform_buf.film.diffuse_color_id,
                      uni.uniform_buf.render_pass.diffuse_color_id,
@@ -930,12 +1054,14 @@ struct Film {
       }
 
       store_color_and_light(dst,
+                            src.texel,
                             uni.uniform_buf.film.diffuse_color_id,
                             uni.uniform_buf.film.diffuse_light_id,
                             diffuse_color_accum,
                             diffuse_light_accum,
                             out_color);
       store_color_and_light(dst,
+                            src.texel,
                             uni.uniform_buf.film.specular_color_id,
                             uni.uniform_buf.film.specular_light_id,
                             specular_color_accum,
@@ -951,8 +1077,9 @@ struct Film {
       float shadow_accum = 0.0f;
       float ao_accum = 0.0f;
 
-      for (int i = 0; i < samples_len; i++) {
-        FilmSample src = sample_get(i, texel_film);
+      FilmSample src;
+      for (int i = samples_len - 1; i >= 0; i--) {
+        src = sample_get(i, texel_film);
         sample_accum(src,
                      uni.uniform_buf.film.volume_light_id,
                      uni.uniform_buf.render_pass.volume_light_id,
@@ -984,19 +1111,23 @@ struct Film {
       float4 shadow_accum_color = float4(float3(shadow_accum), weight_accum);
       float4 ao_accum_color = float4(float3(ao_accum), weight_accum);
 
-      store_color(dst, uni.uniform_buf.film.volume_light_id, volume_light_accum, out_color);
-      store_color(dst, uni.uniform_buf.film.emission_id, emission_accum, out_color);
-      store_color(dst, uni.uniform_buf.film.environment_id, environment_accum, out_color);
-      store_color(dst, uni.uniform_buf.film.shadow_id, shadow_accum_color, out_color);
-      store_color(dst, uni.uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color);
-      store_value(dst, uni.uniform_buf.film.mist_id, mist_accum, out_color);
+      store_color(
+          dst, src.texel, uni.uniform_buf.film.volume_light_id, volume_light_accum, out_color);
+      store_color(dst, src.texel, uni.uniform_buf.film.emission_id, emission_accum, out_color);
+      store_color(
+          dst, src.texel, uni.uniform_buf.film.environment_id, environment_accum, out_color);
+      store_color(dst, src.texel, uni.uniform_buf.film.shadow_id, shadow_accum_color, out_color);
+      store_color(
+          dst, src.texel, uni.uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color);
+      store_value(dst, src.texel, uni.uniform_buf.film.mist_id, mist_accum, out_color);
     }
 
     if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_3)) {
       float4 transparent_accum = float4(0.0f);
 
-      for (int i = 0; i < samples_len; i++) {
-        FilmSample src = sample_get(i, texel_film);
+      FilmSample src;
+      for (int i = samples_len - 1; i >= 0; i--) {
+        src = sample_get(i, texel_film);
         sample_accum(src,
                      uni.uniform_buf.film.transparent_id,
                      uni.uniform_buf.render_pass.transparent_id,
@@ -1006,7 +1137,8 @@ struct Film {
       /* Alpha stores transmittance for transparent pass. */
       transparent_accum.a = weight_accum - transparent_accum.a;
 
-      store_color(dst, uni.uniform_buf.film.transparent_id, transparent_accum, out_color);
+      store_color(
+          dst, src.texel, uni.uniform_buf.film.transparent_id, transparent_accum, out_color);
     }
 
     if (flag_test(enabled_categories, PASS_CATEGORY_DENOISE)) {
@@ -1016,8 +1148,9 @@ struct Film {
       float4 denoising_diffuse_albedo_accum = float4(0.0f);
       float4 denoising_specular_albedo_accum = float4(0.0f);
 
-      for (int i = 0; i < samples_len; i++) {
-        FilmSample src = sample_get(i, texel_film);
+      FilmSample src;
+      for (int i = samples_len - 1; i >= 0; i--) {
+        src = sample_get(i, texel_film);
         if (uni.uniform_buf.film.denoising_depth_id >= 0) {
           float depth = reverse_z::read(texelFetch(depth_tx, src.texel, 0).x);
           if (depth == 1.0f) {
@@ -1054,15 +1187,24 @@ struct Film {
       }
 
       store_denoising_depth(dst, denoising_depth_accum, out_color);
-      store_color(
-          dst, uni.uniform_buf.film.denoising_normal_id, denoising_normal_accum, out_color, false);
-      store_value(
-          dst, uni.uniform_buf.film.denoising_roughness_id, denoising_roughness_accum, out_color);
       store_color(dst,
+                  src.texel,
+                  uni.uniform_buf.film.denoising_normal_id,
+                  denoising_normal_accum,
+                  out_color,
+                  false);
+      store_value(dst,
+                  src.texel,
+                  uni.uniform_buf.film.denoising_roughness_id,
+                  denoising_roughness_accum,
+                  out_color);
+      store_color(dst,
+                  src.texel,
                   uni.uniform_buf.film.denoising_diffuse_albedo_id,
                   denoising_diffuse_albedo_accum,
                   out_color);
       store_color(dst,
+                  src.texel,
                   uni.uniform_buf.film.denoising_specular_albedo_id,
                   denoising_specular_albedo_accum,
                   out_color);
@@ -1072,23 +1214,26 @@ struct Film {
       for (int aov = 0; aov < uni.uniform_buf.film.aov_color_len; aov++) {
         float4 aov_accum = float4(0.0f);
 
-        for (int i = 0; i < samples_len; i++) {
-          FilmSample src = sample_get(i, texel_film);
+        FilmSample src;
+        for (int i = samples_len - 1; i >= 0; i--) {
+          src = sample_get(i, texel_film);
           sample_accum(
               src, 0, uni.uniform_buf.render_pass.color_len + aov, rp_color_tx, aov_accum);
         }
-        store_color(dst, uni.uniform_buf.film.aov_color_id + aov, aov_accum, out_color, false);
+        store_color(
+            dst, src.texel, uni.uniform_buf.film.aov_color_id + aov, aov_accum, out_color, false);
       }
 
       for (int aov = 0; aov < uni.uniform_buf.film.aov_value_len; aov++) {
         float aov_accum = 0.0f;
 
-        for (int i = 0; i < samples_len; i++) {
-          FilmSample src = sample_get(i, texel_film);
+        FilmSample src;
+        for (int i = samples_len - 1; i >= 0; i--) {
+          src = sample_get(i, texel_film);
           sample_accum(
               src, 0, uni.uniform_buf.render_pass.value_len + aov, rp_value_tx, aov_accum);
         }
-        store_value(dst, uni.uniform_buf.film.aov_value_id + aov, aov_accum, out_color);
+        store_value(dst, src.texel, uni.uniform_buf.film.aov_value_id + aov, aov_accum, out_color);
       }
     }
 
@@ -1148,12 +1293,11 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
       frag_out.color = texelFetch(film.in_combined_tx, texel_film, 0);
     }
     else if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_VALUE) {
-      frag_out.color.rgb =
-          imageLoadFast(film.value_accum_img, int3(texel_film, film.display_id)).rrr;
+      frag_out.color.rgb = texelFetch(film.in_value_tx, int3(texel_film, film.display_id), 0).rrr;
       frag_out.color.a = 1.0f;
     }
     else if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_COLOR) {
-      frag_out.color = imageLoadFast(film.color_accum_img, int3(texel_film, film.display_id));
+      frag_out.color = texelFetch(film.in_color_tx, int3(texel_film, film.display_id), 0);
     }
     else if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_CRYPTOMATTE) {
       frag_out.color = cryptomatte::false_color(
@@ -1196,11 +1340,11 @@ void display_frag([[resource_table]] Film &film,
     frag_out.color = texelFetch(film.in_combined_tx, texel, 0);
   }
   else if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_VALUE) {
-    frag_out.color.rgb = imageLoadFast(film.value_accum_img, int3(texel, film.display_id)).rrr;
+    frag_out.color.rgb = texelFetch(film.in_value_tx, int3(texel, film.display_id), 0).rrr;
     frag_out.color.a = 1.0f;
   }
   else if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_COLOR) {
-    frag_out.color = imageLoadFast(film.color_accum_img, int3(texel, film.display_id));
+    frag_out.color = texelFetch(film.in_color_tx, int3(texel, film.display_id), 0);
   }
   else if (uni.uniform_buf.film.display_storage_type == PASS_STORAGE_CRYPTOMATTE) {
     frag_out.color = cryptomatte::false_color(
