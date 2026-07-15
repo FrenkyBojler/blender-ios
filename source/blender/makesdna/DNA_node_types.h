@@ -385,6 +385,10 @@ enum NodeGeometryViewerItemFlag {
   NODE_GEO_VIEWER_ITEM_FLAG_AUTO_REMOVE = (1 << 0),
 };
 
+enum NodeGeometryViewerFlag {
+  NODE_GEO_VIEWER_FLAG_DEBUG_VIEW = 1 << 0,
+};
+
 enum NodeClosureFlag : uint8_t {
   NODE_CLOSURE_FLAG_DEFINE_SIGNATURE = (1 << 0),
 };
@@ -3466,8 +3470,9 @@ struct NodeGeometryViewer {
   int8_t data_type_legacy = 0;
   /** #AttrDomain. */
   int8_t domain = 0;
+  uint8_t flag = 0;
 
-  char _pad[2] = {};
+  char _pad[1] = {};
 };
 
 struct NodeGeometryUVUnwrap {

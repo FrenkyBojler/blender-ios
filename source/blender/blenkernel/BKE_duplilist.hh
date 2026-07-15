@@ -83,6 +83,14 @@ void object_duplilist_preview(Depsgraph *depsgraph,
                               Object *ob,
                               const ViewerPath *viewer_path,
                               DupliList &r_duplilist);
+/**
+ * Fill a Vector of #DupliObject for a shown Geometry Nodes debug view, if one exists.
+ *
+ * \return True when debug-view geometry was found.
+ */
+bool object_duplilist_debug_view(Depsgraph *depsgraph, Object *ob, DupliList &r_duplilist);
+/** Return true when the path references a Debug View whose Show input is false. */
+bool object_viewer_path_is_hidden_debug_view(const ViewerPath &viewer_path);
 
 /**
  * Get the legacy instances of this object. That includes instances coming from these sources:

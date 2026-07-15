@@ -301,6 +301,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     input_decl.custom_draw([](CustomSocketDrawParams &params) { draw_input_socket(params); });
   }
 
+  b.add_input<decl::Bool>("Show"_ustr)
+      .default_value(true)
+      .available(storage.flag & NODE_GEO_VIEWER_FLAG_DEBUG_VIEW);
+
   b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Dynamic);
 }
 
@@ -328,6 +332,11 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
           panel->prop(item_ptr, "auto_remove", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
+}
+
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.prop(ptr, "is_debug_view", UI_ITEM_NONE, IFACE_("Debug View"), ICON_NONE);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -530,6 +539,7 @@ static void node_register()
   bke::node_type_storage(ntype, "NodeGeometryViewer", node_free_storage, node_copy_storage);
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
+  ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = node_gather_link_searches;

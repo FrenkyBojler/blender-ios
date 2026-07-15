@@ -2443,6 +2443,7 @@ enum GeometryNodesModifierPanel : int {
 enum NodesModifierFlag : int8_t {
   NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR = (1 << 0),
   NODES_MODIFIER_HIDE_MANAGE_PANEL = (1 << 1),
+  NODES_MODIFIER_SHOW_DEBUG_VIEWS = (1 << 2),
 };
 ENUM_OPERATORS(NodesModifierFlag);
 

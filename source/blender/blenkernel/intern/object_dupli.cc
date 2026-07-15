@@ -1863,6 +1863,55 @@ void object_duplilist_preview(Depsgraph *depsgraph,
   }
 }
 
+bool object_duplilist_debug_view(Depsgraph *depsgraph, Object *ob_eval, DupliList &r_duplilist)
+{
+  Object *ob_orig = DEG_get_original(ob_eval);
+  const nodes::eval_log::ViewerNodeLog *viewer_log = nullptr;
+  for (ModifierData &md_orig : ob_orig->modifiers) {
+    if (md_orig.type != eModifierType_Nodes) {
+      continue;
+    }
+    NodesModifierData &nmd_orig = reinterpret_cast<NodesModifierData &>(md_orig);
+    if (!(nmd_orig.flag & NODES_MODIFIER_SHOW_DEBUG_VIEWS) || !nmd_orig.runtime->eval_log) {
+      continue;
+    }
+    viewer_log = nmd_orig.runtime->eval_log->find_shown_debug_viewer_log();
+    if (viewer_log) {
+      break;
+    }
+    viewer_log = nullptr;
+  }
+  if (!viewer_log) {
+    return false;
+  }
+
+  DupliContext ctx;
+  Vector<Object *> instance_stack;
+  Vector<short> dupli_gen_type_stack({0});
+  instance_stack.append(ob_eval);
+  init_context(&ctx,
+               depsgraph,
+               ob_eval,
+               nullptr,
+               nullptr,
+               instance_stack,
+               dupli_gen_type_stack,
+               r_duplilist);
+
+  const bke::GeometrySet &viewer_geometry = *viewer_log->main_geometry();
+  ctx.preview_base_geometry = &viewer_geometry;
+  make_duplis_geometry_set_impl(
+      &ctx, viewer_geometry, ob_eval->object_to_world().ptr(), true, ob_eval->type == OB_CURVES);
+  return true;
+}
+
+bool object_viewer_path_is_hidden_debug_view(const ViewerPath &viewer_path)
+{
+  const nodes::eval_log::ViewerNodeLog *viewer_log =
+      nodes::eval_log::NodesEvalLog::find_viewer_node_log_for_path(viewer_path);
+  return viewer_log && viewer_log->is_debug_view && !viewer_log->is_shown;
+}
+
 bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph, Object &ob)
 {
   DupliContext ctx;

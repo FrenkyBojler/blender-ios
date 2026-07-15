@@ -256,6 +256,9 @@ class ViewerNodeLog {
   mutable std::optional<bke::GeometrySet> main_geometry_cache_;
 
  public:
+  bool is_debug_view = false;
+  bool is_shown = true;
+
   struct Item {
     int identifier;
     std::string name;
@@ -552,6 +555,7 @@ class NodesEvalLog {
 
   static ContextualNodeTreeLogs get_contextual_tree_logs(const SpaceNode &snode);
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
+  const ViewerNodeLog *find_shown_debug_viewer_log();
 };
 
 }  // namespace nodes::eval_log

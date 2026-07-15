@@ -1779,6 +1779,7 @@ static void modifyGeometry(ModifierData *md,
   nodes::GeoNodesModifierData modifier_eval_data{};
   modifier_eval_data.depsgraph = ctx->depsgraph;
   modifier_eval_data.self_object = ctx->object;
+  modifier_eval_data.show_debug_views = nmd->flag & NODES_MODIFIER_SHOW_DEBUG_VIEWS;
   auto eval_log = std::make_unique<nodes::eval_log::NodesEvalLog>();
   call_data.modifier_data = &modifier_eval_data;
 

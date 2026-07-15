@@ -159,6 +159,8 @@ struct GeoNodesModifierData {
   const Object *self_object = nullptr;
   /** Depsgraph that is evaluating the modifier. */
   Depsgraph *depsgraph = nullptr;
+  /** Whether persistent viewer debug views are enabled for this modifier. */
+  bool show_debug_views = false;
 };
 
 struct GeoNodesOperatorDepsgraphs {

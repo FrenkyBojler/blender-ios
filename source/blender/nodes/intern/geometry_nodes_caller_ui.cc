@@ -928,6 +928,8 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
             const std::optional<StringRef> parent_name) {
           draw_property_for_socket(ctx, layout, socket, socket_props_ptr, parent_name);
         });
+
+    layout.prop(modifier_ptr, "show_debug_views", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   modifier_error_message_draw(layout, modifier_ptr);

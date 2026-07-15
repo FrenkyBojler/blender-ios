@@ -851,37 +851,104 @@ class LazyFunctionForViewerNode : public LazyFunction {
  private:
   const bNode &bnode_;
   Span<int> lf_index_by_bsocket_;
+  const bool is_debug_view_;
 
  public:
+  const lf::FunctionNode *self_node = nullptr;
+
   LazyFunctionForViewerNode(const bNode &bnode, MutableSpan<int> r_lf_index_by_bsocket)
-      : bnode_(bnode), lf_index_by_bsocket_(r_lf_index_by_bsocket)
+      : bnode_(bnode),
+        lf_index_by_bsocket_(r_lf_index_by_bsocket),
+        is_debug_view_(static_cast<const NodeGeometryViewer *>(bnode.storage)->flag &
+                       NODE_GEO_VIEWER_FLAG_DEBUG_VIEW)
   {
     debug_name_ = "Viewer";
     lazy_function_interface_from_node(bnode, inputs_, outputs_, r_lf_index_by_bsocket);
+    if (is_debug_view_) {
+      for (const bNodeSocket *socket : bnode.input_sockets()) {
+        const int param_index = lf_index_by_bsocket_[socket->index_in_tree()];
+        if (param_index != -1) {
+          inputs_[param_index].usage = lf::ValueUsage::Maybe;
+        }
+      }
+    }
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     const auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     const auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode_.storage);
+
+    if (is_debug_view_) {
+      bool is_enabled = user_data.call_data->modifier_data &&
+                        user_data.call_data->modifier_data->show_debug_views;
+      if (user_data.call_data->side_effect_nodes && self_node) {
+        const Span<const lf::FunctionNode *> side_effect_nodes =
+            user_data.call_data->side_effect_nodes->nodes_by_context.lookup(
+                user_data.compute_context->hash());
+        is_enabled |= side_effect_nodes.contains(self_node);
+      }
+      if (!is_enabled) {
+        for (const int i : inputs_.index_range()) {
+          params.set_input_unused(i);
+        }
+        return;
+      }
+    }
+
     eval_log::NodeTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
     if (tree_logger == nullptr) {
+      if (is_debug_view_) {
+        for (const int i : inputs_.index_range()) {
+          params.set_input_unused(i);
+        }
+      }
       return;
     }
 
     LinearAllocator<> &allocator = *tree_logger->allocator;
 
-    const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode_.storage);
+    if (is_debug_view_) {
+      const bNodeSocket &show_socket = bnode_.input_socket(storage.items_num);
+      const int show_param_index = lf_index_by_bsocket_[show_socket.index_in_tree()];
+      auto *show_variant = params.try_get_input_data_ptr_or_request<bke::SocketValueVariant>(
+          show_param_index);
+      if (!show_variant) {
+        return;
+      }
+      const bool show = show_variant->get<bool>();
+      if (!show) {
+        auto log = allocator.construct<eval_log::ViewerNodeLog>();
+        log->is_debug_view = true;
+        log->is_shown = false;
+        tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
+        for (const int i : IndexRange(storage.items_num)) {
+          const bNodeSocket &socket = bnode_.input_socket(i);
+          params.set_input_unused(lf_index_by_bsocket_[socket.index_in_tree()]);
+        }
+        return;
+      }
+    }
 
     Vector<bke::SocketValueVariant *> values(storage.items_num, nullptr);
 
     for (const int i : IndexRange(storage.items_num)) {
       const bNodeSocket &bsocket = bnode_.input_socket(i);
       const int param_index = lf_index_by_bsocket_[bsocket.index_in_tree()];
-      values[i] = params.try_get_input_data_ptr<bke::SocketValueVariant>(param_index);
+      if (is_debug_view_) {
+        values[i] = params.try_get_input_data_ptr_or_request<bke::SocketValueVariant>(param_index);
+        if (!values[i]) {
+          return;
+        }
+      }
+      else {
+        values[i] = params.try_get_input_data_ptr<bke::SocketValueVariant>(param_index);
+      }
     }
 
     auto log = allocator.construct<eval_log::ViewerNodeLog>();
+    log->is_debug_view = is_debug_view_;
     geo_viewer_node_log(bnode_, values, *log);
     tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
   }
@@ -893,10 +960,12 @@ class LazyFunctionForViewerNode : public LazyFunction {
 class LazyFunctionForViewerInputUsage : public LazyFunction {
  private:
   const lf::FunctionNode &lf_viewer_node_;
+  const bool is_persistent_debug_view_;
 
  public:
-  LazyFunctionForViewerInputUsage(const lf::FunctionNode &lf_viewer_node)
-      : lf_viewer_node_(lf_viewer_node)
+  LazyFunctionForViewerInputUsage(const lf::FunctionNode &lf_viewer_node,
+                                  const bool is_persistent_debug_view)
+      : lf_viewer_node_(lf_viewer_node), is_persistent_debug_view_(is_persistent_debug_view)
   {
     debug_name_ = "Viewer Input Usage";
     outputs_.append_as("Viewer is Used", CPPType::get<bool>());
@@ -906,15 +975,16 @@ class LazyFunctionForViewerInputUsage : public LazyFunction {
   {
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
     BLI_assert(user_data != nullptr);
-    if (!user_data->call_data->side_effect_nodes) {
-      params.set_output<bool>(0, false);
-      return;
+    bool viewer_is_used = false;
+    if (user_data->call_data->side_effect_nodes) {
+      const ComputeContextHash &context_hash = user_data->compute_context->hash();
+      const Span<const lf::FunctionNode *> nodes_with_side_effects =
+          user_data->call_data->side_effect_nodes->nodes_by_context.lookup(context_hash);
+      viewer_is_used = nodes_with_side_effects.contains(&lf_viewer_node_);
     }
-    const ComputeContextHash &context_hash = user_data->compute_context->hash();
-    const Span<const lf::FunctionNode *> nodes_with_side_effects =
-        user_data->call_data->side_effect_nodes->nodes_by_context.lookup(context_hash);
-
-    const bool viewer_is_used = nodes_with_side_effects.contains(&lf_viewer_node_);
+    if (is_persistent_debug_view_ && user_data->call_data->modifier_data) {
+      viewer_is_used |= user_data->call_data->modifier_data->show_debug_views;
+    }
     params.set_output(0, viewer_is_used);
   }
 };
@@ -2567,6 +2637,21 @@ struct GeometryNodesLazyFunctionBuilder {
       const lf::FunctionNode &lf_node = static_cast<const lf::FunctionNode &>(lf_socket->node());
       local_side_effect_nodes.append(&lf_node);
     }
+    for (const bNode *bnode : btree_.nodes_by_type("GeometryNodeViewer"_ustr)) {
+      const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode->storage);
+      if (!(storage.flag & NODE_GEO_VIEWER_FLAG_DEBUG_VIEW)) {
+        continue;
+      }
+      if (tree_zones_->get_zone_by_node(bnode->identifier)) {
+        /* Persistent side effects need a single unambiguous compute context. */
+        continue;
+      }
+      const lf::FunctionNode *lf_node = mapping_->possible_side_effect_node_map.lookup_default(
+          bnode->identifier, nullptr);
+      if (lf_node) {
+        local_side_effect_nodes.append(lf_node);
+      }
+    }
 
     function.function = &scope_.construct<lf::GraphExecutor>(
         lf_graph_info_->graph,
@@ -3332,12 +3417,19 @@ struct GeometryNodesLazyFunctionBuilder {
 
   void build_viewer_node(const bNode &bnode, BuildGraphParams &graph_params)
   {
+    const NodeGeometryViewer &storage = *static_cast<const NodeGeometryViewer *>(bnode.storage);
+    const bool is_persistent_debug_view = (storage.flag & NODE_GEO_VIEWER_FLAG_DEBUG_VIEW) &&
+                                          !tree_zones_->get_zone_by_node(bnode.identifier);
     auto &lazy_function = scope_.construct<LazyFunctionForViewerNode>(
         bnode, mapping_->lf_index_by_bsocket);
     lf::FunctionNode &lf_viewer_node = graph_params.lf_graph.add_function(lazy_function);
+    lazy_function.self_node = &lf_viewer_node;
 
     for (const bNodeSocket *bsocket : bnode.input_sockets().drop_back(1)) {
       const int lf_index = mapping_->lf_index_by_bsocket[bsocket->index_in_tree()];
+      if (lf_index == -1) {
+        continue;
+      }
       this->add_to_socket_map(graph_params, *bsocket, lf_viewer_node.input(lf_index));
     }
 
@@ -3345,10 +3437,13 @@ struct GeometryNodesLazyFunctionBuilder {
 
     {
       auto &usage_lazy_function = scope_.construct<LazyFunctionForViewerInputUsage>(
-          lf_viewer_node);
+          lf_viewer_node, is_persistent_debug_view);
       lf::FunctionNode &lf_usage_node = graph_params.lf_graph.add_function(usage_lazy_function);
 
       for (const bNodeSocket *bsocket : bnode.input_sockets().drop_back(1)) {
+        if (!bsocket->is_available()) {
+          continue;
+        }
         graph_params.usage_by_bsocket.add(bsocket, &lf_usage_node.output(0));
       }
     }

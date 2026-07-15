@@ -1123,6 +1123,36 @@ const ViewerNodeLog *NodesEvalLog::find_viewer_node_log_for_path(const ViewerPat
   return viewer_log;
 }
 
+const ViewerNodeLog *NodesEvalLog::find_shown_debug_viewer_log()
+{
+  const ViewerNodeLog *best_log = nullptr;
+  ComputeContextHash best_context_hash{};
+  int32_t best_node_id = 0;
+  for (LocalData &local_data : data_per_thread_) {
+    for (const auto item : local_data.tree_logger_by_context.items()) {
+      const ComputeContextHash &context_hash = item.key;
+      const NodeTreeLogger &tree_logger = *item.value;
+      for (const NodeTreeLogger::ViewerNodeLogWithNode &viewer_log : tree_logger.viewer_node_logs)
+      {
+        if (!viewer_log.viewer_log->is_debug_view || !viewer_log.viewer_log->is_shown ||
+            !viewer_log.viewer_log->main_geometry())
+        {
+          continue;
+        }
+        if (!best_log || context_hash.v1 < best_context_hash.v1 ||
+            (context_hash.v1 == best_context_hash.v1 && context_hash.v2 < best_context_hash.v2) ||
+            (context_hash == best_context_hash && viewer_log.node_id < best_node_id))
+        {
+          best_log = viewer_log.viewer_log.get();
+          best_context_hash = context_hash;
+          best_node_id = viewer_log.node_id;
+        }
+      }
+    }
+  }
+  return best_log;
+}
+
 ContextualNodeTreeLogs::ContextualNodeTreeLogs(
     Map<const bke::bNodeTreeZone *, NodeTreeLog *> tree_logs_by_zone)
     : tree_logs_by_zone_(std::move(tree_logs_by_zone))

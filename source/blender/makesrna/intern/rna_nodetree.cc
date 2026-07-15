@@ -7770,6 +7770,13 @@ static void rna_def_geo_viewer(BlenderRNA *brna, StructRNA *srna)
 
   RNA_def_struct_sdna_from(srna, "NodeGeometryViewer", "storage");
 
+  prop = RNA_def_property(srna, "is_debug_view", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_GEO_VIEWER_FLAG_DEBUG_VIEW);
+  RNA_def_property_ui_text(
+      prop, "Debug View", "Keep the viewer available as a persistent modifier debug view");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
   prop = RNA_def_property(srna, "viewer_items", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "items", "items_num");
   RNA_def_property_struct_type(prop, "NodeGeometryViewerItem");
