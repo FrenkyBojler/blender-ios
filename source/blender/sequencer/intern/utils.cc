@@ -499,7 +499,7 @@ void set_scale_to_fit(const Strip *strip,
   }
 }
 
-void ensure_unique_name(Strip *strip, Scene *scene)
+void ensure_unique_name(Main &bmain, Strip *strip, Scene *scene)
 {
   char name[STRIP_NAME_MAXSTR];
 
@@ -510,11 +510,11 @@ void ensure_unique_name(Strip *strip, Scene *scene)
                          RNA_path_name_to_infix(name),
                          RNA_path_name_to_infix(strip->name + 2),
                          /*verify_paths=*/false,
-                         *G_MAIN);
+                         bmain);
 
   if (strip->type == STRIP_TYPE_META) {
     for (Strip &strip_child : strip->seqbase) {
-      ensure_unique_name(&strip_child, scene);
+      ensure_unique_name(bmain, &strip_child, scene);
     }
   }
 }

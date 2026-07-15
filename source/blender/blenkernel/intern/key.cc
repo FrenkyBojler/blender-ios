@@ -1910,7 +1910,7 @@ std::optional<Array<bool>> BKE_keyblock_get_dependent_keys(const Key *key, const
   return marked;
 }
 
-void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
+void BKE_keyblock_rename(Main &bmain, Key *key, KeyBlock *kb, const char *newname)
 {
   char oldname[sizeof(kb->name)];
 
@@ -1933,6 +1933,6 @@ void BKE_keyblock_rename(Key *key, KeyBlock *kb, const char *newname)
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(kb->name),
                          /*verify_paths=*/true,
-                         *G_MAIN);
+                         bmain);
 }
 }  // namespace blender

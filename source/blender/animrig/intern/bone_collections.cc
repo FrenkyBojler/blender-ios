@@ -588,7 +588,10 @@ bool ANIM_armature_bonecoll_move(bArmature *armature, BoneCollection *bcoll, con
   return true;
 }
 
-void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll, const char *name)
+void ANIM_armature_bonecoll_name_set(Main &bmain,
+                                     bArmature *armature,
+                                     BoneCollection *bcoll,
+                                     const char *name)
 {
   char old_name[sizeof(bcoll->name)];
 
@@ -607,7 +610,7 @@ void ANIM_armature_bonecoll_name_set(bArmature *armature, BoneCollection *bcoll,
 
   /* Bone collections can be reached via .collections (4.0+) and .collections_all (4.1+).
    * Animation data from 4.0 should have been versioned to only use `.collections_all`. */
-  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*G_MAIN);
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(bmain);
   BKE_animdata_fix_paths(armature->id,
                          "collections",
                          RNA_path_name_to_infix(old_name),

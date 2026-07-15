@@ -364,10 +364,8 @@ void BKE_mask_layer_unique_name(Mask *mask, MaskLayer *masklay)
                  sizeof(masklay->name));
 }
 
-void BKE_mask_layer_rename(Mask *mask,
-                           MaskLayer *masklay,
-                           const char *oldname,
-                           const char *newname)
+void BKE_mask_layer_rename(
+    Main &bmain, Mask *mask, MaskLayer *masklay, const char *oldname, const char *newname)
 {
   STRNCPY_UTF8(masklay->name, newname);
 
@@ -379,7 +377,7 @@ void BKE_mask_layer_rename(Mask *mask,
                          RNA_path_name_to_infix(oldname),
                          RNA_path_name_to_infix(masklay->name),
                          /*verify_paths=*/true,
-                         *G_MAIN);
+                         bmain);
 }
 
 MaskLayer *BKE_mask_layer_copy(const MaskLayer *masklay)
