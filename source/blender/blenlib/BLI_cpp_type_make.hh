@@ -303,7 +303,12 @@ template<typename T> void fill_construct_n_cb(const void *value, void *dst, cons
 template<typename T> void print_cb(const void *value, std::stringstream &ss)
 {
   const T &value_ = *static_cast<const T *>(value);
-  ss << value_;
+  if constexpr (std::is_same_v<T, uint8_t>) {
+    ss << int(value_);
+  }
+  else {
+    ss << value_;
+  }
 }
 
 template<typename T> bool is_equal_cb(const void *a, const void *b)
