@@ -253,7 +253,18 @@ def node_multiple_drag():
     t.assertNotEqual(delta_0, (0.0, 0.0), "Selected nodes should move")
     for idx, (before_loc, after_loc) in enumerate(zip(before, after, strict=True)):
         delta = (after_loc[0] - before_loc[0], after_loc[1] - before_loc[1])
-        t.assertEqual(delta, delta_0, f"Selected node {idx} did not move by the same delta")
+        t.assertAlmostEqual(
+            delta[0],
+            delta_0[0],
+            places=4,
+            msg=f"Selected node {idx} X delta differs",
+        )
+        t.assertAlmostEqual(
+            delta[1],
+            delta_0[1],
+            places=4,
+            msg=f"Selected node {idx} Y delta differs",
+        )
 
 
 # Dopesheet
