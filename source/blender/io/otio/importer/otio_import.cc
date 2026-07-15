@@ -43,6 +43,7 @@
 
 #include "IO_otio.hh"
 #include "otio_import.hh"
+#include "otio_import_metadata.hh"
 
 namespace blender::io::otio {
 using namespace opentimelineio::OPENTIMELINEIO_VERSION_NS;
@@ -129,6 +130,8 @@ static void add_transition(Scene *scene, ListBaseT<Strip> *seqbase, TransitionPa
   int left_handle = params.input2->left_handle();
   params.input2->left_handle_set(scene, left_handle + out_offset);
 
+  TransitionMetadata metadata = fetch_transition_metadata(params.otio_transition);
+
   seq::LoadData load_data;
   memset(&load_data, 0, sizeof(seq::LoadData));
   load_data.start_frame = right_handle;
@@ -140,12 +143,25 @@ static void add_transition(Scene *scene, ListBaseT<Strip> *seqbase, TransitionPa
   load_data.image.count = 1;
   load_data.image.length = 1;
   STRNCPY(load_data.name, params.otio_transition->name().c_str());
-  load_data.effect.type = STRIP_TYPE_CROSS;
+  load_data.effect.type = metadata.type;
   load_data.effect.input1 = params.input1;
   load_data.effect.input2 = params.input2;
   load_data.effect.length = in_offset + out_offset;
 
-  seq::add_effect_strip(scene, seqbase, &load_data);
+  Strip *effect_strip = seq::add_effect_strip(scene, seqbase, &load_data);
+
+  effect_strip->effect_fader = metadata.effect_fader;
+  if (!metadata.default_fade) {
+    effect_strip->flag &= ~SEQ_USE_EFFECT_DEFAULT_FADE;
+  }
+
+  if (effect_strip->type == STRIP_TYPE_WIPE) {
+    WipeVars *wipe = static_cast<WipeVars *>(effect_strip->effectdata);
+    wipe->edgeWidth = metadata.edgeWidth;
+    wipe->angle = metadata.angle;
+    wipe->forward = metadata.forward;
+    wipe->wipetype = metadata.wipetype;
+  }
 }
 
 static void add_transitions(Scene *scene,

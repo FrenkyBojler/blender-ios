@@ -19,11 +19,13 @@ set(SRC
   exporter/otio_export_strip.cc
   exporter/otio_export.cc
   importer/otio_import.cc
+  importer/otio_import_metadata.cc
 
   IO_otio.hh
   exporter/otio_export_strip.hh
   exporter/otio_export.hh
   importer/otio_import.hh
+  importer/otio_import_metadata.hh
 )
 
 set(LIB
