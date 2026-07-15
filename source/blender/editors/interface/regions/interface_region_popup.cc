@@ -91,6 +91,18 @@ static void popup_block_position(wmWindow *window, ARegion *butregion, Button *b
     butrct = handle->prev_butrct;
   }
 
+  /* Fixes #160402: popups created from a scaled button are laid out in
+   * window space, so their winmat does not apply block scaling.
+   * When a button in this inconsistent space creates a subpopup, we need
+   * the correct winmat here to apply scaling to the subpopup elements.
+   */
+  bool inconsistent_aspect = but->block->aspect !=
+                             2.0f / fabsf(butregion->winx * but->block->winmat[0][0]);
+  if (inconsistent_aspect) {
+    but->block->winmat[0][0] /= but->block->aspect;
+    but->block->winmat[1][1] /= but->block->aspect;
+  }
+
   /* Compute block size in window space, based on buttons contained in it. */
   if (block->rect.xmin == 0.0f && block->rect.xmax == 0.0f) {
     if (!block->buttons_ptrs.is_empty()) {
@@ -318,6 +330,12 @@ static void popup_block_position(wmWindow *window, ARegion *butregion, Button *b
 
     /* ui_but_update recalculates drawstring size in pixels */
     button_update(&bt);
+  }
+
+  if (inconsistent_aspect) {
+    /* Restore block's winmat */
+    but->block->winmat[0][0] *= but->block->aspect;
+    but->block->winmat[1][1] *= but->block->aspect;
   }
 
   BLI_rctf_translate(&block->rect, offset_x, offset_y);
@@ -752,6 +770,12 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
   block->oldblock = nullptr;
 
   if (!block->endblock) {
+    /* Fixes #160402: popups created from a scaled button have bounds in window space */
+    bool inconsistent_aspect = but && (but->block->aspect !=
+                                       2.0f / fabsf(butregion->winx * but->block->winmat[0][0]));
+    if (inconsistent_aspect) {
+      block->minbounds *= but->block->aspect;
+    }
     block_end_ex(C,
                  CTX_data_main(C),
                  window,
@@ -761,6 +785,9 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
                  block,
                  handle->popup_create_vars.event_xy,
                  handle->popup_create_vars.event_xy);
+    if (inconsistent_aspect) {
+      block->minbounds /= but->block->aspect;
+    }
   }
 
   /* if this is being created from a button */
