@@ -3148,6 +3148,7 @@ static void rna_SceneCompositorEffect_is_active_set(PointerRNA *ptr, bool is_act
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   SceneCompositorEffect *effect = ptr->data_as<SceneCompositorEffect>();
   bke::compositor::set_active_effect(*scene, *effect);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
 }
 
