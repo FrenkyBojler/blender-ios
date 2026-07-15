@@ -162,7 +162,14 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = params.other_socket().type;
-  if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING, SOCK_ID) &&
+  if (!ELEM(type,
+            SOCK_INT,
+            SOCK_BOOLEAN,
+            SOCK_FLOAT,
+            SOCK_VECTOR,
+            SOCK_RGBA,
+            SOCK_STRING,
+            SOCK_ID) &&
       !is_supported_data_block_type(type))
   {
     return;
@@ -655,29 +662,25 @@ static const mf::MultiFunction *get_multi_function(const bNode &node)
       }
       break;
     case SOCK_ID: {
-        switch (data->operation) {
-          case NODE_COMPARE_EQUAL: {
-            static auto fn = mf::build::SI2_SO<ID *, ID *, bool>(
-                "Equal",
-                [](const ID *a, const ID *b) {
-                  return data_blocks_are_equal(a, b);
-                },
-                mf::build::exec_presets::Simple{});
-            return &fn;
-          }
-          case NODE_COMPARE_NOT_EQUAL: {
-            static auto fn = mf::build::SI2_SO<ID *, ID *, bool>(
-                "Not Equal",
-                [](const ID *a, const ID *b) {
-                  return !data_blocks_are_equal(a, b);
-                },
-                mf::build::exec_presets::Simple{});
-            return &fn;
-          }
-          default: {
-            return nullptr;
-          }
+      switch (data->operation) {
+        case NODE_COMPARE_EQUAL: {
+          static auto fn = mf::build::SI2_SO<ID *, ID *, bool>(
+              "Equal",
+              [](const ID *a, const ID *b) { return data_blocks_are_equal(a, b); },
+              mf::build::exec_presets::Simple{});
+          return &fn;
         }
+        case NODE_COMPARE_NOT_EQUAL: {
+          static auto fn = mf::build::SI2_SO<ID *, ID *, bool>(
+              "Not Equal",
+              [](const ID *a, const ID *b) { return !data_blocks_are_equal(a, b); },
+              mf::build::exec_presets::Simple{});
+          return &fn;
+        }
+        default: {
+          return nullptr;
+        }
+      }
     }
     default: {
       if (is_supported_data_block_type(data_type)) {
@@ -835,7 +838,13 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(
             rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) {
-              return ELEM(item.value, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_STRING, SOCK_RGBA, SOCK_ID) ||
+              return ELEM(item.value,
+                          SOCK_FLOAT,
+                          SOCK_INT,
+                          SOCK_VECTOR,
+                          SOCK_STRING,
+                          SOCK_RGBA,
+                          SOCK_ID) ||
                      is_supported_data_block_type(eNodeSocketDatatype(item.value));
             });
       });

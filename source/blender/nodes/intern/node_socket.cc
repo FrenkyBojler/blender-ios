@@ -2295,8 +2295,8 @@ static bke::bNodeSocketType *make_socket_type_id()
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_ID, PROP_NONE);
   socktype->base_cpp_type = &CPPType::get<blender::ID *>();
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
-    *static_cast<blender::ID **>(r_value) =
-        (static_cast<bNodeSocketValueID *>(const_cast<void *>(socket_value)))->value;
+    *static_cast<blender::ID **>(
+        r_value) = (static_cast<bNodeSocketValueID *>(const_cast<void *>(socket_value)))->value;
   };
   socktype->get_geometry_nodes_cpp_value = [](const void *socket_value) {
     blender::ID *id = static_cast<const bNodeSocketValueID *>(socket_value)->value;

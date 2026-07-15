@@ -954,10 +954,9 @@ float IDP_coerce_to_float_or_zero(const IDProperty *prop)
   }
 }
 
-bool IDP_coerce_to_bool_or_false(const IDProperty* prop)
+bool IDP_coerce_to_bool_or_false(const IDProperty *prop)
 {
-  switch (prop->type)
-  {
+  switch (prop->type) {
     case IDP_BOOLEAN:
       return IDP_bool_get(prop);
     case IDP_DOUBLE:
@@ -971,10 +970,9 @@ bool IDP_coerce_to_bool_or_false(const IDProperty* prop)
   }
 }
 
-const std::string IDP_coerce_to_string_or_empty(const IDProperty* prop)
+const std::string IDP_coerce_to_string_or_empty(const IDProperty *prop)
 {
-  switch (prop->type)
-  {
+  switch (prop->type) {
     case IDP_BOOLEAN:
       return IDP_bool_get(prop) ? "True" : "False";
     case IDP_DOUBLE:

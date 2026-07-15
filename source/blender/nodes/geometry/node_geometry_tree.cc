@@ -106,17 +106,18 @@ static bool geometry_node_tree_validate_link(eNodeSocketDatatype type_a,
   }
 
   /* ID-backed sockets can be implicitly converted to an ID socket. */
-  if (ELEM(type_a, 
-    SOCK_COLLECTION,
-    SOCK_FONT,
-    SOCK_IMAGE,
-    SOCK_MASK,
-    SOCK_MATERIAL,
-    SOCK_OBJECT,
-    SOCK_SCENE,
-    SOCK_SOUND,
-    SOCK_TEXT_ID,
-    SOCK_TEXTURE) && type_b == SOCK_ID)
+  if (ELEM(type_a,
+           SOCK_COLLECTION,
+           SOCK_FONT,
+           SOCK_IMAGE,
+           SOCK_MASK,
+           SOCK_MATERIAL,
+           SOCK_OBJECT,
+           SOCK_SCENE,
+           SOCK_SOUND,
+           SOCK_TEXT_ID,
+           SOCK_TEXTURE) &&
+      type_b == SOCK_ID)
   {
     return true;
   }

@@ -1,6 +1,4 @@
-// A node that gets the custom property of an ID.
-
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -9,25 +7,31 @@
 #include "NOD_socket_search_link.hh"
 
 #include "BKE_idprop.hh"
+#include "BLI_math_vector.h"
+
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_get_custom_property {
 
 static const EnumPropertyItem type_items[] = {
-    {IDP_FLOAT, "FLOAT", 0, N_("Float"), N_("Floating-point value")},
-    {IDP_BOOLEAN, "BOOLEAN", 0, N_("Boolean"), N_("Boolean value")},
-    {IDP_INT, "INTEGER", 0, N_("Integer"), N_("Integer value")},
-    {IDP_STRING, "STRING", 0, N_("String"), N_("String value")},
+    {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, N_("Float"), N_("Floating-point value")},
+    {SOCK_BOOLEAN, "BOOLEAN", ICON_NODE_SOCKET_BOOLEAN, N_("Boolean"), N_("Boolean value")},
+    {SOCK_INT, "INTEGER", ICON_NODE_SOCKET_INT, N_("Integer"), N_("Integer value")},
+    {SOCK_STRING, "STRING", ICON_NODE_SOCKET_STRING, N_("String"), N_("String value")},
+    {SOCK_VECTOR, "VECTOR", ICON_NODE_SOCKET_VECTOR, N_("Vector"), N_("Vector value")},
+    {SOCK_RGBA, "COLOR", ICON_NODE_SOCKET_RGBA, N_("Color"), N_("Color value")},
+    {SOCK_ROTATION, "ROTATION", ICON_NODE_SOCKET_ROTATION, N_("Rotation"), N_("Rotation value")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define ADD_TYPED_OUTPUT(decl_type, id, idp_type)\
-  b.add_output<decl_type>("Value"_ustr, id)\
-    .make_available([](bNode& node) {\
-        bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type"_ustr);\
-        type_socket.default_value_typed<bNodeSocketValueMenu>()->value = idp_type;\
-    })\
-    .usage_by_single_menu(idp_type)\
-    .optional_label();
+#define ADD_TYPED_OUTPUT(decl_type, id, idp_type) \
+  b.add_output<decl_type>("Value"_ustr, id) \
+      .make_available([](bNode &node) { \
+        bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type"_ustr); \
+        type_socket.default_value_typed<bNodeSocketValueMenu>()->value = idp_type; \
+      }) \
+      .usage_by_single_menu(idp_type) \
+      .optional_label();
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -35,19 +39,68 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Menu>("Type"_ustr)
-    .default_value(IDP_FLOAT)
-    .static_items(type_items)
-    .optional_label();
+      .default_value(SOCK_FLOAT)
+      .static_items(type_items)
+      .optional_label();
 
-  ADD_TYPED_OUTPUT(decl::Bool, "ValueBool"_ustr, IDP_BOOLEAN)
-  ADD_TYPED_OUTPUT(decl::Float, "ValueFloat"_ustr, IDP_FLOAT)
-  ADD_TYPED_OUTPUT(decl::Int, "ValueInt"_ustr, IDP_INT)
-  ADD_TYPED_OUTPUT(decl::String, "ValueString"_ustr, IDP_STRING)
+  ADD_TYPED_OUTPUT(decl::Bool, "ValueBool"_ustr, SOCK_BOOLEAN)
+  ADD_TYPED_OUTPUT(decl::Float, "ValueFloat"_ustr, SOCK_FLOAT)
+  ADD_TYPED_OUTPUT(decl::Int, "ValueInt"_ustr, SOCK_INT)
+  ADD_TYPED_OUTPUT(decl::String, "ValueString"_ustr, SOCK_STRING)
+  ADD_TYPED_OUTPUT(decl::Vector, "ValueVector"_ustr, SOCK_VECTOR)
+  ADD_TYPED_OUTPUT(decl::Rotation, "ValueRotation"_ustr, SOCK_ROTATION)
+  ADD_TYPED_OUTPUT(decl::Color, "ValueColor"_ustr, SOCK_RGBA)
 
   b.add_output<decl::Bool>("Exists"_ustr).default_value(false);
 
   b.add_input<decl::DataBlockID>("ID"_ustr).description("ID to get the custom property of");
   b.add_input<decl::String>("Name"_ustr).description("Name of the custom property");
+}
+
+static float3 IDP_coerce_to_float3_or_zero(IDProperty *prop)
+{
+  float r[4] = {0.0f};
+  switch (prop->type) {
+    case IDP_ARRAY:
+      switch (prop->subtype) {
+        case IDP_FLOAT:
+          copy_v3_v3(r, IDP_array_float_get(prop));
+          break;
+        case IDP_DOUBLE:
+          copy_v3fl_v3db(r, IDP_array_double_get(prop));
+          break;
+        default:
+          break;
+      }
+      break;
+    default:
+      copy_v3_fl(r, IDP_coerce_to_float_or_zero(prop));
+      break;
+  }
+  return float3(r);
+}
+
+static float4 IDP_coerce_to_float4_or_zero(IDProperty *prop)
+{
+  float r[4] = {0.0f};
+  switch (prop->type) {
+    case IDP_ARRAY:
+      switch (prop->subtype) {
+        case IDP_FLOAT:
+          copy_v4_v4(r, IDP_array_float_get(prop));
+          break;
+        case IDP_DOUBLE:
+          copy_v4fl_v4db(r, IDP_array_double_get(prop));
+          break;
+        default:
+          break;
+      }
+      break;
+    default:
+      copy_v4_fl(r, IDP_coerce_to_float_or_zero(prop));
+      break;
+  }
+  return float4(r);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -60,7 +113,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const std::string name = params.extract_input<std::string>("Name"_ustr);
-  const auto type = params.extract_input<eIDPropertyType>("Type"_ustr);
+  const eNodeSocketDatatype type = params.extract_input<eNodeSocketDatatype>("Type"_ustr);
 
   // TODO: IDP have groups.
   // The user properties are in a top-level group called `user_properties`.
@@ -69,13 +122,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   // We could add yet another socket type for this but that's probably overkill.
   // Groups can be recursive.
   // For now, just get top-level custom props.
-  IDProperty* group = IDP_GetProperties(id);
+  IDProperty *group = IDP_GetProperties(id);
   if (group == nullptr) {
     params.set_default_remaining_outputs();
     return;
   }
-  
-  IDProperty* prop = IDP_GetPropertyFromGroup(group, name);
+
+  IDProperty *prop = IDP_GetPropertyFromGroup(group, name);
   if (prop == nullptr) {
     params.set_default_remaining_outputs();
     return;
@@ -86,20 +139,31 @@ static void node_geo_exec(GeoNodeExecParams params)
   // TODO: i think we need to forcibly disconnect outputs when the type changes.
 
   switch (type) {
-    case IDP_STRING:
-        params.set_output("ValueString"_ustr, IDP_coerce_to_string_or_empty(prop));
-        break;
-    case IDP_INT:
-        params.set_output("ValueInt"_ustr, IDP_coerce_to_int_or_zero(prop));
-        break;
-    case IDP_FLOAT:
-        params.set_output("ValueFloat"_ustr, IDP_coerce_to_float_or_zero(prop));
-        break;
-    case IDP_BOOLEAN:
-        params.set_output("ValueBool"_ustr, IDP_coerce_to_bool_or_false(prop));
-        break;
+    case SOCK_STRING:
+      params.set_output("ValueString"_ustr, IDP_coerce_to_string_or_empty(prop));
+      break;
+    case SOCK_INT:
+      params.set_output("ValueInt"_ustr, IDP_coerce_to_int_or_zero(prop));
+      break;
+    case SOCK_FLOAT:
+      params.set_output("ValueFloat"_ustr, IDP_coerce_to_float_or_zero(prop));
+      break;
+    case SOCK_BOOLEAN:
+      params.set_output("ValueBool"_ustr, IDP_coerce_to_bool_or_false(prop));
+      break;
+    case SOCK_RGBA:
+      params.set_output("ValueColor"_ustr,
+                        blender::ColorGeometry4f(IDP_coerce_to_float4_or_zero(prop)));
+      break;
+    case SOCK_VECTOR:
+      params.set_output("ValueVector"_ustr, IDP_coerce_to_float3_or_zero(prop));
+      break;
+    case SOCK_ROTATION:
+      params.set_output("ValueRotation"_ustr,
+                        math::Quaternion(IDP_coerce_to_float4_or_zero(prop)));
+      break;
     default:
-        BLI_assert_unreachable();
+      BLI_assert_unreachable();
   }
 
   params.set_default_remaining_outputs();

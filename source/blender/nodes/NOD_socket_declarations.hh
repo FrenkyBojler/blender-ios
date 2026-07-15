@@ -478,7 +478,7 @@ class Sound : public IDSocketDeclaration {
 };
 
 class DataBlockID : public IDSocketDeclaration {
-  public:
+ public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_ID;
 
   using Builder = IDSocketDeclarationBuilder<DataBlockID>;
