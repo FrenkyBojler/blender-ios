@@ -67,7 +67,7 @@ Mesh *MeshFromGeometry::create_mesh(const OBJImportParams &import_params)
   this->create_vertices(mesh);
   this->create_faces(mesh, import_params.import_vertex_groups && !import_params.use_split_groups);
   this->create_edges(mesh);
-  this->create_uv_verts(mesh);
+  this->create_uv_verts(mesh, import_params);
   this->create_normals(mesh);
   this->create_colors(mesh);
 
@@ -327,7 +327,7 @@ void MeshFromGeometry::create_edges(Mesh *mesh)
   bke::mesh_calc_edges(*mesh, true, false);
 }
 
-void MeshFromGeometry::create_uv_verts(Mesh *mesh)
+void MeshFromGeometry::create_uv_verts(Mesh *mesh, const OBJImportParams &import_params)
 {
   if (global_vertices_.uv_vertices.size() <= 0) {
     return;
@@ -371,6 +371,60 @@ void MeshFromGeometry::create_uv_verts(Mesh *mesh)
   else {
     mesh->uv_maps_active_set("UVMap");
     mesh->uv_maps_default_set("UVMap");
+
+    if (import_params.import_uv_seams) {
+      bke::SpanAttributeWriter<bool> uv_seams = attributes.lookup_or_add_for_write_only_span<bool>(
+          "uv_seam", bke::AttrDomain::Edge);
+      uv_seams.span.fill(false);
+
+      struct EdgeUVIndices {
+        int uv_min = -2;
+        int uv_max = -2;
+      };
+      Vector<EdgeUVIndices> edge_uvs(mesh->edges_num);
+      const Span<int> corner_verts = mesh->corner_verts();
+      const Span<int> corner_edges = mesh->corner_edges();
+
+      int corner_idx = 0;
+      for (const FaceElem &curr_face : mesh_geometry_.face_elements_) {
+        for (int64_t idx = 0; idx < curr_face.corner_count_; ++idx) {
+          const FaceCorner &curr_corner =
+              mesh_geometry_.face_corners_[curr_face.start_index_ + idx];
+          const FaceCorner &next_corner =
+              mesh_geometry_
+                  .face_corners_[curr_face.start_index_ + (idx + 1) % curr_face.corner_count_];
+
+          int c1 = corner_idx;
+          int c2 = c1 - idx + (idx + 1) % curr_face.corner_count_;
+
+          int edge_idx = corner_edges[c1];
+          if (edge_idx >= 0 && edge_idx < mesh->edges_num) {
+            int v1 = corner_verts[c1];
+            int v2 = corner_verts[c2];
+
+            int uv1 = curr_corner.uv_vert_index;
+            int uv2 = next_corner.uv_vert_index;
+
+            if (uv1 >= 0 && uv2 >= 0) {
+              int v_min = std::min(v1, v2);
+              int uv_for_v_min = (v1 == v_min) ? uv1 : uv2;
+              int uv_for_v_max = (v1 == v_min) ? uv2 : uv1;
+
+              EdgeUVIndices &eu = edge_uvs[edge_idx];
+              if (eu.uv_min == -2) {
+                eu.uv_min = uv_for_v_min;
+                eu.uv_max = uv_for_v_max;
+              }
+              else if (eu.uv_min != uv_for_v_min || eu.uv_max != uv_for_v_max) {
+                uv_seams.span[edge_idx] = true;
+              }
+            }
+          }
+          corner_idx++;
+        }
+      }
+      uv_seams.finish();
+    }
   }
 }
 

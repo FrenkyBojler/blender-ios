@@ -435,6 +435,7 @@ static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
   import_params.import_vertex_groups = RNA_boolean_get(op->ptr, "import_vertex_groups");
   import_params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
   import_params.close_spline_loops = RNA_boolean_get(op->ptr, "close_spline_loops");
+  import_params.import_uv_seams = RNA_boolean_get(op->ptr, "import_uv_seams");
   char separator[2] = {};
   RNA_string_get(op->ptr, "collection_separator", separator);
   import_params.collection_separator = separator[0];
@@ -487,6 +488,7 @@ static void ui_obj_import_settings(const bContext *C, ui::Layout &layout, Pointe
     col.prop(ptr, "import_vertex_groups", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col.prop(ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col.prop(ptr, "close_spline_loops", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(ptr, "import_uv_seams", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col.prop(ptr, "collection_separator", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
@@ -577,6 +579,11 @@ void WM_OT_obj_import(wmOperatorType *ot)
                   "Detect Cyclic Curves",
                   "Join curve endpoints if overlapping control points are detected "
                   "(if disabled, no curves will be cyclic)");
+  RNA_def_boolean(ot->srna,
+                  "import_uv_seams",
+                  true,
+                  "Import UV Seams",
+                  "Mark edge seams using UV seam data from the OBJ file");
 
   RNA_def_string(ot->srna,
                  "collection_separator",

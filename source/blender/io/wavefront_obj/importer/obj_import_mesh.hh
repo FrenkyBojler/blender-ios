@@ -64,7 +64,7 @@ class MeshFromGeometry : NonMovable, NonCopyable {
   /**
    * Add UV layer and vertices to the Mesh.
    */
-  void create_uv_verts(Mesh *mesh);
+  void create_uv_verts(Mesh *mesh, const OBJImportParams &import_params);
   /**
    * Add materials and the node-tree to the Mesh Object.
    */
