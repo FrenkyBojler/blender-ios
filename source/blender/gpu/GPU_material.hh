@@ -318,13 +318,13 @@ constexpr bool gpu_type_is_ubo_supported(const GPUType type)
     case GPU_VEC3:
     case GPU_VEC4:
     case GPU_MAT4:
-      return true;
-    case GPU_NONE:
     case GPU_INT:
     case GPU_INT2:
     case GPU_INT3:
     case GPU_INT4:
     case GPU_BOOL:
+      return true;
+    case GPU_NONE:
     case GPU_MAT3:
     case GPU_TEX1D_ARRAY:
     case GPU_TEX2D:
