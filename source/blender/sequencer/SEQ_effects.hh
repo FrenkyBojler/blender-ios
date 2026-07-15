@@ -34,7 +34,9 @@ void effect_free(Strip *strip);
  * take variable number of inputs. */
 int effect_type_get_min_num_inputs(StripType type);
 bool strip_type_is_effect(StripType type);
-bool strip_is_transition(const Strip *strip);
+/* Compositor strips can be non-transitions as well, depending on the number of inputs.
+ * Use #Strip::is_transition to test for this. */
+bool strip_type_can_be_transition(StripType type);
 
 void effect_text_font_set(Strip *strip, VFont *font);
 bool effects_can_render_text(const Strip *strip);

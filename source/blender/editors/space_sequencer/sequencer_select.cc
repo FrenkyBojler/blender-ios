@@ -105,7 +105,7 @@ bool deselect_transition_handles(const Scene *scene)
   }
 
   for (Strip &strip : *seq::active_seqbase_get(ed)) {
-    if (seq::strip_is_transition(&strip) && (strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL))) {
+    if (strip.is_transition() && (strip.flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL))) {
       strip.flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
       changed = true;
     }
@@ -116,7 +116,7 @@ bool deselect_transition_handles(const Scene *scene)
 static void deselect_non_transitions(ListBaseT<Strip> *seqbase)
 {
   for (Strip &strip : *seqbase) {
-    if (!seq::strip_is_transition(&strip)) {
+    if (!strip.is_transition()) {
       strip.flag &= ~STRIP_ALLSEL;
     }
   }
@@ -341,7 +341,7 @@ Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int l
     sel = SEQ_SELECT;
   }
   for (Strip &strip : *ed->current_strips()) {
-    if (seq::strip_is_transition(&strip)) {
+    if (strip.is_transition()) {
       continue;
     }
     if ((&strip != test) && (test->channel == strip.channel) &&
@@ -421,7 +421,7 @@ static bool has_transition_handles_selected(Scene *scene)
    * active strip is a transition and has a handle selected. */
   Strip *active = seq::select_active_get(scene);
 
-  if (active && seq::strip_is_transition(active)) {
+  if (active && active->is_transition()) {
     if ((active->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
       return true;
     }
@@ -471,7 +471,7 @@ static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op
   }
   for (Strip *strip : strips) {
     /* Transition handles and normal strips should not be selected at the same time. */
-    if (seq::strip_is_transition(strip)) {
+    if (strip->is_transition()) {
       strip->flag &= ~(SEQ_LEFTSEL | SEQ_RIGHTSEL);
     }
     switch (action) {
@@ -942,7 +942,7 @@ static float inner_clickable_handle_size_get(const Scene *scene,
 
 bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d)
 {
-  if (strip->is_effect_with_inputs() && !seq::strip_is_transition(strip)) {
+  if (strip->is_effect_with_inputs() && !strip->is_transition()) {
     return false;
   }
 
@@ -1041,7 +1041,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     if (strip.right_handle(scene) < v2d->cur.xmin) {
       continue;
     }
-    if (!transitions.is_empty() && seq::strip_is_transition(&strip)) {
+    if (!transitions.is_empty() && strip.is_transition()) {
       continue;
     }
     const rctf body = strip_clickable_area_get(scene, sseq, v2d, &strip);
@@ -1049,7 +1049,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
       continue;
     }
     /* Transitions don't have adjacent handle selection. */
-    if (seq::strip_is_transition(&strip)) {
+    if (strip.is_transition()) {
       transitions.append(&strip);
     }
     else {
@@ -1210,7 +1210,7 @@ static wmOperatorStatus sequencer_select_transition_exec(bContext *C,
   if (was_selected) {
     copy_to = seq::query_selected_strips(seq::active_seqbase_get(scene->ed));
     copy_to.remove(strip);
-    copy_to.remove_if([](Strip *strip) { return !seq::strip_is_transition(strip); });
+    copy_to.remove_if([](Strip *strip) { return !strip->is_transition(); });
   }
 
   if (deselect_all || (!extend && !deselect && !toggle)) {
@@ -1299,7 +1299,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   }
   else {
     selection = pick_strip_and_handle(scene, sseq, v2d, mouse_co.view);
-    if (selection.strip1 && seq::strip_is_transition(selection.strip1)) {
+    if (selection.strip1 && selection.strip1->is_transition()) {
       return sequencer_select_transition_exec(C, op, selection);
     }
   }
@@ -1584,7 +1584,7 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
   }
 
   /* Ignore clicks on retiming keys, unless the transition strip is drawn on top. */
-  if (!seq::strip_is_transition(selection.strip1)) {
+  if (!selection.strip1->is_transition()) {
     Strip *strip_key_test = nullptr;
     SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_test);
     if (key != nullptr) {
@@ -1685,7 +1685,7 @@ static bool select_linked_internal(Scene *scene)
     if ((strip.flag & SEQ_SELECT) == 0) {
       continue;
     }
-    if (seq::strip_is_transition(&strip)) {
+    if (strip.is_transition()) {
       continue;
     }
     /* Only get unselected neighbors. */
@@ -1721,7 +1721,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
     if ((strip.flag & SEQ_SELECT) != selection_filter) {
       continue;
     }
-    if (seq::strip_is_transition(&strip)) {
+    if (strip.is_transition()) {
       continue;
     }
     Strip *neighbor = find_neighboring_strip(
@@ -1947,7 +1947,7 @@ static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *o
   Editing *ed = seq::editing_get(scene);
   int sel_side = RNA_enum_get(op->ptr, "side");
   for (Strip &strip : *ed->current_strips()) {
-    if (seq::strip_is_transition(&strip)) {
+    if (strip.is_transition()) {
       continue;
     }
     if (strip.flag & SEQ_SELECT) {
@@ -2136,7 +2136,7 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
     if (strip.channel >= seq::MAX_CHANNELS) [[unlikely]] {
       continue;
     }
-    if (seq::strip_is_transition(&strip)) {
+    if (strip.is_transition()) {
       continue;
     }
     int *frame_limit_p = &frame_ranges[strip.channel];
@@ -2294,10 +2294,10 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
       /* Select exclusively transition or non-transition handles based on the previous selection
        * state. Transition handles and non-transition handles must not be selected at the same
        * time. */
-      if (has_transition_handles && !seq::strip_is_transition(&strip)) {
+      if (has_transition_handles && !strip.is_transition()) {
         continue;
       }
-      if (!has_transition_handles && seq::strip_is_transition(&strip)) {
+      if (!has_transition_handles && strip.is_transition()) {
         continue;
       }
     }
@@ -3144,11 +3144,11 @@ static wmOperatorStatus sequencer_select_by_type_exec(bContext *C, wmOperator *o
 
     bool match;
     if (type == SEQ_SELECT_TYPE_TRANSITION) {
-      match = seq::strip_is_transition(strip);
+      match = strip->is_transition();
     }
     else if (type == SEQ_SELECT_TYPE_EFFECT) {
       match = strip->is_effect() && !ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT) &&
-              !seq::strip_is_transition(strip);
+              !strip->is_transition();
     }
     else if (type == SEQ_SELECT_TYPE_VISUAL) {
       match = strip->type != STRIP_TYPE_SOUND;

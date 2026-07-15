@@ -468,7 +468,8 @@ struct Strip {
   seq::StripRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
-  // TODO: move is_transition here
+  bool is_transition() const;
+
   bool is_effect() const;
   int effect_num_inputs_get() const;
   bool is_effect_with_inputs() const

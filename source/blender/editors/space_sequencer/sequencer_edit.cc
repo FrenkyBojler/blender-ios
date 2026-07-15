@@ -1497,7 +1497,7 @@ static wmOperatorStatus sequencer_connect_exec(bContext *C, wmOperator *op)
   bool has_transition = false;
   bool has_non_transition = false;
   for (Strip *strip : selected) {
-    if (seq::strip_is_transition(strip)) {
+    if (strip->is_transition()) {
       has_transition = true;
     }
     else {
@@ -1682,11 +1682,6 @@ const char *effect_inputs_validate(int have_inputs, int num_inputs)
   return nullptr;
 }
 
-static bool effect_type_is_transition(StripType type)
-{
-  return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE, STRIP_TYPE_COMPOSITOR);
-}
-
 VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
                                                StripType effect_type,
                                                int num_inputs,
@@ -1718,7 +1713,7 @@ VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
     Strip *first = inputs[0];
     Strip *second = inputs[1];
     bool do_swap = false;
-    if (effect_type_is_transition(effect_type)) {
+    if (seq::strip_type_can_be_transition(effect_type)) {
       /* Sort by timeline frame so 2-input transitions go "from" earlier "to" later. */
       const int first_start = first->left_handle();
       const int second_start = second->left_handle();

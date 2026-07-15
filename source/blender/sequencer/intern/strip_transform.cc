@@ -73,12 +73,12 @@ bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test)
 {
   /* Don't shuffle transitions. */
-  if (strip_is_transition(test)) {
+  if (test->is_transition()) {
     return false;
   }
   for (Strip &strip : *seqbasep) {
     /* Transitions overlap the strips they're applied on */
-    if ((strip.input1 == test || strip.input2 == test) && strip_is_transition(&strip)) {
+    if ((strip.input1 == test || strip.input2 == test) && strip.is_transition()) {
       continue;
     }
     if (flag_is_set(strip.runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
@@ -121,7 +121,7 @@ void transform_set_overlap_flags(const Scene *scene,
 
   /* First mark transitions for deletion. */
   for (Strip *strip : strips) {
-    if (seq::strip_is_transition(strip)) {
+    if (strip->is_transition()) {
       Strip *left = strip->input1;
       Strip *right = strip->input2;
       if (left->right_handle(scene) != right->left_handle() || left->channel != right->channel ||
@@ -139,7 +139,7 @@ void transform_set_overlap_flags(const Scene *scene,
     if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete)) {
       continue;
     }
-    if (!seq::strip_is_transition(strip)) {
+    if (!strip->is_transition()) {
       if (transform_test_overlap(scene, seqbasep, strip)) {
         strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
         /* Transitions also need to be marked as overlapping so that the draw order is correct.
@@ -147,7 +147,7 @@ void transform_set_overlap_flags(const Scene *scene,
          * recursively. */
         Span<Strip *> effects = lookup_effects_by_strip(ed, strip);
         for (Strip *e : effects) {
-          if (seq::strip_is_transition(e)) {
+          if (e->is_transition()) {
             e->runtime->flag |= seq::StripRuntimeFlag::Overlap;
           }
         }
@@ -181,9 +181,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
     strip->handles_set(evil_scene, left_handle + delta, right_handle + delta);
   }
   /* All other strip types. */
-  else if ((strip->input1 == nullptr && strip->input2 == nullptr) ||
-           seq::strip_is_transition(strip))
-  {
+  else if ((strip->input1 == nullptr && strip->input2 == nullptr) || strip->is_transition()) {
     strip->start += delta;
     /* Only to make files usable in older versions. */
     strip->startdisp = strip->left_handle();

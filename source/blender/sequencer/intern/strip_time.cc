@@ -183,7 +183,7 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
     return;
   }
   // tmp?
-  if (strip_is_transition(strip)) {
+  if (strip->is_transition()) {
     return;
   }
 
@@ -537,7 +537,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
 
 int Strip::left_handle() const
 {
-  if ((this->input1 || this->input2) && !seq::strip_is_transition(this)) {
+  if ((this->input1 || this->input2) && !this->is_transition()) {
     return this->startdisp;
   }
 
@@ -546,7 +546,7 @@ int Strip::left_handle() const
 
 int Strip::right_handle(const Scene *scene) const
 {
-  if ((this->input1 || this->input2) && !seq::strip_is_transition(this)) {
+  if ((this->input1 || this->input2) && !this->is_transition()) {
     return this->enddisp;
   }
 

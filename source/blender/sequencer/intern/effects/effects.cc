@@ -28,7 +28,8 @@
 #include "effects.hh"
 #include "render.hh"
 
-namespace blender::seq {
+namespace blender {
+namespace seq {
 
 SeqResult prepare_effect_imbufs(const RenderData *context,
                                 const SeqResult &ibuf1,
@@ -327,7 +328,7 @@ static float transition_fader_calc(const Scene *scene, const Strip *strip, float
 float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame)
 {
   if (strip->flag & SEQ_USE_EFFECT_DEFAULT_FADE) {
-    if (strip_is_transition(strip)) {
+    if (strip->is_transition()) {
       return transition_fader_calc(scene, strip, timeline_frame);
     }
     return 1.0f;
@@ -375,14 +376,17 @@ bool strip_type_is_effect(StripType type)
          (type >= STRIP_TYPE_GAUSSIAN_BLUR && type <= STRIP_TYPE_COLORMIX);
 }
 
-bool strip_is_transition(const Strip *strip)
+bool strip_type_can_be_transition(StripType type)
 {
-  return (strip->input1 != nullptr) && (strip->input2 != nullptr) &&
-         ELEM(strip->type,
-              STRIP_TYPE_CROSS,
-              STRIP_TYPE_GAMCROSS,
-              STRIP_TYPE_WIPE,
-              STRIP_TYPE_COMPOSITOR);
+  return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE, STRIP_TYPE_COMPOSITOR);
 }
 
-}  // namespace blender::seq
+}  // namespace seq
+
+bool Strip::is_transition() const
+{
+  return (this->input1 != nullptr) && (this->input2 != nullptr) &&
+         seq::strip_type_can_be_transition(this->type);
+}
+
+}  // namespace blender

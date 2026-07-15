@@ -169,7 +169,7 @@ static void strip_draw_context_set_text_overlay_visibility(const TimelineDrawCon
                                                            StripDrawContext &strip_ctx)
 {
   float threshold = 8 * UI_SCALE_FAC;
-  if (seq::strip_is_transition(strip_ctx.strip)) {
+  if (strip_ctx.strip->is_transition()) {
     threshold = 40 * UI_SCALE_FAC;
   }
   else if (strip_hides_text_overlay_first(ctx, strip_ctx)) {
@@ -218,7 +218,7 @@ static rctf strip_bounds_get(const Scene *scene,
   bounds.ymax = strip->channel + STRIP_OFSTOP;
 
   float pixely = BLI_rctf_size_y(&v2d->cur) / (BLI_rcti_size_y(&v2d->mask) + 1);
-  if (seq::strip_is_transition(strip)) {
+  if (strip->is_transition()) {
     if (strip_header_poll(sseq, pixely, bounds.ymax - bounds.ymin)) {
       bounds.ymax -= strip_header_size_get(pixely);
     }
@@ -251,7 +251,7 @@ bool strip_overlaps_retiming_region(const Scene *scene,
                                     const View2D *v2d,
                                     const Strip *strip)
 {
-  if (seq::strip_is_transition(strip)) {
+  if (strip->is_transition()) {
     bool has_retiming_region_offset;
     strip_bounds_get(scene, sseq, v2d, strip, has_retiming_region_offset);
     return !has_retiming_region_offset;
@@ -956,7 +956,7 @@ static void get_strip_text_color(const StripDrawContext &strip_ctx, uchar r_col[
   const Strip *strip = strip_ctx.strip;
   const bool active_or_selected = (strip->flag & SEQ_SELECT) || strip_ctx.is_active_strip;
 
-  if (seq::strip_is_transition(strip)) {
+  if (strip->is_transition()) {
     r_col[0] = r_col[1] = r_col[2] = 0;
     r_col[3] = active_or_selected ? 255 : 150;
     return;
@@ -1343,7 +1343,7 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
     StripDrawContext strip_ctx = strip_draw_context_get(ctx, strip);
     // tmp (doesn't support transitions on transitions when moving)
     if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap)) {
-      if (seq::strip_is_transition(strip)) {
+      if (strip->is_transition()) {
         r_top_layer_transitions.append(strip_ctx);
       }
       else {
@@ -1351,7 +1351,7 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
       }
     }
     else {
-      if (seq::strip_is_transition(strip)) {
+      if (strip->is_transition()) {
         r_bottom_layer_transitions.append(strip_ctx);
       }
       else {
@@ -1524,9 +1524,7 @@ static void strip_data_highlight_flags_set(const StripDrawContext &strip,
   const Strip *act_strip = seq::select_active_get(ctx.scene);
   const Strip *special_preview = special_preview_get();
   /* Highlight if strip is an input of an active strip, or if the strip is solo preview. */
-  if (act_strip != nullptr && (act_strip->flag & SEQ_SELECT) != 0 &&
-      !seq::strip_is_transition(act_strip))
-  {
+  if (act_strip != nullptr && (act_strip->flag & SEQ_SELECT) != 0 && !act_strip->is_transition()) {
     if (act_strip->input1 == strip.strip || act_strip->input2 == strip.strip) {
       data.flags |= GPU_SEQ_FLAG_HIGHLIGHT;
     }

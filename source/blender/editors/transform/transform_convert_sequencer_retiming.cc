@@ -47,11 +47,11 @@ struct TransDataSeq {
 
 }  // namespace
 
-static Strip *get_left_inputs_transition(Editing *ed, const Strip *strip)
+static Strip *get_transition_of_left_input(Editing *ed, const Strip *strip)
 {
   Span<Strip *> effect_strips = seq::lookup_effects_by_strip(ed, strip);
   for (Strip *effect : effect_strips) {
-    if (seq::strip_is_transition(effect) && effect->input1 == strip) {
+    if (effect->is_transition() && effect->input1 == strip) {
       return effect;
     }
   }
@@ -85,7 +85,7 @@ static TransData *SeqToTransData(const Scene *scene,
   const bool key_moves_right_handle = tdseq->orig_timeline_frame == strip->right_handle(scene) &&
                                       !seq::retiming_key_is_transition_type(key);
   if (key_moves_right_handle) {
-    Strip *transition = get_left_inputs_transition(seq::editing_get(scene), strip);
+    Strip *transition = get_transition_of_left_input(seq::editing_get(scene), strip);
     if (transition) {
       SeqRetimingKey *right_input_key = seq::retiming_key_get_by_frame(
           scene, transition->input2, tdseq->orig_timeline_frame);
