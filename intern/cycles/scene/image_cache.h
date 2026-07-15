@@ -7,7 +7,6 @@
 #include "device/device.h"
 #include "device/memory.h"
 
-#include "util/concurrent_vector.h"
 #include "util/hash.h"
 #include "util/set.h"
 #include "util/unique_ptr_vector.h"
@@ -118,13 +117,10 @@ class ImageCache {
                                 const float texture_resolution,
                                 KernelImageTexture &tex);
 
-  void load_image_tile_descriptors(DeviceScene &dscene,
-                                   const ImageMetaData &metadata,
-                                   KernelImageTexture &tex,
-                                   concurrent_vector<KernelTileDescriptor> &tile_descriptors);
+  void load_image_tiled(const ImageMetaData &metadata, KernelImageTexture &tex);
 
-  void load_image_tiled(DeviceScene &dscene,
-                        const concurrent_vector<KernelTileDescriptor> &tile_descriptors);
+  void load_image_tiled_descriptors(DeviceScene &dscene,
+                                    std::span<KernelImageTexture> image_textures);
 
   void free_image(DeviceScene &dscene, const KernelImageTexture &tex);
 

@@ -467,7 +467,6 @@ void ImageManager::device_copy_image_textures(Device *device, Scene *scene)
 void ImageManager::device_load_image(Device *device,
                                      Scene *scene,
                                      const size_t image_texture_id,
-                                     concurrent_vector<KernelTileDescriptor> &tile_descriptors,
                                      Progress &progress)
 {
   if (progress.get_cancel()) {
@@ -501,7 +500,7 @@ void ImageManager::device_load_image(Device *device,
       tex.height = std::max(1, tex.height / 2);
       max_dim /= 2;
     }
-    image_cache.load_image_tile_descriptors(scene->dscene, img->metadata, tex, tile_descriptors);
+    image_cache.load_image_tiled(img->metadata, tex);
   }
   else {
     /* Compute texture resolution scale factor from texture size limit. */
@@ -521,6 +520,13 @@ void ImageManager::device_load_image(Device *device,
   /* Cleanup memory in image loader. */
   img->loader->cleanup();
   img->need_load = false;
+}
+
+void ImageManager::device_load_tiled_descriptors(Scene *scene)
+{
+  DeviceScene &dscene = scene->dscene;
+  image_cache.load_image_tiled_descriptors(
+      dscene, {dscene.image_textures.data(), dscene.image_textures.size()});
 }
 
 void ImageManager::device_free_image(Scene *scene, size_t image_texture_id)
@@ -655,9 +661,6 @@ void ImageManager::device_update(Device *device, Scene *scene, Progress &progres
   /* Resize devices arrays to match. */
   device_resize_image_textures(scene);
 
-  /* Defer tiled/cached to one device update change. */
-  concurrent_vector<KernelTileDescriptor> tile_descriptors;
-
   /* Free and load images. */
   TaskPool pool;
   for (auto [image_texture_id, img] : images.enumerate()) {
@@ -665,14 +668,14 @@ void ImageManager::device_update(Device *device, Scene *scene, Progress &progres
       device_free_image(scene, image_texture_id);
     }
     else if (img && img->need_load) {
-      pool.push([this, device, scene, image_texture_id, &tile_descriptors, &progress] {
-        device_load_image(device, scene, image_texture_id, tile_descriptors, progress);
+      pool.push([this, device, scene, image_texture_id, &progress] {
+        device_load_image(device, scene, image_texture_id, progress);
       });
     }
   }
 
   pool.wait_work();
-  image_cache.load_image_tiled(scene->dscene, tile_descriptors);
+  device_load_tiled_descriptors(scene);
   report_failures();
 
   /* Copy device arrays. */
@@ -698,24 +701,21 @@ void ImageManager::device_load_images(Device *device,
   /* Resize devices arrays to match number of images. */
   device_resize_image_textures(scene);
 
-  /* Defer tiled/cached to one device update change. */
-  concurrent_vector<KernelTileDescriptor> tile_descriptors;
-
   /* Load handles. */
   TaskPool pool;
   for (const ImageSingle *img : images) {
-    pool.push([this, device, scene, img, &tile_descriptors, &progress] {
+    pool.push([this, device, scene, img, &progress] {
       assert(img != nullptr);
       if (img->users == 0) {
         device_free_image(scene, img->image_texture_id);
       }
       else if (img->need_load) {
-        device_load_image(device, scene, img->image_texture_id, tile_descriptors, progress);
+        device_load_image(device, scene, img->image_texture_id, progress);
       }
     });
   }
   pool.wait_work();
-  image_cache.load_image_tiled(scene->dscene, tile_descriptors);
+  device_load_tiled_descriptors(scene);
   report_failures();
 
   /* Copy device arrays. */
@@ -732,20 +732,17 @@ void ImageManager::device_load_builtin(Device *device, Scene *scene, Progress &p
 
   device_resize_image_textures(scene);
 
-  /* Defer tiled/cached to one device update change. */
-  concurrent_vector<KernelTileDescriptor> tile_descriptors;
-
   TaskPool pool;
   for (auto [image_texture_id, img] : images.enumerate()) {
     if (img && img->need_load && img->builtin) {
-      pool.push([this, device, scene, image_texture_id, &tile_descriptors, &progress] {
-        device_load_image(device, scene, image_texture_id, tile_descriptors, progress);
+      pool.push([this, device, scene, image_texture_id, &progress] {
+        device_load_image(device, scene, image_texture_id, progress);
       });
     }
   }
 
   pool.wait_work();
-  image_cache.load_image_tiled(scene->dscene, tile_descriptors);
+  device_load_tiled_descriptors(scene);
   report_failures();
 }
 

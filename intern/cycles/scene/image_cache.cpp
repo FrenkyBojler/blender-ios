@@ -492,10 +492,7 @@ void ImageCache::free_tile(const KernelTileDescriptor tile)
 
 /* Tile descriptor management. */
 
-void ImageCache::load_image_tile_descriptors(DeviceScene &dscene,
-                                             const ImageMetaData &metadata,
-                                             KernelImageTexture &tex,
-                                             concurrent_vector<KernelTileDescriptor> &tile_descriptors)
+void ImageCache::load_image_tiled(const ImageMetaData &metadata, KernelImageTexture &tex)
 {
   assert(is_power_of_two(metadata.tile_size));
 
@@ -506,15 +503,14 @@ void ImageCache::load_image_tile_descriptors(DeviceScene &dscene,
   const InterpolationType interpolation = InterpolationType(tex.interpolation);
   const int max_miplevels = interpolation != INTERPOLATION_CLOSEST ? 1 : INT_MAX;
 
-  vector<KernelTileDescriptor> levels;
+  int num_levels = 0;
   int num_tiles = 0;
 
   for (int miplevel = 0; max_miplevels; miplevel++) {
     const int mip_width = std::max(1, tex.width >> miplevel);
     const int mip_height = std::max(1, tex.height >> miplevel);
 
-    levels.push_back(num_tiles);
-
+    num_levels++;
     num_tiles += divide_up(mip_width, tile_size) * divide_up(mip_height, tile_size);
 
     if (mip_width <= tile_size && mip_height <= tile_size) {
@@ -522,42 +518,76 @@ void ImageCache::load_image_tile_descriptors(DeviceScene &dscene,
     }
   }
 
-  auto tile_descriptor_start = tile_descriptors.grow_by(levels.size() + num_tiles);
-
-  size_t tile_descriptor_offset = tile_descriptor_start - tile_descriptors.begin(); 
-
-  for (int i = 0; i < levels.size(); i++) {
-    tile_descriptors[tile_descriptor_offset + i] = levels.size() + levels[i];
-  }
-  std::fill_n(tile_descriptor_start + levels.size(), num_tiles, KERNEL_TILE_LOAD_NONE);
-
-  const size_t tile_descriptors_offset = dscene.image_texture_tile_descriptors.size();
-
-  tex.tile_descriptor_offset = tile_descriptors_offset + tile_descriptor_offset;
-  tex.tile_levels = levels.size();
+  /* The descriptor range is assigned later in #load_image_tiled_descriptors,
+   * to avoid lock contention. */
+  tex.tile_descriptor_offset = KERNEL_TILE_LOAD_NONE;
+  tex.tile_levels = num_levels;
   tex.tile_num = num_tiles;
 }
 
-void ImageCache::load_image_tiled(DeviceScene &dscene,
-                                  const concurrent_vector<KernelTileDescriptor> &tile_descriptors)
+void ImageCache::load_image_tiled_descriptors(DeviceScene &dscene,
+                                              std::span<KernelImageTexture> image_textures)
 {
-  if (tile_descriptors.size())
-  {
-    device_vector<KernelTileDescriptor> &device_tile_descriptors = dscene.image_texture_tile_descriptors;
-
-    const size_t device_tile_descriptors_offset = device_tile_descriptors.size();
-    device_tile_descriptors.resize(device_tile_descriptors_offset + tile_descriptors.size());
-    std::copy(tile_descriptors.begin(), tile_descriptors.end(), device_tile_descriptors.data() + device_tile_descriptors_offset);
-
-    device_vector<uint8_t> &device_tile_access = dscene.image_texture_tile_access_state;
-    const size_t old_size = device_tile_access.size();
-    if (device_tile_descriptors.size() > old_size) {
-      device_tile_access.resize(device_tile_descriptors.size());
-      memset(device_tile_access.data() + old_size,
-            KERNEL_TILE_ACCESS_NONE,
-            device_tile_descriptors.size() - old_size);
+  /* Find which image textures need tile descriptors filled. */
+  size_t num_descriptors = 0;
+  for (const KernelImageTexture &tex : image_textures) {
+    if (tex.tile_num > 0 && tex.tile_descriptor_offset == KERNEL_TILE_LOAD_NONE) {
+      num_descriptors += tex.tile_levels + tex.tile_num;
     }
-    stats.resize(device_tile_descriptors.size());
+  }
+
+  if (num_descriptors == 0) {
+    return;
+  }
+
+  /* Resize device vector. */
+  const thread_scoped_lock device_lock(device_mutex);
+
+  device_vector<KernelTileDescriptor> &tile_descriptors = dscene.image_texture_tile_descriptors;
+  device_vector<uint8_t> &tile_access = dscene.image_texture_tile_access_state;
+
+  size_t offset = tile_descriptors.size();
+  tile_descriptors.resize(offset + num_descriptors);
+
+  /* Initialize with a single memset, with assumption about KERNEL_TILE_LOAD_NONE value.
+   * This is the bulk of memory that needs to be set. */
+  static_assert(KERNEL_TILE_LOAD_NONE == ~KernelTileDescriptor(0),
+                "KERNEL_TILE_LOAD_NONE must be all 0xFF bytes for memset initialization");
+  memset(tile_descriptors.data() + offset, 0xFF, num_descriptors * sizeof(KernelTileDescriptor));
+
+  const size_t tile_access_old_size = tile_access.size();
+  if (tile_descriptors.size() > tile_access_old_size) {
+    tile_access.resize(tile_descriptors.size());
+    memset(tile_access.data() + tile_access_old_size,
+           KERNEL_TILE_ACCESS_NONE,
+           tile_descriptors.size() - tile_access_old_size);
+  }
+
+  stats.resize(tile_descriptors.size());
+
+  /* Fill mip level information in tile descriptors. */
+  for (KernelImageTexture &tex : image_textures) {
+    if (!(tex.tile_num > 0 && tex.tile_descriptor_offset == KERNEL_TILE_LOAD_NONE)) {
+      continue;
+    }
+
+    tex.tile_descriptor_offset = offset;
+
+    KernelTileDescriptor *descr_data = tile_descriptors.data() + offset;
+    const int tile_size = 1 << tex.tile_size_shift;
+    int num_tiles = 0;
+
+    for (int miplevel = 0; miplevel < tex.tile_levels; miplevel++) {
+      descr_data[miplevel] = tex.tile_levels + num_tiles;
+
+      const int mip_width = std::max(1, tex.width >> miplevel);
+      const int mip_height = std::max(1, tex.height >> miplevel);
+      num_tiles += divide_up(mip_width, tile_size) * divide_up(mip_height, tile_size);
+    }
+
+    assert(num_tiles == tex.tile_num);
+
+    offset += tex.tile_levels + tex.tile_num;
   }
 }
 
