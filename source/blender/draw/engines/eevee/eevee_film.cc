@@ -116,7 +116,7 @@ float *Film::read_aov(ViewLayerAOV *aov)
 gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
 {
   bool is_value = (aov->type == AOV_TYPE_VALUE);
-  Texture &accum_tx = is_value ? value_accum_tx_.current() : color_accum_tx_.current();
+  Texture &accum_tx = is_value ? value_accum_tx_ : color_accum_tx_;
 
   /* Find AOV index next, by searching for the matching hash. */
   uint hash = BLI_hash_string(aov->name);
@@ -542,18 +542,12 @@ void Film::init(const int2 &extent, const rcti *output_rect)
     /* Two layers, one for nearest sample weight and one for weight accumulation. */
     reset += weight_tx_.current().ensure_2d_array(weight_format, weight_extent, 2);
     reset += weight_tx_.next().ensure_2d_array(weight_format, weight_extent, 2);
-    int2 color_accum_extent = (data_.color_len > 0) ? data_.extent : int2(1);
-    int color_accum_layers = (data_.color_len > 0) ? data_.color_len : 1;
-    int2 value_accum_extent = (data_.value_len > 0) ? data_.extent : int2(1);
-    int value_accum_layers = (data_.value_len > 0) ? data_.value_len : 1;
-    reset += color_accum_tx_.current().ensure_2d_array(
-        color_format, color_accum_extent, color_accum_layers);
-    reset += color_accum_tx_.next().ensure_2d_array(
-        color_format, color_accum_extent, color_accum_layers);
-    reset += value_accum_tx_.current().ensure_2d_array(
-        float_format, value_accum_extent, value_accum_layers);
-    reset += value_accum_tx_.next().ensure_2d_array(
-        float_format, value_accum_extent, value_accum_layers);
+    reset += color_accum_tx_.ensure_2d_array(color_format,
+                                             (data_.color_len > 0) ? data_.extent : int2(1),
+                                             (data_.color_len > 0) ? data_.color_len : 1);
+    reset += value_accum_tx_.ensure_2d_array(float_format,
+                                             (data_.value_len > 0) ? data_.extent : int2(1),
+                                             (data_.value_len > 0) ? data_.value_len : 1);
     /* Divided by two as two cryptomatte samples fit in pixel (RG, BA). */
     int cryptomatte_array_len = cryptomatte_layer_len_get() *
                                 divide_ceil_u(data_.cryptomatte_samples_len, 2u);
@@ -570,10 +564,8 @@ void Film::init(const int2 &extent, const rcti *output_rect)
       use_reprojection_ = false;
 
       /* Avoid NaN in uninitialized texture memory making history blending dangerous. */
-      color_accum_tx_.current().clear(float4(0.0f));
-      color_accum_tx_.next().clear(float4(0.0f));
-      value_accum_tx_.current().clear(float4(0.0f));
-      value_accum_tx_.next().clear(float4(0.0f));
+      color_accum_tx_.clear(float4(0.0f));
+      value_accum_tx_.clear(float4(0.0f));
       combined_tx_.current().clear(float4(0.0f));
       weight_tx_.current().clear(float4(0.0f));
       depth_tx_.clear(float4(0.0f));
@@ -679,10 +671,8 @@ void Film::init_pass(PassSimple &pass, gpu::Shader *sh)
   pass.bind_texture("in_combined_tx", &combined_tx_.current(), filter);
   pass.bind_image("out_combined_img", &combined_tx_.next());
   pass.bind_image("depth_img", &depth_tx_);
-  pass.bind_texture("in_color_tx", &color_accum_tx_.current(), filter);
-  pass.bind_image("color_accum_img", &color_accum_tx_.next());
-  pass.bind_texture("in_value_tx", &value_accum_tx_.current(), filter);
-  pass.bind_image("value_accum_img", &value_accum_tx_.next());
+  pass.bind_image("color_accum_img", &color_accum_tx_);
+  pass.bind_image("value_accum_img", &value_accum_tx_);
   pass.bind_image("cryptomatte_img", &cryptomatte_tx_);
   pass.bind_image("denoising_depth_img", &denoising_depth_tx_);
   pass.bind_resources(inst_.uniform_data);
@@ -915,8 +905,6 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
 
   combined_tx_.swap();
   weight_tx_.swap();
-  color_accum_tx_.swap();
-  value_accum_tx_.swap();
 
   /* Use history after first sample. */
   if (data_.use_history == 0) {
@@ -983,9 +971,8 @@ gpu::Texture *Film::get_pass_texture(eViewLayerEEVEEPassType pass_type, int laye
                           depth_tx_ :
                       (pass_type == EEVEE_RENDER_PASS_DENOISING_DEPTH) ?
                           denoising_depth_tx_ :
-                          (is_cryptomatte ?
-                               cryptomatte_tx_ :
-                               (is_value ? value_accum_tx_.current() : color_accum_tx_.current()));
+                          (is_cryptomatte ? cryptomatte_tx_ :
+                                            (is_value ? value_accum_tx_ : color_accum_tx_));
 
   int index = pass_id_get(pass_type);
   if (index == -1) {
