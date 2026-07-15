@@ -1,3 +1,4 @@
 Referenced by issue #157416, EEVEE: Fast GI is broken in large scenes
 Referenced by pull request #157557, Fix #157416: Broken Fast GI when zoomed out
 Referenced by pull request #157810, Fix #157416: Fast GI breaks when zoomed out
+Referenced by issue #161472, Fast GI Approximation makes EEVEE raytracing dark
