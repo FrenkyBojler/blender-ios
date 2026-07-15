@@ -209,6 +209,11 @@ struct [[host_shared]] LightData {
    * to zero after each sync cycle. */
   uint2 shadow_set_membership;
 
+  uint resource_handle;
+  uint pad0_;
+  uint pad1_;
+  uint pad2_;
+
   union {
     union_t<struct LightLocalData> local;
     union_t<struct LightSpotData> spot;
