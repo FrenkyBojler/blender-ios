@@ -441,7 +441,7 @@ void LightModule::sync_light(const ObjectRef &ob_ref)
   light.used = true;
   ResourceHandleRange handle = inst_.manager->unique_handle(ob_ref);
   inst_.manager->extract_all_object_attributes(handle, ob_ref);
-  light.resource_handle = handle.index();
+  light.resource_id = handle.index();
   if (inst_.get_recalc_flags(ob_ref) != 0 || !light.initialized) {
     light.initialized = true;
     light.sync(inst_.shadows,

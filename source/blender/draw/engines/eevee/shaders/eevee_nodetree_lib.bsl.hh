@@ -929,4 +929,26 @@ void node_shadow_raycast_impl(float3 position, float spread, float4 &color)
 #endif
 }
 
+float4 node_attribute_light_impl(uint attr_hash)
+{
+  /* clang-format off */ /* Multiline macros would break line count. */
+  [[resource_table]] const eevee::LightRenderData &lrd = resource_table_get(eevee::LightRenderData);
+  /* clang-format on */
+  [[resource_table]] const draw::Infos &infos = resource_table_get(draw::Infos);
+
+  LightData light = lrd.light_buf[g_data.light_index];
+  ObjectInfos info = infos.get(light.resource_id);
+
+  const auto &attrs_buf = buffer_get(draw_object_attributes, drw_attrs);
+
+  uint index = info.object_attrs_offset;
+  for (uint i = 0; i < info.object_attrs_len; i++, index++) {
+    ObjectAttribute attr = attrs_buf[index];
+    if (attr.hash_code == attr_hash) {
+      return float4(attr.data_x, attr.data_y, attr.data_z, attr.data_w);
+    }
+  }
+  return float4(0.0f);
+}
+
 /** \} */

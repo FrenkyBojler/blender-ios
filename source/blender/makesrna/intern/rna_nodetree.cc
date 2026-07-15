@@ -5286,6 +5286,11 @@ static void def_sh_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
        0,
        "View Layer",
        "The attribute is associated with the View Layer, Scene or World that is being rendered"},
+      {SHD_ATTRIBUTE_LIGHT,
+       "LIGHT",
+       0,
+       "Light",
+       "The attribute is associated with the Light that is being rendered"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   PropertyRNA *prop;

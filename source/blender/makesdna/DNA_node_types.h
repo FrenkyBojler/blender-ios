@@ -501,6 +501,7 @@ enum eNodeShader_AttributeType : short {
   SHD_ATTRIBUTE_OBJECT = 1,
   SHD_ATTRIBUTE_INSTANCER = 2,
   SHD_ATTRIBUTE_VIEW_LAYER = 3,
+  SHD_ATTRIBUTE_LIGHT = 4,
 };
 
 /* toon modes */

@@ -73,3 +73,13 @@ void node_attribute(float4 attr, float4 &outcol, float3 &outvec, float &outf, fl
   outf = math_average(attr.xyz);
   outalpha = attr.w;
 }
+
+[[node]]
+void node_attribute_light(
+    const float attr_hash, float4 &outcol, float3 &outvec, float &outf, float &outalpha)
+{
+  outcol = node_attribute_light_impl(floatBitsToUint(attr_hash));
+  outvec = outcol.xyz;
+  outf = math_average(outcol.xyz);
+  outalpha = outcol.w;
+}

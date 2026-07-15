@@ -9,6 +9,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "BLI_ghash.hh"
+
 #include "RNA_access.hh"
 
 namespace blender {
@@ -51,6 +53,16 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
   NodeShaderAttribute *attr = static_cast<NodeShaderAttribute *>(node->storage);
   bool is_varying = attr->type == SHD_ATTRIBUTE_GEOMETRY;
   float attr_hash = 0.0f;
+
+  if (attr->type == SHD_ATTRIBUTE_LIGHT) {
+    const bool use_dupli = false;
+    /* Mimic gpu_node_graph_add_uniform_attribute */
+    uint hash_code = BLI_ghashutil_strhash_p(attr->name) << 1 | (use_dupli ? 0 : 1);
+
+    attr_hash = *reinterpret_cast<float *>(&hash_code);
+    // TODO: Should be uniform?
+    GPU_stack_link(mat, node, "node_attribute", in, out, GPU_constant(&attr_hash));
+  }
 
   GPUNodeLink *cd_attr;
 
