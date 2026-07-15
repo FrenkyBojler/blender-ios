@@ -992,6 +992,7 @@ enum class Operation : int8_t {
 struct CurveBooleanOpParameters {
   Operation boolean_mode;
   bool keep_caps;
+  bool skip_clipping_attributes;
 };
 
 bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_params,
