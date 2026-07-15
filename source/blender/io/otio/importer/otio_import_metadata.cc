@@ -62,14 +62,9 @@ static bool any_cast_set(AnyDictionary &any_dict,
 TransitionMetadata fetch_transition_metadata(Transition *transition)
 {
   TransitionMetadata transition_metadata;
-
-  AnyDictionary root = transition->metadata();
-  if (!root.has_key("blender")) {
-    return transition_metadata;
-  }
-
   AnyDictionary metadata;
-  if (!any_cast_set(root, "blender", metadata)) {
+
+  if (!any_cast_set(transition->metadata(), "blender", metadata)) {
     return transition_metadata;
   }
 
