@@ -198,8 +198,12 @@ void sort_groups(const OffsetIndices<int> groups, MutableSpan<int> indices)
 /** Number of indices that are counted as one chunk. */
 static constexpr int64_t COUNTING_SORT_CHUNK_SIZE = 32768;
 
-/** Maximum number of groups or buckets that are sorted in a single pass. */
-static constexpr int64_t COUNTING_SORT_MAX_BUCKETS = 8192;
+/** Maximum number of groups sorted with a single pass counting sort. */
+static constexpr int64_t COUNTING_SORT_MAX_GROUPS = 16384;
+
+/** Maximum number of buckets sorted in the first pass of the radix sort. A small number keeps
+ * the first pass cache friendly, at the cost of more groups per bucket in the second pass. */
+static constexpr int64_t RADIX_SORT_MAX_BUCKETS = 512;
 
 /**
  * Compute shift so that `group >> shift` maps a group to a bucket. In simple
@@ -208,7 +212,7 @@ static constexpr int64_t COUNTING_SORT_MAX_BUCKETS = 8192;
 static int radix_sort_bucket_shift(const int64_t groups_num)
 {
   int shift = 0;
-  while (((groups_num - 1) >> shift) >= COUNTING_SORT_MAX_BUCKETS) {
+  while (((groups_num - 1) >> shift) >= RADIX_SORT_MAX_BUCKETS) {
     shift++;
   }
   return shift;
@@ -312,7 +316,7 @@ static void sort_indices_into_groups(const Span<int> indices,
   const int shift = radix_sort_bucket_shift(groups_num);
   const int64_t chunks_num = divide_ceil_ul(indices.size(), COUNTING_SORT_CHUNK_SIZE);
 
-  if (shift == 0) {
+  if (groups_num <= COUNTING_SORT_MAX_GROUPS || shift == 0) {
     /* Few groups, single pass counting sort. */
     Array<int> chunk_counts(chunks_num * groups_num, NoInitialization());
     count_indices_per_chunk(indices, 0, groups_num, chunk_counts);
