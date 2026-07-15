@@ -38,6 +38,54 @@ class TestGpuFrameBuffer(unittest.TestCase):
                 fb.read_color(-1, 0, 1, 1, 4, 0, "UBYTE")
 
 
+class TestGpuStorageBuf(unittest.TestCase):
+    def test_create_update_read(self):
+        import struct
+
+        gpu.init()
+
+        data = struct.pack("4f", 1.0, 2.0, 3.0, 4.0)
+        ssbo = gpu.types.GPUStorageBuf(data)
+
+        self.assertEqual(struct.unpack("4f", bytes(ssbo.read())), (1.0, 2.0, 3.0, 4.0))
+
+        new_data = struct.pack("4f", 10.0, 20.0, 30.0, 40.0)
+        ssbo.update(new_data)
+        self.assertEqual(struct.unpack("4f", bytes(ssbo.read())), (10.0, 20.0, 30.0, 40.0))
+
+        ssbo.clear_to_zero()
+        self.assertEqual(struct.unpack("4f", bytes(ssbo.read())), (0.0, 0.0, 0.0, 0.0))
+
+        # Should not raise.
+        ssbo.sync_to_host()
+
+    def test_compute_shader_binding(self):
+        import struct
+
+        gpu.init()
+
+        info = gpu.types.GPUShaderCreateInfo()
+        info.storage_buf(0, {"READ", "WRITE"}, "float", "data[]")
+        info.local_group_size(4)
+        info.compute_source(
+            """
+            void main() {
+              uint i = gl_GlobalInvocationID.x;
+              data[i] = data[i] * 2.0;
+            }
+            """
+        )
+
+        shader = gpu.shader.create_from_info(info)
+        ssbo = gpu.types.GPUStorageBuf(struct.pack("4f", 1.0, 2.0, 3.0, 4.0))
+
+        shader.bind()
+        shader.storage_block("data", ssbo)
+        gpu.compute.dispatch(shader, 1, 1, 1)
+
+        self.assertEqual(struct.unpack("4f", bytes(ssbo.read())), (2.0, 4.0, 6.0, 8.0))
+
+
 if __name__ == "__main__":
     import sys
 
