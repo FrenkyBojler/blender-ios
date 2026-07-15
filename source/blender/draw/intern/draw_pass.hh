@@ -709,8 +709,8 @@ template<class T> inline PassBase<T> &PassBase<T>::sub(const char *name)
 template<class T>
 void PassBase<T>::warm_shader_specialization(command::RecordingState &state) const
 {
-  GPU_debug_group_begin("warm_shader_specialization");
-  GPU_debug_group_begin(this->debug_name);
+  GPU_debug_group("warm_shader_specialization");
+  GPU_debug_group(this->debug_name);
 
   for (const command::Header &header : headers_) {
     switch (header.type) {
@@ -756,9 +756,6 @@ void PassBase<T>::warm_shader_specialization(command::RecordingState &state) con
         break;
     }
   }
-
-  GPU_debug_group_end();
-  GPU_debug_group_end();
 }
 
 template<class T> void PassBase<T>::submit(command::RecordingState &state) const
@@ -767,7 +764,7 @@ template<class T> void PassBase<T>::submit(command::RecordingState &state) const
     return;
   }
 
-  GPU_debug_group_begin(debug_name);
+  GPU_debug_group(debug_name);
 
   for (const command::Header &header : headers_) {
     switch (header.type) {
@@ -829,8 +826,6 @@ template<class T> void PassBase<T>::submit(command::RecordingState &state) const
         commands_[header.index].texture_copy.execute();
     }
   }
-
-  GPU_debug_group_end();
 }
 
 template<class T> std::string PassBase<T>::serialize(std::string line_prefix) const

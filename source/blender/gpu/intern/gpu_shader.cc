@@ -802,10 +802,15 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   TimePoint start_time;
 
+  static gpu::DebugGroup debug_shader_compilation_group;
+  static gpu::DebugGroup debug_named_group;
+
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
-    GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
-    GPU_debug_group_begin(orig_info.name_.c_str());
+    debug_shader_compilation_group = GPU_DEBUG_SHADER_COMPILATION_GROUP;
+    debug_named_group = orig_info.name_.c_str();
+    debug_shader_compilation_group.begin();
+    debug_named_group.begin();
   }
   else if (G.profile_gpu) {
     start_time = Clock::now();
@@ -987,8 +992,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
-    GPU_debug_group_end();
-    GPU_debug_group_end();
+    debug_named_group.end();
+    debug_shader_compilation_group.end();
   }
   else if (G.profile_gpu) {
     TimePoint end_time = Clock::now();

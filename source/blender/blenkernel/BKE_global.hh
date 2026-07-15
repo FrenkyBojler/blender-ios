@@ -168,7 +168,7 @@ struct Global {
   char autoexec_fail[200];
 
   /**
-   * Triggers a GPU capture if the name matches a DebugScope.
+   * Triggers a GPU capture if the name matches a DebugCapture.
    * Set using `--debug-gpu-scope-capture "debug_scope"`.
    */
   char gpu_debug_scope_name[100];

@@ -1260,7 +1260,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
                                                   uint resource_len,
                                                   bool /*debug_freeze*/)
 {
-  GPU_debug_group_begin("View.compute_visibility");
+  GPU_debug_group("View.compute_visibility");
 
   uint word_per_draw = this->visibility_word_per_draw();
   /* Switch between tightly packed and set of whole word per instance. */
@@ -1286,8 +1286,6 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
     GPU_compute_dispatch(shader, divide_ceil_u(resource_len, DRW_VISIBILITY_GROUP_SIZE), 1, 1);
     GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   }
-
-  GPU_debug_group_end();
 }
 
 void ShadowModule::set_view(View &view, int2 extent)
@@ -1322,7 +1320,7 @@ void ShadowModule::render(View &view, int2 extent)
 
   int loop_count = 0;
   do {
-    GPU_debug_group_begin("Shadow");
+    GPU_debug_group("Shadow");
     {
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());
 
@@ -1363,7 +1361,6 @@ void ShadowModule::render(View &view, int2 extent)
 
       GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
     }
-    GPU_debug_group_end();
 
     loop_count++;
 

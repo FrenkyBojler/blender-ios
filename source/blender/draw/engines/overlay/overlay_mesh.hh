@@ -385,7 +385,7 @@ class Meshes : Overlay {
       return;
     }
 
-    GPU_debug_group_begin("Mesh Edit");
+    GPU_debug_group("Mesh Edit");
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_prepass_ps_, view);
@@ -400,7 +400,6 @@ class Meshes : Overlay {
     }
 
     if (xray_flag_enabled_) {
-      GPU_debug_group_end();
       return;
     }
 
@@ -409,8 +408,6 @@ class Meshes : Overlay {
     manager.submit(edit_mesh_verts_ps_, view);
     manager.submit(edit_mesh_skin_roots_ps_, view);
     manager.submit(edit_mesh_facedots_ps_, view);
-
-    GPU_debug_group_end();
   }
 
   void draw_line_only(Framebuffer &framebuffer, Manager &manager, View &view) final
@@ -418,6 +415,8 @@ class Meshes : Overlay {
     if (!enabled_) {
       return;
     }
+
+    GPU_debug_group("Mesh Edit Line Only");
 
     if (xray_enabled_) {
       /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
@@ -431,16 +430,12 @@ class Meshes : Overlay {
       return;
     }
 
-    GPU_debug_group_begin("Mesh Edit Line Only");
-
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_normals_ps_, view);
     manager.submit(edit_mesh_edges_ps_, view);
     manager.submit(edit_mesh_verts_ps_, view);
     manager.submit(edit_mesh_skin_roots_ps_, view);
     manager.submit(edit_mesh_facedots_ps_, view);
-
-    GPU_debug_group_end();
   }
 
   static bool mesh_has_edit_cage(const Object *ob)
@@ -1041,7 +1036,7 @@ class MeshUVs : Overlay {
       return;
     }
 
-    GPU_debug_group_begin("Mesh Edit UVs");
+    GPU_debug_group("Mesh Edit UVs");
 
     GPU_framebuffer_bind(framebuffer);
     if (show_mask_ && (mask_mode_ != MASK_OVERLAY_COMBINED)) {
@@ -1071,8 +1066,6 @@ class MeshUVs : Overlay {
     if (show_stencil_) {
       manager.submit(brush_stencil_ps_, view);
     }
-
-    GPU_debug_group_end();
   }
 
   void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final

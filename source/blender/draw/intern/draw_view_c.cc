@@ -36,9 +36,8 @@ namespace blender {
 
 void DRW_draw_region_info(const bContext *C, ARegion *region)
 {
-  GPU_debug_group_begin("RegionInfo");
+  GPU_debug_group("RegionInfo");
   view3d_draw_region_info(C, region);
-  GPU_debug_group_end();
 }
 
 /* **************************** 3D Gizmo ******************************** */

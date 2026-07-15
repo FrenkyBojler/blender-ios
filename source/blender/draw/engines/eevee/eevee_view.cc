@@ -90,7 +90,7 @@ void ShadingView::render()
   inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
   inst_.uniform_data.raytrace.push_update();
 
-  GPU_debug_group_begin(name_);
+  GPU_debug_group(name_);
 
   /* Needs to be before anything else because it query its own gbuffer. */
   inst_.planar_probes.set_view(render_view_, extent_);
@@ -180,8 +180,6 @@ void ShadingView::render()
 
   rbufs.release();
   postfx_tx_.release();
-
-  GPU_debug_group_end();
 }
 
 gpu::Texture *ShadingView::render_postfx(gpu::Texture *input_tx)
@@ -299,7 +297,7 @@ void CaptureView::render_world()
   }
 
   View view = {"Capture.View"};
-  GPU_debug_group_begin("World.Capture");
+  GPU_debug_group("World.Capture");
 
   if (update_info->do_render) {
     auto render_cubemap = [&](RayPipelineType ray_type) {
@@ -347,8 +345,6 @@ void CaptureView::render_world()
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
     inst_.uniform_data.pipeline.push_update();
   }
-
-  GPU_debug_group_end();
 }
 
 void CaptureView::render_probes()
@@ -362,7 +358,7 @@ void CaptureView::render_probes()
   int prev_extent = 0;
 
   while (const auto update_info = inst_.sphere_probes.probe_update_info_pop()) {
-    GPU_debug_group_begin("Probe.Capture");
+    GPU_debug_group("Probe.Capture");
 
     if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
       inst_.uniform_data.pipeline.push_update();
@@ -425,7 +421,6 @@ void CaptureView::render_probes()
 
     inst_.render_buffers.release();
     inst_.gbuffer.release();
-    GPU_debug_group_end();
     inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, false);
   }
 
@@ -445,7 +440,7 @@ void LookdevView::render()
   if (!inst_.lookdev.use_reference_spheres_) {
     return;
   }
-  GPU_debug_group_begin("Lookdev");
+  GPU_debug_group("Lookdev");
 
   const float radius = inst_.lookdev.sphere_radius_;
   const float clip = inst_.camera.data_get().clip_near;
@@ -456,8 +451,6 @@ void LookdevView::render()
 
   inst_.lookdev.draw(view_);
   inst_.lookdev.display();
-
-  GPU_debug_group_end();
 }
 
 /** \} */

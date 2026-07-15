@@ -61,7 +61,7 @@ ShaderOperation::~ShaderOperation()
 
 void ShaderOperation::execute()
 {
-  GPU_debug_group_begin("ShaderOperation");
+  GPU_debug_group("ShaderOperation");
   const Domain domain = compute_domain();
   for (StringRef identifier : output_sockets_to_output_identifiers_map_.values()) {
     Result &result = get_result(identifier);
@@ -81,7 +81,6 @@ void ShaderOperation::execute()
   GPU_texture_image_unbind_all();
   GPU_uniformbuf_debug_unbind_all();
   GPU_shader_unbind();
-  GPU_debug_group_end();
 }
 
 void ShaderOperation::bind_material_resources(gpu::Shader *shader)

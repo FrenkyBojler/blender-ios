@@ -359,7 +359,8 @@ class Instance : public DrawEngine {
 
     external_image_space_matrix_set(engine);
 
-    GPU_debug_group_begin("External Engine");
+    gpu::DebugGroup debug_group = "External Engine";
+    debug_group.begin();
 
     const RenderEngineType *engine_type = engine->type;
     BLI_assert(engine_type != nullptr);
@@ -367,7 +368,7 @@ class Instance : public DrawEngine {
 
     engine_type->draw(engine, draw_ctx->evil_C, draw_ctx->depsgraph);
 
-    GPU_debug_group_end();
+    debug_group.end();
 
     GPU_matrix_pop();
     GPU_matrix_pop_projection();

@@ -79,12 +79,14 @@ void NodeOperation::evaluate()
 {
   const ScopedNodeTimer node_timer{
       this->node(), this->get_compute_context(), this->context().nodes_evaluation_log()};
+  static gpu::DebugGroup debug_group;
   if (this->context().use_gpu()) {
-    GPU_debug_group_begin(this->node().typeinfo->idname.c_str());
+    debug_group = this->node().typeinfo->idname.c_str();
+    debug_group.begin();
   }
   Operation::evaluate();
   if (this->context().use_gpu()) {
-    GPU_debug_group_end();
+    debug_group.end();
   }
 }
 

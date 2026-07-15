@@ -294,6 +294,7 @@ struct GPUPickState {
 };
 
 static GPUPickState g_pick_state{};
+static gpu::DebugGroup gpu_select_debug_group = "Selection Pick";
 
 void gpu_select_pick_begin(GPUSelectBuffer *buffer, const rcti *input, GPUSelectMode mode)
 {
@@ -306,8 +307,7 @@ void gpu_select_pick_begin(GPUSelectBuffer *buffer, const rcti *input, GPUSelect
          ps->use_cache,
          ps->is_cached);
 #endif
-
-  GPU_debug_group_begin("Selection Pick");
+  gpu_select_debug_group.begin();
 
   ps->buffer = buffer;
   ps->mode = mode;
@@ -553,7 +553,7 @@ uint gpu_select_pick_end()
     GPU_viewport(UNPACK4(ps->viewport));
   }
 
-  GPU_debug_group_end();
+  gpu_select_debug_group.end();
 
   /* Assign but never free directly since it may be in cache. */
   DepthBufCache *rect_depth_final;

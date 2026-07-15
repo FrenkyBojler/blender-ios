@@ -44,11 +44,6 @@ namespace blender::eevee {
 
 CLG_LogRef Instance::log = {"eevee"};
 
-void *Instance::debug_scope_render_frame = nullptr;
-void *Instance::debug_scope_render_sample = nullptr;
-void *Instance::debug_scope_irradiance_setup = nullptr;
-void *Instance::debug_scope_irradiance_sample = nullptr;
-
 /* -------------------------------------------------------------------- */
 /** \name Initialization
  *
@@ -562,7 +557,7 @@ void Instance::render_sample()
     }
   }
 
-  DebugScope debug_scope(debug_scope_render_sample, "EEVEE.render_sample");
+  GPU_debug_capture_scope("EEVEE.render_sample");
 
   {
     /* Critical section. Potential gpu::Shader concurrent usage. */
@@ -672,7 +667,7 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
     return;
   }
 
-  DebugScope debug_scope(debug_scope_render_frame, "EEVEE.render_frame");
+  GPU_debug_capture_scope("EEVEE.render_frame");
 
   /* TODO: Break on RE_engine_test_break(engine) */
   while (!sampling.finished()) {
@@ -948,7 +943,7 @@ void Instance::light_bake_irradiance(
       /* Critical section. Potential gpu::Shader concurrent usage. */
       DRW_submission_start();
 
-      DebugScope debug_scope(debug_scope_irradiance_setup, "EEVEE.irradiance_setup");
+      GPU_debug_capture_scope("EEVEE.irradiance_setup");
 
       capture_view.render_world();
 
@@ -982,7 +977,7 @@ void Instance::light_bake_irradiance(
   double last_update_timestamp = BLI_time_now_seconds();
   while (!sampling.finished()) {
     context_wrapper([&]() {
-      DebugScope debug_scope(debug_scope_irradiance_sample, "EEVEE.irradiance_sample");
+      GPU_debug_capture_scope("EEVEE.irradiance_sample");
 
       int remaining_samples = sampling.sample_count() - sampling.sample_index();
       /* In background mode, assume we don't need as much interactivity. */

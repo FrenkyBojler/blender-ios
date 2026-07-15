@@ -216,9 +216,8 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
     const bool is_layered = tex->type_get() & GPU_TEXTURE_ARRAY;
     Shader *shader = get_update_mipmap_shader(texture_format, is_layered);
     if (shader) {
-      GPU_debug_group_begin("Update Mipmaps");
+      GPU_debug_group("Update Mipmaps");
       update_mipmaps(*tex, *shader);
-      GPU_debug_group_end();
       return;
     }
     CLOG_INFO(&LOG,

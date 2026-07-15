@@ -1063,64 +1063,64 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   validity_tx_.clear(float4(0.0f));
   virtual_offset_tx_.clear(float4(0.0f));
 
-  GPU_debug_group_begin("IrradianceBake.SceneBounds");
-
   {
-    draw::Manager &manager = *inst_.manager;
-    PassSimple &pass = irradiance_bounds_ps_;
-    pass.init();
-    pass.shader_set(inst_.shaders.static_shader_get(LIGHTPROBE_IRRADIANCE_BOUNDS));
-    pass.bind_ssbo("capture_info_buf", &capture_info_buf_);
-    pass.bind_ssbo("bounds_buf", &manager.bounds_buf.current());
-    pass.push_constant("resource_len", int(manager.resource_handle_count()));
-    pass.dispatch(
-        int3(divide_ceil_u(manager.resource_handle_count(), IRRADIANCE_BOUNDS_GROUP_SIZE), 1, 1));
+    GPU_debug_group("IrradianceBake.SceneBounds");
+
+    {
+      draw::Manager &manager = *inst_.manager;
+      PassSimple &pass = irradiance_bounds_ps_;
+      pass.init();
+      pass.shader_set(inst_.shaders.static_shader_get(LIGHTPROBE_IRRADIANCE_BOUNDS));
+      pass.bind_ssbo("capture_info_buf", &capture_info_buf_);
+      pass.bind_ssbo("bounds_buf", &manager.bounds_buf.current());
+      pass.push_constant("resource_len", int(manager.resource_handle_count()));
+      pass.dispatch(int3(
+          divide_ceil_u(manager.resource_handle_count(), IRRADIANCE_BOUNDS_GROUP_SIZE), 1, 1));
+    }
+
+    /* Raster the scene to query the number of surfel needed. */
+    capture_info_buf_.do_surfel_count = false;
+    capture_info_buf_.do_surfel_output = false;
+
+    const int neg_flt_max = int(0xFF7FFFFFu ^ 0x7FFFFFFFu); /* floatBitsToOrderedInt(-FLT_MAX) */
+    const int pos_flt_max = 0x7F7FFFFF;                     /* floatBitsToOrderedInt(FLT_MAX) */
+    capture_info_buf_.scene_bound_x_min = pos_flt_max;
+    capture_info_buf_.scene_bound_y_min = pos_flt_max;
+    capture_info_buf_.scene_bound_z_min = pos_flt_max;
+    capture_info_buf_.scene_bound_x_max = neg_flt_max;
+    capture_info_buf_.scene_bound_y_max = neg_flt_max;
+    capture_info_buf_.scene_bound_z_max = neg_flt_max;
+
+    capture_info_buf_.push_update();
+
+    inst_.manager->submit(irradiance_bounds_ps_);
+
+    GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
+    capture_info_buf_.read();
+
+    if (capture_info_buf_.scene_bound_x_min == pos_flt_max) {
+      /* No valid object has been found. */
+      do_break_ = true;
+      return;
+    }
+
+    auto ordered_int_bits_to_float = [](int32_t int_value) -> float {
+      int32_t float_bits = (int_value < 0) ? (int_value ^ 0x7FFFFFFF) : int_value;
+      return *reinterpret_cast<float *>(&float_bits);
+    };
+
+    float3 scene_min = float3(ordered_int_bits_to_float(capture_info_buf_.scene_bound_x_min),
+                              ordered_int_bits_to_float(capture_info_buf_.scene_bound_y_min),
+                              ordered_int_bits_to_float(capture_info_buf_.scene_bound_z_min));
+    float3 scene_max = float3(ordered_int_bits_to_float(capture_info_buf_.scene_bound_x_max),
+                              ordered_int_bits_to_float(capture_info_buf_.scene_bound_y_max),
+                              ordered_int_bits_to_float(capture_info_buf_.scene_bound_z_max));
+    /* To avoid loosing any surface to the clipping planes, add some padding. */
+    float epsilon = 1.0f / surfel_density_;
+    scene_min -= epsilon;
+    scene_max += epsilon;
+    surfel_raster_views_sync(scene_min, scene_max, probe_object.object_to_world());
   }
-
-  /* Raster the scene to query the number of surfel needed. */
-  capture_info_buf_.do_surfel_count = false;
-  capture_info_buf_.do_surfel_output = false;
-
-  const int neg_flt_max = int(0xFF7FFFFFu ^ 0x7FFFFFFFu); /* floatBitsToOrderedInt(-FLT_MAX) */
-  const int pos_flt_max = 0x7F7FFFFF;                     /* floatBitsToOrderedInt(FLT_MAX) */
-  capture_info_buf_.scene_bound_x_min = pos_flt_max;
-  capture_info_buf_.scene_bound_y_min = pos_flt_max;
-  capture_info_buf_.scene_bound_z_min = pos_flt_max;
-  capture_info_buf_.scene_bound_x_max = neg_flt_max;
-  capture_info_buf_.scene_bound_y_max = neg_flt_max;
-  capture_info_buf_.scene_bound_z_max = neg_flt_max;
-
-  capture_info_buf_.push_update();
-
-  inst_.manager->submit(irradiance_bounds_ps_);
-
-  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
-  capture_info_buf_.read();
-
-  if (capture_info_buf_.scene_bound_x_min == pos_flt_max) {
-    /* No valid object has been found. */
-    do_break_ = true;
-    return;
-  }
-
-  auto ordered_int_bits_to_float = [](int32_t int_value) -> float {
-    int32_t float_bits = (int_value < 0) ? (int_value ^ 0x7FFFFFFF) : int_value;
-    return *reinterpret_cast<float *>(&float_bits);
-  };
-
-  float3 scene_min = float3(ordered_int_bits_to_float(capture_info_buf_.scene_bound_x_min),
-                            ordered_int_bits_to_float(capture_info_buf_.scene_bound_y_min),
-                            ordered_int_bits_to_float(capture_info_buf_.scene_bound_z_min));
-  float3 scene_max = float3(ordered_int_bits_to_float(capture_info_buf_.scene_bound_x_max),
-                            ordered_int_bits_to_float(capture_info_buf_.scene_bound_y_max),
-                            ordered_int_bits_to_float(capture_info_buf_.scene_bound_z_max));
-  /* To avoid loosing any surface to the clipping planes, add some padding. */
-  float epsilon = 1.0f / surfel_density_;
-  scene_min -= epsilon;
-  scene_max += epsilon;
-  surfel_raster_views_sync(scene_min, scene_max, probe_object.object_to_world());
-
-  GPU_debug_group_end();
 
   /* WORKAROUND: Sync camera with correct bounds for light culling. */
   inst_.camera.sync();
@@ -1129,22 +1129,22 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   inst_.shadows.end_sync();
   inst_.lights.end_sync();
 
-  GPU_debug_group_begin("IrradianceBake.SurfelsCount");
+  {
+    GPU_debug_group("IrradianceBake.SurfelsCount");
 
-  /* Raster the scene to query the number of surfel needed. */
-  capture_info_buf_.do_surfel_count = true;
-  capture_info_buf_.do_surfel_output = false;
-  capture_info_buf_.surfel_len = 0u;
-  capture_info_buf_.push_update();
+    /* Raster the scene to query the number of surfel needed. */
+    capture_info_buf_.do_surfel_count = true;
+    capture_info_buf_.do_surfel_output = false;
+    capture_info_buf_.surfel_len = 0u;
+    capture_info_buf_.push_update();
 
-  empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_x_), grid_pixel_extent_).xy()));
-  inst_.pipelines.capture.render(view_x_);
-  empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_y_), grid_pixel_extent_).xy()));
-  inst_.pipelines.capture.render(view_y_);
-  empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_z_), grid_pixel_extent_).xy()));
-  inst_.pipelines.capture.render(view_z_);
-
-  GPU_debug_group_end();
+    empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_x_), grid_pixel_extent_).xy()));
+    inst_.pipelines.capture.render(view_x_);
+    empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_y_), grid_pixel_extent_).xy()));
+    inst_.pipelines.capture.render(view_y_);
+    empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_z_), grid_pixel_extent_).xy()));
+    inst_.pipelines.capture.render(view_z_);
+  }
 
   /* Allocate surfel pool. */
   GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
@@ -1211,27 +1211,28 @@ void IrradianceBake::surfels_create(const Object &probe_object)
 
   dispatch_per_surfel_.x = divide_ceil_u(surfels_buf_.size(), SURFEL_GROUP_SIZE);
 
-  GPU_debug_group_begin("IrradianceBake.SurfelsCreate");
+  {
+    GPU_debug_group("IrradianceBake.SurfelsCreate");
 
-  /* Raster the scene to generate the surfels. */
-  capture_info_buf_.do_surfel_count = true;
-  capture_info_buf_.do_surfel_output = true;
-  capture_info_buf_.surfel_len = 0u;
-  capture_info_buf_.push_update();
+    /* Raster the scene to generate the surfels. */
+    capture_info_buf_.do_surfel_count = true;
+    capture_info_buf_.do_surfel_output = true;
+    capture_info_buf_.surfel_len = 0u;
+    capture_info_buf_.push_update();
 
-  empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_x_), grid_pixel_extent_).xy()));
-  inst_.pipelines.capture.render(view_x_);
-  empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_y_), grid_pixel_extent_).xy()));
-  inst_.pipelines.capture.render(view_y_);
-  empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_z_), grid_pixel_extent_).xy()));
-  inst_.pipelines.capture.render(view_z_);
+    empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_x_), grid_pixel_extent_).xy()));
+    inst_.pipelines.capture.render(view_x_);
+    empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_y_), grid_pixel_extent_).xy()));
+    inst_.pipelines.capture.render(view_y_);
+    empty_raster_fb_.ensure(math::abs(transform_point(invert(basis_z_), grid_pixel_extent_).xy()));
+    inst_.pipelines.capture.render(view_z_);
 
-  /* Sync with any other following pass using the surfel buffer. */
-  GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
-  /* Read back so that following push_update will contain correct surfel count. */
-  capture_info_buf_.read();
+    /* Sync with any other following pass using the surfel buffer. */
+    GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
-  GPU_debug_group_end();
+    /* Read back so that following push_update will contain correct surfel count. */
+    capture_info_buf_.read();
+  }
 }
 
 void IrradianceBake::surfels_lights_eval()

@@ -638,9 +638,9 @@ void ForwardPipeline::render(View &view,
     return;
   }
 
-  inst_.hiz_buffer.swap_layer();
+  GPU_debug_group("Forward.Opaque");
 
-  GPU_debug_group_begin("Forward.Opaque");
+  inst_.hiz_buffer.swap_layer();
 
   prepass_fb.bind();
   prepass_.render(view, nullptr, true);
@@ -686,8 +686,6 @@ void ForwardPipeline::render(View &view,
   if (has_opaque_) {
     inst_.manager->submit(opaque_ps_, view);
   }
-
-  GPU_debug_group_end();
 
   if (has_transparent_) {
     inst_.manager->submit(transparent_ps_, view);
@@ -1268,25 +1266,27 @@ void DeferredPipeline::render(View & /*main_view*/,
 {
   gpu::Texture *feedback_tx = nullptr;
 
-  GPU_debug_group_begin("Deferred.Opaque");
-  feedback_tx = opaque_layer_.render(render_view,
-                                     prepass_fb,
-                                     combined_fb,
-                                     gbuffer_fb,
-                                     extent,
-                                     rt_buffer_opaque_layer,
-                                     feedback_tx);
-  GPU_debug_group_end();
+  {
+    GPU_debug_group("Deferred.Opaque");
+    feedback_tx = opaque_layer_.render(render_view,
+                                       prepass_fb,
+                                       combined_fb,
+                                       gbuffer_fb,
+                                       extent,
+                                       rt_buffer_opaque_layer,
+                                       feedback_tx);
+  }
 
-  GPU_debug_group_begin("Deferred.Refract");
-  feedback_tx = refraction_layer_.render(render_view,
-                                         prepass_fb,
-                                         combined_fb,
-                                         gbuffer_fb,
-                                         extent,
-                                         rt_buffer_refract_layer,
-                                         feedback_tx);
-  GPU_debug_group_end();
+  {
+    GPU_debug_group("Deferred.Refract");
+    feedback_tx = refraction_layer_.render(render_view,
+                                           prepass_fb,
+                                           combined_fb,
+                                           gbuffer_fb,
+                                           extent,
+                                           rt_buffer_refract_layer,
+                                           feedback_tx);
+  }
 }
 
 /** \} */
@@ -1575,7 +1575,7 @@ void DeferredProbePipeline::render(View &view,
                                    Framebuffer &gbuffer_fb,
                                    int2 extent)
 {
-  GPU_debug_group_begin("Probe.Render");
+  GPU_debug_group("Probe.Render");
 
   opaque_layer_.radiance_behind_tx_ = dummy_black;
 
@@ -1600,8 +1600,6 @@ void DeferredProbePipeline::render(View &view,
 
   combined_fb.bind();
   inst_.manager->submit(eval_light_ps_, view);
-
-  GPU_debug_group_end();
 }
 
 /** \} */
@@ -1676,7 +1674,7 @@ void PlanarProbePipeline::render(View &view,
                                  Framebuffer &combined_fb,
                                  int2 extent)
 {
-  GPU_debug_group_begin("Planar.Capture");
+  GPU_debug_group("Planar.Capture");
 
   radiance_behind_tx_ = dummy_black_;
 
@@ -1705,8 +1703,6 @@ void PlanarProbePipeline::render(View &view,
 
   inst_.pipelines.data.ray_type = RAY_TYPE_CAMERA;
   inst_.uniform_data.pipeline.push_update();
-
-  GPU_debug_group_end();
 }
 
 /** \} */

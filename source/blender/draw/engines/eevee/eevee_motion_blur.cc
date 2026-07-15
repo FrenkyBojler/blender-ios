@@ -239,7 +239,7 @@ void MotionBlurModule::render(View &view, gpu::Texture **input_tx, gpu::Texture 
   dispatch_dilate_size_ = int3(math::divide_ceil(tiles_extent, int2(MOTION_BLUR_GROUP_SIZE)), 1);
   dispatch_gather_size_ = int3(math::divide_ceil(extent, int2(MOTION_BLUR_GROUP_SIZE)), 1);
 
-  GPU_debug_group_begin("Motion Blur");
+  GPU_debug_group("Motion Blur");
 
   tiles_tx_.acquire_2d(tiles_extent, gpu::TextureFormat::SFLOAT_16_16_16_16);
 
@@ -248,8 +248,6 @@ void MotionBlurModule::render(View &view, gpu::Texture **input_tx, gpu::Texture 
   inst_.manager->submit(motion_blur_ps_, view);
 
   tiles_tx_.release();
-
-  GPU_debug_group_end();
 
   /* Swap buffers so that next effect has the right input. */
   *input_tx = output_color_tx_;

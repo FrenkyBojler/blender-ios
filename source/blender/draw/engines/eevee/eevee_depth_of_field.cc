@@ -592,7 +592,7 @@ void DepthOfField::render(View &view,
     GPU_flush();
   }
 
-  GPU_debug_group_begin("Depth of Field");
+  GPU_debug_group("Depth of Field");
 
   Manager &drw = *inst_.manager;
 
@@ -601,7 +601,8 @@ void DepthOfField::render(View &view,
   constexpr eGPUTextureUsage usage_readwrite_attach = usage_readwrite |
                                                       GPU_TEXTURE_USAGE_ATTACHMENT;
   {
-    GPU_debug_group_begin("Setup");
+    GPU_debug_group("Setup");
+
     {
       bokeh_gather_lut_tx_.acquire_2d(int2(DOF_BOKEH_LUT_SIZE), gpu::TextureFormat::SFLOAT_16_16);
       bokeh_scatter_lut_tx_.acquire_2d(int2(DOF_BOKEH_LUT_SIZE), gpu::TextureFormat::SFLOAT_16);
@@ -642,7 +643,7 @@ void DepthOfField::render(View &view,
       setup_color_tx_.release();
     }
     {
-      GPU_debug_group_begin("Tile Prepare");
+      GPU_debug_group("Tile Prepare");
 
       /* WARNING: If format changes, make sure dof_tile_* GLSL constants are properly encoded. */
       tiles_fg_tx_.previous().acquire_2d(
@@ -689,8 +690,6 @@ void DepthOfField::render(View &view,
 
       tiles_fg_tx_.previous().release();
       tiles_bg_tx_.previous().release();
-
-      GPU_debug_group_end();
     }
 
     downsample_tx_.acquire_2d(
@@ -705,12 +704,10 @@ void DepthOfField::render(View &view,
 
     /* Used by reduce pass. */
     downsample_tx_.release();
-
-    GPU_debug_group_end();
   }
 
   for (int is_background = 0; is_background < 2; is_background++) {
-    GPU_debug_group_begin(is_background ? "Background Convolution" : "Foreground Convolution");
+    GPU_debug_group(is_background ? "Background Convolution" : "Foreground Convolution");
 
     SwapChain<TextureFromPool, 2> &color_tx = is_background ? color_bg_tx_ : color_fg_tx_;
     SwapChain<TextureFromPool, 2> &weight_tx = is_background ? weight_bg_tx_ : weight_fg_tx_;
@@ -758,11 +755,9 @@ void DepthOfField::render(View &view,
 
     /* Used by scatter pass. */
     occlusion_tx_.release();
-
-    GPU_debug_group_end();
   }
   {
-    GPU_debug_group_begin("Hole Fill");
+    GPU_debug_group("Hole Fill");
 
     bokeh_gather_lut_tx_.release();
     bokeh_scatter_lut_tx_.release();
@@ -777,11 +772,9 @@ void DepthOfField::render(View &view,
 
     reduced_color_tx_.release();
     reduced_coc_tx_.release();
-
-    GPU_debug_group_end();
   }
   {
-    GPU_debug_group_begin("Resolve");
+    GPU_debug_group("Resolve");
 
     resolve_stable_color_tx_ = dof_buffer.stabilize_history_tx_;
 
@@ -796,11 +789,7 @@ void DepthOfField::render(View &view,
     hole_fill_color_tx_.release();
     hole_fill_weight_tx_.release();
     bokeh_resolve_lut_tx_.release();
-
-    GPU_debug_group_end();
   }
-
-  GPU_debug_group_end();
 
   /* Swap buffers so that next effect has the right input. */
   std::swap(*input_tx, *output_tx);

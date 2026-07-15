@@ -212,8 +212,7 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
                                                 bool /*debug_freeze*/)
 {
   /* TODO (Miguel Pozo): Add debug_freeze support */
-
-  GPU_debug_group_begin("ShadowView.compute_visibility");
+  GPU_debug_group("ShadowView.compute_visibility");
 
   uint word_per_draw = this->visibility_word_per_draw();
   /* Switch between tightly packed and set of whole word per instance. */
@@ -231,7 +230,6 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
   }
   else if (current_pass_type_ == ShadowPass::FAIL) {
     /* Already computed in the ShadowPass::PASS */
-    GPU_debug_group_end();
     return;
   }
   else {
@@ -265,8 +263,6 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
     GPU_compute_dispatch(shader, divide_ceil_u(resource_len, DRW_VISIBILITY_GROUP_SIZE), 1, 1);
     GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
   }
-
-  GPU_debug_group_end();
 }
 
 VisibilityBuf &ShadowPass::ShadowView::get_visibility_buffer()

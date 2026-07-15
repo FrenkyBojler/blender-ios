@@ -369,8 +369,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     return;
   }
 
-  static gpu::DebugScope subdiv_extract_scope = {"SubdivExtraction"};
-  auto capture = subdiv_extract_scope.scoped_capture();
+  GPU_debug_capture_scope("SubdivExtraction");
 
   if (vbos_to_create.contains(VBOType::Position) || vbos_to_create.contains(VBOType::Orco)) {
     gpu::VertBufPtr orco_vbo;

@@ -561,7 +561,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   RayTraceResult result;
 
-  GPU_debug_group_begin("Raytracing");
+  GPU_debug_group("Raytracing");
 
   const bool has_active_closure = active_closures != CLOSURE_NONE;
 
@@ -577,7 +577,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   if (has_active_closure) {
     if (use_fast_gi_scan) {
-      GPU_debug_group_begin("Fast GI");
+      GPU_debug_group("Fast GI");
 
       downsampled_in_radiance_tx_.ensure_2d(
           gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, tracing_res_fast_gi, usage_rw, nullptr, 4);
@@ -619,12 +619,8 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
         fast_gi_radiance_tx_[i].release();
         fast_gi_radiance_denoised_tx_[i].release();
       }
-
-      GPU_debug_group_end();
     }
   }
-
-  GPU_debug_group_end();
 
   rt_buffer.history_persmat = render_view.persmat();
 
@@ -666,7 +662,7 @@ RayTraceResultTexture RayTraceModule::trace(int closure_index,
 
   eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
 
-  GPU_debug_group_begin("Raytracing");
+  GPU_debug_group("Raytracing");
 
   data_.thickness = options.screen_trace_thickness;
   data_.quality = 1.0f - 0.95f * options.screen_trace_quality;
@@ -800,8 +796,6 @@ RayTraceResultTexture RayTraceModule::trace(int closure_index,
   }
 
   denoise_variance_tx_.release();
-
-  GPU_debug_group_end();
 
   return result;
 }

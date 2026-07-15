@@ -1645,8 +1645,8 @@ GLShader::GLProgram &GLShader::program_get(const shader::SpecializationConstants
     return program;
   }
 
-  GPU_debug_group_begin(GPU_DEBUG_SHADER_SPECIALIZATION_GROUP);
-  GPU_debug_group_begin(this->name);
+  GPU_debug_group(GPU_DEBUG_SHADER_SPECIALIZATION_GROUP);
+  GPU_debug_group(this->name);
 
   program.program_link(name);
 
@@ -1656,9 +1656,6 @@ GLShader::GLProgram &GLShader::program_get(const shader::SpecializationConstants
   GLint status;
   glGetProgramiv(program.program_id, GL_LINK_STATUS, &status);
   BLI_assert(status);
-
-  GPU_debug_group_end();
-  GPU_debug_group_end();
 
   return program;
 }
@@ -1816,9 +1813,8 @@ bool GLCompilerWorker::load_program_binary(GLint program)
   state_ = COMPILATION_FINISHED;
 
   if (binary->size > 0) {
-    GPU_debug_group_begin("Load Binary");
+    GPU_debug_group("Load Binary");
     glProgramBinary(program, binary->format, binary->data, binary->size);
-    GPU_debug_group_end();
     return true;
   }
 
@@ -1887,21 +1883,23 @@ Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInf
   GLCompilerWorker *worker = get_compiler_worker();
   worker->compile(sources);
 
-  GPU_debug_group_begin("Subprocess Compilation");
-
-  /* This path is always called for the default shader compilation. Not for specialization.
-   * Use the default constant template. */
-  const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(shader);
-
-  if (!worker->load_program_binary(shader->program_cache_.lookup(constants.values)->program_id) ||
-      !shader->post_finalize(&info))
   {
-    /* Compilation failed, try to compile it locally. */
-    delete shader;
-    shader = nullptr;
-  }
+    GPU_debug_group("Subprocess Compilation");
 
-  GPU_debug_group_end();
+    /* This path is always called for the default shader compilation. Not for specialization.
+     * Use the default constant template. */
+    const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(
+        shader);
+
+    if (!worker->load_program_binary(
+            shader->program_cache_.lookup(constants.values)->program_id) ||
+        !shader->post_finalize(&info))
+    {
+      /* Compilation failed, try to compile it locally. */
+      delete shader;
+      shader = nullptr;
+    }
+  }
 
   worker->release();
 
@@ -1955,21 +1953,21 @@ void GLSubprocessShaderCompiler::specialize_shader(const ShaderSpecialization &s
     }
   }
 
-  GPU_debug_group_begin("Subprocess Specialization");
+  {
+    GPU_debug_group("Subprocess Specialization");
 
-  GLCompilerWorker *worker = get_compiler_worker();
-  worker->compile(sources);
-  worker->block_until_ready();
+    GLCompilerWorker *worker = get_compiler_worker();
+    worker->compile(sources);
+    worker->block_until_ready();
 
-  std::lock_guard lock(mutex);
+    std::lock_guard lock(mutex);
 
-  if (!worker->load_program_binary(program_get()->program_id)) {
-    program_release();
+    if (!worker->load_program_binary(program_get()->program_id)) {
+      program_release();
+    }
+
+    worker->release();
   }
-
-  GPU_debug_group_end();
-
-  worker->release();
 }
 
 /** \} */

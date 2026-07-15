@@ -52,13 +52,14 @@ struct GPUSelectQueryState {
 };
 
 static GPUSelectQueryState g_query_state = {false};
+static gpu::DebugGroup gpu_select_debug_group = "Selection Queries";
 
 void gpu_select_query_begin(GPUSelectBuffer *buffer,
                             const rcti *input,
                             const GPUSelectMode mode,
                             int oldhits)
 {
-  GPU_debug_group_begin("Selection Queries");
+  gpu_select_debug_group.begin();
 
   g_query_state.query_issued = false;
   g_query_state.buffer = buffer;
@@ -175,7 +176,7 @@ uint gpu_select_query_end()
   GPU_depth_test(g_query_state.depth_test);
   GPU_viewport(UNPACK4(g_query_state.viewport));
 
-  GPU_debug_group_end();
+  gpu_select_debug_group.end();
 
   return hits;
 }

@@ -43,6 +43,7 @@ namespace blender::ed::greasepencil::image_render {
 
 /* Enable GPU debug capture (needs WITH_RENDERDOC option). */
 constexpr const bool enable_debug_gpu_capture = true;
+static gpu::DebugCapture debug_gpu_capture;
 
 RegionViewData region_init(ARegion &region, const int2 &win_size)
 {
@@ -77,7 +78,8 @@ void region_reset(ARegion &region, const RegionViewData &data)
 GPUOffScreen *image_render_begin(const int2 &win_size)
 {
   if (enable_debug_gpu_capture) {
-    GPU_debug_capture_begin("Grease Pencil Image Render");
+    debug_gpu_capture = "Grease Pencil Image Render";
+    debug_gpu_capture.begin();
   }
 
   char err_out[256] = "unknown";
@@ -124,7 +126,7 @@ Image *image_render_end(Main &bmain, GPUOffScreen *buffer)
   GPU_offscreen_free(buffer);
 
   if (enable_debug_gpu_capture) {
-    GPU_debug_capture_end();
+    debug_gpu_capture.end();
   }
 
   return ima;

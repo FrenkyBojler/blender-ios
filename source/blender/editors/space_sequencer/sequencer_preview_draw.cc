@@ -733,7 +733,7 @@ static void sequencer_draw_scopes(Scene *scene,
                                   int image_height,
                                   bool premultiplied)
 {
-  GPU_debug_group_begin(get_scope_debug_name(eSpaceSeq_RegionType(space_sequencer.mainb)));
+  GPU_debug_group(get_scope_debug_name(eSpaceSeq_RegionType(space_sequencer.mainb)));
 
   /* Get display-space texture for scope values (positions, histogram bins).
    * Falls back to the raw input texture if no color management is needed. */
@@ -916,7 +916,6 @@ static void sequencer_draw_scopes(Scene *scene,
   if (use_blend) {
     GPU_blend(GPU_BLEND_NONE);
   }
-  GPU_debug_group_end();
 }
 
 static void update_gpu_scopes(const ImBuf *input_ibuf,

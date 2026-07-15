@@ -124,7 +124,7 @@ void Manager::load_deferred_textures()
     return;
   }
 
-  GPU_debug_group_begin("Texture Loading");
+  GPU_debug_group("Texture Loading");
 
   /* Load files from disk in a multithreaded manner. Allow better parallelism. */
   threading::parallel_for(deferred_textures_.index_range(), 1, [&](const IndexRange range) {
@@ -152,13 +152,11 @@ void Manager::load_deferred_textures()
     hold_texture(textures.texture);
     hold_texture(textures.tile_mapping);
   }
-
-  GPU_debug_group_end();
 }
 
 void Manager::end_sync()
 {
-  GPU_debug_group_begin("Manager.end_sync");
+  GPU_debug_group("Manager.end_sync");
 
   load_deferred_textures();
 
@@ -188,8 +186,6 @@ void Manager::end_sync()
   GPU_memory_barrier(GPU_BARRIER_SHADER_STORAGE);
 
   DRW_submission_end();
-
-  GPU_debug_group_end();
 }
 
 void Manager::debug_bind()

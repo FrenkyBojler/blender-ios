@@ -1112,9 +1112,8 @@ void DRWContext::engines_draw_scene()
       GPU_flush();
     }
 #endif
-    GPU_debug_group_begin(instance.name_get().c_str());
+    GPU_debug_group(instance.name_get().c_str());
     instance.draw(*DRW_manager_get());
-    GPU_debug_group_end();
   });
 
   /* Reset state after drawing */

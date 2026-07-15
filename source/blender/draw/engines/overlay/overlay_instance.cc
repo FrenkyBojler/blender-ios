@@ -732,18 +732,18 @@ void Instance::draw(Manager &manager)
   /* TODO(fclem): Remove global access. */
   View &view = View::default_get();
 
-  static gpu::DebugScope select_scope = {"Selection"};
-  static gpu::DebugScope draw_scope = {"Overlay"};
-  static gpu::DebugScope depth_scope = {"DepthOnly"};
+  static gpu::DebugCapture depth_capture = "DepthOnly";
+  static gpu::DebugCapture select_capture = "Selection";
+  static gpu::DebugCapture draw_capture = "Overlay";
 
   if (state.is_depth_only_drawing) {
-    depth_scope.begin_capture();
+    depth_capture.begin();
   }
   else if (resources.is_selection()) {
-    select_scope.begin_capture();
+    select_capture.begin();
   }
   else {
-    draw_scope.begin_capture();
+    draw_capture.begin();
   }
 
   /* TODO(fclem): To be moved to overlay UBO. */
@@ -805,13 +805,13 @@ void Instance::draw(Manager &manager)
   resources.read_result();
 
   if (state.is_depth_only_drawing) {
-    depth_scope.end_capture();
+    depth_capture.end();
   }
   else if (resources.is_selection()) {
-    select_scope.end_capture();
+    select_capture.end();
   }
   else {
-    draw_scope.end_capture();
+    draw_capture.end();
   }
 }
 
