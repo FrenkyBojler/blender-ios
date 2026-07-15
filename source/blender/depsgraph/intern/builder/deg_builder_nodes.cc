@@ -173,7 +173,12 @@ IDNode *DepsgraphNodeBuilder::add_id_node(ID *id)
     if (deg_eval_copy_is_needed(id_type)) {
       ComponentNode *comp_cow = id_node->add_component(NodeType::COPY_ON_EVAL);
       OperationNode *op_cow = comp_cow->add_operation(
-          [id_node](blender::Depsgraph *depsgraph) { deg_create_eval_copy(depsgraph, id_node); },
+          [id_node](blender::Depsgraph *depsgraph) {
+            const deg::Depsgraph *deg_graph = reinterpret_cast<const deg::Depsgraph *>(depsgraph);
+            if (deg_graph->is_allowed_to_read_main) {
+              deg_create_eval_copy(depsgraph, id_node);
+            }
+          },
           OperationCode::COPY_ON_EVAL);
       graph_->operations.append(op_cow);
     }

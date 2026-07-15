@@ -168,6 +168,8 @@ struct Depsgraph {
   DepsgraphDebug debug;
 
   bool is_evaluating;
+  /** When set to false, the copy on eval stage will be skipped during evaluation. */
+  bool is_allowed_to_read_main;
 
   /* Is set to truth for dependency graph which are used for post-processing (compositor and
    * sequencer).

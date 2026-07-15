@@ -236,6 +236,12 @@ bool DEG_is_active(const Depsgraph *depsgraph);
 void DEG_make_active(Depsgraph *depsgraph);
 void DEG_make_inactive(Depsgraph *depsgraph);
 
+/**
+ * If set to false, the depsgraph will not be allowed to read from Main. That makes it safe to
+ * evaluate on a worker thread, but it also means "Copy on Eval" nodes will not update.
+ */
+void DEG_set_allow_read_from_main(Depsgraph *graph, bool allow);
+
 /* Returns the number of times the graph has been evaluated. */
 uint64_t DEG_get_update_count(const Depsgraph *depsgraph);
 

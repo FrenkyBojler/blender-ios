@@ -23,4 +23,9 @@ struct Depsgraph;
  */
 void deg_evaluate_on_refresh(Depsgraph *graph);
 
+/**
+ * Evaluate all nodes that have to read from Main.
+ */
+void deg_evaluate_cache_main(Depsgraph &graph);
+
 }  // namespace blender::deg

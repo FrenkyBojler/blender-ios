@@ -83,6 +83,7 @@ struct DepsgraphEvalState {
   EvaluationStage stage;
   bool need_update_pending_parents = true;
   bool need_single_thread_pass = false;
+  bool can_evaluate = true;
 };
 
 void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_node)
@@ -351,6 +352,9 @@ void evaluate_graph_threaded_stage(DepsgraphEvalState *state,
                                    TaskPool *task_pool,
                                    const EvaluationStage stage)
 {
+  if (!state->can_evaluate) {
+    return;
+  }
   state->stage = stage;
 
   calculate_pending_parents_if_needed(state);
@@ -364,7 +368,7 @@ void evaluate_graph_threaded_stage(DepsgraphEvalState *state,
 /* Evaluate remaining operations of the dependency graph in a single threaded manner. */
 void evaluate_graph_single_threaded_if_needed(DepsgraphEvalState *state)
 {
-  if (!state->need_single_thread_pass) {
+  if (!state->need_single_thread_pass || !state->can_evaluate) {
     return;
   }
 
@@ -471,8 +475,19 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
    * - Single-threaded pass of all remaining operations. */
 
   TaskPool *task_pool = deg_evaluate_task_pool_create(&state);
-
-  evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::COPY_ON_EVAL);
+  if (graph->is_allowed_to_read_main) {
+    evaluate_graph_threaded_stage(&state, task_pool, EvaluationStage::COPY_ON_EVAL);
+  }
+  else {
+    /* All id_cow need to exist at this point (even if stale data), otherwise we need to abort
+     * evaluation because further operations will depend on that data existing. */
+    for (IDNode *id_node : graph->id_nodes) {
+      if (id_node && deg_eval_copy_is_needed(id_node->id_type) && !id_node->id_cow) {
+        state.can_evaluate = false;
+        break;
+      }
+    }
+  }
 
   if (graph->has_animated_visibility || graph->need_update_nodes_visibility) {
     /* Update pending parents including only the ones which are affecting operations which are

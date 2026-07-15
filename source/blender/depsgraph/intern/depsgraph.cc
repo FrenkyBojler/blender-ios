@@ -56,6 +56,7 @@ Depsgraph::Depsgraph(Main *bmain, Scene *scene, ViewLayer *view_layer, eEvaluati
       is_active(false),
       use_visibility_optimization(true),
       is_evaluating(false),
+      is_allowed_to_read_main(true),
       is_render_pipeline_depsgraph(false),
       use_editors_update(false),
       physics_relations_effector(nullptr),
