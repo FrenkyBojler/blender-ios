@@ -15,11 +15,11 @@
 #include "BKE_context.hh"
 
 #include "BLI_array.hh"
-#include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
@@ -398,11 +398,10 @@ static void special_aftertrans_update__sequencer_image(bContext *C, TransInfo *t
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
-  TransData2D *td2d = nullptr;
   Scene *scene = CTX_data_sequencer_scene(C);
   int i;
 
-  for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {
+  for (i = 0, td = tc->data; i < tc->data_len; i += 3, td += 3) {
     TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
     StripTransform *transform = strip->data->transform;

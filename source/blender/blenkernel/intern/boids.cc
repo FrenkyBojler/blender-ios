@@ -15,15 +15,15 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_kdtree.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base_safe.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rand.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_rand_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_boids.h"
 #include "BKE_collision.h"
@@ -215,7 +215,7 @@ static bool rule_avoid_collision(BoidRule *rule,
 {
   const int raycast_flag = BVH_RAYCAST_DEFAULT & ~BVH_RAYCAST_WATERTIGHT;
   BoidRuleAvoidCollision *acbr = reinterpret_cast<BoidRuleAvoidCollision *>(rule);
-  KDTreeNearest_3d *ptn = nullptr;
+  KDTreeNearest<float3> *ptn = nullptr;
   BoidParticle *bpa = pa->boid;
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
   float co1[3], vel1[3], co2[3], vel2[3];
@@ -403,10 +403,10 @@ static bool rule_separate(BoidRule * /*rule*/,
                           BoidValues *val,
                           ParticleData *pa)
 {
-  KDTreeNearest_3d *ptn = nullptr;
+  KDTreeNearest<float3> *ptn = nullptr;
   float len = 2.0f * val->personal_space * pa->size + 1.0f;
   float vec[3] = {0.0f, 0.0f, 0.0f};
-  int neighbors = kdtree_3d_range_search(
+  int neighbors = kdtree_range_search<float3>(
       bbd->sim->psys->tree, pa->prev_state.co, &ptn, 2.0f * val->personal_space * pa->size);
   bool ret = false;
 
@@ -425,7 +425,7 @@ static bool rule_separate(BoidRule * /*rule*/,
     ParticleSystem *epsys = psys_get_target_system(bbd->sim->ob, &pt);
 
     if (epsys) {
-      neighbors = kdtree_3d_range_search(
+      neighbors = kdtree_range_search<float3>(
           epsys->tree, pa->prev_state.co, &ptn, 2.0f * val->personal_space * pa->size);
 
       if (neighbors > 0 && ptn[0].dist < len) {
@@ -447,7 +447,7 @@ static bool rule_flock(BoidRule * /*rule*/,
                        BoidValues * /*val*/,
                        ParticleData *pa)
 {
-  KDTreeNearest_3d ptn[11];
+  KDTreeNearest<float3> ptn[11];
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
   int neighbors = kdtree_find_nearest_n_with_len_squared_cb<float3>(
       bbd->sim->psys->tree,
@@ -678,7 +678,7 @@ static bool rule_average_speed(BoidRule *rule,
 static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, ParticleData *pa)
 {
   BoidRuleFight *fbr = reinterpret_cast<BoidRuleFight *>(rule);
-  KDTreeNearest_3d *ptn = nullptr;
+  KDTreeNearest<float3> *ptn = nullptr;
   ParticleData *epars;
   ParticleData *enemy_pa = nullptr;
   BoidParticle *bpa;
@@ -691,7 +691,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
   bool ret = false;
 
   /* calculate its own group strength */
-  int neighbors = kdtree_3d_range_search(
+  int neighbors = kdtree_range_search<float3>(
       bbd->sim->psys->tree, pa->prev_state.co, &ptn, fbr->distance);
   for (n = 0; n < neighbors; n++) {
     bpa = bbd->sim->psys->particles[ptn[n].index].boid;
@@ -708,7 +708,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
     if (epsys && epsys->part->boids) {
       epars = epsys->particles;
 
-      neighbors = kdtree_3d_range_search(epsys->tree, pa->prev_state.co, &ptn, fbr->distance);
+      neighbors = kdtree_range_search<float3>(epsys->tree, pa->prev_state.co, &ptn, fbr->distance);
 
       health = 0.0f;
 
@@ -1099,7 +1099,7 @@ void boid_brain(BoidBrainData *bbd, int p, ParticleData *pa)
     }
     case eBoidRulesetType_Random: {
       /* use random rule for each particle (always same for same particle though) */
-      const int n = BLI_listbase_count(&state->rules);
+      const int n = state->rules.count();
       if (n) {
         rule = static_cast<BoidRule *>(BLI_findlink(&state->rules, rand % n));
         apply_boid_rule(bbd, rule, &val, pa, -1.0);
@@ -1697,12 +1697,12 @@ void boid_free_settings(BoidSettings *boids)
     BoidState *state = static_cast<BoidState *>(boids->states.first);
 
     for (; state; state = state->next) {
-      BLI_freelistN(&state->rules);
+      state->rules.free_no_destruct();
       BLI_freelistN(&state->conditions);
       BLI_freelistN(&state->actions);
     }
 
-    BLI_freelistN(&boids->states);
+    boids->states.free_no_destruct();
 
     MEM_delete(boids);
   }
