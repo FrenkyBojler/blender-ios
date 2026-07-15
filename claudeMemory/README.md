@@ -61,9 +61,28 @@ against the source at the start of the project.
 
 ---
 
-## `plans/` and `research/`
+## `plans/` — Implementation Plans
 
-Implementation plans go in [plans/](./plans/); research notes go in
-[research/](./research/). When implementing a plan, mark scaffolding comments
-with `CLAUDENOTE:` and strip them (plus audit all touched comments) when the
-plan is complete — see [../CLAUDE.md](../CLAUDE.md).
+Master tracker with dependencies and per-plan checklists:
+**[plans/taskList.md](./plans/taskList.md)**.
+
+| # | Plan | Covers |
+|---|---|---|
+| P1 | [python-bindings.md](./plans/python-bindings.md) | `ctypes` runtime over the `LSTL_*` ABI + `.pyi` stub generator. |
+| P2 | [mode-infra.md](./plans/mode-infra.md) | `bpy.types.ObjectModeType` + `OB_MODE_CUSTOM` (Tier 1 of the design doc). |
+| P3 | [mesh-convert.md](./plans/mesh-convert.md) | Mesh ⇄ SculptCore bulk conversion, enter/exit/flush lifecycle. |
+| P4 | [addon-skeleton.md](./plans/addon-skeleton.md) | The addon: mode class, session registry, stroke operator, keymap/UI. |
+| P5 | [draw-integration.md](./plans/draw-integration.md) | Flush-to-Mesh fallback + external draw-provider seam for the viewport engines. |
+| P6 | [undo-integration.md](./plans/undo-integration.md) | Wrapped `CUSTOM_MODE` undo type coupled to SculptCore's meshlog. |
+| P7 | [brush-mapping.md](./plans/brush-mapping.md) | Reusing Blender `Brush` properties; engine-only params as addon custom props. |
+| P8 | [multires-convert.md](./plans/multires-convert.md) | MDISPS ⇄ SculptCore displacement grids (multires modifier ignored at runtime). |
+
+When implementing a plan, mark scaffolding comments with `CLAUDENOTE:` and
+strip them (plus audit all touched comments) when the plan is complete — see
+[../CLAUDE.md](../CLAUDE.md).
+
+## `research/` — Research Notes
+
+| Doc | Covers |
+|---|---|
+| [sculpt-modifier-coupling.md](./research/sculpt-modifier-coupling.md) | Where Blender couples sculpt mode to the modifier stack / geometry nodes; what the v1 deferral (no sculpting through active modifiers) skips and for how long. |
