@@ -1,0 +1,13 @@
+this branch's purpose is to integrate a new extern/sculptcore sculpting engine into blender.  we will be making some
+modifications to CLAUDE.md for the duration of this project (it will be excluded from the final PR).  first merge
+AGENTS.md into CLAUDE.md then delete it.  Claude should generate documenation/memory in claudeMemory, plans should
+go in claudeMemory/plans, research in claudeMemory/research; CLAUDE should prefix helper comments when implementing
+plans with `CLAUDENOTE:` and strip them out after finishing the plan; in fact claude should audit all relevent
+comments after a plan.  Blender's current code documentation should be read, validated against the code and written to claudeMemory with a file structure of your choosing.  create an appropriate index structure.  afterwards ensure CLAUDE.md points only to the new documentation (delete the old docs). make a note that the final PR should delete claudeMemory and bring back the old documentation
+and AGENTS.md.
+
+the general strategy of this integration is to make the minimal modifications to Blender's addon
+system to allow a full sculpt mode addon (including proper undo support, integration with the
+render system, etc), make a note of this in CLAUDE.md.  
+
+
