@@ -732,7 +732,8 @@ PyDoc_STRVAR(
     "   :type slot: int\n"
     "   :param qualifiers: Set containing values that describe how the storage buffer is to be "
     "read or written.\n"
-    "   :type qualifiers: set[" PYDOC_QUALIFIERS_LITERAL "]\n"
+    "   :type qualifiers: set[" PYDOC_QUALIFIERS_LITERAL
+    "]\n"
     "   :param type_name: Name of the data type. "
     "It can be a struct type defined in the source passed through the "
     ":meth:`gpu.types.GPUShaderCreateInfo.typedef_source`.\n"
