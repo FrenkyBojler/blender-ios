@@ -9,12 +9,12 @@
 #include <cerrno>
 #include <cstring>
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -698,14 +698,12 @@ bool BKE_image_save(
 
   if (ok) {
     if (ima->flag & IMA_AUTOSAVE_TEMPPACK) {
-      BKE_image_free_packedfiles(ima);
-      ima->flag &= ~IMA_AUTOSAVE_TEMPPACK;
+      BKE_image_clear_autosave(ima);
     }
   }
 
   if (colorspace_changed) {
     BKE_image_signal(bmain, ima, nullptr, IMA_SIGNAL_COLORMANAGE);
-    BKE_image_partial_update_mark_full_update(ima);
   }
 
   return ok;
