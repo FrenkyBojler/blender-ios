@@ -715,6 +715,7 @@ static void create_mesh(Scene *scene,
 
   /* create faces */
   if (!subdivision) {
+    int *triangles = mesh->get_triangles().data();
     bool *smooth = mesh->get_smooth().data();
     int *shader = mesh->get_shader().data();
 
@@ -722,8 +723,7 @@ static void create_mesh(Scene *scene,
     blender::bke::mesh::vert_tris_from_corner_tris(
         corner_verts,
         b_mesh.corner_tris(),
-        blender::MutableSpan<int>(mesh->get_triangles().data(), mesh->get_triangles().size())
-            .cast<blender::int3>());
+        blender::MutableSpan<int>(triangles, numtris).cast<blender::int3>());
 
     if (!material_indices.is_empty()) {
       for (const int face : faces.index_range()) {
