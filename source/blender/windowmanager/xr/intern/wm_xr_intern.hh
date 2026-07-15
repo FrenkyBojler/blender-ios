@@ -149,21 +149,20 @@ struct wmXrRuntimeData {
 
   /* Desktop window that XR session was started from. */
   wmWindow *desktop_root_win;
-  /* Private XR window that owns world-space UI interaction state. */
-  wmWindow *xr_ui_window;
-  /* Dedicated XR UI screen/layout owned by the private window. */
-  bScreen *xr_ui_screen;
-  WorkSpaceLayout *xr_ui_layout;
+  /* Private XR window that owns XR session state and event routing. */
+  wmWindow *xr_window;
+  /* Dedicated XR screen/layout owned by the private window. */
+  bScreen *xr_screen;
+  WorkSpaceLayout *xr_layout;
 
-  /* Owning pointer to the XR UI area. Must be freed on XR session exit. */
-  ScrArea *xr_ui_area;
-  bool xr_ui_area_initialized;
+  /* Dedicated XR operator area/region used for non-UI XR events. */
+  ScrArea *xr_operator_area;
+  ARegion *xr_operator_region;
 
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
   eWMXrPanelMountPoint panel_mount_point;
-  eWMXrPanelMountPoint xr_ui_area_mount_point;
 
   ListBaseT<XrActionMap> actionmaps;
   short actactionmap;
@@ -204,6 +203,7 @@ struct wmXrPanel {
   eWMXrPanelMountPoint mount_point;
   bool panel_valid;
   bool panel_dirty;
+  bool panel_host_initialized;
   uint64_t panel_frame_tag;
   uint64_t panel_last_rebuild_tag;
   struct wmWindow *panel_host_win;
@@ -390,6 +390,7 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                             short event_val);
 void WM_xr_surface_panels_register(const bContext *C);
 void WM_xr_surface_panels_update(const bContext *C, const wmXrData *xr);
+void WM_xr_panel_host_free(wmXrPanel *panel);
 
 /**
  * \brief Check if XR passthrough is enabled.

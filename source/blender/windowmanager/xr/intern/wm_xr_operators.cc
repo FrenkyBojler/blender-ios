@@ -32,6 +32,8 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "CLG_log.h"
+
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_transform_snap_object_context.hh"
@@ -56,6 +58,8 @@
 #include "wm_xr_intern.hh"
 
 namespace blender {
+
+static CLG_LogRef LOG = {"wm.xr"};
 
 /* -------------------------------------------------------------------- */
 /** \name Operator Conditions
@@ -134,7 +138,24 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *context_win = CTX_wm_window(C);
+  wmXrRuntimeData *runtime = wm->xr.runtime;
+  const wmWindow *xr_ui_win = runtime ? runtime->xr_window : nullptr;
+  const wmWindow *desktop_root_win = runtime ? runtime->desktop_root_win : nullptr;
+  const bool is_xr_ui_context = (context_win != nullptr && context_win == xr_ui_win);
+  const bool is_desktop_root_context = (context_win != nullptr && context_win == desktop_root_win);
   View3D *v3d = CTX_wm_view3d(C);
+
+  CLOG_INFO_NOCHECK(&LOG,
+                    "session_toggle context_win=%p xr_ui_win=%p desktop_root_win=%p "
+                    "is_xr_ui=%d is_desktop_root=%d area=%p region=%p",
+                    static_cast<void *>(context_win),
+                    static_cast<const void *>(xr_ui_win),
+                    static_cast<const void *>(desktop_root_win),
+                    int(is_xr_ui_context),
+                    int(is_desktop_root_context),
+                    static_cast<void *>(CTX_wm_area(C)),
+                    static_cast<void *>(CTX_wm_region(C)));
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
