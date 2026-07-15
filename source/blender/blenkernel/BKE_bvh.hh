@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 
 #include <limits>
-#include <memory>
 #include <optional>
 
 struct RTCDeviceTy;
@@ -65,8 +65,9 @@ class Tree {
 
  private:
 #ifdef WITH_EMBREE
-  RTCDeviceTy *rtc_device = nullptr;
-  RTCSceneTy *rtc_scene = nullptr;
+  RTCDeviceTy *rtc_device_ = nullptr;
+  RTCSceneTy *rtc_scene_ = nullptr;
+  Vector<Array<int, 0>> index_map_by_geom_;
 #else
   std::unique_ptr<FallbackTree> fallback_tree_;
 #endif
@@ -85,7 +86,7 @@ class Tree {
    * \param tris_num: Pre-calculated number of triangles in the mask, technically redundant with
    * the mask, but passed as an argument to avoid recalculating it.
    */
-  static Tree from_tris(const Mesh &mesh, const IndexMask &mask, int tris_num);
+  static Tree from_tris(const Mesh &mesh, const IndexMask &mask, bool map_global_indices);
   /** Create a BVH tree from the entire mesh. */
   static Tree from_single_mesh(const Mesh &mesh);
 
