@@ -271,6 +271,9 @@ SceneCompositorEffect &duplicate_effect(Scene &scene, SceneCompositorEffect &sou
   if (source_effect.node_group) {
     id_us_plus(&new_effect.node_group->id);
   }
+  if (source_effect.system_properties) {
+    new_effect.system_properties = IDP_CopyProperty_ex(source_effect.system_properties, 0);
+  }
   BLI_addtail(&scene.compositor_effects, &new_effect);
   rename_effect(scene, new_effect, source_effect.name, false);
   set_active_effect(scene, new_effect);
@@ -291,19 +294,19 @@ void remove_effect(Scene &scene, SceneCompositorEffect &effect)
 
 void copy_effects(Scene &target_scene, const Scene &source_scene, const int flags)
 {
-  free_effects(target_scene);
-  for (const SceneCompositorEffect &effect : source_scene.compositor_effects) {
-    SceneCompositorEffect *new_effect = MEM_dupalloc(&effect);
-    BLI_addtail(&target_scene.compositor_effects, new_effect);
-    if (effect.system_properties) {
-      new_effect->system_properties = IDP_CopyProperty_ex(effect.system_properties, flags);
+  target_scene.compositor_effects.clear_no_delete();
+  for (const SceneCompositorEffect &source_effect : source_scene.compositor_effects) {
+    SceneCompositorEffect &new_effect = *MEM_dupalloc(&source_effect);
+    BLI_addtail(&target_scene.compositor_effects, &new_effect);
+    if (source_effect.system_properties) {
+      new_effect.system_properties = IDP_CopyProperty_ex(source_effect.system_properties, flags);
     }
   }
 }
 
 void free_effects(Scene &scene)
 {
-  for (const SceneCompositorEffect &effect : scene.compositor_effects) {
+  for (const SceneCompositorEffect &effect : scene.compositor_effects.items_mutable()) {
     if (effect.system_properties) {
       IDP_FreeProperty_ex(effect.system_properties, false);
     }

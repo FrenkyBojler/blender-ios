@@ -203,7 +203,7 @@ void ntreeCompositTagRender(Scene *scene)
        sce_iter = static_cast<Scene *>(sce_iter->id.next))
   {
     for (const SceneCompositorEffect &effect : sce_iter->compositor_effects) {
-      if (effect.node_group) {
+      if (effect.node_group && !ID_MISSING(effect.node_group)) {
         for (bNode *node : effect.node_group->all_nodes()) {
           if (node->id == (ID *)scene) {
             BKE_ntree_update_tag_node_property(effect.node_group, node);
