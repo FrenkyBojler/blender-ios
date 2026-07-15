@@ -1563,7 +1563,12 @@ class IdDiffer {
       return blend_data.blend.lookup(bstruct, {"name", blend_query::Deref()}).as_string();
     }
     if (sdna_struct.type->name == "IDProperty") {
-      return blend_data.blend.lookup(bstruct, blend_query::LookupPathElem{"name"}).as_string();
+      const std::optional<std::string> name =
+          blend_data.blend.lookup(bstruct, {"name", blend_query::Deref()}).as_string();
+      if (name && !name->empty()) {
+        return name;
+      }
+      return std::nullopt;
     }
     if (sdna_struct.type->name == "bNodeTreeInterfacePanel") {
       if (!ui_identifier) {
