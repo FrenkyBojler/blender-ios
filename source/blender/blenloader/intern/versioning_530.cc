@@ -22,6 +22,8 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 
+#include "SEQ_relations.hh"
+
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -67,11 +69,15 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   // TODO: GD;; Change before merge! (and bump version up)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 99)) {
     for (Scene &scene : bmain->scenes) {
-      if (scene.ed == nullptr) {
+      Editing *ed = scene.ed;
+      if (ed == nullptr) {
         return;
       }
 
-      scene.ed->image_user.flag |= IMA_ANIM_ALWAYS;
+      ed->image_user.flag |= IMA_ANIM_ALWAYS;
+
+      /* Change all image strips to image id strips */
+      seq::relations_convert_to_image_id_strips(bmain, &scene);
     }
   }
 

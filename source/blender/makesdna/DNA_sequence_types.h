@@ -121,7 +121,7 @@ enum eStripAlphaMode : uint8_t {
  * Note: update #Strip::is_effect when adding new effect types.
  */
 enum StripType : uint32_t {
-  STRIP_TYPE_IMAGE = 0,
+  STRIP_TYPE_IMAGE = 0, /* DEPRECATED */
   STRIP_TYPE_META = 1,
   STRIP_TYPE_SCENE = 2,
   STRIP_TYPE_MOVIE = 3,

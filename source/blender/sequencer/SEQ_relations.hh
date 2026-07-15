@@ -81,6 +81,8 @@ void relations_invalidate_compositor_users(const Main *bmain, const bNodeTree *n
 void relations_invalidate_movieclip_strips(Main *bmain, MovieClip *clip_target);
 
 void relations_invalidate_image_id_strips(const Main *bmain, Image *image_target);
+
+void relations_convert_to_image_id_strips(Main *bmain, Scene *scene);
 /**
  * Release FFmpeg handles of strips that are not currently displayed to minimize memory usage.
  */
