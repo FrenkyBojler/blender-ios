@@ -132,8 +132,6 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
           group_ids, memory, group_indices_);
       const int groups_num = group_masks.size();
 
-      const OffsetIndices<int> faces = mesh.faces();
-
       if (groups_num == 1) {
         single_tree_ = &mesh.bvh_tris();
       }
