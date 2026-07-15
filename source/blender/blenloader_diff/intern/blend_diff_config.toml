@@ -7,7 +7,7 @@ bArmature = ["act_bone"]
 [ignored_members]
 bNodeLink = ["fromnode", "tonode", "fromsock", "tosock"]
 bNode = ["locx", "locy", "width", "height", "ui_order", "location", "type"]
-bNodeTree = ["view_center", "owner_id"]
+bNodeTree = ["view_center", "owner_id", "view_width"]
 bNodeSocket = ["link", "type", "display_shape"]
 ID = [
     "session_uid",
