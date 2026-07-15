@@ -780,11 +780,6 @@ bool RNA_struct_is_ID(const StructRNA *type)
   return (type->flag & STRUCT_ID) != 0;
 }
 
-bool RNA_struct_undo_check(const StructRNA *type)
-{
-  return (type->flag & STRUCT_UNDO) != 0;
-}
-
 bool RNA_struct_in_public_namespace(const StructRNA *type)
 {
   return (type->flag & STRUCT_PUBLIC_NAMESPACE) != 0;
@@ -2276,6 +2271,18 @@ int RNA_property_ui_icon(const PropertyRNA *prop)
   return rna_ensure_property(const_cast<PropertyRNA *>(prop))->icon;
 }
 
+bool RNA_property_undo_check(const PropertyRNA *prop, const StructRNA *type)
+{
+  if (type->flag & STRUCT_UNDO) {
+    return true;
+  }
+  const PropertyRNA *rna_prop = rna_ensure_property(const_cast<PropertyRNA *>(prop));
+  if (rna_prop->flag & PROP_FORCE_UNDO) {
+    return true;
+  }
+  return false;
+}
+
 static bool rna_property_editable_do(const PointerRNA *ptr,
                                      PropertyRNA *prop_orig,
                                      const int index,
@@ -2286,9 +2293,11 @@ static bool rna_property_editable_do(const PointerRNA *ptr,
   PropertyRNA *prop = rna_ensure_property(prop_orig);
 
   const char *info = "";
-  const int flag = (prop->itemeditable != nullptr && index >= 0) ?
-                       prop->itemeditable(ptr, index) :
-                       (prop->editable != nullptr ? prop->editable(ptr, &info) : prop->flag);
+  const PropertyFlag flag = (prop->itemeditable != nullptr && index >= 0) ?
+                                PropertyFlag(prop->itemeditable(ptr, index)) :
+                                (prop->editable != nullptr ?
+                                     PropertyFlag(prop->editable(ptr, &info)) :
+                                     prop->flag);
   if (r_info != nullptr) {
     *r_info = info;
   }
@@ -2359,11 +2368,11 @@ bool RNA_property_editable_info(const PointerRNA *ptr, PropertyRNA *prop, const 
 
 bool RNA_property_editable_flag(const PointerRNA *ptr, PropertyRNA *prop)
 {
-  int flag;
+  PropertyFlag flag;
   const char *dummy_info;
 
   prop = rna_ensure_property(prop);
-  flag = prop->editable ? prop->editable(ptr, &dummy_info) : prop->flag;
+  flag = prop->editable ? PropertyFlag(prop->editable(ptr, &dummy_info)) : prop->flag;
   return (flag & PROP_EDITABLE) != 0;
 }
 
