@@ -92,6 +92,10 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
       "fill_id", bke::AttrDomain::Curve);
   fill_ids.span.last() = bke::greasepencil::get_next_available_fill_id(fill_ids.span.varray());
+
+  auto [shape_map, shape_offsets] = blender::bke::greasepencil::shapes_from_fill_ids(
+      fill_ids.span.varray(), input_curves.curves_num());
+
   fill_ids.finish();
 
   const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(), mcoords.size());
@@ -114,12 +118,6 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   carver::CurveBooleanOpParameters op_params;
   op_params.boolean_mode = carver::Operation::Difference;
   op_params.keep_caps = keep_caps;
-
-  const VArray<int> input_fill_ids = *input_curves.attributes().lookup<int>(
-      "fill_id", bke::AttrDomain::Curve);
-
-  auto [shape_map, shape_offsets] = blender::bke::greasepencil::shapes_from_fill_ids(
-      input_fill_ids, input_curves.curves_num());
 
   const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
   const IndexRange clipping_shapes = IndexRange::from_single(shapes.size() - 1);
