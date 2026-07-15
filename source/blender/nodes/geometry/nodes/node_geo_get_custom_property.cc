@@ -21,6 +21,7 @@ static const EnumPropertyItem type_items[] = {
     {SOCK_VECTOR, "VECTOR", ICON_NODE_SOCKET_VECTOR, N_("Vector"), N_("Vector value")},
     {SOCK_RGBA, "COLOR", ICON_NODE_SOCKET_RGBA, N_("Color"), N_("Color value")},
     {SOCK_ROTATION, "ROTATION", ICON_NODE_SOCKET_ROTATION, N_("Rotation"), N_("Rotation value")},
+    {SOCK_MATRIX, "MATRIX", ICON_NODE_SOCKET_MATRIX, N_("Matrix"), N_("Matrix value")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -50,57 +51,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   ADD_TYPED_OUTPUT(decl::Vector, "ValueVector"_ustr, SOCK_VECTOR)
   ADD_TYPED_OUTPUT(decl::Rotation, "ValueRotation"_ustr, SOCK_ROTATION)
   ADD_TYPED_OUTPUT(decl::Color, "ValueColor"_ustr, SOCK_RGBA)
+  ADD_TYPED_OUTPUT(decl::Matrix, "ValueMatrix"_ustr, SOCK_MATRIX)
 
   b.add_output<decl::Bool>("Exists"_ustr).default_value(false);
 
   b.add_input<decl::DataBlockID>("ID"_ustr).description("ID to get the custom property of");
   b.add_input<decl::String>("Name"_ustr).description("Name of the custom property");
-}
-
-static float3 IDP_coerce_to_float3_or_zero(IDProperty *prop)
-{
-  float r[4] = {0.0f};
-  switch (prop->type) {
-    case IDP_ARRAY:
-      switch (prop->subtype) {
-        case IDP_FLOAT:
-          copy_v3_v3(r, IDP_array_float_get(prop));
-          break;
-        case IDP_DOUBLE:
-          copy_v3fl_v3db(r, IDP_array_double_get(prop));
-          break;
-        default:
-          break;
-      }
-      break;
-    default:
-      copy_v3_fl(r, IDP_coerce_to_float_or_zero(prop));
-      break;
-  }
-  return float3(r);
-}
-
-static float4 IDP_coerce_to_float4_or_zero(IDProperty *prop)
-{
-  float r[4] = {0.0f};
-  switch (prop->type) {
-    case IDP_ARRAY:
-      switch (prop->subtype) {
-        case IDP_FLOAT:
-          copy_v4_v4(r, IDP_array_float_get(prop));
-          break;
-        case IDP_DOUBLE:
-          copy_v4fl_v4db(r, IDP_array_double_get(prop));
-          break;
-        default:
-          break;
-      }
-      break;
-    default:
-      copy_v4_fl(r, IDP_coerce_to_float_or_zero(prop));
-      break;
-  }
-  return float4(r);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -162,8 +118,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       params.set_output("ValueRotation"_ustr,
                         math::Quaternion(IDP_coerce_to_float4_or_zero(prop)));
       break;
+    case SOCK_MATRIX:
+      params.set_output("ValueMatrix"_ustr, IDP_coerce_to_float4x4_or_identity(prop));
+      break;
     default:
-      BLI_assert_unreachable();
+      // BLI_assert_unreachable();
+      break;
   }
 
   params.set_default_remaining_outputs();

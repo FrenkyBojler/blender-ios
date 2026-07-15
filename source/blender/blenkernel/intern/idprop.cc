@@ -19,6 +19,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_matrix.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -970,7 +972,7 @@ bool IDP_coerce_to_bool_or_false(const IDProperty *prop)
   }
 }
 
-const std::string IDP_coerce_to_string_or_empty(const IDProperty *prop)
+std::string IDP_coerce_to_string_or_empty(const IDProperty *prop)
 {
   switch (prop->type) {
     case IDP_BOOLEAN:
@@ -984,6 +986,83 @@ const std::string IDP_coerce_to_string_or_empty(const IDProperty *prop)
     default:
       return "";
   }
+}
+
+float3 IDP_coerce_to_float3_or_zero(IDProperty *prop)
+{
+  float result[4] = {0.0f};
+  switch (prop->type) {
+    case IDP_ARRAY:
+      switch (prop->subtype) {
+        case IDP_FLOAT:
+          copy_v3_v3(result, IDP_array_float_get(prop));
+          break;
+        case IDP_DOUBLE:
+          copy_v3fl_v3db(result, IDP_array_double_get(prop));
+          break;
+        default:
+          break;
+      }
+      break;
+    default:
+      copy_v3_fl(result, IDP_coerce_to_float_or_zero(prop));
+      break;
+  }
+  return float3(result);
+}
+
+float4 IDP_coerce_to_float4_or_zero(IDProperty *prop)
+{
+  float result[4] = {0.0f};
+  switch (prop->type) {
+    case IDP_ARRAY:
+      switch (prop->subtype) {
+        case IDP_FLOAT:
+          copy_v4_v4(result, IDP_array_float_get(prop));
+          break;
+        case IDP_DOUBLE:
+          copy_v4fl_v4db(result, IDP_array_double_get(prop));
+          break;
+        default:
+          break;
+      }
+      break;
+    default:
+      copy_v4_fl(result, IDP_coerce_to_float_or_zero(prop));
+      break;
+  }
+  return float4(result);
+}
+
+float4x4 IDP_coerce_to_float4x4_or_identity(IDProperty *prop)
+{
+  float result[16] = {0.0f};
+  switch (prop->type) {
+    case IDP_ARRAY:
+      switch (prop->subtype) {
+        case IDP_FLOAT:
+          std::memcpy(result, IDP_array_float_get(prop), std::min(sizeof(result), static_cast<size_t>(prop->len) * sizeof(float)));
+          break;
+        case IDP_DOUBLE: {
+          const double* f64_array = IDP_array_double_get(prop);
+          for (int i = 0; i < prop->len; ++i) {
+            result[i] = static_cast<float>(f64_array[i]);
+          }
+        }
+          break;
+        default:
+          break;
+      }
+      break;
+    default:
+      return float4x4::identity();
+  }
+  return float4x4(
+    float4(result[ 0], result[ 1], result[ 2], result[ 3]),
+    float4(result[ 4], result[ 5], result[ 6], result[ 7]),
+    float4(result[ 8], result[ 9], result[10], result[11]),
+    float4(result[12], result[13], result[14], result[15])
+  );
 }
 
 IDProperty *IDP_CopyProperty_ex(const IDProperty *prop, const int flag)
