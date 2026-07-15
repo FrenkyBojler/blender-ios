@@ -281,7 +281,7 @@ struct LayoutItemBx : public LayoutColumn {
 
   void estimate_impl() override;
   void resolve_impl() override;
-  int resolve_dynamic_height() override;
+  void resolve_dynamic_height() override;
 };
 
 struct LayoutItemPanelHeader : public Layout {
@@ -292,14 +292,14 @@ struct LayoutItemPanelHeader : public Layout {
 
   void estimate_impl() override;
   void resolve_impl() override;
-  int resolve_dynamic_height() override;
+  void resolve_dynamic_height() override;
 };
 
 struct LayoutItemPanelBody : public LayoutColumn {
   int index = 0;
   LayoutItemPanelBody() : LayoutColumn(ItemType::LayoutPanelBody, nullptr) {}
   void resolve_impl() override;
-  int resolve_dynamic_height() override;
+  void resolve_dynamic_height() override;
 };
 
 struct LayoutItemSplit : public LayoutRow {
@@ -4306,14 +4306,12 @@ void LayoutItemPanelHeader::resolve_impl()
       {float(y_), float(y_ + h_), open_prop_owner, open_prop_name});
 }
 
-int LayoutItemPanelHeader::resolve_dynamic_height()
+void LayoutItemPanelHeader::resolve_dynamic_height()
 {
-  const int yoffs = Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelHeader &header = panel->runtime->layout_panels.headers[this->index];
   header.start_y = float(y_);
   header.end_y = float(y_ + h_);
-  return yoffs;
 }
 
 /* panel body layout */
@@ -4329,15 +4327,13 @@ void LayoutItemPanelBody::resolve_impl()
   });
 }
 
-int LayoutItemPanelBody::resolve_dynamic_height()
+void LayoutItemPanelBody::resolve_dynamic_height()
 {
-  const int yoffs = Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelBody &body = panel->runtime->layout_panels.bodies[this->index];
   const int space = LayoutInternal::layout_space_get(this->parent_);
   body.start_y = float(y_ - space);
   body.end_y = float(y_ + h_ + space);
-  return yoffs;
 }
 
 /* box layout */
@@ -4397,14 +4393,13 @@ void LayoutItemBx::resolve_impl()
   but->rect.ymax = y_ + h_;
 }
 
-int LayoutItemBx::resolve_dynamic_height()
+void LayoutItemBx::resolve_dynamic_height()
 {
-  const int yoffs = Layout::resolve_dynamic_height();
+  Layout::resolve_dynamic_height();
   /* roundbox around the sublayout */
   Button *but = this->roundbox;
   but->rect.ymin = y_;
   but->rect.ymax = y_ + h_;
-  return yoffs;
 }
 
 /* multi-column layout, automatically flowing to the next */
@@ -5734,10 +5729,10 @@ static void resolve_label_multiline(ButtonLabel *button)
   button->rect.ymin = button->rect.ymax - std::max<float>(UI_UNIT_Y, height);
 }
 
-int Layout::resolve_dynamic_height()
+void Layout::resolve_dynamic_height()
 {
   if (this->items().is_empty()) {
-    return 0;
+    return;
   }
   /* Extra vertical offsset. */
   int y_offs = 0;
@@ -5791,7 +5786,6 @@ int Layout::resolve_dynamic_height()
   }
   this->y_ -= y_offs;
   this->h_ += y_offs;
-  return y_offs;
 }
 
 static int2 layout_end(Layout *layout)
