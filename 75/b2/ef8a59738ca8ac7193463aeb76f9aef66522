@@ -1,2 +1,3 @@
 Referenced by issue #160208, Blender crashes after adding noise modifier to an imported SVG
 Referenced by issue #160716, can't open daily built 5.2.0 beta since June 16
+Referenced by issue #161468, B 5.2.0 LTS - VSE regression - color strips are width,height = 1,1 when added via .new_effect(...)
