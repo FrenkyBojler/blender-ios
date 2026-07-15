@@ -1608,18 +1608,22 @@ class WM_OT_properties_edit(Operator):
 
     @staticmethod
     def _convert_new_value_single(old_value, new_type):
-        if hasattr(old_value, "__len__") and len(old_value) > 0:
+        if isinstance(old_value, list) and len(old_value) > 0:
             return new_type(old_value[0])
+        if not isinstance(old_value, (int, float, bool)):
+            return new_type(1.0 if old_value else 0.0)
         return new_type(old_value)
 
     # Helper method to create a list of a given value and type, using a sequence or non-sequence old value.
     @staticmethod
     def _convert_new_value_array(old_value, new_type, new_len):
-        if hasattr(old_value, "__len__"):
+        if isinstance(old_value, list):
             new_array = [new_type()] * new_len
             for i in range(min(len(old_value), new_len)):
                 new_array[i] = new_type(old_value[i])
             return new_array
+        if not isinstance(old_value, (int, float, bool)):
+            return [new_type(1.0 if old_value else 0.0)] * new_len
         return [new_type(old_value)] * new_len
 
     # Convert an old property for a string, avoiding unhelpful string representations for custom list types.
@@ -1739,29 +1743,16 @@ class WM_OT_properties_edit(Operator):
     # When the operator chooses a different type than the original property,
     # attempt to convert the old value to the new type for continuity and speed.
     def _get_converted_value(self, item, name_old, prop_type_new, id_type_old, id_type_new):
-        prop_type_old = self.get_property_type(item, name_old)
         if prop_type_new == 'INT':
-            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'INT_ARRAY', 'FLOAT_ARRAY', 'BOOL_ARRAY'}:
-                return self._convert_new_value_single(item[name_old], int)
-            else:
-                return self.default_int[0]
+            return self._convert_new_value_single(item[name_old], int)
         elif prop_type_new == 'FLOAT':
-            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'INT_ARRAY', 'FLOAT_ARRAY', 'BOOL_ARRAY'}:
-                return self._convert_new_value_single(item[name_old], float)
-            else:
-                return self.default_float[0]
+            return self._convert_new_value_single(item[name_old], float)
         elif prop_type_new == 'BOOL':
             return self._convert_new_value_single(item[name_old], bool)
         elif prop_type_new == 'INT_ARRAY':
-            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'INT_ARRAY', 'FLOAT_ARRAY', 'BOOL_ARRAY'}:
-                return self._convert_new_value_array(item[name_old], int, self.array_length)
-            else:
-                return self.default_int[:self.array_length]
+            return self._convert_new_value_array(item[name_old], int, self.array_length)
         elif prop_type_new == 'FLOAT_ARRAY':
-            if prop_type_old in {'INT', 'FLOAT', 'BOOL', 'INT_ARRAY', 'FLOAT_ARRAY', 'BOOL_ARRAY'}:
-                return self._convert_new_value_array(item[name_old], float, self.array_length)
-            else:
-                return self.default_float[:self.array_length]
+            return self._convert_new_value_array(item[name_old], float, self.array_length)
         elif prop_type_new == 'BOOL_ARRAY':
             return self._convert_new_value_array(item[name_old], bool, self.array_length)
         elif prop_type_new == 'STRING':
