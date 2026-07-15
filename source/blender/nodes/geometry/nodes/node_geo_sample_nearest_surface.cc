@@ -92,7 +92,9 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
   Field<int> group_id_field_;
 
   mutable CacheMutex mutex_;
-  mutable Array<bke::bvh::OptionallyOwnedTree> bvh_trees_;
+  mutable const bke::bvh::Tree *single_tree_;
+  mutable Array<bke::bvh::Tree> bvh_trees_;
+  mutable Array<Array<int>> group_tri_index_map_;
   mutable VectorSet<int> group_indices_;
 
  public:
@@ -131,19 +133,39 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
           group_ids, memory, group_indices_);
       const int groups_num = group_masks.size();
 
-      /* Construct BVH tree for each group. */
-      bvh_trees_.reinitialize(groups_num);
-      threading::parallel_for(
-          IndexRange(groups_num),
-          512,
-          [&](const IndexRange range) {
-            for (const int group_i : range) {
-              const IndexMask &group_mask = group_masks[group_i];
-              bvh_trees_[group_i] = bke::bvh::tree_from_mesh_tris_mask(mesh, group_mask);
-            }
-          },
-          threading::individual_task_sizes(
-              [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
+      const OffsetIndices<int> faces = mesh.faces();
+
+      if (groups_num == 1) {
+        single_tree_ = &mesh.bvh_tris();
+      }
+      else {
+        bvh_trees_.reinitialize(groups_num);
+        group_tri_index_map_.reinitialize(groups_num);
+        threading::parallel_for(
+            IndexRange(groups_num),
+            512,
+            [&](const IndexRange range) {
+              for (const int group_i : range) {
+                const IndexMask &group_mask = group_masks[group_i];
+                int tris_num = 0;
+                group_mask.foreach_index_optimized<int>([&](const int i) {
+                  tris_num += bke::mesh::face_triangles_num(faces[i].size());
+                });
+                bvh_trees_[group_i] = bke::bvh::Tree::from_tris(mesh, group_mask, tris_num);
+
+                group_tri_index_map_[group_i].reinitialize(tris_num);
+                int dst_tri = 0;
+                group_mask.foreach_index([&](const int i) {
+                  for (const int tri : bke::mesh::face_triangles_range(faces, i)) {
+                    group_tri_index_map_[group_i][dst_tri] = tri;
+                    dst_tri++;
+                  }
+                });
+              }
+            },
+            threading::individual_task_sizes(
+                [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
+      }
     });
   }
 
@@ -171,7 +193,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
         }
         return;
       }
-      const bke::bvh::Tree &bvh = *bvh_trees_[group_index].tree;
+      const bke::bvh::Tree &bvh = single_tree_ ? *single_tree_ : bvh_trees_[group_index];
       const std::optional<bke::bvh::ClosestPointResult> result = bvh.closest_point(position);
       if (!result) {
         triangle_index[i] = -1;

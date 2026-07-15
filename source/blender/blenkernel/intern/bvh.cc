@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_geom_c.hh"
@@ -140,63 +141,90 @@ static bool all_faces_are_triangles(const Mesh &mesh)
   return mesh.corners_num == mesh.faces_num * 3;
 }
 
-static void add_mesh_faces(const BvhBuildContext &ctx,
-                           const int id,
-                           const Mesh &mesh,
-                           const IndexMask &face_mask)
+static void add_positions(const Span<float3> positions, RTCGeometry geom_id)
+{
+  /* Unfortunately #rtcSetSharedGeometryBuffer cannot be used here because it must load past the
+   * end of the buffer for SIMD loads. */
+  float3 *positions_ptr = static_cast<float3 *>(rtcSetNewGeometryBuffer(
+      geom_id, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, sizeof(float3), positions.size()));
+  std::copy_n(positions.data(), positions.size(), positions_ptr);
+}
+
+static void add_mesh_faces(const BvhBuildContext &ctx, const int id, const Mesh &mesh)
 {
   RTCGeometry geom_id = rtcNewGeometry(ctx.device, RTC_GEOMETRY_TYPE_TRIANGLE);
   rtcSetGeometryBuildQuality(geom_id, ctx.build_quality);
 
+  const Span<float3> positions = mesh.vert_positions();
   const Span<int> corner_verts = mesh.corner_verts();
-  if (face_mask.size() == mesh.faces_num) {
-    if (all_faces_are_triangles(mesh)) {
-      rtcSetSharedGeometryBuffer(geom_id,
-                                 RTC_BUFFER_TYPE_INDEX,
-                                 0,
-                                 RTC_FORMAT_UINT3,
-                                 corner_verts.data(),
-                                 0,
-                                 sizeof(int3),
-                                 corner_verts.cast<int3>().size());
-    }
-    else {
-      const Span<int3> corner_tris = mesh.corner_tris();
-      uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
-          geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), corner_tris.size()));
-      mesh::vert_tris_from_corner_tris(
-          corner_verts, corner_tris, MutableSpan(rtc_indices, corner_tris.size()).cast<int3>());
-    }
+  if (all_faces_are_triangles(mesh)) {
+    rtcSetSharedGeometryBuffer(geom_id,
+                               RTC_BUFFER_TYPE_INDEX,
+                               0,
+                               RTC_FORMAT_UINT3,
+                               corner_verts.data(),
+                               0,
+                               sizeof(int3),
+                               corner_verts.cast<int3>().size());
   }
   else {
-    const OffsetIndices faces = mesh.faces();
     const Span<int3> corner_tris = mesh.corner_tris();
-    int tris_num = 0;
-    face_mask.foreach_index_optimized<int>(
-        [&](const int i) { tris_num += mesh::face_triangles_num(faces[i].size()); });
-
     uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
-        geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), tris_num));
-    int pos = 0;
-    face_mask.foreach_index_optimized<int>([&](const int face) {
-      for (const int tri : mesh::face_triangles_range(faces, face)) {
-        rtc_indices[pos] = uint3(corner_verts[corner_tris[tri][0]],
-                                 corner_verts[corner_tris[tri][1]],
-                                 corner_verts[corner_tris[tri][2]]);
-        pos++;
-      }
-    });
+        geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), corner_tris.size()));
+    mesh::vert_tris_from_corner_tris(
+        corner_verts, corner_tris, MutableSpan(rtc_indices, corner_tris.size()).cast<int3>());
   }
+  add_positions(positions, geom_id);
+
+  rtcCommitGeometry(geom_id);
+  rtcAttachGeometryByID(ctx.scene, geom_id, id);
+  rtcReleaseGeometry(geom_id);
+}
+
+static void add_mesh_faces(const BvhBuildContext &ctx,
+                           const int id,
+                           const Mesh &mesh,
+                           const IndexMask &face_mask,
+                           const int tris_num)
+{
+  RTCGeometry geom_id = rtcNewGeometry(ctx.device, RTC_GEOMETRY_TYPE_TRIANGLE);
+  rtcSetGeometryBuildQuality(geom_id, ctx.build_quality);
 
   const Span<float3> positions = mesh.vert_positions();
-  rtcSetSharedGeometryBuffer(geom_id,
-                             RTC_BUFFER_TYPE_VERTEX,
-                             0,
-                             RTC_FORMAT_FLOAT3,
-                             positions.data(),
-                             0,
-                             sizeof(float3),
-                             positions.size());
+  const OffsetIndices faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
+  /* Use #int instead of the default #int64_t for internal indices. */
+  VectorSet<int,
+            16,
+            DefaultProbingStrategy,
+            DefaultHash<int>,
+            DefaultEquality<int>,
+            SimpleVectorSetSlot<int, int>,
+            GuardedAllocator>
+      used_verts;
+  used_verts.reserve(faces.size());
+  face_mask.foreach_index(
+      [&](const int face) { used_verts.add_multiple(corner_verts.slice(faces[face])); });
+
+  const Span<int3> corner_tris = mesh.corner_tris();
+
+  uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
+      geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), tris_num));
+  int pos = 0;
+  face_mask.foreach_index_optimized<int>([&](const int face) {
+    for (const int tri : mesh::face_triangles_range(faces, face)) {
+      rtc_indices[pos] = uint3(used_verts.index_of(corner_verts[corner_tris[tri][0]]),
+                               used_verts.index_of(corner_verts[corner_tris[tri][1]]),
+                               used_verts.index_of(corner_verts[corner_tris[tri][2]]));
+      pos++;
+    }
+  });
+
+  /* If #rtcSetSharedGeometryBuffer could be used, remapping to avoid copying unnecessary
+   * vertex positions could be unnecessary. */
+  float3 *positions_ptr = static_cast<float3 *>(rtcSetNewGeometryBuffer(
+      geom_id, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, sizeof(float3), used_verts.size()));
+  array_utils::gather<float3>(positions, used_verts.as_span(), {positions_ptr, used_verts.size()});
 
   rtcCommitGeometry(geom_id);
   rtcAttachGeometryByID(ctx.scene, geom_id, id);
@@ -228,7 +256,39 @@ static BVHTreeFromMesh *fallback_mesh_data(const Tree::FallbackTree &fallback_tr
 
 #endif
 
-Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
+Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask, const int tris_num)
+{
+  if (face_mask.size() == mesh.faces_num) {
+    return from_single_mesh(mesh);
+  }
+  Tree tree;
+#ifdef WITH_EMBREE
+  tree.rtc_device = rtcNewDevice("verbose=0");
+
+  rtcSetDeviceErrorFunction(tree.rtc_device, rtc_error_func, nullptr);
+  rtcSetDeviceMemoryMonitorFunction(tree.rtc_device, rtc_memory_monitor_func, nullptr);
+
+  tree.rtc_scene = rtcNewScene(tree.rtc_device);
+  const RTCSceneFlags scene_flags = RTCSceneFlags(RTC_SCENE_FLAG_ROBUST |
+                                                  RTC_SCENE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS);
+  rtcSetSceneFlags(tree.rtc_scene, scene_flags);
+  RTCBuildQuality build_quality = RTC_BUILD_QUALITY_MEDIUM;
+  rtcSetSceneBuildQuality(tree.rtc_scene, build_quality);
+
+  BvhBuildContext ctx{tree.rtc_device, tree.rtc_scene, build_quality};
+
+  add_mesh_faces(ctx, 0, mesh, face_mask, tris_num);
+
+  rtcSetSceneProgressMonitorFunction(tree.rtc_scene, rtc_progress_func, nullptr);
+  rtcCommitScene(tree.rtc_scene);
+#else  /* WITH_EMBREE */
+  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, face_mask);
+#endif /* WITH_EMBREE */
+
+  return tree;
+}
+
+Tree Tree::from_single_mesh(const Mesh &mesh)
 {
   Tree tree;
 #ifdef WITH_EMBREE
@@ -246,20 +306,15 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 
   BvhBuildContext ctx{tree.rtc_device, tree.rtc_scene, build_quality};
 
-  add_mesh_faces(ctx, 0, mesh, face_mask);
+  add_mesh_faces(ctx, 0, mesh);
 
   rtcSetSceneProgressMonitorFunction(tree.rtc_scene, rtc_progress_func, nullptr);
   rtcCommitScene(tree.rtc_scene);
 #else  /* WITH_EMBREE */
-  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, face_mask);
+  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, IndexMask(mesh.faces_num));
 #endif /* WITH_EMBREE */
 
   return tree;
-}
-
-Tree Tree::from_single_mesh(const Mesh &mesh)
-{
-  return from_tris(mesh, IndexRange(mesh.faces_num));
 }
 
 std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
@@ -542,19 +597,6 @@ void Tree::range_query(const float3 &point, const float radius, FunctionRef<bool
         stop = !fn(index);
       });
 #endif
-}
-
-OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask)
-{
-  OptionallyOwnedTree result;
-  if (mask.size() == mesh.faces_num) {
-    result.tree = &mesh.bvh_tris();
-  }
-  else {
-    result.owned_tree = std::make_unique<Tree>(Tree::from_tris(mesh, mask));
-    result.tree = result.owned_tree.get();
-  }
-  return result;
 }
 
 }  // namespace blender::bke::bvh

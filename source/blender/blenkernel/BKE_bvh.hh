@@ -79,7 +79,14 @@ class Tree {
   Tree &operator=(Tree &&);
   ~Tree();
 
-  static Tree from_tris(const Mesh &mesh, const IndexMask &mask);
+  /**
+   * Create a BVH tree from a subset of the mesh faces. #from_single_mesh should be used when all
+   * faces are contained in the mask.
+   * \param tris_num: Pre-calculated number of triangles in the mask, technically redundant with
+   * the mask, but passed as an argument to avoid recalculating it.
+   */
+  static Tree from_tris(const Mesh &mesh, const IndexMask &mask, int tris_num);
+  /** Create a BVH tree from the entire mesh. */
   static Tree from_single_mesh(const Mesh &mesh);
 
   void free();
@@ -93,13 +100,6 @@ class Tree {
 
   void range_query(const float3 &point, const float radius, FunctionRef<bool(int)> fn) const;
 };
-
-struct OptionallyOwnedTree {
-  std::unique_ptr<Tree> owned_tree;
-  const Tree *tree;
-};
-
-OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask);
 
 }  // namespace bke::bvh
 }  // namespace blender
