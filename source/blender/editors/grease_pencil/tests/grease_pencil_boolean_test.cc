@@ -444,39 +444,39 @@ TEST_F(GreasePencilBooleanTest, Squares)
   const Array<int> points_by_curve = {0, 4, 8};
   const Array<int> fill_ids = {1, 2};
   const Array<bool> is_cyclic = {true, true};
-  const IndexRange clipping_fills = IndexRange(1, 1);
+  const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+        Operation::Intersect, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{2, 1}, {2, 2}, {1, 2}, {1, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Union, src_curves, fill_ids, clipping_fills);
+        Operation::Union, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{1, 2}, {0, 2}, {0, 0}, {2, 0}, {2, 1}, {3, 1}, {3, 3}, {1, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{1, 2}, {0, 2}, {0, 0}, {2, 0}, {2, 1}, {1, 1}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -496,41 +496,41 @@ TEST_F(GreasePencilBooleanTest, Simple)
   const Array<int> points_by_curve = {0, 4, 9};
   const Array<bool> is_cyclic = {true, true};
   const Array<int> fill_ids = {1, 2};
-  const IndexRange clipping_fills = IndexRange(1, 1);
+  const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+        Operation::Intersect, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{6, 3}, {5, 3}, {6, 4}},
                                                    {{3, 3}, {2, 3}, {2, 4}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Union, src_curves, fill_ids, clipping_fills);
+        Operation::Union, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{2, 3}, {0, 3}, {0, 6}, {8, 6}, {8, 3}, {6, 3}, {6, 0}, {2, 0}},
         {{5, 3}, {3, 3}, {4, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{2, 3}, {0, 3}, {0, 6}, {8, 6}, {8, 3}, {6, 3}, {6, 4}, {5, 3}, {3, 3}, {2, 4}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -550,14 +550,14 @@ TEST_F(GreasePencilBooleanTest, Complex)
   const Array<int> points_by_curve = {0, 6, 10};
   const Array<bool> is_cyclic = {true, true};
   const Array<int> fill_ids = {1, 2};
-  const IndexRange clipping_fills = IndexRange(1, 1);
+  const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+        Operation::Intersect, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{12.5662, 1.4096}, {12.3454, 1.4727}, {12.2, 1.8}, {12.4851, 1.6732}},
@@ -568,11 +568,11 @@ TEST_F(GreasePencilBooleanTest, Complex)
         {{10.3333, 6}, {11.1538, 6}, {11.2479, 5.6942}, {10.5058, 5.6117}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Union, src_curves, fill_ids, clipping_fills);
+        Operation::Union, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{12.4851, 1.6732},
@@ -599,11 +599,11 @@ TEST_F(GreasePencilBooleanTest, Complex)
         {{7.2105, 5.2456}, {5, 5}, {6.9534, 4.1317}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{12.4851, 1.6732}, {14, 1}, {12.5662, 1.4096}},
@@ -623,7 +623,7 @@ TEST_F(GreasePencilBooleanTest, Complex)
         {{11.1538, 6}, {14, 6}, {11.2479, 5.6942}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -645,25 +645,25 @@ TEST_F(GreasePencilBooleanTest, Last_Edge_Loop)
   const Array<int> points_by_curve = {0, 4, 11};
   const Array<bool> is_cyclic = {true, true};
   const Array<int> fill_ids = {1, 2};
-  const IndexRange clipping_fills = IndexRange(1, 1);
+  const IndexRange clipping_shapes = IndexRange(1, 1);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+        Operation::Intersect, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{6.6666, 5}, {5.6666, 5}, {3, 3}, {2.3333, 5}, {4.5000, 5}, {6, 3}},
         {{2, 5}, {1, 5}, {2, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Union, src_curves, fill_ids, clipping_fills);
+        Operation::Union, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{1, 5},
                                                     {0, 5},
@@ -679,11 +679,11 @@ TEST_F(GreasePencilBooleanTest, Last_Edge_Loop)
                                                    {{2.3333, 5}, {2, 5}, {2, 6}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Union", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Union", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{1, 5},
                                                     {0, 5},
@@ -700,7 +700,7 @@ TEST_F(GreasePencilBooleanTest, Last_Edge_Loop)
                                                     {2, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
 
   draw_divider_end();
@@ -860,20 +860,20 @@ TEST_F(GreasePencilBooleanTest, Square_With_Hole)
   const Array<int> points_by_curve = {0, 4, 8, 12};
   const Array<bool> is_cyclic = {true, true, true};
   const Array<int> fill_ids = {1, 1, 2};
-  const IndexRange clipping_fills = IndexRange::from_begin_end(1, 2);
+  const IndexRange clipping_shapes = IndexRange::from_begin_end(1, 2);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{5, 2}, {5, 0}, {0, 0}, {0, 5}, {2, 5}, {2, 4}, {1, 4}, {1, 1}, {4, 1}, {4, 2}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
@@ -904,21 +904,21 @@ TEST_F(GreasePencilBooleanTest, Squares_With_Holes)
   const Array<int> points_by_curve = {0, 4, 8, 12, 16};
   const Array<bool> is_cyclic = {true, true, true, true};
   const Array<int> fill_ids = {1, 1, 2, 2};
-  const IndexRange clipping_fills = IndexRange::from_begin_end(1, 2);
+  const IndexRange clipping_shapes = IndexRange::from_begin_end(1, 2);
 
   const bke::CurvesGeometry src_curves = create_test_curves(
       points_by_curve, points, fill_ids, is_cyclic);
 
   {
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{5, 2}, {5, 0}, {0, 0}, {0, 5}, {2, 5}, {2, 4}, {1, 4}, {1, 1}, {4, 1}, {4, 2}},
         {{3, 5}, {5, 5}, {5, 3}, {4, 3}, {4, 4}, {3, 4}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
@@ -953,27 +953,27 @@ TEST_F(GreasePencilBooleanTest, Multiple_Shapes)
    * The two subject shapes should be affected by the clipping shape, but not join into one.
    */
   {
-    const IndexRange clipping_fills = IndexRange::from_begin_end(2, 3);
+    const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Intersect, src_curves, fill_ids, clipping_fills);
+        Operation::Intersect, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {{{3, 7}, {5, 7}, {5, 3}, {3, 3}},
                                                    {{3, 5}, {7, 5}, {7, 3}, {3, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("2 Subjects Intersection", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("2 Subjects Intersection", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   {
-    const IndexRange clipping_fills = IndexRange::from_begin_end(2, 3);
+    const IndexRange clipping_shapes = IndexRange::from_begin_end(2, 3);
     const bke::CurvesGeometry dst_curves = test_curve_boolean(
-        Operation::Difference, src_curves, fill_ids, clipping_fills);
+        Operation::Difference, src_curves, fill_ids, clipping_shapes);
 
     const Array<Vector<float2>> expected_points = {
         {{5, 3}, {5, 2}, {0, 2}, {0, 7}, {3, 7}, {3, 3}},
         {{7, 3}, {7, 0}, {2, 0}, {2, 5}, {3, 5}, {3, 3}}};
     expect_boolean_result_coord(dst_curves, expected_points);
 
-    draw_results("2 Subjects Difference", "polygon", src_curves, dst_curves, clipping_fills);
+    draw_results("2 Subjects Difference", "polygon", src_curves, dst_curves, clipping_shapes);
   }
   draw_divider_end();
 }
