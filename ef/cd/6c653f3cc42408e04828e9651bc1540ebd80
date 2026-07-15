@@ -5,3 +5,4 @@ Referenced by pull request #159788, Fix: Clicking shapekey icon in outliner does
 Referenced by issue #160766, Crash deleting object in outliner if it is also showing a shape key
 Referenced by issue #160767, Crash expanding linked mesh with shape key in outliner library overrides hierarchies view
 Referenced by commit 7627787db051b2b392cb51c034c2a360565bcd4e, Fix: Clicking shapekey icon in outliner doesn't switch to data properties tab
+Referenced by pull request #161456, Fix: Missing break
