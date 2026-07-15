@@ -5,6 +5,7 @@
 #pragma once
 
 #include "eevee_light_data.bsl.hh"
+#include "eevee_light_eval.bsl.hh"
 #include "eevee_light_lib.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
 #include "eevee_volume_lib.bsl.hh"
@@ -124,7 +125,9 @@ void shape_display_vert([[resource_table]] const draw::View &views,
 
   v_out.light_type = uint(light.type);
   v_out.light_index = light_index;
-  v_out.radiance = light.color * shape_display_light_radiance_get(light);
+  // TODO: Remove this workaround
+  v_out.radiance = light.color *
+                   power_get(light, LIGHT_DIFFUSE);  // * shape_display_light_radiance_get(light);
 
   const ViewMatrices view = views.get(0);
   if (is_sun_light(light.type)) {
