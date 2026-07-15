@@ -5,10 +5,10 @@
 #include <algorithm>
 
 #include "BLI_kdtree.hh"
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include "BLI_vector_set.hh"
 
 #include "BKE_attribute.hh"
@@ -169,6 +169,8 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
       return new_density_operation(mode, scene, depsgraph, region, v3d, object, stroke_start);
     case CURVES_SCULPT_BRUSH_TYPE_SLIDE:
       return new_slide_operation();
+    case CURVES_SCULPT_BRUSH_TYPE_CUT:
+      return new_cut_operation();
   }
   BLI_assert_unreachable();
   return {};
@@ -184,7 +186,7 @@ struct SculptCurvesBrushStroke final : public PaintStroke {
   bool test_start(wmOperator *op, const float mouse[2]) override;
   void redraw(bool final) override;
   bool test_cancel() override;
-  void update_step(wmOperator *op, PointerRNA *itemptr) override;
+  void update_step(wmOperator *op, PointerRNA *stroke_element) override;
   void done(bool is_cancel, bool stroke_started) override;
 
  private:
@@ -1118,7 +1120,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
   op_data->orig_paintcursors = wm->runtime->paintcursors;
-  BLI_listbase_clear(&wm->runtime->paintcursors);
+  wm->runtime->paintcursors.clear_no_delete();
 
   /* Add minimum distance paint cursor. */
   op_data->cursor = WM_paint_cursor_activate(
