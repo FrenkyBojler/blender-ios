@@ -282,17 +282,19 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       mat_data->random_packed.x |= (unit_float_to_ushort_clamp(gp_style->random_strength_factor))
                                    << 16;
 
-      mat_data->random_packed.y = (unit_float_to_ushort_clamp(gp_style->random_rotation_factor));
-      mat_data->random_packed.y |= (unit_float_to_ushort_clamp(gp_style->random_hue_factor)) << 16;
+      mat_data->random_packed.y = (unit_float_to_uchar_clamp(gp_style->random_rotation_factor));
+      mat_data->random_packed.y |= (unit_float_to_uchar_clamp(gp_style->random_hue_factor)) << 8;
+      mat_data->random_packed.y |= (unit_float_to_uchar_clamp(gp_style->random_saturation_factor))
+                                   << 16;
+      mat_data->random_packed.y |= (unit_float_to_uchar_clamp(gp_style->random_value_factor))
+                                   << 24;
 
-      mat_data->random_packed.z = (unit_float_to_ushort_clamp(gp_style->random_saturation_factor));
-      mat_data->random_packed.z |= uint(unit_float_to_ushort_clamp(gp_style->random_value_factor) >>
-                                        8u)
-                                   << 16u;
       const uint hashed_seed = blender::BLI_hash_int(uint(gp_style->random_noise_seed));
-      mat_data->random_packed.z |= (hashed_seed & 0xFFu) << 24u;
+      mat_data->random_packed.z = (unit_float_to_ushort_clamp(gp_style->random_noise_scale /
+                                                              GP_RANDOM_NOISE_SCALE_MAX));
+      mat_data->random_packed.z |= (hashed_seed & 0xFFFFu) << 16;
 
-      mat_data->random_packed.w = float_as_uint(gp_style->random_noise_scale);
+      mat_data->random_packed.w = 0;
     }
     else {
       mat_data->random_packed = uint4(0);

@@ -130,15 +130,16 @@ struct RandomParameters {
 RandomParameters unpack_random(uint4 random_packed)
 {
   float2 unpacked_x = unpackUnorm2x16(random_packed.x);
-  float2 unpacked_y = unpackUnorm2x16(random_packed.y);
+  float4 unpacked_y = unpackUnorm4x8(random_packed.y);
+  float2 unpacked_z = unpackUnorm2x16(random_packed.z);
   return {unpacked_x.x,
           unpacked_x.y,
           unpacked_y.x,
           unpacked_y.y,
-          unpackUnorm2x16(random_packed.z).x,
-          float((random_packed.z >> 16u) & 0xFFu) / 255.0f,
-          uintBitsToFloat(random_packed.w),
-          float(random_packed.z >> 24u) * (65536.0f / 255.0f)};
+          unpacked_y.z,
+          unpacked_y.w,
+          unpacked_z.x * GP_RANDOM_NOISE_SCALE_MAX,
+          unpacked_z.y * GP_RANDOM_SEED_OFFSET_SCALE};
 }
 
 float simple_noise(float x)
