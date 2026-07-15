@@ -36,10 +36,7 @@ design section as a mini-design-doc.
   `DRW_mesh_get_attributes`). Per-node material = first face's
   `material_index` (`draw_pbvh.cc:1405`).
 - **No existing injection point** for a foreign BVH: `sculpt_batches_get_ex`
-  requires the real `SculptSession` + `bke::pbvh::Tree`. External-buffer
-  adoption (`GPU_vertbuf_wrap_handle`) is unimplemented on Vulkan
-  (`vk_vertex_buffer.cc:70-73`) — **GPU-buffer sharing is off the table**;
-  CPU upload through `GPU_vertbuf_*` is the only cross-backend path.
+  requires the real `SculptSession` + `bke::pbvh::Tree`.
 - Python `gpu` draw handlers draw into the overlay framebuffer after the
   scene (`draw_context.cc:1333-1362`) — no EEVEE materials/lighting; not
   viable as the primary mesh display.
@@ -61,6 +58,31 @@ design section as a mini-design-doc.
 - Triangle-soup non-indexed matches Blender's mesh/BMesh PBVH VBO layout
   exactly — conversion is a memcpy per dirty node (+ normal packing
   float3 → SNORM_16_16_16_16).
+
+### Decision — CPU-only interface; SculptCore never touches the GPU in Blender
+
+Blender must render through **all three** GPU backends (OpenGL, Metal,
+Vulkan). SculptCore therefore does not create GPU objects or upload to the
+GPU inside Blender, ever: its own backends (`source/vulkan/`,
+`source/webgpu/`) stay uninitialized, the engine runs headless, and the
+provider interface below carries **CPU arrays only**. All GPU objects are
+created and uploaded through Blender's backend-agnostic GPU module
+(`GPU_vertbuf_*` / `GPU_batch_*`).
+
+GPU-buffer sharing is **rejected**, not deferred: it would be per-backend by
+construction (`GPU_vertbuf_wrap_handle` is same-context adoption, currently
+unimplemented on Vulkan — `vk_vertex_buffer.cc:70-73` — and SculptCore has no
+Metal backend at all), and cross-device Vulkan sharing would need an
+external-memory subsystem Blender's GPU module doesn't have. The cost of the
+CPU path is one dirty-node staging upload per update — the same upload
+SculptCore's own renderer would perform.
+
+Watch item: if SculptCore's GPU-resident brush pipeline
+(`documentation/plans/wgsl_gpu_dispatch.md`; `gpu_storage`/`gpu_owned`
+compute buffers) becomes the primary stroke path, its outputs must be read
+back to CPU before display under this rule. Acceptable for dirty-node
+volumes; if that ever dominates profiles, the remedy is porting those kernels
+to Blender's GPU module (compute through `GPU_shader_*`), not buffer sharing.
 
 ## 2. Phase 0 — flush-to-Mesh fallback (no Blender changes)
 
@@ -84,8 +106,8 @@ timer + on stroke end. This phase is addon-only work (part of
 A generic, engine-agnostic C seam: an object in `OB_MODE_CUSTOM` whose mode
 has a registered **draw provider** gets its geometry from provider-described
 CPU arrays instead of the evaluated mesh. Blender owns *all* GPU objects
-(VBOs/IBOs/batches — required anyway, see Vulkan wrap_handle gap); the
-provider only describes geometry. SculptCore-specific code stays out of
+(VBOs/IBOs/batches — per the CPU-only decision in §1); the provider only
+describes geometry. SculptCore-specific code stays out of
 Blender: the provider implementation lives in the addon's native lib and is
 registered through a pointer-passing seam.
 
