@@ -722,7 +722,7 @@ static void create_mesh(Scene *scene,
     const blender::Span<blender::int3> b_corner_tris = b_mesh.corner_tris();
     blender::bke::mesh::vert_tris_from_corner_tris(
         corner_verts,
-        b_mesh.corner_tris(),
+        b_corner_tris,
         blender::MutableSpan<int>(triangles, numtris).cast<blender::int3>());
 
     if (!material_indices.is_empty()) {
