@@ -957,7 +957,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   ShaderCreateInfo &info = *reinterpret_cast<ShaderCreateInfo *>(codegen.create_info);
 
   /* WORKAROUND: Add new ob attr buffer. */
-  if (GPU_material_uniform_attributes(gpumat) != nullptr) {
+  if (GPU_material_uniform_attributes(gpumat) != nullptr ||
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA))  // TODO: More precise check
+  {
     info.additional_info("draw_object_attributes");
 
     /* Search and remove the old object attribute UBO which would creating bind point collision. */

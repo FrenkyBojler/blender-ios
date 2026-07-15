@@ -61,7 +61,8 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
 
     attr_hash = *reinterpret_cast<float *>(&hash_code);
     // TODO: Should be uniform?
-    GPU_stack_link(mat, node, "node_attribute", in, out, GPU_constant(&attr_hash));
+    GPU_stack_link(mat, node, "node_attribute_light", in, out, GPU_constant(&attr_hash));
+    return 1;
   }
 
   GPUNodeLink *cd_attr;
