@@ -285,8 +285,7 @@ static void special_aftertrans_update__movieclip_for_curves(bContext *C, TransIn
   SpaceClip *sc = static_cast<SpaceClip *>(t->area->spacedata.first);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
-  if (bke::compositor::has_any_enabled_effect(*t->scene, bke::compositor::ExecutionMode::Preview))
-  {
+  if (bke::compositor::is_enabled(*t->scene, bke::compositor::ExecutionMode::Preview)) {
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.
      */

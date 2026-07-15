@@ -225,9 +225,7 @@ static void memfile_undosys_step_decode(
          * #BKE_scene_undo_depsgraphs_restore but this is currently only done for depsgraphs in the
          * scene.depsgraph_hash map. So the safest option is to just delete the following
          * depsgraphs for now. */
-        if (bke::compositor::has_any_enabled_effect(*scene,
-                                                    bke::compositor::ExecutionMode::Preview))
-        {
+        if (bke::compositor::is_enabled(*scene, bke::compositor::ExecutionMode::Preview)) {
           /* Ensure undo calls from the UI update the interactive compositor preview depsgraph, see
            * #compo_initjob. */
           bke::CompositorRuntime &compositor_runtime = scene->runtime->compositor;

@@ -449,8 +449,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
     BLI_assert(0);
   }
 
-  if (bke::compositor::has_any_enabled_effect(*t->scene, bke::compositor::ExecutionMode::Preview))
-  {
+  if (bke::compositor::is_enabled(*t->scene, bke::compositor::ExecutionMode::Preview)) {
     WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
   }
 

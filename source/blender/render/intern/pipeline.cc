@@ -657,8 +657,7 @@ void RE_FreeUnusedGPUResources()
 
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
-      if (!(bke::compositor::has_any_enabled_effect(*scene,
-                                                    bke::compositor::ExecutionMode::Preview) &&
+      if (!(bke::compositor::is_enabled(*scene, bke::compositor::ExecutionMode::Preview) &&
             scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU))
       {
         continue;
@@ -1236,7 +1235,7 @@ static bool scene_has_compositor_file_output(const Scene &scene)
 
 /* Checks if the given scene has any compositor output, be it the actual compositor output or file
  * outputs. */
-static bool scene_has_compositor_any_output(const Scene &scene)
+static bool scene_has_any_compositor_output(const Scene &scene)
 {
   if (scene_has_compositor_output(scene)) {
     return true;
@@ -1338,9 +1337,8 @@ static void do_render_compositor(Render *re)
   }
 
   if (!re->display->test_break()) {
-    if (re->r.scemode & R_DOCOMP &&
-        bke::compositor::has_any_enabled_effect(*re->pipeline_scene_eval,
-                                                bke::compositor::ExecutionMode::Render))
+    if (bke::compositor::is_enabled(*re->pipeline_scene_eval,
+                                    bke::compositor::ExecutionMode::Render))
     {
       /* checks if there are render-result nodes that need scene */
       if ((re->r.scemode & R_SINGLE_LAYER) == 0) {
@@ -1619,9 +1617,7 @@ static bool check_valid_compositing_camera(const Main &bmain,
                                            Object *camera_override,
                                            ReportList *reports)
 {
-  if (scene->r.scemode & R_DOCOMP &&
-      bke::compositor::has_any_enabled_effect(*scene, bke::compositor::ExecutionMode::Render))
-  {
+  if (bke::compositor::is_enabled(*scene, bke::compositor::ExecutionMode::Render)) {
     for (SceneCompositorEffect &effect : scene->compositor_effects) {
       if (!bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
         continue;
@@ -1800,8 +1796,6 @@ bool RE_is_rendering_allowed(const Main &bmain,
                              Object *camera_override,
                              ReportList *reports)
 {
-  const int scemode = scene->r.scemode;
-
   if (scene->r.mode & R_BORDER) {
     if (scene->r.border.xmax <= scene->r.border.xmin ||
         scene->r.border.ymax <= scene->r.border.ymin)
@@ -1818,11 +1812,9 @@ bool RE_is_rendering_allowed(const Main &bmain,
       return false;
     }
   }
-  else if (scemode & R_DOCOMP &&
-           bke::compositor::has_any_enabled_effect(*scene, bke::compositor::ExecutionMode::Render))
-  {
+  else if (bke::compositor::is_enabled(*scene, bke::compositor::ExecutionMode::Render)) {
     /* Compositor */
-    if (!scene_has_compositor_any_output(*scene)) {
+    if (!scene_has_any_compositor_output(*scene)) {
       BKE_report(reports, RPT_ERROR, "No Group Output or File Output nodes in scene");
       return false;
     }

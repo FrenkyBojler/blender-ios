@@ -167,8 +167,12 @@ int64_t Cache::size()
  * Scene Compositor Effects.
  */
 
-bool has_any_enabled_effect(const Scene &scene, const ExecutionMode mode)
+bool is_enabled(const Scene &scene, const ExecutionMode mode)
 {
+  if (mode == ExecutionMode::Render && !(scene.r.scemode & R_DOCOMP)) {
+    return false;
+  }
+
   for (SceneCompositorEffect &effect : scene.compositor_effects) {
     if (is_effect_enabled(effect, mode)) {
       return true;
@@ -556,7 +560,7 @@ bool is_viewport_compositor_used(const Scene &scene,
                                  const View3D &view_3d,
                                  const RegionView3D &region_view_3d)
 {
-  if (!has_any_enabled_effect(scene, ExecutionMode::Preview)) {
+  if (!is_enabled(scene, ExecutionMode::Preview)) {
     return false;
   }
 
@@ -580,7 +584,7 @@ bool is_viewport_compositor_used(const Scene &scene,
 bool is_viewport_compositor_used(const bContext &context)
 {
   const Scene *scene = CTX_data_scene(&context);
-  if (!has_any_enabled_effect(*scene, ExecutionMode::Preview)) {
+  if (!is_enabled(*scene, ExecutionMode::Preview)) {
     return false;
   }
 

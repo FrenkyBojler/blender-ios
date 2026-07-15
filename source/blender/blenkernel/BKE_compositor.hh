@@ -103,7 +103,7 @@ enum class ExecutionMode : uint8_t {
 };
 
 /* Returns true if the given scene has any enabled effect for the given execution mode. */
-bool has_any_enabled_effect(const Scene &scene, ExecutionMode mode);
+bool is_enabled(const Scene &scene, ExecutionMode mode);
 
 /* Gets the compositor effect with the given name in the given scene. */
 SceneCompositorEffect *get_effect(const Scene &scene, StringRef name);
