@@ -408,7 +408,7 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
   struct AllHitsContext {
     RTCRayQueryContext rtc_context;
     FunctionRef<void(const RayHit &)> *fn;
-    Span<Array<int>> index_map_by_geom;
+    Span<Array<int, 0>> index_map_by_geom;
     float3 origin;
     float3 direction;
   };
