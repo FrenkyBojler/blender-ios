@@ -21,10 +21,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -493,6 +493,9 @@ void WM_check(bContext *C)
       WM_keyconfig_init(C);
       WM_file_autosave_init(wm);
     }
+
+    /* Initialize GPU backend for GHOST before opening windows. */
+    WM_init_gpu_backend();
 
     /* Case: no open windows at all, for old file reads. */
     wm_window_ghostwindows_ensure(wm);

@@ -19,17 +19,17 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
 #include "BLF_api.hh"
 
 #include "BKE_action.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_appdir.hh"
 #include "BKE_armature.hh"
 #include "BKE_blender_copybuffer.hh"
@@ -1611,15 +1611,25 @@ static void outliner_show_active(SpaceOutliner *space_outliner,
   }
 }
 
-void outliner_scroll_to_active(const bContext *C,
-                               SpaceOutliner *space_outliner,
-                               ARegion *region,
-                               TreeViewContext *tvc)
+void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, short idcode)
 {
+  outliner_set_coordinates(region, space_outliner);
   const View2D *v2d = &region->v2d;
-  TreeElement *active_te = outliner_show_active_get_element(
-      C, space_outliner, tvc->scene, tvc->view_layer);
+  TreeElement *active_te = nullptr;
 
+  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+    TreeStoreElem *tselem = TREESTORE(te);
+    if (tselem->flag & TSE_ACTIVE) {
+      if (tselem->type == TSE_SOME_ID) {
+        if (te->idcode == idcode) {
+          active_te = te;
+        }
+      }
+      else {
+        active_te = te;
+      }
+    }
+  });
   if (active_te) {
     if (!BLI_rctf_isect_y(&v2d->cur, active_te->ys)) {
       outliner_show_active(space_outliner, region, active_te, TREESTORE(active_te)->id);

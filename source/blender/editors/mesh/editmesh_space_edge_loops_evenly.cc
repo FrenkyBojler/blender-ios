@@ -6,7 +6,7 @@
  * \ingroup edmesh
  */
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
@@ -156,7 +156,7 @@ void MESH_OT_space_edge_loops_evenly(wmOperatorType *ot)
   ot->ui = edbm_space_edge_loops_evenly_ui;
 
   RNA_def_float_factor(
-      ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Force of the tool", 0.0f, 1.0f);
+      ot->srna, "factor", 1.0f, 0.0f, 1.0f, "Factor", "Spacing effect factor", 0.0f, 1.0f);
   RNA_def_enum(ot->srna,
                "interpolation",
                prop_interpolation_items,

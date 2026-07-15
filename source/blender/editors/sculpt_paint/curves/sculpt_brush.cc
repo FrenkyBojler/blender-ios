@@ -6,7 +6,7 @@
 
 #include "sculpt_intern.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_c.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -441,6 +441,11 @@ void report_missing_uv_map_on_evaluated_surface(ReportList *reports)
 void report_invalid_uv_map(ReportList *reports)
 {
   BKE_report(reports, RPT_WARNING, "Invalid UV map: UV islands must not overlap");
+}
+
+void report_cyclic_not_supported(ReportList *reports)
+{
+  BKE_report(reports, RPT_WARNING, "Cyclic curves are not supported");
 }
 
 void CurvesConstraintSolver::initialize(const bke::CurvesGeometry &curves,

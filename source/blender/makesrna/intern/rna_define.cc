@@ -20,12 +20,12 @@
 
 #include "DNA_sdna_type_ids.hh"
 
-#include "BLI_asan.h"
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
-#include "BLI_math_bits.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_asan.hh"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_bits.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_blender_version.h" /* For #BLENDER_VERSION deprecation warnings. */
 
@@ -3537,6 +3537,12 @@ void RNA_def_property_pointer_funcs_runtime(PropertyRNA *prop,
   if (typefunc) {
     pprop->type_fn = typefunc;
   }
+}
+
+void RNA_def_property_pointer_default_runtime(PropertyRNA *prop, uint32_t id_session_uid)
+{
+  PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
+  pprop->id_default_session_uid = id_session_uid;
 }
 
 #ifndef RNA_RUNTIME
