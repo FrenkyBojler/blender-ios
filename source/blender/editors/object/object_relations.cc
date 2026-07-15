@@ -734,13 +734,23 @@ static bool parent_set_with_depsgraph(ReportList *reports,
   else if (is_armature_parent && (ob->type == OB_LATTICE) && (par->type == OB_ARMATURE) &&
            (partype == PAR_ARMATURE_NAME))
   {
-    ED_object_vgroup_calc_from_armature(
-        reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
+    /* Linked (non-overridden) lattice data can't take vgroup writes, they'd vanish on reload,
+     * see #127683 and #161270. */
+    if (!BKE_id_is_editable(bmain, ob->data)) {
+      BKE_reportf(reports,
+                  RPT_WARNING,
+                  "Cannot create vertex groups on '%s', the lattice data is linked",
+                  ob->id.name + 2);
+    }
+    else {
+      ED_object_vgroup_calc_from_armature(
+          reports, depsgraph, scene, ob, par, ARM_GROUPS_NAME, false);
+    }
   }
   else if (is_armature_parent && (ob->type == OB_MESH) && (par->type == OB_ARMATURE)) {
     /* Linked (non-overridden) mesh data can't take vgroup writes, they'd vanish on reload,
      * see #127683. */
-    if (!BKE_id_is_editable(bmain, static_cast<const ID *>(ob->data))) {
+    if (!BKE_id_is_editable(bmain, ob->data)) {
       BKE_reportf(reports,
                   RPT_WARNING,
                   "Cannot create vertex groups on '%s', the mesh data is linked",
@@ -766,7 +776,15 @@ static bool parent_set_with_depsgraph(ReportList *reports,
     invert_m4_m4(ob->parentinv, BKE_object_calc_parent(depsgraph, scene, ob).ptr());
   }
   else if (is_armature_parent && (ob->type == OB_GREASE_PENCIL) && (par->type == OB_ARMATURE)) {
-    if (partype == PAR_ARMATURE_NAME) {
+    /* Linked (non-overridden) grease pencil data can't take vgroup writes, they'd vanish on reload,
+     * see #127683 and #161272. */
+    if (!BKE_id_is_editable(bmain, ob->data)) {
+      BKE_reportf(reports,
+                  RPT_WARNING,
+                  "Cannot create vertex groups on '%s', the grease pencil data is linked",
+                  ob->id.name + 2);
+    }
+    else if (partype == PAR_ARMATURE_NAME) {
       ed::greasepencil::add_armature_vertex_groups(*ob, *par);
     }
     else if (partype == PAR_ARMATURE_ENVELOPE) {
