@@ -17,7 +17,6 @@
 #include "BLI_assert.hh"
 #include "BLI_ghash.hh"
 #include "BLI_listbase.hh"
-#include "BLI_math_matrix_c.hh"
 #include "BLI_stack.hh"
 #include "BLI_string.hh"
 #include "BLI_utildefines.hh"
@@ -54,11 +53,8 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
       const float *data = std::get<const float *>(link->data);
       return float4(data[0], data[1], data[2], data[3]);
     }
-    case GPU_MAT4: {
-      float4x4 mat4;
-      copy_m4_m4(mat4.ptr(), static_cast<const float (*)[4]>(std::get<const float *>(link->data)));
-      return mat4;
-    }
+    case GPU_MAT4:
+      return float4x4(std::get<const float *>(link->data));
     case GPU_INT:
       return *std::get<const int *>(link->data);
     case GPU_INT2: {
@@ -286,9 +282,9 @@ static GPUNodeLink *gpu_node_stack_constant_link(const GPUNodeStack &stack)
 {
   switch (stack.type) {
     case GPU_FLOAT:
-    case GPU_FLOAT2:
-    case GPU_FLOAT3:
-    case GPU_FLOAT4:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
       return GPU_constant(stack.vec);
     case GPU_INT:
     case GPU_INT2:
@@ -307,9 +303,9 @@ static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
 {
   switch (stack.type) {
     case GPU_FLOAT:
-    case GPU_FLOAT2:
-    case GPU_FLOAT3:
-    case GPU_FLOAT4:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
       return GPU_uniform(stack.vec);
     case GPU_INT:
     case GPU_INT2:
