@@ -5504,6 +5504,7 @@ static wmOperatorStatus grease_pencil_stroke_boolean_exec(bContext *C, wmOperato
   const bool keep_caps = RNA_boolean_get(op->ptr, "keep_caps");
   op_params.boolean_mode = carver::Operation(RNA_enum_get(op->ptr, "boolean_mode"));
   op_params.keep_caps = keep_caps;
+  op_params.skip_clipping_attributes = false;
   // const bool individual = RNA_boolean_get(op->ptr, "individual");
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
