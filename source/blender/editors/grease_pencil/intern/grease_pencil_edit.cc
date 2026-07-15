@@ -5544,12 +5544,15 @@ static wmOperatorStatus grease_pencil_stroke_boolean_exec(bContext *C, wmOperato
   pos_writer.span.copy_from(screen_space_positions);
   pos_writer.finish();
 
-  const std::optional<GroupedSpan<int>> fills = drawing_out.fills();
-  const int num_fills = fills.has_value() ? fills->size() : src.curves_num();
+  const VArray<int> fill_ids = *src.attributes().lookup<int>("fill_id", bke::AttrDomain::Curve);
 
-  const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
+  auto [shape_map, shape_offsets] = blender::bke::greasepencil::shapes_from_fill_ids(
+      fill_ids, src.curves_num());
 
-  bke::CurvesGeometry dst_strokes = carver::curve_boolean(op_params, src, fills, clipping_fills);
+  const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
+  const IndexRange clipping_shapes = IndexRange::from_single(shapes.size() - 1);
+
+  bke::CurvesGeometry dst_strokes = carver::curve_boolean(op_params, src, shapes, clipping_shapes);
 
   dst_strokes.attributes_for_write().remove(".positions_2d");
 
