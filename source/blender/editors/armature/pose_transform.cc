@@ -638,8 +638,8 @@ static void blend_bbone_values(const bPoseChannel &copy_bone,
 
 /**
  * Blend the values of `prop` towards `target` based on the given `factor`. At 1.0, the target
- * values are copied 100%. Properties that cannot be interpolated (ID pointers for example) will
- * just be copied.
+ * values are copied 100%. Properties that cannot be interpolated (boolean for example) will just
+ * be copied with a factor > 0.5.
  */
 static void blend_id_property(IDProperty &prop, const IDProperty &target, const float factor)
 {
@@ -810,11 +810,13 @@ static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
   if (copy_bone->prop) {
     if (paste_bone->prop) {
       IDP_foreach_property(copy_bone->prop, 0, [&](IDProperty *copy_prop) {
-        IDProperty *other = IDP_GetPropertyFromGroup(paste_bone->prop, copy_prop->name);
-        if (!other || copy_prop->type != other->type || copy_prop->subtype != other->subtype) {
+        IDProperty *paste_prop = IDP_GetPropertyFromGroup(paste_bone->prop, copy_prop->name);
+        if (!paste_prop || copy_prop->type != paste_prop->type ||
+            copy_prop->subtype != paste_prop->subtype)
+        {
           return;
         }
-        blend_id_property(*other, *copy_prop, factor);
+        blend_id_property(*paste_prop, *copy_prop, factor);
       });
     }
     else {
@@ -825,7 +827,16 @@ static bPoseChannel *pose_bone_blend_to(Object &paste_ob,
   if (copy_bone->system_properties) {
     /* Same logic as above for system IDProperties, for now. */
     if (paste_bone->system_properties) {
-      IDP_SyncGroupValues(paste_bone->system_properties, copy_bone->system_properties);
+      IDP_foreach_property(copy_bone->system_properties, 0, [&](IDProperty *copy_prop) {
+        IDProperty *paste_prop = IDP_GetPropertyFromGroup(paste_bone->system_properties,
+                                                          copy_prop->name);
+        if (!paste_prop || copy_prop->type != paste_prop->type ||
+            copy_prop->subtype != paste_prop->subtype)
+        {
+          return;
+        }
+        blend_id_property(*paste_prop, *copy_prop, factor);
+      });
     }
     else {
       paste_bone->system_properties = IDP_CopyProperty(copy_bone->system_properties);
