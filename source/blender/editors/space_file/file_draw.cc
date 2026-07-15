@@ -1725,6 +1725,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   }
 
   if (numfiles < 1) {
+    ui::theme::get_color_4ubv(TH_TEXT, text_col);
     const rcti tile_draw_rect = tile_draw_rect_get(v2d, layout, 0);
     const uiStyle *style = ui::style_get();
 
@@ -1768,6 +1769,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   /* Draw last, on top of file list. */
   if (draw_columnheader) {
     draw_fixed_header_background(v2d, layout->attribute_column_header_h);
+    ui::theme::get_color_4ubv(TH_TEXT, text_col);
     draw_columnheader_columns(params, layout, v2d, text_col);
   }
 
