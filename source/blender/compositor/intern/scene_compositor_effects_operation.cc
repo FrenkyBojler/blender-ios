@@ -270,7 +270,7 @@ void SceneCompositorEffectsOperation::execute()
   /* The output is not actually needed, so default allocate the operation output. */
   Result &output_result = last_operation->get_result(
       last_operation->node_group().interface_outputs().first()->identifier);
-  if (output_result.should_compute()) {
+  if (!output_result.should_compute()) {
     this->allocate_default_remaining_outputs();
     return;
   }

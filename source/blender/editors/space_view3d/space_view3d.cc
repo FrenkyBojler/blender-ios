@@ -638,6 +638,9 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
           }
           break;
         }
+        case ND_COMPO_RESULT:
+          ED_region_tag_redraw(region);
+          break;
       }
       if (wmn->action == NA_EDITED) {
         ED_region_tag_redraw(region);
