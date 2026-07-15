@@ -751,10 +751,9 @@ static PyObject *pygpu_shader_info_storage_buf(BPyGPUShaderCreateInfo *self, PyO
     return nullptr;
   }
 
-  if (PyC_FlagSet_ToBitfield(pygpu_qualifiers,
-                             py_qualifiers,
-                             reinterpret_cast<int *>(&qualifier),
-                             "storage_buf") == -1)
+  if (PyC_FlagSet_ToBitfield(
+          pygpu_qualifiers, py_qualifiers, reinterpret_cast<int *>(&qualifier), "storage_buf") ==
+      -1)
   {
     return nullptr;
   }

@@ -29,7 +29,7 @@ struct BPyGPUStorageBuf {
   size_t size;
 };
 
-[[nodiscard]] PyObject *BPyGPUStorageBuf_CreatePyObject(gpu::StorageBuf *ssbo,
-                                                        size_t size) ATTR_NONNULL(1);
+[[nodiscard]] PyObject *BPyGPUStorageBuf_CreatePyObject(gpu::StorageBuf *ssbo, size_t size)
+    ATTR_NONNULL(1);
 
 }  // namespace blender
