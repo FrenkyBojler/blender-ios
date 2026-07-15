@@ -12,49 +12,35 @@
 
 #include "NOD_geometry_nodes_list.hh"
 
+#include "RNA_enum_types.hh"
+
 #include "UI_interface_icons.hh"
 
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_material_list {
 
-const EnumPropertyItem geometry_component_type_with_material_items[] = {
-  {int(blender::bke::GeometryComponent::Type::Mesh),
-    "MESH",
-    ICON_MESH_DATA,
-    "Mesh",
-    "Mesh component containing point, corner, edge and face data"},
-  {int(blender::bke::GeometryComponent::Type::PointCloud),
-    "POINTCLOUD",
-    ICON_POINTCLOUD_DATA,
-    "Point Cloud",
-    "Point cloud component containing only point data"},
-  {int(blender::bke::GeometryComponent::Type::Curve),
-    "CURVE",
-    ICON_CURVE_DATA,
-    "Curve",
-    "Curve component containing spline and control point data"},
-  {int(blender::bke::GeometryComponent::Type::GreasePencil),
-    "GREASEPENCIL",
-    ICON_GREASEPENCIL,
-    "Grease Pencil",
-    "Grease Pencil component containing layers and curves data"},
-  {0, nullptr, 0, nullptr, nullptr},
-};
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry"_ustr);
   b.add_input<decl::Menu>("Component Type"_ustr)
-    .static_items(geometry_component_type_with_material_items)
-    .optional_label();
+      .static_items(rna_enum_geometry_component_type_items,
+                    [](const EnumPropertyItem &item) {
+                      return ELEM(GeometryComponent::Type(item.value),
+                                  GeometryComponent::Type::Mesh,
+                                  GeometryComponent::Type::PointCloud,
+                                  GeometryComponent::Type::Curve,
+                                  GeometryComponent::Type::GreasePencil);
+                    })
+      .optional_label();
   b.add_output<decl::Material>("Materials"_ustr).structure_type(StructureType::List);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
-  const GeometryComponent::Type component = params.extract_input<GeometryComponent::Type>("Component Type"_ustr);
+  const GeometryComponent::Type component = params.extract_input<GeometryComponent::Type>(
+      "Component Type"_ustr);
 
   if (!geometry_set.has(component)) {
     params.set_default_remaining_outputs();
@@ -65,29 +51,29 @@ static void node_geo_exec(GeoNodeExecParams params)
   short count = 0;
 
   switch (component) {
-  case GeometryComponent::Type::Curve: {
-    const Curves &curves = *geometry_set.get_curves();
-    materials = curves.mat;
-    count = curves.totcol;
-  } break;
-  case GeometryComponent::Type::GreasePencil: {
-    const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
-    materials = grease_pencil.material_array;
-    count = grease_pencil.material_array_num;
-  } break;
-  case GeometryComponent::Type::Mesh: {
-    const Mesh &mesh = *geometry_set.get_mesh();
-    materials = mesh.mat;
-    count = mesh.totcol;
-  } break;
-  case GeometryComponent::Type::PointCloud: {
-    const PointCloud &point_cloud = *geometry_set.get_pointcloud();
-    materials = point_cloud.mat;
-    count = point_cloud.totcol;
-  } break;
-  default:
-    BLI_assert_unreachable();
-    break;
+    case GeometryComponent::Type::Curve: {
+      const Curves &curves = *geometry_set.get_curves();
+      materials = curves.mat;
+      count = curves.totcol;
+    } break;
+    case GeometryComponent::Type::GreasePencil: {
+      const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
+      materials = grease_pencil.material_array;
+      count = grease_pencil.material_array_num;
+    } break;
+    case GeometryComponent::Type::Mesh: {
+      const Mesh &mesh = *geometry_set.get_mesh();
+      materials = mesh.mat;
+      count = mesh.totcol;
+    } break;
+    case GeometryComponent::Type::PointCloud: {
+      const PointCloud &point_cloud = *geometry_set.get_pointcloud();
+      materials = point_cloud.mat;
+      count = point_cloud.totcol;
+    } break;
+    default:
+      BLI_assert_unreachable();
+      break;
   }
 
   if (count == 0 || materials == nullptr) {
