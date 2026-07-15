@@ -878,6 +878,51 @@ TEST_F(GreasePencilBooleanTest, Square_With_Hole)
   draw_divider_end();
 }
 
+TEST_F(GreasePencilBooleanTest, Squares_With_Holes)
+{
+  draw_divider_start("Squares With Holes");
+
+  const Array<float2> points = {{0, 0},
+                                {0, 5},
+                                {5, 5},
+                                {5, 0},
+
+                                {1, 1},
+                                {1, 4},
+                                {4, 4},
+                                {4, 1},
+
+                                {2, 2},
+                                {2, 7},
+                                {7, 7},
+                                {7, 2},
+
+                                {3, 3},
+                                {3, 6},
+                                {6, 6},
+                                {6, 3}};
+  const Array<int> points_by_curve = {0, 4, 8, 12, 16};
+  const Array<bool> is_cyclic = {true, true, true, true};
+  const Array<int> fill_ids = {1, 1, 2, 2};
+  const IndexRange clipping_fills = IndexRange::from_begin_end(1, 2);
+
+  const bke::CurvesGeometry src_curves = create_test_curves(
+      points_by_curve, points, fill_ids, is_cyclic);
+
+  {
+    const bke::CurvesGeometry dst_curves = test_curve_boolean(
+        Operation::Difference, src_curves, fill_ids, clipping_fills);
+
+    const Array<Vector<float2>> expected_points = {
+        {{5, 2}, {5, 0}, {0, 0}, {0, 5}, {2, 5}, {2, 4}, {1, 4}, {1, 1}, {4, 1}, {4, 2}},
+        {{3, 5}, {5, 5}, {5, 3}, {4, 3}, {4, 4}, {3, 4}}};
+    expect_boolean_result_coord(dst_curves, expected_points);
+
+    draw_results("Difference", "polygon", src_curves, dst_curves, clipping_fills);
+  }
+  draw_divider_end();
+}
+
 TEST_F(GreasePencilBooleanTest, Multiple_Shapes)
 {
   draw_divider_start("Multiple Shapes");
