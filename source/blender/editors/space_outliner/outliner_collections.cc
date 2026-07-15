@@ -222,11 +222,6 @@ static bool collection_new_poll(bContext *C)
 /** \name New Collection
  * \{ */
 
-struct CollectionNewData {
-  bool error;
-  Collection *collection;
-};
-
 static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
 {
   WorkSpace *workspace = CTX_wm_workspace(C);
