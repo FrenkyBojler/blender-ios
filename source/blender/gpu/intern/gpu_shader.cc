@@ -802,17 +802,10 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   TimePoint start_time;
 
-  static gpu::DebugGroup debug_shader_compilation_group;
-  static gpu::DebugGroup debug_named_group;
-
-  if (Context::get()) {
+  GPU_debug_group(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+  GPU_debug_group(orig_info.name_.c_str());
+  if (!Context::get() && G.profile_gpu) {
     /* Context can be null in Vulkan compilation threads. */
-    debug_shader_compilation_group = GPU_DEBUG_SHADER_COMPILATION_GROUP;
-    debug_named_group = orig_info.name_.c_str();
-    debug_shader_compilation_group.begin();
-    debug_named_group.begin();
-  }
-  else if (G.profile_gpu) {
     start_time = Clock::now();
   }
 
@@ -990,12 +983,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
     shader = nullptr;
   }
 
-  if (Context::get()) {
+  if (!Context::get() && G.profile_gpu) {
     /* Context can be null in Vulkan compilation threads. */
-    debug_named_group.end();
-    debug_shader_compilation_group.end();
-  }
-  else if (G.profile_gpu) {
     TimePoint end_time = Clock::now();
     /* Note: Used by the vulkan backend. Use the same time_since_epoch as process_frame_timings. */
     ProfileReport::get().add_group_cpu(GPU_DEBUG_SHADER_COMPILATION_GROUP,

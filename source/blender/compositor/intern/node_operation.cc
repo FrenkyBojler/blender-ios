@@ -79,15 +79,8 @@ void NodeOperation::evaluate()
 {
   const ScopedNodeTimer node_timer{
       this->node(), this->get_compute_context(), this->context().nodes_evaluation_log()};
-  static gpu::DebugGroup debug_group;
-  if (this->context().use_gpu()) {
-    debug_group = this->node().typeinfo->idname.c_str();
-    debug_group.begin();
-  }
+  GPU_debug_group(this->node().typeinfo->idname.c_str());
   Operation::evaluate();
-  if (this->context().use_gpu()) {
-    debug_group.end();
-  }
 }
 
 void NodeOperation::compute_results_reference_counts(const Schedule &schedule)

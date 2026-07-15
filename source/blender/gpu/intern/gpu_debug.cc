@@ -82,10 +82,17 @@ namespace gpu {
 
 void DebugGroup::begin(const std::source_location /* location */)
 {
+  /* GPU Frame capture is only enabled when --debug-gpu is specified. */
   if (!(G.debug & G_DEBUG_GPU) && !G.profile_gpu) {
     return;
   }
+
+  /* No context active. */
   Context *ctx = Context::get();
+  if (!ctx) {
+    return;
+  }
+
   DebugStack &stack = ctx->debug_stack;
   stack.append(StringRef(name_));
   ctx->debug_group_begin(name_, stack.size());
@@ -93,10 +100,17 @@ void DebugGroup::begin(const std::source_location /* location */)
 
 void DebugGroup::end()
 {
+  /* GPU Frame capture is only enabled when --debug-gpu is specified. */
   if (!(G.debug & G_DEBUG_GPU) && !G.profile_gpu) {
     return;
   }
+
+  /* No context active. */
   Context *ctx = Context::get();
+  if (!ctx) {
+    return;
+  }
+
   ctx->debug_stack.pop_last();
   ctx->debug_group_end();
 }
@@ -113,10 +127,12 @@ DebugCapture::DebugCapture(const char *name)
     return;
   }
 
+  /* No context active. */
   Context *ctx = Context::get();
   if (!ctx) {
     return;
   }
+
   capture_p_ = ctx->debug_capture_scope_create(name);
 }
 
@@ -127,6 +143,7 @@ void DebugCapture::begin(const std::source_location /* location */)
     return;
   }
 
+  /* No context active. */
   Context *ctx = Context::get();
   if (!ctx) {
     return;
@@ -158,6 +175,7 @@ void DebugCapture::end()
     return;
   }
 
+  /* No context active. */
   Context *ctx = Context::get();
   if (!ctx) {
     return;
