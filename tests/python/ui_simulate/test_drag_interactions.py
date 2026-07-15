@@ -103,11 +103,11 @@ def _animated_cube():
     return cube
 
 
-def select_keyframe(fcurve, index=0):
+def select_keyframe(action, fcurve, index=0):
     """
     Select only the requested keyframe on an F-Curve.
     """
-    fcurve.id_data.deselect_keys()
+    action.deselect_keys()
 
     keyframe = fcurve.keyframe_points[index]
     keyframe.select_control_point = True
@@ -134,12 +134,12 @@ def _uv_vertex_selected(mesh):
 
 def _get_fcurve(obj, data_path, index=0):
     """
-    Return the requested F-Curve from the object's active action.
+    Return (action, fcurve) for the requested animation channel.
     """
     action = obj.animation_data.action
     slot = obj.animation_data.action_slot
     channelbag = action.layers[0].strips[0].channelbag(slot)
-    return channelbag.fcurves.find(data_path, index=index)
+    return action, channelbag.fcurves.find(data_path, index=index)
 
 
 # View 3D
@@ -266,8 +266,8 @@ def dopesheet_keyframe_drag():
     area, _ = _setup_dopesheet(window)
 
     cube = _animated_cube()
-    fcurve = _get_fcurve(cube, "location", index=0)
-    keyframe = select_keyframe(fcurve, index=1)
+    action, fcurve = _get_fcurve(cube, "location", index=0)
+    keyframe = select_keyframe(action, fcurve, index=1)
     yield
 
     before = tuple(keyframe.co)
@@ -302,8 +302,8 @@ def graph_editor_drag():
     area, _ = _setup_graph_editor(window)
 
     cube = _animated_cube()
-    fcurve = _get_fcurve(cube, "location", index=0)
-    keyframe = select_keyframe(fcurve, index=1)
+    action, fcurve = _get_fcurve(cube, "location", index=0)
+    keyframe = select_keyframe(action, fcurve, index=1)
     yield
 
     before = tuple(keyframe.co)
