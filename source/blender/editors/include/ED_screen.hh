@@ -557,15 +557,15 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
  * \param C the current context, which is used to find the screen that is currently managing the
 animation playback
  * \param screen the screen that is currently being used to scrub.
-
  */
 std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen &screen);
 /**
- * Stop scrubbing, resumes playback by state.
+ * Stop scrubbing, optionally resumes playback.
  * \param C the current context, which is used to find the screen that is currently managing the
- animation playback
+ * animation playback
  * \param screen the screen that is currently being used to scrub.
- * \param resume saved playback data.
+ * \param resume optional saved playback data - If it has a value, playback is started with the
+ * given settings.
  */
 void ED_screen_scrubbing_disable(bContext &C,
                                  bScreen &screen,

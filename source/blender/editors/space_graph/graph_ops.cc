@@ -170,6 +170,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     case EVT_ESCKEY:
       WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
       ret = OPERATOR_FINISHED;
+      break;
 
     case MOUSEMOVE:
       /* set the new values */
