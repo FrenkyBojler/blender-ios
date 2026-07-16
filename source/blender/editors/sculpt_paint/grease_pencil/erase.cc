@@ -943,7 +943,7 @@ struct EraseOperationExecutor {
     carver::CurveBooleanOpParameters op_params;
     op_params.boolean_mode = carver::Operation::Difference;
     op_params.keep_caps = keep_caps;
-    op_params.skip_clipping_attributes = false;
+    op_params.skip_clipping_attributes = true;
 
     const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
     const IndexRange clipping_shapes = IndexRange::from_single(shapes.size() - 1);
