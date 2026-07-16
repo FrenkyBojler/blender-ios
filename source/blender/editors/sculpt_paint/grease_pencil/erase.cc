@@ -916,6 +916,10 @@ struct EraseOperationExecutor {
     bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
         "fill_id", bke::AttrDomain::Curve);
     fill_ids.span.last() = bke::greasepencil::get_next_available_fill_id(fill_ids.span.varray());
+
+    auto [shape_map, shape_offsets] = blender::bke::greasepencil::shapes_from_fill_ids(
+        fill_ids.span.varray(), input_curves.curves_num());
+
     fill_ids.finish();
 
     const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(),
@@ -938,25 +942,23 @@ struct EraseOperationExecutor {
 
     carver::CurveBooleanOpParameters op_params;
     op_params.boolean_mode = carver::Operation::Difference;
+    op_params.keep_caps = keep_caps;
+    op_params.skip_clipping_attributes = false;
 
     bke::greasepencil::Drawing drawing_with_stroke(drawing);
     drawing_with_stroke.strokes_for_write() = std::move(input_curves);
     drawing_with_stroke.tag_topology_changed();
 
-    const std::optional<GroupedSpan<int>> fills = drawing_with_stroke.fills();
-    const int num_fills = fills.has_value() ? fills->size() :
-                                              drawing_with_stroke.strokes().curves_num();
+    const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
+    const IndexRange clipping_shapes = IndexRange::from_single(shapes.size() - 1);
 
-    const IndexRange clipping_fills = IndexRange::from_single(num_fills - 1);
-
-    dst = carver::curve_boolean(op_params,
-                                drawing_with_stroke.strokes(),
-                                fills,
-                                normal_planes,
-                                clipping_fills,
-                                layer_to_world,
-                                region,
-                                keep_caps);
+    dst = carver::curve_boolean_with_planes(op_params,
+                                            drawing_with_stroke.strokes(),
+                                            shapes,
+                                            normal_planes,
+                                            clipping_shapes,
+                                            layer_to_world,
+                                            region);
 
     dst.attributes_for_write().remove(".positions_2d");
 
