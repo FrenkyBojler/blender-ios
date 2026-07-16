@@ -499,6 +499,8 @@ static Strip *rna_Strips_new_effect(ID *id,
                                     Strip *input1,
                                     Strip *input2)
 {
+  Scene *scene = id_cast<Scene *>(id);
+
   const int min_inputs = blender::seq::effect_type_get_min_num_inputs(StripType(type));
   const bool compositor_with_inputs = type == STRIP_TYPE_COMPOSITOR && input1 != nullptr;
   switch (min_inputs) {
@@ -528,13 +530,41 @@ static Strip *rna_Strips_new_effect(ID *id,
           min_inputs);
       return nullptr;
   }
+  if (blender::seq::strip_type_can_be_transition(StripType(type)) && input1 != nullptr &&
+      input2 != nullptr)
+  {
+    if (input1->channel != input2->channel) {
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Strips.new_effect: transition strip inputs must be on the same channel");
+      return nullptr;
+    }
+    if (input1->right_handle(scene) != input2->left_handle()) {
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Strips.new_effect: transition strip inputs must be adjacent and in "
+                 "chronological order");
+      return nullptr;
+    }
+    if (seq::get_transition_between(scene, input1, input2) != nullptr) {
+      BKE_report(
+          reports,
+          RPT_ERROR,
+          "Strips.new_effect: cannot add multiple transitions between the same input strips");
+      return nullptr;
+    }
+    if (input1->is_transition() || input2->is_transition()) {
+      BKE_report(
+          reports, RPT_ERROR, "Strips.new_effect: cannot add transitions on other transitions");
+      return nullptr;
+    }
+  }
   seq::LoadData load_data;
   seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.effect.length = length;
   load_data.effect.type = StripType(type);
   load_data.effect.input1 = input1;
   load_data.effect.input2 = input2;
-  Scene *scene = id_cast<Scene *>(id);
   Strip *strip = seq::add_effect_strip(scene, seqbase, &load_data);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);

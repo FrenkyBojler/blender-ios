@@ -2017,6 +2017,26 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
     }
   }
 
+  if (seq::strip_type_can_be_transition(effect_type) && inputs.size() == 2) {
+    if (inputs[0]->channel != inputs[1]->channel) {
+      BKE_report(op->reports, RPT_ERROR, "Transition strip inputs must be on the same channel");
+      return OPERATOR_CANCELLED;
+    }
+    if (inputs[0]->right_handle(scene) != inputs[1]->left_handle()) {
+      BKE_report(op->reports, RPT_ERROR, "Transition strip inputs must be adjacent");
+      return OPERATOR_CANCELLED;
+    }
+    if (seq::get_transition_between(scene, inputs[0], inputs[1]) != nullptr) {
+      BKE_report(
+          op->reports, RPT_ERROR, "Cannot add multiple transitions between the same input strips");
+      return OPERATOR_CANCELLED;
+    }
+    if (inputs[0]->is_transition() || inputs[1]->is_transition()) {
+      BKE_report(op->reports, RPT_ERROR, "Cannot add transitions on other transitions");
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   seq::LoadData load_data;
   if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;

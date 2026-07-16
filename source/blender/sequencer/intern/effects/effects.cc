@@ -24,6 +24,7 @@
 #include "RNA_prototypes.hh"
 
 #include "SEQ_render.hh"
+#include "SEQ_sequencer.hh"
 
 #include "effects.hh"
 #include "render.hh"
@@ -379,6 +380,22 @@ bool strip_type_is_effect(StripType type)
 bool strip_type_can_be_transition(StripType type)
 {
   return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE, STRIP_TYPE_COMPOSITOR);
+}
+
+Strip *get_transition_between(Scene *scene, Strip *input1, Strip *input2)
+{
+  Editing *ed = seq::editing_get(scene);
+  if (ed == nullptr) {
+    return nullptr;
+  }
+  Span<Strip *> effect_strips = seq::lookup_effects_by_strip(ed, input1);
+  for (Strip *effect : effect_strips) {
+    /* Inputs should never be in the reverse order, but check anyway. */
+    if (effect->is_transition() && ELEM(input2, effect->input1, effect->input2)) {
+      return effect;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace seq

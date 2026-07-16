@@ -187,12 +187,18 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
     strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
 
-  // tmp
   if (strip->is_transition()) {
-    strip->len = 1; /* Effect is generator, set non zero length. */
+    strip->len = 1;
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
-    strip->left_handle_set(scene, strip->input1->right_handle(scene) - 5);
-    strip->right_handle_set(scene, strip->input2->left_handle() + 5);
+    const Strip *input1 = load_data->effect.input1;
+    const Strip *input2 = load_data->effect.input2;
+    const int length = load_data->effect.length;
+    const int left_handle = max_ii(input1->right_handle(scene) - floor(length / 2.0),
+                                   input1->left_handle());
+    const int right_handle = min_ii(input2->left_handle() + ceil(length / 2.0),
+                                    input2->right_handle(scene));
+    strip->handles_set(scene, left_handle, right_handle);
+    strip->channel_set(input1->channel);
   }
 
   strip_add_set_name(scene, strip, load_data);
