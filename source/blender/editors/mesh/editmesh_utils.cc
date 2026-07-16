@@ -407,7 +407,7 @@ void EDBM_selectmode_to_scene(bContext *C)
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
 }
 
-static void EDBM_select_mirrored_tag_update(BMEditMesh *em)
+static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
 {
   BMesh *bm = em->bm;
 
@@ -436,7 +436,7 @@ static void EDBM_select_mirrored_tag_update(BMEditMesh *em)
   }
 
   Mesh *mesh = nullptr;
-  for (Mesh &me : G_MAIN->meshes) {
+  for (Mesh &me : bmain->meshes) {
     if (me.runtime && me.runtime->edit_mesh && me.runtime->edit_mesh.get() == em) {
       mesh = &me;
       break;
@@ -445,6 +445,21 @@ static void EDBM_select_mirrored_tag_update(BMEditMesh *em)
 
   if (!mesh || mesh->symmetry == 0) {
     em->last_symmetry = 0;
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        BM_elem_flag_enable(v, BM_ELEM_MIRROR_DISABLED);
+      }
+    }
+    BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+        BM_elem_flag_enable(e, BM_ELEM_MIRROR_DISABLED);
+      }
+    }
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+        BM_elem_flag_enable(f, BM_ELEM_MIRROR_DISABLED);
+      }
+    }
     return;
   }
 
@@ -506,10 +521,20 @@ static void EDBM_select_mirrored_tag_update(BMEditMesh *em)
   }
 }
 
+void EDBM_selectmode_flush_mirrored_ex(Main *bmain, BMEditMesh *em, const short selectmode)
+{
+  BM_mesh_select_mode_flush_ex(em->bm, selectmode, BMSelectFlushFlag_All);
+  EDBM_select_mirrored_tag_update(bmain, em);
+}
+
+void EDBM_selectmode_flush_mirrored(Main *bmain, BMEditMesh *em)
+{
+  EDBM_selectmode_flush_mirrored_ex(bmain, em, em->selectmode);
+}
+
 void EDBM_selectmode_flush_ex(BMEditMesh *em, const short selectmode)
 {
   BM_mesh_select_mode_flush_ex(em->bm, selectmode, BMSelectFlushFlag_All);
-  EDBM_select_mirrored_tag_update(em);
 }
 
 void EDBM_selectmode_flush(BMEditMesh *em)

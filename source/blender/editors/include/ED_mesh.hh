@@ -135,6 +135,8 @@ void EDBM_mesh_load(Main *bmain, Object *ob);
 void EDBM_select_more(BMEditMesh *em, bool use_face_step);
 void EDBM_select_less(BMEditMesh *em, bool use_face_step);
 
+void EDBM_selectmode_flush_mirrored_ex(Main *bmain, BMEditMesh *em, short selectmode);
+void EDBM_selectmode_flush_mirrored(Main *bmain, BMEditMesh *em);
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 

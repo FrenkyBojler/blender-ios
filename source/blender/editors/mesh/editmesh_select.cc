@@ -2598,7 +2598,7 @@ void MESH_OT_edgering_select(wmOperatorType *ot)
 
 static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
 {
-  const Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int action = RNA_enum_get(op->ptr, "action");
@@ -2622,15 +2622,15 @@ static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
     switch (action) {
       case SEL_SELECT:
         EDBM_flag_enable_all(em, BM_ELEM_SELECT);
-        EDBM_selectmode_flush(em);
+        EDBM_selectmode_flush_mirrored(bmain, em);
         break;
       case SEL_DESELECT:
         EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-        EDBM_selectmode_flush(em);
+        EDBM_selectmode_flush_mirrored(bmain, em);
         break;
       case SEL_INVERT:
         EDBM_select_swap(em);
-        EDBM_selectmode_flush(em);
+        EDBM_selectmode_flush_mirrored(bmain, em);
         break;
     }
 
@@ -2740,7 +2740,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
         Object *ob_iter = base_iter->object;
         BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
         EDBM_flag_disable_all(em_iter, BM_ELEM_SELECT);
-        EDBM_selectmode_flush(em_iter);
+        EDBM_selectmode_flush_mirrored(vc.bmain, em_iter);
         DEG_id_tag_update(ob_iter->data, ID_RECALC_SELECT);
         WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
       }
@@ -2921,7 +2921,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
       }
     }
 
-    EDBM_selectmode_flush(em);
+    EDBM_selectmode_flush_mirrored(vc.bmain, em);
 
     if (efa) {
       ed::object::material_active_index_set(obedit, efa->mat_nr);
