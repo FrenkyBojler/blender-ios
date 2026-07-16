@@ -3468,7 +3468,7 @@ void WM_window_IME_end(wmWindow *win)
   win->runtime->ime_data_is_composing = false;
 }
 
-void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region)
+void WM_window_IME_region_refresh(wmWindow *win, const ScrArea *area, const ARegion *region)
 {
   WM_window_IME_end(win);
 

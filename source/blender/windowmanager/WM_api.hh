@@ -364,7 +364,7 @@ void WM_window_IME_end(wmWindow *win);
  * Refresh IME status for regions that have their own IME positioning
  * logic using a cursor_ime callback.
  */
-void WM_window_IME_region_refresh(wmWindow *win, ScrArea *area, ARegion *region);
+void WM_window_IME_region_refresh(wmWindow *win, const ScrArea *area, const ARegion *region);
 #endif
 
 /**

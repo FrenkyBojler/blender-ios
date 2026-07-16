@@ -331,7 +331,7 @@ struct ARegionType {
    * \note A zero width/height is acceptable when the caret extent isn't well defined in region
    * space (e.g. 3D text, whose caret may be rotated), in which case only the corner is used.
    */
-  std::optional<rcti> (*cursor_ime)(wmWindow *win, ScrArea *area, ARegion *region);
+  std::optional<rcti> (*cursor_ime)(wmWindow *win, const ScrArea *area, const ARegion *region);
 
   ARegionTypeFlag flag;
 

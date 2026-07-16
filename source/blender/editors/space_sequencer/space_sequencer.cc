@@ -886,8 +886,8 @@ static void sequencer_preview_region_view2d_changed(const bContext *C, ARegion *
 
 #ifdef WITH_INPUT_IME
 static std::optional<rcti> sequencer_preview_region_cursor_ime(wmWindow *win,
-                                                               ScrArea * /*area*/,
-                                                               ARegion *region)
+                                                               const ScrArea * /*area*/,
+                                                               const ARegion *region)
 {
   WorkSpace *workspace = WM_window_get_active_workspace(win);
   Scene *scene = workspace->sequencer_scene;

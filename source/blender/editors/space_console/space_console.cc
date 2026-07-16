@@ -221,8 +221,8 @@ static void console_dropboxes()
 
 #ifdef WITH_INPUT_IME
 static std::optional<rcti> console_main_region_cursor_ime(wmWindow * /*win*/,
-                                                          ScrArea *area,
-                                                          ARegion *region)
+                                                          const ScrArea *area,
+                                                          const ARegion *region)
 {
   /* Defer during View2D navigation (pan, zoom, scroll). */
   if (region->v2d.flag & V2D_IS_NAVIGATING) {

@@ -559,8 +559,8 @@ static void *view3d_main_region_duplicate(void *poin)
 
 #ifdef WITH_INPUT_IME
 static std::optional<rcti> view3d_main_region_cursor_ime(wmWindow *win,
-                                                         ScrArea * /*area*/,
-                                                         ARegion *region)
+                                                         const ScrArea * /*area*/,
+                                                         const ARegion *region)
 {
   /* Defer during viewport navigation (orbit, pan, zoom, fly, walk). */
   const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);

@@ -117,8 +117,8 @@ static SpaceLink *text_duplicate(SpaceLink *sl)
 
 #ifdef WITH_INPUT_IME
 static std::optional<rcti> text_main_region_cursor_ime(wmWindow * /*win*/,
-                                                       ScrArea *area,
-                                                       ARegion *region)
+                                                       const ScrArea *area,
+                                                       const ARegion *region)
 {
   SpaceText *st = static_cast<SpaceText *>(area->spacedata.first);
   /* Defer while the scrollbar is being dragged. */
