@@ -164,7 +164,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 }
 
 static void node_rna(StructRNA *srna)
-{
+{ 
   RNA_def_node_enum(srna,
                     "mode",
                     "Mode",
@@ -190,6 +190,8 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeGeometryMergeLayers", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 

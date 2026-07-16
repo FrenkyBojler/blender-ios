@@ -116,6 +116,27 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(geometry_set));
 }
 
+static void node_rna(StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {int(Mode::Stroke),
+       "STROKE",
+       ICON_NONE,
+       "Stroke",
+       "Set the color and opacity for the points of the stroke"},
+      {int(Mode::Fill),
+       "FILL",
+       ICON_NONE,
+       "Fill",
+       "Set the color and opacity for the stroke fills"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop;
+  prop = RNA_def_node_enum(
+      srna, "mode", "Mode", "", mode_items, NOD_inline_enum_accessors(custom1));
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -129,6 +150,8 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
+
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
