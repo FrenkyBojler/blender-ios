@@ -361,8 +361,10 @@ void WM_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complet
 void WM_window_IME_end(wmWindow *win);
 
 /**
- * Refresh IME status for regions that have their own IME positioning
- * logic using a cursor_ime callback.
+ * Re-evaluate the IME status for regions with IME positioning (a `cursor_ime` callback).
+ * Ensures:
+ * - IME is enabled for regions that accept it.
+ * - IME is disabled if the region no longer accepts it.
  */
 void WM_window_IME_region_refresh(wmWindow *win, const ScrArea *area, const ARegion *region);
 #endif
