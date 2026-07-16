@@ -57,6 +57,7 @@ class EraseOperation : public GreasePencilStrokeOperation {
 
   /* Only used in the Hard eraser. */
   Vector<bke::greasepencil::Drawing> all_src_drawings;
+  bke::CurvesGeometry cut_curve;
 
   Set<GreasePencilDrawing *> affected_drawings_;
 
@@ -853,6 +854,7 @@ struct EraseOperationExecutor {
                     const ARegion &region,
                     const bke::greasepencil::Drawing &drawing,
                     const bke::CurvesGeometry &src,
+                    bke::CurvesGeometry &cut_curve,
                     const ed::greasepencil::DrawingPlacement &placement,
                     const Span<float2> screen_space_positions,
                     const float4x4 &layer_to_world,
@@ -860,34 +862,29 @@ struct EraseOperationExecutor {
                     const bool keep_caps) const
   {
     using namespace ed::greasepencil;
-    Array<int2> mcoords(4);
 
-    mcoords[0] = int2(-1, -1) * this->eraser_radius + this->mouse_position_pixels;
-    mcoords[1] = int2(-1, 1) * this->eraser_radius + this->mouse_position_pixels;
-    mcoords[2] = int2(1, 1) * this->eraser_radius + this->mouse_position_pixels;
-    mcoords[3] = int2(1, -1) * this->eraser_radius + this->mouse_position_pixels;
+    if (cut_curve.points_num() == 0 ||
+        !math::almost_equal_relative(
+            float2(cut_curve.positions().last()), float2(this->mouse_position_pixels), 1e-4f))
+    {
+      cut_curve.resize(cut_curve.points_num() + 1, 1);
+      cut_curve.offsets_for_write().last() = cut_curve.points_num();
+
+      cut_curve.positions_for_write().last() = float3(this->mouse_position_pixels, 0);
+      cut_curve.radius_for_write().last() = this->eraser_radius;
+    }
+
+    const Span<float3> pos = cut_curve.positions();
+    Array<float2> cut_pos2d(cut_curve.points_num());
+    for (const int i : cut_pos2d.index_range()) {
+      cut_pos2d[i] = float2(pos[i]);
+    }
 
     const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
     /* Get evaluated geometry. */
     bke::crazyspace::GeometryDeformation deformation =
         bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(&ob_eval, obact, drawing);
-
-    // /* Compute screen space positions. */
-    // Array<float2> screen_space_positions(src.points_num());
-    // threading::parallel_for(src.points_range(), 4096, [&](const IndexRange src_points) {
-    //   for (const int src_point : src_points) {
-    //     screen_space_positions[src_point] = ED_view3d_project_float_v2_m4(
-    //         &region, deformation.positions[src_point], projection);
-    //   }
-    // });
-
-    Array<float2> cut_pos2d(mcoords.size());
-    threading::parallel_for(mcoords.index_range(), 4096, [&](const IndexRange i_range) {
-      for (const int i : i_range) {
-        cut_pos2d[i] = float2(mcoords[i]);
-      }
-    });
 
     const Span<float3> normals = drawing.curve_plane_normals();
 
@@ -902,8 +899,8 @@ struct EraseOperationExecutor {
     });
 
     bke::CurvesGeometry input_curves = bke::CurvesGeometry(src);
-    input_curves.resize(src.points_num() + mcoords.size(), src.curves_num() + 1);
-    input_curves.offsets_for_write().last() = src.points_num() + mcoords.size();
+    input_curves.resize(src.points_num() + cut_pos2d.size(), src.curves_num() + 1);
+    input_curves.offsets_for_write().last() = src.points_num() + cut_pos2d.size();
 
     bke::MutableAttributeAccessor attributes = input_curves.attributes_for_write();
 
@@ -911,10 +908,10 @@ struct EraseOperationExecutor {
         ".positions_2d", bke::AttrDomain::Point);
 
     pos_writer.span.slice(src.points_range()).copy_from(screen_space_positions);
-    pos_writer.span.take_back(mcoords.size()).copy_from(cut_pos2d);
+    pos_writer.span.take_back(cut_pos2d.size()).copy_from(cut_pos2d);
     pos_writer.finish();
 
-    placement.project(cut_pos2d, input_curves.positions_for_write().take_back(mcoords.size()));
+    placement.project(cut_pos2d, input_curves.positions_for_write().take_back(cut_pos2d.size()));
 
     bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
         "fill_id", bke::AttrDomain::Curve);
@@ -926,7 +923,7 @@ struct EraseOperationExecutor {
     fill_ids.finish();
 
     const IndexRange clipping_points = IndexRange::from_begin_size(src.points_num(),
-                                                                   mcoords.size());
+                                                                   cut_pos2d.size());
     const IndexRange clipping_curves = IndexRange::from_single(src.curves_num());
 
     input_curves.fill_curve_types(clipping_curves, CURVE_TYPE_POLY);
@@ -1041,6 +1038,7 @@ struct EraseOperationExecutor {
                                     *region,
                                     src_drawing,
                                     src,
+                                    self.cut_curve,
                                     placement,
                                     screen_space_positions,
                                     layer_to_world,
@@ -1159,6 +1157,8 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
   Scene *scene = CTX_data_scene(&C);
   Object *object = CTX_data_active_object(&C);
   GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
+
+  cut_curve = bke::CurvesGeometry(0, 1);
 
   if (active_layer_only_) {
     /* Erase only on the drawing at the current frame of the active layer. */
