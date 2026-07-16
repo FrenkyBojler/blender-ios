@@ -40,6 +40,8 @@ struct ViewLayer;
 struct rctf;
 struct bContext;
 struct wmKeyConfig;
+struct wmWindowManager;
+struct wmWindow;
 
 struct Object;
 struct Scene;
@@ -1338,6 +1340,9 @@ using EvalCallback = FunctionRef<bool(Depsgraph *dg, ID &id, int frame, void *bu
 /* Callback that runs on the main thread periodically. Can be used to copy back data from the
  * buffer. */
 using UpdateCallback = FunctionRef<void(ID &id, void *buffer_data)>;
+/* Called when the given target is done with the evaluation. Use to free any heap allocated data
+ * passed into the system. */
+using FinishCallback = FunctionRef<void(ID &id, void *buffer_data)>;
 
 /**
  * Uniquely identifies an entity to evaluate over a frame range.
@@ -1349,6 +1354,11 @@ struct EvaluationTarget {
   uint64_t hash() const
   {
     return get_default_hash(id, component_name);
+  }
+
+  bool operator==(const EvaluationTarget &other) const
+  {
+    return other.id == id && other.component_name == component_name;
   }
 };
 
@@ -1365,10 +1375,15 @@ void background_eval_register(Main &bmain,
                               Scene &scene,
                               ViewLayer &view_layer,
                               const EvaluationTarget &target,
-                              EvalCallback buffer_cb,
-                              UpdateCallback update_cb);
-void background_eval_deregister();
-void background_eval_set_center_frame(int frame);
+                              void *target_buffer,
+                              EvalCallback eval_cb,
+                              UpdateCallback update_cb,
+                              FinishCallback finish_cb);
+
+void background_eval_deregister(wmWindowManager &wm,
+                                wmWindow &window,
+                                Scene &scene,
+                                const EvaluationTarget &target);
 
 }  // namespace animviz
 

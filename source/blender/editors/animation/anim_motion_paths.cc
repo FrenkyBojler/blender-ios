@@ -531,11 +531,6 @@ struct MotionPathBuffer {
   Array<eMotionPathVert_Flag> flags;
 };
 
-struct AsyncRangeData {
-  Array<MotionPathBuffer> results;
-  Bounds<int> frame_range;
-};
-
 /* Runs on the worker thread. */
 static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer_data)
 {
@@ -586,6 +581,12 @@ static void update_callback(ID &id, void *buffer_data)
   MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
 }
 
+static void finish_callback(ID &id, void *buffer_data)
+{
+  MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
+  MEM_delete(buffer);
+}
+
 void register_motionpath_async(Main &bmain,
                                wmWindowManager &wm,
                                wmWindow &window,
@@ -595,14 +596,21 @@ void register_motionpath_async(Main &bmain,
                                bPoseChannel &pose_bone,
                                bMotionPath &motion_path)
 {
+  MotionPathBuffer *buffer = MEM_new<MotionPathBuffer>(__func__);
+  buffer->bone_name = pose_bone.name;
+  buffer->start_frame = motion_path.start_frame;
+  buffer->points.reinitialize(motion_path.length);
+  buffer->flags.reinitialize(motion_path.length);
   animviz::background_eval_register(bmain,
                                     wm,
                                     window,
                                     scene,
                                     view_layer,
                                     {&armature_object.id, pose_bone.name},
+                                    buffer,
                                     buffer_callback,
-                                    update_callback);
+                                    update_callback,
+                                    finish_callback);
 }
 
 }  // namespace motionpath
@@ -614,8 +622,18 @@ struct TargetData {
   void *buffer;
   EvalCallback eval;
   UpdateCallback update;
+  FinishCallback finish;
   bool finished_left = false;
   bool finished_right = false;
+
+  TargetData(const EvaluationTarget &target,
+             void *buffer,
+             EvalCallback eval,
+             UpdateCallback update,
+             FinishCallback finish)
+      : target(target), buffer(buffer), eval(eval), update(update), finish(finish)
+  {
+  }
 };
 
 /* Data visible to the worker thread. */
@@ -662,7 +680,7 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
       frame = eval_data->evaluated_range.max;
       eval_data->evaluated_range.max += 1;
     }
-
+    bool all_done = true;
     DEG_evaluate_on_framechange(eval_data->dg, frame);
     for (TargetData &target_data : eval_data->target_data) {
       const EvaluationTarget &target = target_data.target;
@@ -676,8 +694,13 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
           target_data.finished_right = true;
         }
       }
+      all_done &= target_data.finished_left && target_data.finished_right;
     }
     worker_status->do_update = true;
+
+    if (all_done) {
+      break;
+    }
   }
 }
 
@@ -706,16 +729,17 @@ void background_eval_register(Main &bmain,
                               Scene &scene,
                               ViewLayer &view_layer,
                               const EvaluationTarget &target,
-                              EvalCallback buffer_cb,
-                              UpdateCallback update_cb)
+                              void *target_buffer,
+                              EvalCallback eval_cb,
+                              UpdateCallback update_cb,
+                              FinishCallback finish_cb)
 {
   wmJob *wm_job = WM_jobs_get(
       &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
 
   if (WM_jobs_is_running(wm_job)) {
     BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(WM_jobs_customdata_get(wm_job));
-    const bool id_already_registered = eval_data->worker_data.target_data.as_span().contains(
-        {target, nullptr});
+    const bool id_already_registered = eval_data->active_targets.contains(target);
     if (id_already_registered) {
       eval_data->worker_data.restart.store(true, std::memory_order_release);
       return;
@@ -726,6 +750,10 @@ void background_eval_register(Main &bmain,
   }
 
   BGEvalJobData *eval_data = MEM_new<BGEvalJobData>(__func__);
+  eval_data->active_targets.add(target);
+  eval_data->worker_data.target_data.append(
+      {target, target_buffer, eval_cb, update_cb, finish_cb});
+
   Depsgraph *dg = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
   /* TODO merge ID list with existing IDs. */
   DEG_graph_build_from_ids(dg, {target.id});
@@ -740,7 +768,10 @@ void background_eval_register(Main &bmain,
   WM_jobs_start(&wm, wm_job);
 }
 
-void background_eval_deregister(wmWindowManager &wm, wmWindow &window, Scene &scene)
+void background_eval_deregister(wmWindowManager &wm,
+                                wmWindow &window,
+                                Scene &scene,
+                                const EvaluationTarget &target)
 {
   wmJob *wm_job = WM_jobs_get(
       &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
@@ -749,12 +780,8 @@ void background_eval_deregister(wmWindowManager &wm, wmWindow &window, Scene &sc
     /* No job to deregister from. */
     return;
   }
-}
 
-void background_eval_set_center_frame(const int frame)
-{
-  /* wmJob *wm_job = WM_jobs_get(
-      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL); */
+  /* TODO */
 }
 
 }  // namespace animviz
