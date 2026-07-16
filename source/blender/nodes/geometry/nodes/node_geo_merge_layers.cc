@@ -163,18 +163,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(main_geometry));
 }
 
-static void node_rna(StructRNA *srna)
-{
-  RNA_def_node_enum(srna,
-                    "mode",
-                    "Mode",
-                    "Determines how to choose which layers are merged",
-                    mode_items,
-                    NOD_storage_enum_accessors(mode),
-                    int(MergeLayerMode::ByName),
-                    nullptr);
-}
-
 static void node_register()
 {
   static bke::bNodeType ntype;
