@@ -171,6 +171,10 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self._grab_class = mapping.is_grab_class(self.brush)
         self._anchor = None
         self._anchor_normal = None
+        # Face-set brushes paint a fresh group id per stroke.
+        if self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
+            brush = _ensure_brush(self.session)
+            brush.activeGroup = int(self.session.mesh().maxFaceGroup()) + 1
         stroke_begin(self.session)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.

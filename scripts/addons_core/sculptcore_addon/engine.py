@@ -91,6 +91,10 @@ class _CApi:
         lib.Mesh_readVertFloatAttr.restype = ctypes.c_int
         lib.Mesh_writeVertFloatAttr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, f32p]
         lib.Mesh_writeVertFloatAttr.restype = ctypes.c_int
+        lib.Mesh_readFaceIntAttr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, i32p]
+        lib.Mesh_readFaceIntAttr.restype = ctypes.c_int
+        lib.Mesh_writeFaceIntAttr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, i32p]
+        lib.Mesh_writeFaceIntAttr.restype = ctypes.c_int
         lib.freeMesh.argtypes = [ctypes.c_void_p]
         lib.freeMesh.restype = None
         lib.Mesh_buildSpatialTree.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 3

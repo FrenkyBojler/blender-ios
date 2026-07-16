@@ -24,6 +24,10 @@ from .session import Session
 _BL_MASK = ".sculpt_mask"
 _SC_MASK = b".spatial.v.mask"
 
+# Blender face sets (int, face domain) <-> the engine's `group` face attr.
+_BL_FACE_SET = ".sculpt_face_set"
+_SC_GROUP = b"group"
+
 
 class ConvertError(RuntimeError):
     pass
@@ -91,10 +95,38 @@ def enter(ob):
         raise ConvertError("SculptCore: spatial tree build failed for {!r}".format(ob.data.name))
 
     _load_mask(ob.data, mesh_ptr, verts_num)
+    _load_face_sets(ob.data, mesh_ptr)
 
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
     return session
+
+
+def _load_face_sets(mesh, mesh_ptr):
+    """Seed the engine `group` face attr from the Blender `.sculpt_face_set`
+    attribute (int, face). No-op when the mesh carries no face sets."""
+    import numpy as np
+
+    attr = mesh.attributes.get(_BL_FACE_SET)
+    if attr is None or attr.domain != 'FACE' or attr.data_type != 'INT':
+        return
+    values = np.empty(len(mesh.polygons), dtype=np.int32)
+    attr.data.foreach_get("value", values)
+    engine.capi().lib.Mesh_writeFaceIntAttr(mesh_ptr, _SC_GROUP, values)
+
+
+def _flush_face_sets(mesh, mesh_ptr):
+    """Write the engine `group` face attr back into `.sculpt_face_set`,
+    creating it on first use. No-op when the engine has no face groups."""
+    import numpy as np
+
+    values = np.empty(len(mesh.polygons), dtype=np.int32)
+    if not engine.capi().lib.Mesh_readFaceIntAttr(mesh_ptr, _SC_GROUP, values):
+        return
+    attr = mesh.attributes.get(_BL_FACE_SET)
+    if attr is None:
+        attr = mesh.attributes.new(_BL_FACE_SET, 'INT', 'FACE')
+    attr.data.foreach_set("value", values)
 
 
 def _load_mask(mesh, mesh_ptr, verts_num):
@@ -155,6 +187,7 @@ def flush(ob):
     mesh = ob.data
     mesh.vertices.foreach_set("co", positions.ravel())
     _flush_mask(mesh, session.mesh_ptr, session.verts_num)
+    _flush_face_sets(mesh, session.mesh_ptr)
     mesh.update()
 
 

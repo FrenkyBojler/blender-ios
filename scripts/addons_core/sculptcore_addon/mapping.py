@@ -36,6 +36,9 @@ _MAP = {
     'SMOOTH': ("SMOOTH", {}),
     'PINCH': ("PINCH", {"pinch": lambda b: b.strength}),
     'MASK': ("MASK", {}),
+    # Face sets: paint the `group` face attr; the stroke operator assigns a
+    # fresh active group id per stroke (see FACE_SET_TYPES).
+    'DRAW_FACE_SETS': ("POLYGROUP", {}),
     # Snake hook drags per dab at the cursor — the standard path works.
     'SNAKE_HOOK': ("SNAKEHOOK", {}),
     # Grab dabs at a fixed anchor and reads the cumulative cursor delta
@@ -46,6 +49,10 @@ _MAP = {
 # Brush types that dab at the stroke anchor with a cursor-delta (grabTo)
 # instead of at the moving cursor.
 GRAB_CLASS = {'GRAB'}
+
+# Brush types that paint face sets — the operator assigns a fresh `activeGroup`
+# id (max existing + 1) at stroke start.
+FACE_SET_TYPES = {'DRAW_FACE_SETS'}
 
 # Kernels that exist but need infrastructure not wired yet — kept for
 # reference / a future UI "unsupported" hint, never entered.

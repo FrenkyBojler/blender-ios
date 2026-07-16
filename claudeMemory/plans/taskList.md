@@ -276,11 +276,15 @@ path. Deferral of modifier/GN/shape-key sculpting per
       `Mesh_writeVertFloatAttr` (named FLOAT vertex attr, live-vert order,
       create-on-write). Addon round-trips `.sculpt_mask` ⇄ `.spatial.v.mask`
       (loaded on enter so masking protects verts during sculpting; written
-      on flush). Verified: MASK brush → flush creates `.sculpt_mask`, it
-      persists across exit, re-enter reloads it unchanged. Still to add:
-      face-sets (int face ⇄ POLYGROUP), color (COLOR), UV — plus the
-      compaction index-map path (identity holds on the positions-only fast
-      path today).
+      on flush). Face sets done too: `Mesh_readFaceIntAttr` /
+      `Mesh_writeFaceIntAttr`; addon round-trips `.sculpt_face_set` ⇄ the
+      engine `group` face attr (loaded on enter, written on flush). The
+      DRAW_FACE_SETS brush → POLYGROUP kernel, operator assigns a fresh
+      `activeGroup` (maxFaceGroup + 1) per stroke. Verified for both mask
+      and face sets: brush → flush creates the attribute, it persists across
+      exit, re-enter reloads it unchanged. Still to add: color (COLOR) and
+      UV — plus the compaction index-map path (identity holds on the
+      positions-only fast path today).
 - [ ] A4 `Mesh_topologyDirty` query (drives exit/flush fast path).
 
 ### Workstream B — Addon conversion module (`sculptcore_addon/convert.py`)
