@@ -92,7 +92,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
   Field<int> group_id_field_;
 
   mutable CacheMutex mutex_;
-  mutable const bke::bvh::Tree *single_tree_;
+  mutable const bke::bvh::Tree *single_tree_ = nullptr;
   mutable Array<bke::bvh::Tree> bvh_trees_;
   mutable VectorSet<int> group_indices_;
 

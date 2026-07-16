@@ -76,6 +76,7 @@ Tree::Tree(Tree &&other)
 #ifdef WITH_EMBREE
   rtc_device_ = std::exchange(other.rtc_device_, nullptr);
   rtc_scene_ = std::exchange(other.rtc_scene_, nullptr);
+  index_map_by_geom_ = std::move(other.index_map_by_geom_);
 #else /* WITH_EMBREE */
   fallback_tree_ = std::move(other.fallback_tree_);
 #endif
@@ -86,8 +87,9 @@ Tree &Tree::operator=(Tree &&other)
   if (this != &other) {
 #ifdef WITH_EMBREE
     this->free();
-    this->rtc_device_ = std::exchange(other.rtc_device_, nullptr);
-    this->rtc_scene_ = std::exchange(other.rtc_scene_, nullptr);
+    rtc_device_ = std::exchange(other.rtc_device_, nullptr);
+    rtc_scene_ = std::exchange(other.rtc_scene_, nullptr);
+    index_map_by_geom_ = std::move(other.index_map_by_geom_);
 #else /* WITH_EMBREE */
     this->fallback_tree_ = std::move(other.fallback_tree_);
 #endif
@@ -123,6 +125,7 @@ void Tree::free()
   this->rtc_scene_ = nullptr;
   rtcReleaseDevice(this->rtc_device_);
   this->rtc_device_ = nullptr;
+  index_map_by_geom_.clear_and_shrink();
 #else /* WITH_EMBREE */
   this->fallback_tree_.reset();
 #endif

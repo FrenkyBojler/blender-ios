@@ -64,13 +64,17 @@ class Tree {
   };
 
  private:
-#ifdef WITH_EMBREE
+  /** Embree device and scene. */
   RTCDeviceTy *rtc_device_ = nullptr;
   RTCSceneTy *rtc_scene_ = nullptr;
+  /**
+   * Map indices from each geometry in the Embree scene to another set of indices. Used e.g. when
+   * the tree references a subset of a mesh but must keep track of the original global indices.
+   */
   Vector<Array<int, 0>> index_map_by_geom_;
-#else
+
+  /** Used when Embree is not available. */
   std::unique_ptr<FallbackTree> fallback_tree_;
-#endif
 
  public:
   Tree();
