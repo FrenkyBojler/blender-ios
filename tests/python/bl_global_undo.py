@@ -175,6 +175,84 @@ class TestGlobalUndo(TestBlendLibLinkHelper):
                          {id_data.pointer: id_data for id_data in self.get_all_ids()})
         self.assertEqual(tuple(bpy.data.objects[0].location), object_location_final)
 
+    def test_particle_edit_undo_from_texture_paint(self):
+        self.reset_blender()
+
+        def assert_particle_edit_valid():
+            ob = bpy.context.active_object
+            self.assertEqual(ob.mode, 'PARTICLE_EDIT')
+            self.assertEqual(bpy.context.mode, 'PARTICLE')
+            psys = ob.particle_systems.active
+            self.assertIsNotNone(psys)
+            self.assertEqual(psys.settings.type, 'HAIR')
+            self.assertGreater(len(psys.particles), 0)
+            self.assertGreater(len(psys.particles[0].hair_keys), 0)
+            self.assertTrue(bpy.ops.particle.select_all.poll())
+            return psys
+
+        self.assertEqual(bpy.ops.mesh.primitive_cube_add(), {'FINISHED'})
+        ob = bpy.context.active_object
+
+        material = bpy.data.materials.new("Material")
+        material.use_nodes = True
+        image = bpy.data.images.new("Paint Image", width=32, height=32)
+        image_node = material.node_tree.nodes.new("ShaderNodeTexImage")
+        image_node.image = image
+        image_node.select = True
+        material.node_tree.nodes.active = image_node
+        ob.data.materials.append(material)
+
+        # Background mode does not create or push undo steps for operators automatically.
+        bpy.ops.ed.undo_push(message="Initial particle scene")
+        self.assertEqual(bpy.ops.object.particle_system_add(), {'FINISHED'})
+        psys = ob.particle_systems.active
+        psys.settings.type = 'HAIR'
+        psys.settings.count = 8
+        psys.settings.hair_length = 1.0
+        bpy.context.view_layer.update()
+        bpy.ops.ed.undo_push(message="Hair particle system")
+
+        self.assertEqual(bpy.ops.particle.particle_edit_toggle(), {'FINISHED'})
+        assert_particle_edit_valid()
+        bpy.ops.ed.undo_push(message="Particle edit initial state")
+
+        self.assertEqual(bpy.ops.particle.select_all(action='SELECT'), {'FINISHED'})
+        bpy.ops.ed.undo_push(message="Particle edit selection")
+
+        self.assertEqual(bpy.ops.paint.texture_paint_toggle(), {'FINISHED'})
+        self.assertEqual(ob.mode, 'TEXTURE_PAINT')
+
+        # This used to OR Particle Edit into Texture Paint, producing the invalid mode value 48.
+        self.assertEqual(bpy.ops.ed.undo(), {'FINISHED'})
+        assert_particle_edit_valid()
+
+        # Redo while already in Particle Edit, then repeat the cross-mode undo transition.
+        self.assertEqual(bpy.ops.ed.redo(), {'FINISHED'})
+        assert_particle_edit_valid()
+        self.assertEqual(bpy.ops.paint.texture_paint_toggle(), {'FINISHED'})
+        self.assertEqual(bpy.ops.ed.undo(), {'FINISHED'})
+        assert_particle_edit_valid()
+
+        # Verify that the reconstructed edit session is functional before saving.
+        self.assertEqual(bpy.ops.particle.select_all(action='DESELECT'), {'FINISHED'})
+
+        output_dir = self.args.output_dir
+        self.ensure_path(output_dir)
+        output_path = os.path.join(output_dir, self.unique_blendfile_name("particle_edit_undo"))
+        try:
+            self.assertEqual(
+                bpy.ops.wm.save_as_mainfile(filepath=output_path, check_existing=False, compress=False),
+                {'FINISHED'},
+            )
+
+            # Loading the saved state used to crash while looking up an operator for mode value 48.
+            self.assertEqual(bpy.ops.wm.open_mainfile(filepath=output_path), {'FINISHED'})
+            assert_particle_edit_valid()
+            self.assertEqual(bpy.ops.particle.select_all(action='SELECT'), {'FINISHED'})
+        finally:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+
     # TODO: add undo testing of linking, making local, linking as packed data, making liboverrides, etc.
 
 
