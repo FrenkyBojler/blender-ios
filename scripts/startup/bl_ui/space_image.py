@@ -1634,6 +1634,7 @@ class IMAGE_PT_overlay_guides(Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_decorate = False
 
         sima = context.space_data
         overlay = sima.overlay
@@ -1641,52 +1642,62 @@ class IMAGE_PT_overlay_guides(Panel):
 
         layout.active = overlay.show_overlays
 
-        row = layout.row()
-        row.prop(overlay, "show_grid_background", text="Grid")
+        split = layout.split(factor=0.4)
+        heading = split.row()
+        heading.alignment = 'RIGHT'
+        heading.label(text="Grid")
+        row = split.row(align=True)
+        row.prop(overlay, "show_grid_background", text="")
+        sub = row.row()
+        sub.active = overlay.show_grid_background
+        sub.prop(uvedit, "grid_shape_source", text="")
+
+        layout.use_property_split = True
 
         if overlay.show_grid_background:
-            sub = row.row()
-            sub.prop(uvedit, "show_grid_over_image", text="Over Image")
-            sub.active = sima.image is not None
-
-            layout.row().prop(uvedit, "grid_shape_source", expand=True)
-
-            layout.use_property_split = True
-            layout.use_property_decorate = False
-
-            row = layout.row()
-            row.prop(uvedit, "custom_grid_subdivisions", text="Fixed Subdivisions")
-            row.active = uvedit.grid_shape_source == 'FIXED'
-
             layout.prop(uvedit, "tile_grid_shape", text="Tiles")
+            if uvedit.grid_shape_source == 'FIXED':
+                layout.prop(uvedit, "custom_grid_subdivisions", text="Subdivisions")
+            row = layout.row()
+            row.prop(uvedit, "show_grid_over_image", text="Over Image")
+            row.active = sima.image is not None
 
+        if sima.show_uvedit:
+            uvedit = sima.uv_editor
+            layout.separator()
+            col = layout.column()
+            col.use_property_split = False
+            split = col.split(factor=0.4)
+            heading = split.row()
+            heading.alignment = 'RIGHT'
+            heading.label(text="UV Stretch")
+            row = split.row(align=True)
+            row.prop(uvedit, "show_stretch", text="")
+            subrow = row.row()
+            subrow.active = uvedit.show_stretch
+            subrow.prop(uvedit, "stretch_opacity", text="")
+            subrow = layout.row()
+            subrow.active = uvedit.show_stretch
+            subrow.prop(uvedit, "display_stretch_type", text="Stretch Type", expand=True)
 
-class IMAGE_PT_overlay_uv_stretch(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'HEADER'
-    bl_label = "UV Stretch"
-    bl_parent_id = "IMAGE_PT_overlay"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return (sima and (sima.show_uvedit))
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-        uvedit = sima.uv_editor
-        overlay = sima.overlay
-
-        layout.active = overlay.show_overlays
-
-        row = layout.row(align=True)
-        row.row().prop(uvedit, "show_stretch", text="")
-        subrow = row.row()
-        subrow.active = uvedit.show_stretch
-        subrow.prop(uvedit, "display_stretch_type", text="")
-        subrow.prop(uvedit, "stretch_opacity", text="Opacity")
+        if (
+            (sima.mode in {'MASK', 'VIEW'}) and
+            (image := sima.image) is not None and
+            (image.source == 'VIEWER') and
+            (image.type == 'COMPOSITING')
+        ):
+            layout.separator()
+            col = layout.column()
+            col.use_property_split = False
+            split = col.split(factor=0.4)
+            heading = split.row()
+            heading.alignment = 'RIGHT'
+            heading.label(text="Render Region")
+            row = split.row(align=True)
+            row.prop(overlay, "show_render_size", text="")
+            subrow = row.row()
+            subrow.active = overlay.show_render_size
+            subrow.prop(overlay, "passepartout_alpha", text="")
 
 
 class IMAGE_PT_overlay_uv_edit_geometry(Panel):
@@ -1709,16 +1720,13 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
 
         layout.active = overlay.show_overlays
 
-        # Edges
         col = layout.column()
         col.prop(uvedit, "uv_opacity")
-        col.prop(uvedit, "edge_display_type", text="")
-        col.prop(uvedit, "show_modified_edges", text="Modified Edges")
+        col.row().prop(uvedit, "edge_display_type", expand=True)
 
-        # Faces
         row = col.row()
-        row.active = not uvedit.show_stretch
         row.prop(uvedit, "show_faces", text="Faces")
+        row.prop(uvedit, "show_modified_edges", text="Modified Edges")
 
 
 class IMAGE_PT_overlay_uv_display(Panel):
@@ -1750,55 +1758,34 @@ class IMAGE_PT_overlay_uv_display(Panel):
         sub.prop(uvedit, "uv_edge_opacity", text="Edges")
 
 
-class IMAGE_PT_overlay_image(Panel):
+class IMAGE_PT_overlay_text(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
-    bl_label = "Image"
+    bl_label = "Text"
     bl_parent_id = "IMAGE_PT_overlay"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (sima and (sima.image is not None))
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
 
         sima = context.space_data
         uvedit = sima.uv_editor
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_metadata")
+        layout.prop(uvedit, "show_metadata", text="Metadata")
 
-
-class IMAGE_PT_overlay_render_guides(Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'HEADER'
-    bl_label = "Guides"
-    bl_parent_id = "IMAGE_PT_overlay"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return (
+        if (
             (sima.mode in {'MASK', 'VIEW'}) and
-            (image := sima.image) is not None and
-            (image.source == 'VIEWER') and
-            (image.type == 'COMPOSITING')
-        )
-
-    def draw(self, context):
-        layout = self.layout
-
-        sima = context.space_data
-        overlay = sima.overlay
-
-        layout.active = overlay.show_overlays
-
-        row = layout.row(align=True)
-        layout.prop(overlay, "show_text_info")
-
-        row = layout.row(align=True)
-        row.prop(overlay, "show_render_size")
-        subrow = row.row()
-        subrow.active = overlay.show_render_size
-        subrow.prop(overlay, "passepartout_alpha", text="Passepartout")
+            (sima.image.source == 'VIEWER') and
+            (sima.image.type == 'COMPOSITING')
+        ):
+            layout.prop(overlay, "show_text_info", text="Dimensions")
 
 
 class IMAGE_PT_overlay_mask(MASK_PT_display, Panel):
@@ -1903,11 +1890,9 @@ classes = (
     IMAGE_PT_gizmo_display,
     IMAGE_PT_overlay,
     IMAGE_PT_overlay_guides,
-    IMAGE_PT_overlay_uv_stretch,
     IMAGE_PT_overlay_uv_edit_geometry,
     IMAGE_PT_overlay_uv_display,
-    IMAGE_PT_overlay_image,
-    IMAGE_PT_overlay_render_guides,
+    IMAGE_PT_overlay_text,
     IMAGE_PT_overlay_mask,
     IMAGE_AST_brush_paint,
 )
