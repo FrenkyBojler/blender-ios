@@ -24,13 +24,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (!node) {
     return;
   }
-  b.add_input<decl::Int>("Vertices"_ustr)
-      .default_value(1)
-      .min(1)
-      .description("The number of vertices in the mesh");
-  b.add_input<decl::Vector>("Positions"_ustr).structure_type(StructureType::Field).hide_value();
+  b.add_input<decl::Vector>("Positions"_ustr).structure_type(StructureType::List).hide_value();
+  b.add_input<decl::Int>("Corners"_ustr).structure_type(StructureType::List).hide_value();
+  b.add_input<decl::Int>("Face Offsets"_ustr).structure_type(StructureType::List).hide_value();
   b.add_input<decl::Int>("Loose Edges"_ustr).structure_type(StructureType::List).hide_value();
-  b.add_input<decl::Int>("Faces"_ustr).structure_type(StructureType::List).hide_value();
 
   b.add_output<decl::Geometry>("Mesh"_ustr);
 }
@@ -163,12 +160,12 @@ static bool get_corners_from_face_list(GeoNodeExecParams &params,
   return true;
 }
 
-static Mesh *create_mesh_from_positions_add_tolology_lists(GeoNodeExecParams &params,
-                                                           const int verts_num,
-                                                           GField &positions_field,
-                                                           const GListPtr &edges_list,
-                                                           const GListPtr &faces_list)
+static Mesh *create_mesh_from_lists(GeoNodeExecParams &params,
+                                    const GListPtr &positions_list,
+                                    const GListPtr &edges_list,
+                                    const GListPtr &faces_list)
 {
+  const int verts_num = positions_list ? positions_list->size() : 0;
   const IndexRange verts(verts_num);
 
   const int edges_num = edges_list ? edges_list->size() : 0;
@@ -177,12 +174,24 @@ static Mesh *create_mesh_from_positions_add_tolology_lists(GeoNodeExecParams &pa
   Array<int> face_offsets(faces_num + 1);
   int corners_num = get_num_corners_from_faces_list(faces_list, face_offsets);
 
-  Mesh *mesh = BKE_mesh_new_nomain(verts_num, edges_num, faces_num, corners_num);
+  Mesh *mesh = bke::mesh_new_no_attributes(verts_num, edges_num, faces_num, corners_num);
 
-  ListFieldContext context;
-  fn::FieldEvaluator evaluator{context, verts_num};
-  evaluator.add_with_destination(std::move(positions_field), mesh->vert_positions_for_write());
-  evaluator.evaluate();
+  const auto *positions_array_data = std::get_if<nodes::GList::ArrayData>(&positions_list->data());
+  if (positions_array_data) {
+    /* Share the position data with the list to avoid copying it. */
+    mesh->attributes_for_write().assign_data(
+        "position",
+        bke::AttributeInitShared(positions_array_data->data, *positions_array_data->sharing_info));
+  }
+  else if (const auto *positions_single_value = std::get_if<nodes::GList::SingleData>(
+               &positions_list->data()))
+  {
+    mesh->vert_positions_for_write().fill(
+        *static_cast<const float3 *>(positions_single_value->value));
+  }
+  else {
+    BLI_assert_unreachable();
+  }
 
   if (edges_num > 0) {
     if (!get_edges_from_edges_list(params, edges_list, verts, mesh->edges_for_write())) {
@@ -213,18 +222,21 @@ static Mesh *create_mesh_from_positions_add_tolology_lists(GeoNodeExecParams &pa
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const int num_verts = params.extract_input<int>("Vertices"_ustr);
-  if (num_verts < 1) {
-    params.error_message_add(NodeWarningType::Error, "Number of vertices must not be negative");
+  const GListPtr positions_list = params.extract_input<GListPtr>("Positions"_ustr);
+  if (positions_list->size() < 1) {
+    params.error_message_add(NodeWarningType::Error, "Number of points must be greater than zero");
+    params.set_default_remaining_outputs();
+    return;
+  }
+  if (!positions_list->cpp_type().is<float3>()) {
+    params.error_message_add(NodeWarningType::Error, "Positions must be a list of vectors");
     params.set_default_remaining_outputs();
     return;
   }
   if (params.output_is_required("Mesh"_ustr)) {
-    GField positions_field = params.extract_input<fn::GField>("Positions"_ustr);
     const GListPtr edges_list = params.extract_input<GListPtr>("Edges"_ustr);
     const GListPtr faces_list = params.extract_input<GListPtr>("Faces"_ustr);
-    Mesh *mesh = create_mesh_from_positions_add_tolology_lists(
-        params, num_verts, positions_field, edges_list, faces_list);
+    Mesh *mesh = create_mesh_from_lists(params, positions_list, edges_list, faces_list);
     params.set_output("Mesh"_ustr, GeometrySet::from_mesh(mesh));
   }
 }
