@@ -53,34 +53,86 @@ sibling of `generators/typescript.cc`**.
       camelCase naming, **D4** self-hosted stub gen — see plan §2/§7.
 
 ### Phase 1 — Workstream A: native shared library exposing `LSTL_*`
-- [ ] Shared flavour of the litestl `binding` target that force-exports `WASMSYM`
-      on native builds (Windows `/EXPORT:` list generated from `WASMSYM`).
-- [ ] Aggregate `sculptcore_capi` shared lib (engine + binding) also exporting
-      `initBindings` + `getBindingManager`.
-- [ ] `make.mjs configure/build python` → `build/python/` → `libsculptcore_capi.*`.
-- [ ] `LSTL_AbiVersion()` for the Python-side version guard.
+- [x] Shared flavour of the litestl `binding` target that force-exports `WASMSYM`
+      on native builds — implemented as `lt_native_export_symbols()` in litestl
+      `build_files/macros.cmake` (per-symbol `/EXPORT:` on Windows, `-u` /
+      `--undefined` elsewhere), fed from the same `WASM_SYMBOLS` /
+      `LT_WASM_SYMBOLS` global sets the WASM link exports (no drift possible).
+      `webgpuRenderScene` registration gated on `BUILD_WASM` (WASM-only symbol).
+- [x] Aggregate `sculptcore_capi` shared lib (engine + binding) also exporting
+      `initBindings` + `getBindingManager` (root `CMakeLists.txt`, native
+      branch; stages `wgpu_native.dll` beside it).
+- [x] `make.mjs configure/build python` → `build/python/` → `sculptcore_capi.dll`
+      (`libsculptcore_capi.so`/`.dylib` naming wired for other platforms).
+- [x] `LSTL_AbiVersion()` for the Python-side version guard (= 1).
+- Verified via plain-`ctypes` smoke: load, `LSTL_AbiVersion()==1`,
+  `initBindings()`, `getBindingManager()`, `LSTL_Binding_GetKeys` → 139
+  bindings. Note: build required fast-forwarding the litestl submodule to
+  origin/master (`aabbRayEnter`); gitlink bump not committed yet.
 
 ### Phase 2 — Workstream B: Python `ctypes` runtime (port of `typescriptRuntime/`)
-- [ ] `_capi.py` — loader + `LSTL_*` decls + `LSTL_GetBindingInfo` table (← `wasmInterface.ts`).
-- [ ] `_descriptors.py` — read descriptor structs at `BindingInfo` offsets (← `binding.ts`).
-- [ ] `_classgen.py` — dynamic class per struct; member get/set; dispatch (← `bind.ts`/`manager.ts`).
-- [ ] `_marshal.py` — `void**` thunk marshalling + `LSTL_Method_Invoke`/`Constructor_Invoke` (← `setValue.ts`).
-- [ ] `_bulk.py` — zero-copy `numpy` views + string/typed-array seams (← `boundVector.ts`/`vector.ts`/`string.ts`).
-- [ ] `_lifetime.py` — ownership / dispose / `LSTL_Destructor_Invoke` / double-free guard.
-- [ ] `_union.py` — union disambiguation via `LSTL_Union_RunDisPropFunc`.
-- [ ] `__init__.py` — import-time `initBindings()`; public surface.
+- [x] `_capi.py` — loader + `LSTL_*` decls + `LSTL_GetBindingInfo` table (← `wasmInterface.ts`).
+      Native 64-bit reads via `from_address`; ABI-version guard; interned
+      allocation-tag pool (litestl retains tag pointers).
+- [x] `_descriptors.py` — read descriptor structs at `BindingInfo` offsets (← `binding.ts`).
+      Field widths follow the C++ decls (Vector `size_` = size_t, string
+      `size_` = int32, `EnumItem::value` = int32 regardless of baseSize).
+- [x] `_classgen.py` — dynamic class per struct; member get/set; dispatch (← `bind.ts`/`manager.ts`).
+      Overloads: last registration wins for now (signature dispatch TODO).
+      List→Vector argument conversion deferred to the bulk slice.
+- [x] `_marshal.py` — `void**` thunk marshalling + `LSTL_Method_Invoke`/`Constructor_Invoke` (← `setValue.ts`).
+      Also fixes two TS-runtime gaps: enum args written by baseSize; scalar/
+      pointer return buffers freed (struct-by-value returns become owning).
+- [x] `_bulk.py` — `BoundVector` (live indexing, struct-element wrapping,
+      `resize`, owning dispose) + zero-copy `numpy()` views (buffer-address
+      identity verified) + `construct_from_items` (Python list → temporary
+      `Vector<T>` args, disposed after the call). String-passing seams still
+      pending (reads work via `read_litestl_string`; the c-api string entry
+      points like `getStrData` are declared ad hoc when needed).
+- [x] `_lifetime.py` scope — ownership / dispose / `LSTL_Destructor_Invoke` /
+      double-free guard implemented on `BoundObject` in `_classgen.py`
+      (context manager; explicit dispose, no GC finalizer). Split out only if
+      it grows.
+- [ ] `_union.py` — union disambiguation via `LSTL_Union_RunDisPropFunc`
+      (descriptor side done in `_descriptors.UnionType`; dispatch pending).
+- [x] `__init__.py` — `sculptcore.init()` loads + `initBindings()` + manager
+      singleton (kept explicit rather than import-time so the lib path is
+      overridable).
+- Thin-slice verification: `python/tests/test_smoke.py` (6 tests) passes —
+  enumeration, array/scalar member get/set, method invoke on a constructed
+  `Mesh`, double-dispose guard, zero leak delta over 32 construct/dispose
+  cycles. Pure ctypes; no C module built.
 
 ### Phase 3 — Workstream C: `.pyi` emitter (C++ sibling of `typescript.cc`)
-- [ ] `generators/python.{cc,h}` — descriptor-driven `.pyi` (classes / typed
-      members / `@overload` signatures / `IntEnum` / imports).
-- [ ] `LSTL_GeneratePython` + `LSTL_FreePythonString` in `binding.cc` (mirror
-      `LSTL_GenerateTypescript`); add to `WASMSYM`.
-- [ ] `_gen.py` (`python -m sculptcore._gen`) — emit `.pyi` tree + `py.typed`;
-      preserve hand-written stubs.
+- [x] `generators/python.{cc,h}` — descriptor-driven `.pyi` (classes / typed
+      members / `@overload` groups for overloaded methods / `IntEnum` /
+      sorted imports). Mapping: one flat module per C++ namespace
+      (`sculptcore::mesh` → `sculptcore_mesh.pyi`); template instantiations
+      become mangled concrete classes (members resolve ParentTemplateParam
+      to concrete types — Python's answer to the TS mapped-type trick);
+      `Vector<T>` → `BoundVector[T]`, `String` → `str`, `T*` → `T | None`;
+      unions → `TypeAlias` named after `mapName`; embedded struct/array
+      members emit as read-only `@property`.
+- [x] `LSTL_GeneratePython` + `LSTL_FreePythonString` in `binding.cc` (mirror
+      `LSTL_GenerateTypescript`); added to `WASMSYM` (exported natively via
+      the same list).
+- [x] `_gen.py` (`python -m sculptcore._gen`) — emits the `sculptcore/types/`
+      stub tree + `py.typed` (+ package `py.typed`); only rewrites changed
+      files; preserves hand-written files.
+- Verified: 17 stub files; all parse (`ast.parse`); regeneration is
+  byte-identical; **Pyright reports 0 errors** over the generated tree.
 
 ### Phase 4 — Workstream D: type-check + tests
-- [ ] `pyrightconfig.json` (strict) + mypy-clean secondary bar.
-- [ ] `test_smoke.py` — construct Mesh, run a dab; **no C module built**.
+- [ ] `pyrightconfig.json` (strict) + mypy-clean secondary bar (ad-hoc Pyright
+      run over generated stubs already reports 0 errors).
+- [x] `test_smoke.py` — construct Mesh, member/method round trips, dispose
+      guards, leak checks (6 tests) — **no C module built**. Plus
+      `test_bulk.py` (vectors + zero-copy numpy, 3 tests) and `test_dab.py`:
+      cube → spatial tree → reflected `CommandExecutor` `main` ctor →
+      `filterNodes` → **DRAW dab moves geometry** (serializeMeshRaw diff).
+      10 tests green. Note: `MeshLog.beginStep`/`endStep` are no longer
+      reflected (napi_smoke.cjs predates a refactor) — dab runs unlogged;
+      meshlog bracketing lands with P6 wiring.
 - [ ] `test_parity.py` — match the TS/WASM runtime on a shared scenario.
 - [ ] CI: Pyright (gate) + mypy + `pytest`.
 
