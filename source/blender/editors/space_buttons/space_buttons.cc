@@ -223,8 +223,8 @@ Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpaceProperties *sbuts,
   add_tab(BCONTEXT_OUTPUT);
   add_tab(BCONTEXT_VIEW_LAYER);
   add_tab(BCONTEXT_SCENE);
-  add_tab(BCONTEXT_WORLD);
   add_tab(BCONTEXT_COMPOSITOR);
+  add_tab(BCONTEXT_WORLD);
 
   add_spacer();
 
