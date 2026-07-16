@@ -5,7 +5,6 @@
 #pragma once
 
 #include "gpu_shader_compat.hh"
-#include "gpu_shader_math_vector_compare_lib.glsl"
 #include "gpu_shader_math_vector_reduce_lib.glsl"
 
 float3 calc_barycentric_distances(float3 pos0, float3 pos1, float3 pos2)
@@ -39,83 +38,18 @@ float2 calc_barycentric_co(int vertid)
 #define float_from_float4(v, luminance_coefficients) dot(v.rgb, luminance_coefficients)
 #define float_from_float3(v) ((v.r + v.g + v.b) * (1.0f / 3.0f))
 #define float_from_float2(v) ((v.x + v.y) * (1.0f / 2.0f))
-#define float_from_int4(v) ((float(v.x) + float(v.y) + float(v.z) + float(v.w)) * (1.0f / 4.0f))
-#define float_from_int3(v) ((float(v.x) + float(v.y) + float(v.z)) * (1.0f / 3.0f))
-#define float_from_int2(v) ((float(v.x) + float(v.y)) * (1.0f / 2.0f))
-#define float_from_int(v) float(v)
-#define float_from_bool(v) float(v)
 
 #define float2_from_float4(v) v.xy
 #define float2_from_float3(v) v.xy
 #define float2_from_float(v) float2(v)
-#define float2_from_int4(v) float2(v.xy)
-#define float2_from_int3(v) float2(v.xy)
-#define float2_from_int2(v) float2(v)
-#define float2_from_int(v) float2(v)
-#define float2_from_bool(v) float2(v)
 
 #define float3_from_float4(v) v.rgb
 #define float3_from_float2(v) float3(v.xy, 0.0f)
 #define float3_from_float(v) float3(v)
-#define float3_from_int4(v) float3(v.xyz)
-#define float3_from_int3(v) float3(v)
-#define float3_from_int2(v) float3(v.xy, 0.0f)
-#define float3_from_int(v) float3(v)
-#define float3_from_bool(v) float3(v)
 
 #define float4_from_float3(v) float4(v, 1.0f)
 #define float4_from_float2(v) float4(v.xy, 0.0f, 1.0f)
 #define float4_from_float(v) float4(float3(v), 1.0f)
-#define float4_from_int4(v) float4(v)
-#define float4_from_int3(v) float4(v.xyz, 0.0f)
-#define float4_from_int2(v) float4(v.xy, 0.0f, 0.0f)
-#define float4_from_int(v) float4(v)
-#define float4_from_bool(v) float4(v)
-
-#define int_from_float4(v) int((v.x + v.y + v.z + v.w) * (1.0f / 4.0f))
-#define int_from_float3(v) int((v.x + v.y + v.z) * (1.0f / 3.0f))
-#define int_from_float2(v) int((v.x + v.y) * (1.0f / 2.0f))
-#define int_from_float(v) int(v)
-#define int_from_int4(v) int((float(v.x) + float(v.y) + float(v.z) + float(v.w)) * (1.0f / 4.0f))
-#define int_from_int3(v) int((float(v.x) + float(v.y) + float(v.z)) * (1.0f / 3.0f))
-#define int_from_int2(v) ((v.x + v.y) / 2)
-#define int_from_bool(v) int(v)
-
-#define int2_from_float4(v) int2(v.xy)
-#define int2_from_float3(v) int2(v.xy)
-#define int2_from_float2(v) int2(v)
-#define int2_from_float(v) int2(v)
-#define int2_from_int4(v) v.xy
-#define int2_from_int3(v) v.xy
-#define int2_from_int(v) int2(v)
-#define int2_from_bool(v) int2(v)
-
-#define int3_from_float4(v) int3(v.xyz)
-#define int3_from_float3(v) int3(v)
-#define int3_from_float2(v) int3(v.xy, 0)
-#define int3_from_float(v) int3(v)
-#define int3_from_int4(v) v.xyz
-#define int3_from_int2(v) int3(v.xy, 0)
-#define int3_from_int(v) int3(v)
-#define int3_from_bool(v) int3(v)
-
-#define int4_from_float4(v) int4(v)
-#define int4_from_float3(v) int4(v.xyz, 0)
-#define int4_from_float2(v) int4(v.xy, 0, 0)
-#define int4_from_float(v) int4(v)
-#define int4_from_int3(v) int4(v.xyz, 0)
-#define int4_from_int2(v) int4(v.xy, 0, 0)
-#define int4_from_int(v) int4(v)
-#define int4_from_bool(v) int4(v)
-
-#define bool_from_float4(v) (!is_zero(v))
-#define bool_from_float3(v) (!is_zero(v))
-#define bool_from_float2(v) (!is_zero(v))
-#define bool_from_float(v) (v > 0.0f)
-#define bool_from_int4(v) (!is_zero(v))
-#define bool_from_int3(v) (!is_zero(v))
-#define bool_from_int2(v) (!is_zero(v))
-#define bool_from_int(v) (v > 0)
 
 #ifdef GPU_FRAGMENT_SHADER
 #  define FrontFacing gl_FrontFacing
