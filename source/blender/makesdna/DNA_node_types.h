@@ -3425,7 +3425,7 @@ struct NodeGeometryMergeLayers {
   DNA_DEFINE_CXX_METHODS(NodeGeometryMergeLayers)
 
   /** #MergeLayerMode. */
-  int8_t mode = 0;
+  DNA_DEPRECATED int8_t mode = 0;
 };
 
 struct NodeGeometrySeparateGeometry {
