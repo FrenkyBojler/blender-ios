@@ -1516,6 +1516,7 @@ class WindingState {
 };
 
 constexpr float epms = 0.01f;
+constexpr float epms_factor = 0.05f;
 
 /* Calculate the winding states for left and right of the segment. */
 static std::pair<WindingState, WindingState> LR_states_from_segment(
@@ -1562,8 +1563,10 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   const float2 mid_point = math::interpolate(point1, point2, 0.35421f);
 
-  const float2 l_point = mid_point + tan_dir * epms;
-  const float2 r_point = mid_point - tan_dir * epms;
+  const float eps_dis = math::min(epms_factor * math::distance(point1, point2), epms);
+
+  const float2 l_point = mid_point + tan_dir * eps_dis;
+  const float2 r_point = mid_point - tan_dir * eps_dis;
 
   mask_shapes.foreach_index([&](const int shape_j_index) {
     const Span<int> shape_j = shapes[shape_j_index];
