@@ -308,6 +308,8 @@ static Strip *add_item_recursive(Main *bmain,
     if (!item->enabled()) {
       strip->flag |= SEQ_MUTE;
     }
+
+    set_strip_metadata(item, strip);
   }
   else {
     CLOG_ERROR(&LOG, "File '%s' could not be loaded", load_data.path);

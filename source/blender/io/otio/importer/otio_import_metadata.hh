@@ -10,6 +10,7 @@
 
 #include "DNA_sequence_types.h"
 
+#include <opentimelineio/item.h>
 #include <opentimelineio/transition.h>
 
 namespace blender::io::otio {
@@ -29,5 +30,6 @@ struct TransitionMetadata {
 };
 
 TransitionMetadata fetch_transition_metadata(Transition *transition);
+void set_strip_metadata(Item *item, Strip *strip);
 
 }  // namespace blender::io::otio
