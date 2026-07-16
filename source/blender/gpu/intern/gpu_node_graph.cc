@@ -60,9 +60,11 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
     case GPU_BOOL:
       return *std::get<const bool *>(link->data);
     default:
-      BLI_assert_unreachable();
-      return {};
+      break;
   }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
 Span<float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type)
@@ -85,9 +87,11 @@ Span<float> gpu_constant_to_float_span(const GPUInputConstantData &data, const G
     case GPU_MAT4:
       return Span<float>(std::get<float4x4>(data).base_ptr(), 16);
     default:
-      BLI_assert_unreachable();
-      return {};
+      break;
   }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
 Span<int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type)
@@ -108,9 +112,11 @@ Span<int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUTy
       return Span<int>(&value.x, 4);
     }
     default:
-      BLI_assert_unreachable();
-      return {};
+      break;
   }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
 bool gpu_constant_to_bool(const GPUInputConstantData &data)
@@ -282,9 +288,11 @@ static GPUNodeLink *gpu_node_stack_constant_link(const GPUNodeStack &stack)
     case GPU_BOOL:
       return GPU_constant(&stack.boolean_data);
     default:
-      BLI_assert_unreachable();
-      return nullptr;
+      break;
   }
+
+  BLI_assert_unreachable();
+  return nullptr;
 }
 
 static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
@@ -303,9 +311,11 @@ static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
     case GPU_BOOL:
       return GPU_uniform(&stack.boolean_data);
     default:
-      BLI_assert_unreachable();
-      return nullptr;
+      break;
   }
+
+  BLI_assert_unreachable();
+  return nullptr;
 }
 
 static const char *gpu_uniform_set_function_from_type(eNodeSocketDatatype type)
