@@ -31,28 +31,28 @@ namespace blender {
   _bm_elem_flag_merge_into(&(ele)->head, &(ele_a)->head, &(ele_b)->head)
 
 ATTR_WARN_UNUSED_RESULT
-BLI_INLINE char _bm_elem_flag_test(const BMHeader *head, const char hflag)
+BLI_INLINE short _bm_elem_flag_test(const BMHeader *head, const short hflag)
 {
   return head->hflag & hflag;
 }
 
 ATTR_WARN_UNUSED_RESULT
-BLI_INLINE bool _bm_elem_flag_test_bool(const BMHeader *head, const char hflag)
+BLI_INLINE bool _bm_elem_flag_test_bool(const BMHeader *head, const short hflag)
 {
   return (head->hflag & hflag) != 0;
 }
 
-BLI_INLINE void _bm_elem_flag_enable(BMHeader *head, const char hflag)
+BLI_INLINE void _bm_elem_flag_enable(BMHeader *head, const short hflag)
 {
   head->hflag |= hflag;
 }
 
-BLI_INLINE void _bm_elem_flag_disable(BMHeader *head, const char hflag)
+BLI_INLINE void _bm_elem_flag_disable(BMHeader *head, const short hflag)
 {
-  head->hflag &= char(~hflag);
+  head->hflag &= short(~hflag);
 }
 
-BLI_INLINE void _bm_elem_flag_set(BMHeader *head, const char hflag, const int val)
+BLI_INLINE void _bm_elem_flag_set(BMHeader *head, const short hflag, const int val)
 {
   if (val) {
     _bm_elem_flag_enable(head, hflag);
@@ -62,7 +62,7 @@ BLI_INLINE void _bm_elem_flag_set(BMHeader *head, const char hflag, const int va
   }
 }
 
-BLI_INLINE void _bm_elem_flag_toggle(BMHeader *head, const char hflag)
+BLI_INLINE void _bm_elem_flag_toggle(BMHeader *head, const short hflag)
 {
   head->hflag ^= hflag;
 }
@@ -72,7 +72,7 @@ BLI_INLINE void _bm_elem_flag_merge(BMHeader *head_a, BMHeader *head_b)
   head_a->hflag = head_b->hflag = head_a->hflag | head_b->hflag;
 }
 
-BLI_INLINE void _bm_elem_flag_merge_ex(BMHeader *head_a, BMHeader *head_b, const char hflag_and)
+BLI_INLINE void _bm_elem_flag_merge_ex(BMHeader *head_a, BMHeader *head_b, const short hflag_and)
 {
   if (((head_a->hflag & head_b->hflag) & hflag_and) == 0) {
     head_a->hflag &= ~hflag_and;

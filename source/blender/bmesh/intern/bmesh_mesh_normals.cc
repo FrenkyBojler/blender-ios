@@ -808,8 +808,8 @@ static void bm_edge_tag_from_smooth(const Span<float3> fnos,
   /* Perform `BM_elem_flag_set(e, BM_ELEM_TAG, is_smooth)`
    * NOTE: This will be set by multiple threads however it will be set to the same value. */
 
-  /* No need for atomics here as this is a single byte. */
-  char *hflag_p = &e->head.hflag;
+  /* No need for atomics here as this is a single byte/short. */
+  short *hflag_p = &e->head.hflag;
   if (is_smooth) {
     *hflag_p = *hflag_p | BM_ELEM_TAG;
   }

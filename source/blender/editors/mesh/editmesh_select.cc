@@ -2622,9 +2622,11 @@ static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
     switch (action) {
       case SEL_SELECT:
         EDBM_flag_enable_all(em, BM_ELEM_SELECT);
+        EDBM_selectmode_flush(em);
         break;
       case SEL_DESELECT:
         EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+        EDBM_selectmode_flush(em);
         break;
       case SEL_INVERT:
         EDBM_select_swap(em);
@@ -2736,7 +2738,9 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
       /* Deselect everything. */
       for (Base *base_iter : bases) {
         Object *ob_iter = base_iter->object;
-        EDBM_flag_disable_all(BKE_editmesh_from_object(ob_iter), BM_ELEM_SELECT);
+        BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
+        EDBM_flag_disable_all(em_iter, BM_ELEM_SELECT);
+        EDBM_selectmode_flush(em_iter);
         DEG_id_tag_update(ob_iter->data, ID_RECALC_SELECT);
         WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
       }

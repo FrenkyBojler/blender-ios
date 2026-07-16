@@ -33,6 +33,9 @@ void mesh_render_data_face_flag(const MeshRenderData &mr,
   if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
     eattr.v_flag |= VFLAG_FACE_SELECTED;
   }
+  if (BM_elem_flag_test(efa, BM_ELEM_MIRRORED_SELECT)) {
+    eattr.v_flag |= VFLAG_FACE_MIRRORED_SELECT;
+  }
 
   if (efa == mr.efa_act_uv) {
     eattr.v_flag |= VFLAG_FACE_UV_ACTIVE;

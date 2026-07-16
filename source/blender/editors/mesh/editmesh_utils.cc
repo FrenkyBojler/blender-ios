@@ -25,7 +25,9 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_bvh.hh"
+#include "BKE_global.hh"
 #include "BKE_layer.hh"
+#include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_report.hh"
@@ -405,9 +407,109 @@ void EDBM_selectmode_to_scene(bContext *C)
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
 }
 
+static void EDBM_select_mirrored_tag_update(BMEditMesh *em)
+{
+  BMesh *bm = em->bm;
+
+  BMIter iter;
+  BMVert *v;
+  BMEdge *e;
+  BMFace *f;
+
+  BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+    BM_elem_flag_disable(v, BM_ELEM_MIRRORED_SELECT);
+    if (!BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+      BM_elem_flag_disable(v, BM_ELEM_MIRROR_DISABLED);
+    }
+  }
+  BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+    BM_elem_flag_disable(e, BM_ELEM_MIRRORED_SELECT);
+    if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+      BM_elem_flag_disable(e, BM_ELEM_MIRROR_DISABLED);
+    }
+  }
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    BM_elem_flag_disable(f, BM_ELEM_MIRRORED_SELECT);
+    if (!BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+      BM_elem_flag_disable(f, BM_ELEM_MIRROR_DISABLED);
+    }
+  }
+
+  Mesh *mesh = nullptr;
+  for (Mesh &me : G_MAIN->meshes) {
+    if (me.runtime && me.runtime->edit_mesh && me.runtime->edit_mesh.get() == em) {
+      mesh = &me;
+      break;
+    }
+  }
+
+  if (!mesh || mesh->symmetry == 0) {
+    em->last_symmetry = 0;
+    return;
+  }
+
+  em->last_symmetry = mesh->symmetry;
+
+  for (int axis = 0; axis < 3; axis++) {
+    if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+      bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+      EDBM_verts_mirror_cache_begin(em,
+                                    axis,
+                                    (em->selectmode & SCE_SELECT_VERTEX) != 0,
+                                    (em->selectmode & SCE_SELECT_EDGE) != 0,
+                                    (em->selectmode & SCE_SELECT_FACE) != 0,
+                                    use_topology);
+
+      if (em->selectmode & SCE_SELECT_VERTEX) {
+        BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+          if (BM_elem_flag_test(v, BM_ELEM_SELECT) &&
+              !BM_elem_flag_test(v, BM_ELEM_MIRROR_DISABLED) &&
+              !BM_elem_flag_test(v, BM_ELEM_HIDDEN))
+          {
+            BMVert *v_mirr = EDBM_verts_mirror_get(em, v);
+            if (v_mirr && v_mirr != v && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+              BM_elem_flag_enable(v_mirr, BM_ELEM_MIRRORED_SELECT);
+            }
+          }
+        }
+      }
+      if (em->selectmode & SCE_SELECT_EDGE) {
+        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(e, BM_ELEM_SELECT) &&
+              !BM_elem_flag_test(e, BM_ELEM_MIRROR_DISABLED) &&
+              !BM_elem_flag_test(e, BM_ELEM_HIDDEN))
+          {
+            BMEdge *e_mirr = EDBM_verts_mirror_get_edge(em, e);
+            if (e_mirr && e_mirr != e && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
+              BM_elem_flag_enable(e_mirr, BM_ELEM_MIRRORED_SELECT);
+            }
+          }
+        }
+      }
+      if (em->selectmode & SCE_SELECT_FACE) {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_SELECT) &&
+              !BM_elem_flag_test(f, BM_ELEM_MIRROR_DISABLED) &&
+              !BM_elem_flag_test(f, BM_ELEM_HIDDEN))
+          {
+            BMFace *f_mirr = EDBM_verts_mirror_get_face(em, f);
+            if (f_mirr && f_mirr != f && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN)) {
+              BM_elem_flag_enable(f_mirr, BM_ELEM_MIRRORED_SELECT);
+            }
+          }
+        }
+      }
+
+      EDBM_verts_mirror_cache_end(em);
+    }
+  }
+}
+
 void EDBM_selectmode_flush_ex(BMEditMesh *em, const short selectmode)
 {
   BM_mesh_select_mode_flush_ex(em->bm, selectmode, BMSelectFlushFlag_All);
+  EDBM_select_mirrored_tag_update(em);
 }
 
 void EDBM_selectmode_flush(BMEditMesh *em)
@@ -1570,7 +1672,6 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
   BMIter iter;
   BMElem *ele;
   int itermode;
-  char hflag_swap = swap ? BM_ELEM_SELECT : 0;
   bool changed = false;
 
   if (em->selectmode & SCE_SELECT_VERTEX) {
@@ -1585,7 +1686,9 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
 
   BM_ITER_MESH (ele, &iter, em->bm, itermode) {
     if (!BM_elem_flag_test(ele, BM_ELEM_HIDDEN)) {
-      if (BM_elem_flag_test(ele, BM_ELEM_SELECT) ^ hflag_swap) {
+      bool is_selected = BM_elem_flag_test(ele, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(ele, BM_ELEM_MIRRORED_SELECT);
+      if (is_selected ^ swap) {
         BM_elem_hide_set(em->bm, ele, true);
         changed = true;
       }
@@ -1601,7 +1704,9 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
         if (!BM_edge_is_wire(e)) {
           continue;
         }
-        if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) && !BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+        if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) && !BM_elem_flag_test(e, BM_ELEM_SELECT) &&
+            !BM_elem_flag_test(e, BM_ELEM_MIRRORED_SELECT))
+        {
           BM_elem_hide_set(em->bm, (BMElem *)e, true);
           changed = true;
         }
@@ -1614,7 +1719,9 @@ bool EDBM_mesh_hide(BMEditMesh *em, bool swap)
         if (v->e) {
           continue;
         }
-        if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN) && !BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN) && !BM_elem_flag_test(v, BM_ELEM_SELECT) &&
+            !BM_elem_flag_test(v, BM_ELEM_MIRRORED_SELECT))
+        {
           BM_elem_hide_set(em->bm, (BMElem *)v, true);
           changed = true;
         }

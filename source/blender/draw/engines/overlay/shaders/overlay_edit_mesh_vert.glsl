@@ -54,7 +54,7 @@ void main()
   final_color = EDIT_MESH_vertex_color(m_data.y, vertex_crease);
   gl_PointSize = theme.sizes.vert * ((vertex_crease > 0.0f) ? 3.0f : 2.0f);
   /* Make selected and active vertex always on top. */
-  if ((data.x & VERT_SELECTED) != 0u) {
+  if (((data.x & VERT_SELECTED) != 0u) || ((data.y & VERT_MIRRORED_SELECT) != 0u)) {
     gl_Position.z -= 5e-7f * abs(gl_Position.w);
   }
   if ((data.x & VERT_ACTIVE) != 0u) {
@@ -65,11 +65,11 @@ void main()
 
 #elif defined(EDGE)
 #  ifdef FLAT
-  final_color = EDIT_MESH_edge_color_inner(m_data.y);
+  final_color = EDIT_MESH_edge_color_inner(m_data.y, m_data.x);
   selectOverride = 1u;
 #  else
-  final_color = EDIT_MESH_edge_vertex_color(m_data.y);
-  selectOverride = (m_data.y & EDGE_SELECTED);
+  final_color = EDIT_MESH_edge_vertex_color(m_data.y, m_data.x);
+  selectOverride = (m_data.y & EDGE_SELECTED) | (m_data.x & EDGE_MIRRORED_SELECT);
 #  endif
 
   float edge_crease = float(m_data.z & 0xFu) / 15.0f;

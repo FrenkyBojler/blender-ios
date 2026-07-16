@@ -72,8 +72,6 @@ struct BMHeader {
 
   /** Element geometric type (verts/edges/loops/faces). */
   char htype;
-  /** This would be a CD layer, see below. */
-  char hflag;
 
   /**
    * Internal use only!
@@ -82,7 +80,9 @@ struct BMHeader {
    * so adding a flag here gives no increase in size.
    */
   char api_flag;
-  // char _pad;
+
+  /** This would be a CD layer, see below. */
+  short hflag;
 };
 
 BLI_STATIC_ASSERT((sizeof(BMHeader) <= 16), "BMHeader size has grown!");
@@ -552,6 +552,13 @@ enum {
    * Leave cleared!
    */
   BM_ELEM_INTERNAL_TAG = (1 << 7),
+
+  /** Tagged for mirrored selection when X/Y/Z symmetry editing is enabled. */
+  BM_ELEM_MIRRORED_SELECT = (1 << 8),
+
+  /** Tagged to disable mirrored selection for pre-existing selection when symmetry is turned on.
+   */
+  BM_ELEM_MIRROR_DISABLED = (1 << 9),
 };
 
 /* Only for #BMLoop to select an edge. */

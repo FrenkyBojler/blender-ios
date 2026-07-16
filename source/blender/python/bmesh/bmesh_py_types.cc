@@ -116,6 +116,12 @@ PyDoc_STRVAR(
     ":type: bool\n");
 PyDoc_STRVAR(
     /* Wrap. */
+    bpy_bm_elem_mirrored_selection_doc,
+    "Mirrored selection state of this element.\n"
+    "\n"
+    ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
     bpy_bm_elem_hide_doc,
     "Hidden state of this element.\n"
     "\n"
@@ -159,7 +165,7 @@ PyDoc_STRVAR(
 
 static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 {
-  const char hflag = char(POINTER_AS_INT(flag));
+  const short hflag = short(POINTER_AS_INT(flag));
 
   BPY_BM_CHECK_OBJ(self);
 
@@ -168,7 +174,7 @@ static PyObject *bpy_bm_elem_hflag_get(BPy_BMElem *self, void *flag)
 
 static int bpy_bm_elem_hflag_set(BPy_BMElem *self, PyObject *value, void *flag)
 {
-  const char hflag = char(POINTER_AS_INT(flag));
+  const short hflag = short(POINTER_AS_INT(flag));
   int param;
 
   BPY_BM_CHECK_INT(self);
@@ -910,6 +916,11 @@ static PyGetSetDef bpy_bmvert_getseters[] = {
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
      bpy_bm_elem_select_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT)},
+    {"mirrored_selection",
+     reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
+     reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
+     bpy_bm_elem_mirrored_selection_doc,
+     reinterpret_cast<void *>(BM_ELEM_MIRRORED_SELECT)},
     {"hide",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
@@ -986,6 +997,11 @@ static PyGetSetDef bpy_bmedge_getseters[] = {
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
      bpy_bm_elem_select_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT)},
+    {"mirrored_selection",
+     reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
+     reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
+     bpy_bm_elem_mirrored_selection_doc,
+     reinterpret_cast<void *>(BM_ELEM_MIRRORED_SELECT)},
     {"hide",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
@@ -1073,6 +1089,11 @@ static PyGetSetDef bpy_bmface_getseters[] = {
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
      bpy_bm_elem_select_doc,
      reinterpret_cast<void *>(BM_ELEM_SELECT)},
+    {"mirrored_selection",
+     reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
+     reinterpret_cast<setter>(bpy_bm_elem_hflag_set),
+     bpy_bm_elem_mirrored_selection_doc,
+     reinterpret_cast<void *>(BM_ELEM_MIRRORED_SELECT)},
     {"hide",
      reinterpret_cast<getter>(bpy_bm_elem_hflag_get),
      reinterpret_cast<setter>(bpy_bm_elem_hflag_set),

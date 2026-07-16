@@ -19,24 +19,30 @@ float4 EDIT_MESH_edge_color_outer(uint edge_flag, uint /*face_flag*/, float crea
   return color;
 }
 
-float4 EDIT_MESH_edge_color_inner(uint edge_flag)
+float4 EDIT_MESH_edge_color_inner(uint edge_flag, uint face_flag)
 {
   float4 color = theme.colors.wire_edit;
   float4 selected_edge_col = (select_edge) ? theme.colors.edge_mode_select :
                                              theme.colors.edge_select;
   color = ((edge_flag & EDGE_SELECTED) != 0u) ? selected_edge_col : color;
+  if (((edge_flag & EDGE_SELECTED) == 0u) && ((face_flag & EDGE_MIRRORED_SELECT) != 0u)) {
+    color = float4(0.2f, 0.6f, 1.0f, 1.0f);
+  }
   color = ((edge_flag & EDGE_ACTIVE) != 0u) ? theme.colors.edit_mesh_active : color;
   color.a = 1.0f;
   return color;
 }
 
-float4 EDIT_MESH_edge_vertex_color(uint vertex_flag)
+float4 EDIT_MESH_edge_vertex_color(uint vertex_flag, uint face_flag)
 {
   /* Edge color in vertex selection mode. */
   float4 selected_edge_col = (select_edge) ? theme.colors.edge_mode_select :
                                              theme.colors.edge_select;
   bool edge_selected = (vertex_flag & (VERT_ACTIVE | VERT_SELECTED)) != 0u;
   float4 color = (edge_selected) ? selected_edge_col : theme.colors.wire_edit;
+  if (!edge_selected && ((face_flag & EDGE_MIRRORED_SELECT) != 0u)) {
+    color = float4(0.2f, 0.6f, 1.0f, 1.0f);
+  }
   color.a = 1.0f;
   return color;
 }
@@ -49,6 +55,9 @@ float4 EDIT_MESH_vertex_color(uint vertex_flag, float vertex_crease)
   if ((vertex_flag & VERT_SELECTED) != 0u) {
     return theme.colors.vert_select;
   }
+  if ((vertex_flag & VERT_MIRRORED_SELECT) != 0u) {
+    return float4(0.2f, 0.6f, 1.0f, 1.0f);
+  }
   /* Full crease color if not selected nor active. */
   if (vertex_crease > 0.0f) {
     return mix(theme.colors.vert, theme.colors.edge_crease, vertex_crease);
@@ -60,6 +69,7 @@ float4 EDIT_MESH_face_color(uint face_flag)
 {
   bool face_freestyle = (face_flag & FACE_FREESTYLE) != 0u;
   bool face_selected = (face_flag & FACE_SELECTED) != 0u;
+  bool face_mirrored_selected = (face_flag & FACE_MIRRORED_SELECT) != 0u;
   bool face_active = (face_flag & FACE_ACTIVE) != 0u;
   bool face_retopo = (retopology_offset > 0.0f);
   float4 selected_face_col = (select_face) ? theme.colors.face_mode_select :
@@ -68,17 +78,21 @@ float4 EDIT_MESH_face_color(uint face_flag)
   color = face_retopo ? theme.colors.face_retopology : color;
   color = face_freestyle ? theme.colors.face_freestyle : color;
   color = face_selected ? selected_face_col : color;
+  if (!face_selected && face_mirrored_selected) {
+    color = float4(0.2f, 0.6f, 1.0f, selected_face_col.a);
+  }
   if (select_face && face_active) {
     color = mix(selected_face_col, theme.colors.edit_mesh_active, 0.5f);
     color.a = selected_face_col.a;
   }
   if (wire_shading) {
     /* Lower face selection opacity for better wireframe visibility. */
-    color.a = (face_selected) ? color.a * 0.6f : color.a;
+    color.a = (face_selected || face_mirrored_selected) ? color.a * 0.6f : color.a;
   }
   else {
     /* Don't always fill 'theme.colors.face'. */
-    color.a = (select_face || face_selected || face_active || face_freestyle || face_retopo) ?
+    color.a = (select_face || face_selected || face_mirrored_selected || face_active ||
+               face_freestyle || face_retopo) ?
                   color.a :
                   0.0f;
   }

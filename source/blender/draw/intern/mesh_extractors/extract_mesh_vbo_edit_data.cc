@@ -30,11 +30,19 @@ static void mesh_render_data_edge_flag(const MeshRenderData &mr,
   if (!is_vertex_select_mode && BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
     eattr.e_flag |= VFLAG_EDGE_SELECTED;
   }
+  if (!is_vertex_select_mode && BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT)) {
+    eattr.v_flag |= VFLAG_EDGE_MIRRORED_SELECT;
+  }
   if (is_vertex_select_mode && BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) &&
       BM_elem_flag_test(eed->v2, BM_ELEM_SELECT))
   {
     eattr.e_flag |= VFLAG_EDGE_SELECTED;
     eattr.e_flag |= VFLAG_VERT_SELECTED;
+  }
+  if (is_vertex_select_mode && BM_elem_flag_test(eed->v1, BM_ELEM_MIRRORED_SELECT) &&
+      BM_elem_flag_test(eed->v2, BM_ELEM_MIRRORED_SELECT))
+  {
+    eattr.v_flag |= VFLAG_EDGE_MIRRORED_SELECT;
   }
   if (BM_elem_flag_test(eed, BM_ELEM_SEAM)) {
     eattr.e_flag |= VFLAG_EDGE_SEAM;
@@ -88,6 +96,9 @@ static void mesh_render_data_vert_flag(const MeshRenderData &mr,
   }
   if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
     eattr.e_flag |= VFLAG_VERT_SELECTED;
+  }
+  if (BM_elem_flag_test(eve, BM_ELEM_MIRRORED_SELECT)) {
+    eattr.e_flag |= VFLAG_VERT_MIRRORED_SELECT;
   }
   /* Use half a byte for value range */
   if (mr.vert_crease_ofs != -1) {

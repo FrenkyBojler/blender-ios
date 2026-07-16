@@ -55,13 +55,13 @@ class EditMeshSymmetryHelper {
  public:
   static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob, uchar htype);
 
-  bool any_mirror_vert_selected(BMVert *v, char hflag) const;
-  bool any_mirror_edge_selected(BMEdge *e, char hflag) const;
-  bool any_mirror_face_selected(BMFace *f, char hflag) const;
+  bool any_mirror_vert_selected(BMVert *v, short hflag) const;
+  bool any_mirror_edge_selected(BMEdge *e, short hflag) const;
+  bool any_mirror_face_selected(BMFace *f, short hflag) const;
 
-  void set_hflag_on_mirror_verts(BMVert *v, char hflag, bool value) const;
-  void set_hflag_on_mirror_edges(BMEdge *e, char hflag, bool value) const;
-  void set_hflag_on_mirror_faces(BMFace *f, char hflag, bool value) const;
+  void set_hflag_on_mirror_verts(BMVert *v, short hflag, bool value) const;
+  void set_hflag_on_mirror_edges(BMEdge *e, short hflag, bool value) const;
+  void set_hflag_on_mirror_faces(BMFace *f, short hflag, bool value) const;
 
   void apply_on_mirror_verts(BMVert *v, FunctionRef<void(BMVert *)> op) const;
   void apply_on_mirror_edges(BMEdge *e, FunctionRef<void(BMEdge *)> op) const;

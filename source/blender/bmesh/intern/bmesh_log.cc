@@ -108,13 +108,13 @@ struct BMLog {
 struct BMLogVert {
   float3 position;
   float3 normal;
-  char hflag;
+  short hflag;
   float mask;
 };
 
 struct BMLogFace {
   std::array<uint, 3> v_ids;
-  char hflag;
+  short hflag;
 };
 
 /* -------------------------------------------------------------------- */
