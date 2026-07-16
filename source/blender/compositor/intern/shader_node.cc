@@ -117,14 +117,14 @@ static void populate_gpu_node_stack(const bNodeSocket &socket, GPUNodeStack &sta
     case GPU_INT2:
     case GPU_INT3:
     case GPU_INT4:
-      stack.ivec = int4(0);
+      stack.integer_data = int4(0);
       break;
     case GPU_BOOL:
-      stack.b = false;
+      stack.boolean_data = false;
       break;
     default:
       BLI_assert_unreachable();
-      zero_v4(stack.vec);
+      break;
   }
 
   stack.hasinput = socket.is_logically_linked();

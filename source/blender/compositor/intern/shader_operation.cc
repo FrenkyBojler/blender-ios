@@ -240,16 +240,16 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
   switch (input.type) {
     case SOCK_INT:
     case SOCK_MENU:
-      stack.ivec.x = 0;
-      link = GPU_constant(&stack.ivec.x);
+      stack.integer_data.x = 0;
+      link = GPU_constant(&stack.integer_data.x);
       break;
     case SOCK_INT_VECTOR:
-      stack.ivec = int4(0);
-      link = GPU_constant(&stack.ivec.x);
+      stack.integer_data = int4(0);
+      link = GPU_constant(&stack.integer_data.x);
       break;
     case SOCK_BOOLEAN:
-      stack.b = false;
-      link = GPU_constant(&stack.b);
+      stack.boolean_data = false;
+      link = GPU_constant(&stack.boolean_data);
       break;
     default:
       zero_v4(stack.vec);
@@ -268,12 +268,14 @@ static GPUNodeLink *initialize_input_stack_value(const bNodeSocket &input,
 {
   switch (input.type) {
     case SOCK_INT: {
-      stack.ivec.x = input.default_value_typed<bNodeSocketValueInt>()->value;
-      return use_as_constant ? GPU_constant(&stack.ivec.x) : GPU_uniform(&stack.ivec.x);
+      stack.integer_data.x = input.default_value_typed<bNodeSocketValueInt>()->value;
+      return use_as_constant ? GPU_constant(&stack.integer_data.x) :
+                               GPU_uniform(&stack.integer_data.x);
     }
     case SOCK_MENU: {
-      stack.ivec.x = input.default_value_typed<bNodeSocketValueMenu>()->value;
-      return use_as_constant ? GPU_constant(&stack.ivec.x) : GPU_uniform(&stack.ivec.x);
+      stack.integer_data.x = input.default_value_typed<bNodeSocketValueMenu>()->value;
+      return use_as_constant ? GPU_constant(&stack.integer_data.x) :
+                               GPU_uniform(&stack.integer_data.x);
     }
     case SOCK_INT_VECTOR: {
       const bNodeSocketValueIntVector *storage =
@@ -281,23 +283,25 @@ static GPUNodeLink *initialize_input_stack_value(const bNodeSocket &input,
       switch (storage->dimensions) {
         case 2: {
           const int2 value = int2(storage->value);
-          copy_v2_v2_int(&stack.ivec.x, &value.x);
+          copy_v2_v2_int(&stack.integer_data.x, &value.x);
           break;
         }
         case 3: {
           const int3 value = int3(storage->value);
-          copy_v3_v3_int(&stack.ivec.x, &value.x);
+          copy_v3_v3_int(&stack.integer_data.x, &value.x);
           break;
         }
         default:
           BLI_assert_unreachable();
           return nullptr;
       }
-      return use_as_constant ? GPU_constant(&stack.ivec.x) : GPU_uniform(&stack.ivec.x);
+      return use_as_constant ? GPU_constant(&stack.integer_data.x) :
+                               GPU_uniform(&stack.integer_data.x);
     }
     case SOCK_BOOLEAN: {
-      stack.b = input.default_value_typed<bNodeSocketValueBoolean>()->value;
-      return use_as_constant ? GPU_constant(&stack.b) : GPU_uniform(&stack.b);
+      stack.boolean_data = input.default_value_typed<bNodeSocketValueBoolean>()->value;
+      return use_as_constant ? GPU_constant(&stack.boolean_data) :
+                               GPU_uniform(&stack.boolean_data);
     }
     case SOCK_FLOAT: {
       const float value = input.default_value_typed<bNodeSocketValueFloat>()->value;
@@ -356,10 +360,8 @@ void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
 
   /* Create a constant or a uniform link that carry the value of the input. Use a constant for
    * socket types that rarely change like booleans and menus, while use a uniform for socket type
-   * that might change a lot to avoid excessive shader recompilation.
-   * Temporary fix: use constant for integer types because there's no UBO support yet. */
-  const bool use_as_constant = ELEM(
-      input.type, SOCK_BOOLEAN, SOCK_INT, SOCK_INT_VECTOR, SOCK_MENU);
+   * that might change a lot to avoid excessive shader recompilation. */
+  const bool use_as_constant = ELEM(input.type, SOCK_BOOLEAN, SOCK_MENU);
   GPUNodeLink *link = initialize_input_stack_value(input, stack, use_as_constant);
 
   const ResultType type = get_node_socket_result_type(&input);
@@ -634,12 +636,12 @@ void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bN
       case ResultType::Int3:
       case ResultType::Int4:
       case ResultType::Menu:
-        input_stack.ivec = int4(0);
-        default_link = GPU_constant(&input_stack.ivec.x);
+        input_stack.integer_data = int4(0);
+        default_link = GPU_constant(&input_stack.integer_data.x);
         break;
       case ResultType::Bool:
-        input_stack.b = false;
-        default_link = GPU_constant(&input_stack.b);
+        input_stack.boolean_data = false;
+        default_link = GPU_constant(&input_stack.boolean_data);
         break;
       default: {
         const float *default_value = static_cast<const float *>(
