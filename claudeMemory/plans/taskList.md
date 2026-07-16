@@ -182,8 +182,13 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
       register / unregister / same-idname re-registration all pass.
       Gotchas hit: `PROP_ENUM_FLAG` must be set before items;
       `RNA_def_struct_ptr` references (doesn't copy) the identifier string.
-- [ ] A5 Versioning/sanitize for unregistered idnames on load (deliberately
-      last per plan §3 order of work).
+- [x] A5 Load sanitize (`object_blend_read_data`): the custom bit never
+      survives a *file* load (session state can't exist before addon
+      registration; `custom_mode_id` persists as the restore target, and an
+      addon may re-enter from a load-post handler). Undo reads keep the bit
+      (the C4 refresh path re-syncs). Linked data already covered via
+      `OB_MODE_ALL_MODE_DATA`. Verified: save-in-mode → reload → OBJECT with
+      idname intact → `mode_set('CUSTOM')` re-enters.
 
 ### Phase B — the five blocker branches
 - [x] B1 `mode_compat_test` custom branch: looks up the pending target (see
@@ -216,10 +221,28 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
   registered for the mode yet — C2 territory).
 
 ### Phase C — keymap, tools, flush
-- [ ] C1 Dynamic keymap handler in `view3d_main_region_init` + hierarchy entry.
-- [ ] C2 Tool-system keying via context string verified (expected ~no changes).
-- [ ] C3 `flush` trampoline in `ED_editors_flush_edits_for_object_ex`.
-- [ ] C4 `refresh` trampoline from `undo_post` (memfile-only Tier-1 undo).
+- [x] C1 Dynamic keymap handler (`view3d_custom_mode_keymap_fn` in
+      `space_view3d.cc`, tool-keymap pattern): resolves the active object's
+      mode keymap per event; keymap ensured lazily in the default config,
+      found through the user config. Deviations: no
+      `keymap_hierarchy.py` entry (the hierarchy lists *fixed* names; addon
+      keymaps registered via `keyconfigs.addon` appear in the UI already) and
+      ensure-at-registration moved into the resolver (RNA register has no
+      `wmWindowManager`). Event-level verification rides P4's addon keymap.
+- [x] C2 Tool system: no changes needed — it keys off the context string
+      (confirmed: entering a custom mode makes the toolsystem look up tools
+      for the idname context and warn `builtin.select_box not found`, which
+      goes away once the addon registers a tool for its mode, P4).
+- [x] C3 `flush` trampoline branch in `ED_editors_flush_edits_for_object_ex`
+      (before memfile undo encode / save / render). Deviation: no C-side
+      dirty flag — dirty tracking is the addon's job (clean sessions return
+      immediately); revisit via ObjectRuntime if profiling demands.
+      Verified: flush fires on save while in mode.
+- [x] C4 `refresh` trampoline in `ed_undo_step_post` (op_undo_depth-guarded,
+      after UNDO/REDO_POST handlers; gating to memfile-only decodes is
+      deferred to P6 A3 as planned). Verified interactively via remote_repl:
+      real memfile undo fires exactly one `refresh` and the object stays in
+      the mode across the Main swap.
 
 ### Verification (per plan §4)
 - [ ] Test-addon callback-order matrix (enter/exit/switch/close/disable).
