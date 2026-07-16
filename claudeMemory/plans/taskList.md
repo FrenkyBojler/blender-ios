@@ -275,12 +275,19 @@ path. Deferral of modifier/GN/shape-key sculpting per
 - [ ] A3 Bulk attribute copy in/out (v1 layer set) using the index map.
 - [ ] A4 `Mesh_topologyDirty` query (drives exit/flush fast path).
 
-### Workstream B — Addon conversion module
-- [ ] B1 `enter`: validate → gather → build engine mesh + tree → session.
-- [ ] B2 `flush`: fast path (positions/layers) + slow path (topology rebuild,
-      drop-with-warning for unconverted layers).
-- [ ] B3 `exit`: flush + free.
-- [ ] B4 `refresh`: rebuild from Mesh ID after foreign undo; generation bump.
+### Workstream B — Addon conversion module (`sculptcore_addon/convert.py`)
+- [x] B1 `enter`: validate (refuse shape keys; warn on enabled modifiers /
+      loose edges) → `foreach_get` positions/corner_verts/face_offsets →
+      `Mesh_fromArrays` → `Mesh_buildSpatialTree` → session registry.
+- [~] B2 `flush`: fast path done (positions via `dumpVertCo` +
+      `foreach_set` + `mesh.update()`). Slow path (topology rebuild +
+      layer drop-with-warning) still to write — raises a clear error for now
+      (topology ops unreachable until dyntopo is wired). Layer round-trip is
+      P3 A3 territory.
+- [x] B3 `exit`: flush + free (re-entrant for forced exits).
+- [x] B4 `refresh`: free + rebuild from the Mesh ID; generation bump.
+      Verified via direct call (the C undo trampoline that invokes it is
+      verified in P2).
 
 ### Verification (per plan §5)
 - [ ] No-stroke round trip byte-identical over the mesh corpus (incl. n-gons,
@@ -297,8 +304,21 @@ Full plan → **[addon-skeleton.md](./addon-skeleton.md)**. Package layout,
 `SculptCoreMode(ObjectModeType)`, session registry, modal stroke operator,
 keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
 
-- [ ] S1 Loadable skeleton: engine import + ABI guard; mode registers;
-      enter/exit round-trips positions.
+- [x] S1 Loadable skeleton at `scripts/addons_core/sculptcore_addon/`:
+      `engine.py` (single `sculptcore` import point — vendored `lib/` then
+      `$SCULPTCORE_PYTHON_PATH`; ABI guard via `sculptcore.init()`; bulk
+      c-api ctypes decls; session registry), `session.py` (engine
+      mesh/tree handles, topology-stamp fast-path check, generation
+      counter, re-entrant `free`), `convert.py` (P3 B1/B3/B4:
+      enter=validate+`foreach_get`→`Mesh_fromArrays`+spatial tree;
+      flush=positions fast path via `dumpVertCo`; exit=flush+free;
+      refresh=rebuild+generation bump), `__init__.py`
+      (`SculptCoreMode(ObjectModeType)`). Also fixed the viewport header's
+      select/edit-menu fall-through for unknown mode strings (`'CUSTOM'`
+      added to both exclusion sets). Verified headless (7 scenarios):
+      enable → enter → no-stroke round trip byte-identical → engine edit
+      flushes on save and on exit → refresh rebuilds with generation bump →
+      addon-disable force-exits the live session.
 - [ ] S2 First stroke: DRAW brush end-to-end; Phase-0 flush throttle; memfile
       undo works; cursor overlay.
 - [ ] S3 Usability: full keymap, single tool, brush panel, invert/smooth,

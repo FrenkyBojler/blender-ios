@@ -1187,6 +1187,8 @@ class VIEW3D_MT_editor_menus(Menu):
         elif mode_string not in {
                 'SCULPT', 'SCULPT_CURVES', 'PAINT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL', 'WEIGHT_GREASE_PENCIL',
                 'VERTEX_GREASE_PENCIL',
+                # Addon-registered mode: no built-in select menu.
+                'CUSTOM',
         }:
             layout.menu("VIEW3D_MT_select_" + mode_string.lower())
 
@@ -1229,7 +1231,11 @@ class VIEW3D_MT_editor_menus(Menu):
                 layout.template_node_operator_asset_root_items()
 
         elif obj:
-            if mode_string not in {'PAINT_TEXTURE', 'SCULPT_CURVES', 'SCULPT_GREASE_PENCIL', 'VERTEX_GREASE_PENCIL'}:
+            if mode_string not in {
+                    'PAINT_TEXTURE', 'SCULPT_CURVES', 'SCULPT_GREASE_PENCIL', 'VERTEX_GREASE_PENCIL',
+                    # Addon-registered mode: no built-in menu.
+                    'CUSTOM',
+            }:
                 layout.menu("VIEW3D_MT_" + mode_string.lower())
             if mode_string == 'SCULPT':
                 layout.menu("VIEW3D_MT_mask")
