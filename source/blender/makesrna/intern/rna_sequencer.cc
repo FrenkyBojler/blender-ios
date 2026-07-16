@@ -809,6 +809,13 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
   seq::relations_invalidate_cache(scene, strip);
 }
 
+static int rna_Strip_channel_editable(const PointerRNA *ptr, const char ** /*r_info*/)
+{
+  Strip *strip = static_cast<Strip *>(ptr->data);
+  /* Effect strips' start frame and length must be readonly! */
+  return strip->is_transition() ? PropertyFlag(0) : PROP_EDITABLE;
+}
+
 static bool rna_Strip_lock_get(PointerRNA *ptr)
 {
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
@@ -2787,6 +2794,7 @@ static void rna_def_strip(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "channel", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "channel");
+  RNA_def_property_editable_func(prop, "rna_Strip_channel_editable");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1, seq::MAX_CHANNELS);
   RNA_def_property_ui_text(prop, "Channel", "Vertical position of the strip");
