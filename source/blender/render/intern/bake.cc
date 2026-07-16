@@ -346,12 +346,13 @@ static bool cast_ray_highpoly(const bke::bvh::Tree **treeData,
     normalize_v3(dir_high);
 
     /* cast ray */
-    const bke::bvh::Ray ray(co_high, dir_high);
+    /* TODO: we should use FLT_MAX here, but sweep-sphere code isn't prepared for that. */
+    const bke::bvh::Ray ray(co_high, dir_high, BVH_RAYCAST_DIST_MAX);
     if (treeData[i]) {
       hits[i] = treeData[i]->ray_intersect(ray);
     }
 
-    if (hits[i]->index != -1) {
+    if (hits[i]) {
       /* distance comparison in world space */
       float hit_world[3];
       mul_v3_m4v3(hit_world, highpoly[i].obmat, hits[i]->position(ray));
