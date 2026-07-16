@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-06-02 05:12+0000\n"
 "Last-Translator: Fadli Birdie Zeinda <justbirdie00@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15740,8 +15740,56 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
+msgid "Merge"
+msgstr "Menggabungkan"
+
+
+msgid "Metaball"
+msgstr "Metabola"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Names"
+msgstr "Nama"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Sample"
+msgstr "Sampel"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
+msgid "Import"
+msgstr "Impor"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
 msgid "Navigation"
 msgstr "Navigasi"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Linked"
@@ -15750,18 +15798,6 @@ msgstr "Seleksi yang Terhubung"
 
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Utilities"
-msgstr "Utilitas"
-
-
-msgid "Metaball"
-msgstr "Metabola"
 
 
 msgid "Light"
@@ -15776,48 +15812,12 @@ msgid "Add Image"
 msgstr "Tambah Gambar"
 
 
-msgid "Sample"
-msgstr "Sampel"
-
-
 msgid "Apply"
 msgstr "Tetapkan"
 
 
 msgid "Track"
 msgstr "Lacak"
-
-
-msgid "Asset"
-msgstr "Aset"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Hooks"
-msgstr "Kait"
-
-
-msgid "Import"
-msgstr "Impor"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Names"
-msgstr "Nama"
-
-
-msgid "Merge"
-msgstr "Menggabungkan"
 
 
 msgid "Linked"
@@ -15828,16 +15828,16 @@ msgid "Layout"
 msgstr "Tata Letak"
 
 
-msgid "Snap"
-msgstr "Jepret"
+msgid "Asset"
+msgstr "Aset"
+
+
+msgid "Hooks"
+msgstr "Kait"
 
 
 msgid "Tracking"
 msgstr "Pelacakan"
-
-
-msgid "Mirror"
-msgstr "Cermin"
 
 
 msgid "Animals"

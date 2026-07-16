@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 LTS Beta (b'051706edb5e5')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 07:24+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-03-17 14:12+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -13835,10 +13835,6 @@ msgid "sin(x) / x"
 msgstr "sin(x) / x"
 
 
-msgid "Phase Multiple"
-msgstr "Fasflerfaldig"
-
-
 msgid "Scale factor determining the 'speed' of the function"
 msgstr "Skalfaktor som bestämmer funktionens \"hastighet\""
 
@@ -15076,6 +15072,14 @@ msgstr "Parametrar för val av tillgångar"
 
 msgid "Settings for the file selection in Asset Browser mode"
 msgstr "Inställningar för filval i Asset Browser-läget"
+
+
+msgid "Catalog"
+msgstr "Katalog"
+
+
+msgid "Unassigned"
+msgstr "Otilldelad"
 
 
 msgid "The UUID of the catalog shown in the browser"
@@ -17830,6 +17834,10 @@ msgstr "Verktygshuvud"
 
 msgid "XR"
 msgstr "XR"
+
+
+msgid "Scrubbing"
+msgstr "Skrubbning"
 
 
 msgid "The space where the panel is going to be used in"
@@ -35062,8 +35070,132 @@ msgid "Editor menu containing buttons"
 msgstr "Redigeringsmeny med knappar"
 
 
+msgid "Face Data"
+msgstr "Ansiktsdata"
+
+
+msgid "Select by Face Strength"
+msgstr "Välj efter ansiktsstyrka"
+
+
+msgid "Set Face Strength"
+msgstr "Ställ in ansiktsstyrka"
+
+
+msgid "Render Preview"
+msgstr "Förhandsgranska rendering"
+
+
+msgid "Clean Up"
+msgstr "Rensa upp"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Show/Hide"
+msgstr "Visa/Dölj"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Kerning"
+msgstr "Kerning"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Utilities"
+msgstr "Allmännyttiga tjänster"
+
+
+msgid "Bone Roll"
+msgstr "Benrulle"
+
+
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Sample"
+msgstr "Exempel"
+
+
+msgid "Pivot Point"
+msgstr "Pivotpunkt"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Snap"
+msgstr "Fäst"
+
+
+msgid "Primitives"
+msgstr "Primitiva"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportionell redigering Falloff"
+
+
+msgid "Mask Edit"
+msgstr "Maskredigering"
+
+
+msgid "Automasking"
+msgstr "Automatisk maskering"
+
+
+msgid "Face Sets Edit"
+msgstr "Ansiktsuppsättningar Redigera"
+
+
+msgid "Vertex Group Locks"
+msgstr "Vertex Group Lås"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Mirror"
+msgstr "Spegel"
+
+
+msgid "UV Mapping"
+msgstr "UV-mappning"
+
+
 msgid "Local View"
 msgstr "Lokal vy"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
 
 
 msgid "Viewpoint"
@@ -35078,10 +35210,6 @@ msgid "Align View"
 msgstr "Justera vy"
 
 
-msgid "Render Preview"
-msgstr "Förhandsgranska rendering"
-
-
 msgid "Align View to Active"
 msgstr "Justera vy till aktiv"
 
@@ -35092,6 +35220,10 @@ msgstr "Visa regioner"
 
 msgid "Select More/Less"
 msgstr "Välj Mer/Mindre"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -35114,18 +35246,6 @@ msgid "Assign Material"
 msgstr "Tilldela material"
 
 
-msgid "Math"
-msgstr "Matematik"
-
-
-msgid "Utilities"
-msgstr "Allmännyttiga tjänster"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
 msgid "Light"
 msgstr "Ljus"
 
@@ -35142,24 +35262,8 @@ msgid "Relations"
 msgstr "Relationer"
 
 
-msgid "Read"
-msgstr "Läs"
-
-
-msgid "Sample"
-msgstr "Exempel"
-
-
-msgid "Write"
-msgstr "Skriv"
-
-
 msgid "Rigid Body"
 msgstr "Stel kropp"
-
-
-msgid "Primitives"
-msgstr "Primitiva"
 
 
 msgid "Apply"
@@ -35174,12 +35278,12 @@ msgid "Quick Effects"
 msgstr "Snabba effekter"
 
 
-msgid "Show/Hide"
-msgstr "Visa/Dölj"
+msgid "Linked"
+msgstr "Länkad"
 
 
-msgid "Clean Up"
-msgstr "Rensa upp"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Asset"
@@ -35194,32 +35298,20 @@ msgid "Convert"
 msgstr "Konvertera"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
 msgid "Link/Transfer Data"
 msgstr "Länk/överför data"
-
-
-msgid "Instances"
-msgstr "Instanser"
 
 
 msgid "Hooks"
 msgstr "Krokar"
 
 
-msgid "Vertex Group Locks"
-msgstr "Vertex Group Lås"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
 msgid "Trim/Add"
 msgstr "Trimma/Lägg till"
+
+
+msgid "Adjust"
+msgstr "Justera"
 
 
 msgid "Sculpt Set Pivot"
@@ -35230,12 +35322,16 @@ msgid "Face Sets Init"
 msgstr "Ansiktsuppsättningar Init"
 
 
+msgid "Keying"
+msgstr "Nyckel"
+
+
 msgid "Random Mask"
 msgstr "Slumpmässig mask"
 
 
-msgid "Deprecated"
-msgstr "Föråldrad"
+msgid "Tracking"
+msgstr "Spårning"
 
 
 msgid "Clear Transform"
@@ -35250,16 +35346,12 @@ msgid "Propagate"
 msgstr "Föröka"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Bone Collections"
 msgstr "Benskörningar"
 
 
-msgid "Names"
-msgstr "Namn"
+msgid "Creative"
+msgstr "Kreativ"
 
 
 msgid "Toggle Bone Options"
@@ -35276,90 +35368,6 @@ msgstr "Inaktivera benalternativ"
 
 msgid "Mesh Select Mode"
 msgstr "Välj nätläge"
-
-
-msgid "Face Data"
-msgstr "Ansiktsdata"
-
-
-msgid "Select by Face Strength"
-msgstr "Välj efter ansiktsstyrka"
-
-
-msgid "Set Face Strength"
-msgstr "Ställ in ansiktsstyrka"
-
-
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Kerning"
-msgstr "Kerning"
-
-
-msgid "Bone Roll"
-msgstr "Benrulle"
-
-
-msgid "Linked"
-msgstr "Länkad"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Pivot Point"
-msgstr "Pivotpunkt"
-
-
-msgid "Snap"
-msgstr "Fäst"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportionell redigering Falloff"
-
-
-msgid "Mask Edit"
-msgstr "Maskredigering"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Automasking"
-msgstr "Automatisk maskering"
-
-
-msgid "Face Sets Edit"
-msgstr "Ansiktsuppsättningar Redigera"
-
-
-msgid "Keying"
-msgstr "Nyckel"
-
-
-msgid "Tracking"
-msgstr "Spårning"
-
-
-msgid "Creative"
-msgstr "Kreativ"
-
-
-msgid "Mirror"
-msgstr "Spegel"
-
-
-msgid "UV Mapping"
-msgstr "UV-mappning"
 
 
 msgid "Keyframe Insert Pie"
@@ -35384,10 +35392,6 @@ msgstr "Lägg till -> Armatur -> Rigga Meta-Rigs."
 
 msgid "Rigify Meta-Rigs"
 msgstr "Rigify Meta-Rigs"
-
-
-msgid "Catalog"
-msgstr "Katalog"
 
 
 msgid "Assets"
@@ -91960,6 +91964,66 @@ msgid "Panel containing UI elements"
 msgstr "Panel som innehåller UI-element"
 
 
+msgid "Active Tool"
+msgstr "Aktivt verktyg"
+
+
+msgid "View Lock"
+msgstr "Visa lås"
+
+
+msgid "Selectability & Visibility"
+msgstr "Valbarhet och synlighet"
+
+
+msgid "Shadow Settings"
+msgstr "Skugginställningar"
+
+
+msgid "SSAO Settings"
+msgstr "SSAO-inställningar"
+
+
+msgid "Cavity"
+msgstr "Hålrum"
+
+
+msgid "Render Pass"
+msgstr "Renderingspass"
+
+
+msgid "Compositor"
+msgstr "Compositor"
+
+
+msgid "glTF Variants"
+msgstr "glTF-varianter"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF-materialvarianter"
+
+
+msgid "Overlays"
+msgstr "Överlägg"
+
+
+msgid "Guides"
+msgstr "Guider"
+
+
+msgid "Viewer Node"
+msgstr "Visningsnod"
+
+
+msgid "Motion Tracking"
+msgstr "Rörelsespårning"
+
+
+msgid "Mesh Edit Mode"
+msgstr "Redigeringsläge för nät"
+
+
 msgid "Measurement"
 msgstr "Mätning"
 
@@ -91972,6 +92036,14 @@ msgid "Curves Edit Mode"
 msgstr "Kurvor Redigeringsläge"
 
 
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTF-animationer"
+
+
 msgid "Transform Orientations"
 msgstr "Transformera orienteringar"
 
@@ -91982,10 +92054,6 @@ msgstr "Strokeplacering"
 
 msgid "Drawing Plane"
 msgstr "Ritplan"
-
-
-msgid "Guides"
-msgstr "Guider"
 
 
 msgid "Grease Pencil Options"
@@ -92034,70 +92102,6 @@ msgstr "VR"
 
 msgid "VR Info"
 msgstr "VR-information"
-
-
-msgid "glTF Variants"
-msgstr "glTF-varianter"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF-materialvarianter"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTF-animationer"
-
-
-msgid "Active Tool"
-msgstr "Aktivt verktyg"
-
-
-msgid "View Lock"
-msgstr "Visa lås"
-
-
-msgid "Selectability & Visibility"
-msgstr "Valbarhet och synlighet"
-
-
-msgid "Shadow Settings"
-msgstr "Skugginställningar"
-
-
-msgid "SSAO Settings"
-msgstr "SSAO-inställningar"
-
-
-msgid "Cavity"
-msgstr "Hålrum"
-
-
-msgid "Render Pass"
-msgstr "Renderingspass"
-
-
-msgid "Compositor"
-msgstr "Compositor"
-
-
-msgid "Overlays"
-msgstr "Överlägg"
-
-
-msgid "Viewer Node"
-msgstr "Visningsnod"
-
-
-msgid "Motion Tracking"
-msgstr "Rörelsespårning"
-
-
-msgid "Mesh Edit Mode"
-msgstr "Redigeringsläge för nät"
 
 
 msgid "Import Settings"
@@ -126974,10 +126978,6 @@ msgid "Duplicate Marker to Scene"
 msgstr "Duplicera markör till scen"
 
 
-msgid "Scrubbing"
-msgstr "Skrubbning"
-
-
 msgid "Limit to Frame Range"
 msgstr "Begränsa till bildintervall"
 
@@ -130404,10 +130404,6 @@ msgstr "Attributdomän stöds inte av denna geometrityp"
 
 msgid "The attribute name must not be empty"
 msgstr "Attributnamnet får inte vara tomt."
-
-
-msgid "Attribute is required and cannot be removed"
-msgstr "Attributet är obligatoriskt och kan inte tas bort."
 
 
 msgid "Domain unsupported for \"%s\" attribute"
@@ -135674,10 +135670,6 @@ msgid "Loading Asset Libraries"
 msgstr "Laddar tillgångsbibliotek"
 
 
-msgid "Unassigned"
-msgstr "Otilldelad"
-
-
 msgid ""
 "Modifier node group assets not assigned to a catalog.\n"
 "Catalogs can be assigned in the Asset Browser"
@@ -137212,10 +137204,6 @@ msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "Ingen Rigid Body World att lägga till Rigid Body Constraint till"
 
 
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "Objektet har ingen stel kroppsbegränsning att ta bort"
-
-
 msgid "Object '%s' already has a Rigid Body Constraint"
 msgstr "Objektet '%s' har redan en rigid kroppsbegränsning."
 
@@ -138024,10 +138012,6 @@ msgstr "Aktiv grupp är låst, avbryter"
 
 msgid "Fill tool needs active material"
 msgstr "Fyllningsverktyget behöver aktivt material"
-
-
-msgid "Unable to fill unclosed areas"
-msgstr "Kan inte fylla ofullständiga områden"
 
 
 msgid "GPencil Interpolation: "
@@ -143487,6 +143471,10 @@ msgid "Attribute per point/vertex"
 msgstr "Attribut per punkt/hörnpunkt"
 
 
+msgid "Attribute is required and cannot be removed"
+msgstr "Attributet är obligatoriskt och kan inte tas bort."
+
+
 msgid "Smooth the surface"
 msgstr "Jämna ut ytan"
 
@@ -145203,10 +145191,6 @@ msgstr "Dataöverföring"
 
 msgid "Topology Mapping"
 msgstr "Topologikartläggning"
-
-
-msgid "Face Count: %s"
-msgstr "Antal ansikten: %s"
 
 
 msgid "Modifier requires more than 3 input faces"
@@ -150466,6 +150450,14 @@ msgid "Font not specified"
 msgstr "Typsnitt ej angivet"
 
 
+msgid "Top Right"
+msgstr "Övre högra hörnet"
+
+
+msgid "Bottom Left"
+msgstr "Nederst till vänster"
+
+
 msgid "Align Y"
 msgstr "Justera Y"
 
@@ -150577,14 +150569,6 @@ msgstr "Exakt form"
 
 msgid "Use exact geometry for most efficient packing (slowest)"
 msgstr "Använd exakt geometri för mest effektiv packning (långsamt)"
-
-
-msgid "Bottom Left"
-msgstr "Nederst till vänster"
-
-
-msgid "Top Right"
-msgstr "Övre högra hörnet"
 
 
 msgid "Faces to consider when packing islands"
@@ -152377,10 +152361,6 @@ msgid "unable to open the file"
 msgstr "kan inte öppna filen"
 
 
-msgid "Save %u modified image(s)"
-msgstr "Spara %u modifierade bilder"
-
-
 msgid "For security reasons, automatic execution of Python scripts in this file was disabled:"
 msgstr "Av säkerhetsskäl har automatisk körning av Python-skript i denna fil inaktiverats:"
 
@@ -153885,6 +153865,10 @@ msgid "Compress scene-referred values from common cameras into the ACEScg gamut"
 msgstr "Komprimera scenrefererade värden från vanliga kameror till ACEScg-färgskalan"
 
 
+msgid "Utility"
+msgstr "Verktyg"
+
+
 msgid "blender:pq_rec2020_display_203nits"
 msgstr "blandare:pq_rec2020_display_203nits"
 
@@ -153927,10 +153911,6 @@ msgstr "Mesh-viktmålning"
 
 msgid "Pixel Art"
 msgstr "Pixelkonst"
-
-
-msgid "Utility"
-msgstr "Verktyg"
 
 
 msgid "Chromatic Aberration"
