@@ -37,6 +37,8 @@
 
 namespace blender::ed::vse {
 
+static bool text_insert(TextVars *data, const char *buf, size_t buf_len);
+
 /* -------------------------------------------------------------------- */
 /** \name Text Edit Polls
  * \{ */
