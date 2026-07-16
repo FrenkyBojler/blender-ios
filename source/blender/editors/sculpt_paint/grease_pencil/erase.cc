@@ -945,20 +945,11 @@ struct EraseOperationExecutor {
     op_params.keep_caps = keep_caps;
     op_params.skip_clipping_attributes = false;
 
-    bke::greasepencil::Drawing drawing_with_stroke(drawing);
-    drawing_with_stroke.strokes_for_write() = std::move(input_curves);
-    drawing_with_stroke.tag_topology_changed();
-
     const GroupedSpan<int> shapes = GroupedSpan<int>(shape_offsets.as_span(), shape_map.as_span());
     const IndexRange clipping_shapes = IndexRange::from_single(shapes.size() - 1);
 
-    dst = carver::curve_boolean_with_planes(op_params,
-                                            drawing_with_stroke.strokes(),
-                                            shapes,
-                                            normal_planes,
-                                            clipping_shapes,
-                                            layer_to_world,
-                                            region);
+    dst = carver::curve_boolean_with_planes(
+        op_params, input_curves, shapes, normal_planes, clipping_shapes, layer_to_world, region);
 
     dst.attributes_for_write().remove(".positions_2d");
 
