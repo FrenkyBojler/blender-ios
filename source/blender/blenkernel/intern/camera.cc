@@ -506,11 +506,13 @@ void BKE_camera_params_compute_viewplane(
   dx = params->shiftx * viewfac + winx * params->offsetx;
   dy = params->shifty * viewfac + winy * params->offsety;
 
-  float c = cosf(params->roll);
-  float s = sinf(params->roll);
-  float dx2 = dx;
-  dx = dx2 * c - dy * s;
-  dy = dx2 * s + dy * c;
+  if (params->roll != 0.0f) {
+    float c = cosf(params->roll);
+    float s = sinf(params->roll);
+    float dx2 = dx;
+    dx = dx2 * c - dy * s;
+    dy = dx2 * s + dy * c;
+  }
 
   viewplane.xmin += dx;
   viewplane.ymin += dy;

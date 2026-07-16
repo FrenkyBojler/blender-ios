@@ -593,16 +593,18 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   float y = event_ofs[1] / (region->winy * zoomfac);
   float aspect = float(region->winx) / float(region->winy);
 
-  x *= aspect;
+  if (rv3d->camroll != 0.0f) {
+    x *= aspect;
 
-  const float c = cosf(rv3d->camroll);
-  const float s = sinf(rv3d->camroll);
+    const float c = cosf(rv3d->camroll);
+    const float s = sinf(rv3d->camroll);
 
-  float x2 = x;
-  x = x * c + y * s;
-  y = -x2 * s + y * c;
+    float x2 = x;
+    x = x * c + y * s;
+    y = -x2 * s + y * c;
 
-  x /= aspect;
+    x /= aspect;
+  }
 
   rv3d->camdx += x;
   rv3d->camdy += y;
