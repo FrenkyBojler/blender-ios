@@ -125,15 +125,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
     case GPU_BOOL:
       return stream << "bool(" << (gpu_constant_to_bool(input->constant_data) ? "true" : "false")
                     << ")";
-    case GPU_NONE:
-    case GPU_MAT3:
-    case GPU_MAT4:
-    case GPU_TEX1D_ARRAY:
-    case GPU_TEX2D:
-    case GPU_TEX2D_ARRAY:
-    case GPU_TEX3D:
-    case GPU_CLOSURE:
-    case GPU_ATTR:
+    default:
       break;
   }
 
