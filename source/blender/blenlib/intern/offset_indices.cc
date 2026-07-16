@@ -181,8 +181,9 @@ void sort_groups(const OffsetIndices<int> groups, MutableSpan<int> indices)
 /** \name Counting and Radix Sort
  *
  * Utilities to implement efficient sorting for #reverse_indices_in_groups
- * and #build_groups_from_indices. Previously this used atomics which were
- * heavily contended and scaled poorly.
+ * and #build_groups_from_indices. This is better than a naive implementation
+ * using atomics, where writes become heavily contended with few groups and
+ * many CPU cores.
  *
  * In the simple case with few groups this uses a counting sort. The indices
  * array is handled in chunks in parallel, each counting the number of members
@@ -230,9 +231,8 @@ static void count_indices_per_chunk(const Span<int> indices,
       MutableSpan<int> counts = chunk_counts.slice(chunk * buckets_num, buckets_num);
       counts.fill(0);
       const int64_t begin = chunk * COUNTING_SORT_CHUNK_SIZE;
-      const int64_t end = std::min(begin + COUNTING_SORT_CHUNK_SIZE, indices.size());
-      for (int64_t i = begin; i < end; i++) {
-        counts[indices[i] >> shift]++;
+      for (const int index : indices.slice_safe(begin, COUNTING_SORT_CHUNK_SIZE)) {
+        counts[index >> shift]++;
       }
     }
   });
@@ -265,17 +265,19 @@ static void fill_group_indices_per_chunk(const Span<int> indices,
     for (const int64_t chunk : range) {
       MutableSpan<int> current_offsets = chunk_offsets.slice(chunk * groups_num, groups_num);
       const int64_t begin = chunk * COUNTING_SORT_CHUNK_SIZE;
-      const int64_t end = std::min(begin + COUNTING_SORT_CHUNK_SIZE, indices.size());
-      for (int64_t i = begin; i < end; i++) {
-        const int group = indices[i];
-        r_indices[group_offsets[group] + current_offsets[group]++] = int(i);
+      const Span<int> chunk_indices = indices.slice_safe(begin, COUNTING_SORT_CHUNK_SIZE);
+      for (const int64_t i : chunk_indices.index_range()) {
+        const int group = chunk_indices[i];
+        r_indices[group_offsets[group] + current_offsets[group]++] = int(begin + i);
       }
     }
   });
 }
 
-/** Parallel fill the index of every element into the range of its bucket
- * as (index, group). To prepare for sorting buckets in a second pass. */
+/**
+ * Parallel fill the index of every element into the range of its bucket
+ * as (index, group). To prepare for sorting buckets in a second pass.
+ */
 static void fill_bucket_indices_per_chunk(const Span<int> indices,
                                           const int shift,
                                           const Span<int> bucket_offsets,
@@ -288,11 +290,11 @@ static void fill_bucket_indices_per_chunk(const Span<int> indices,
     for (const int64_t chunk : range) {
       MutableSpan<int> current_offsets = chunk_offsets.slice(chunk * buckets_num, buckets_num);
       const int64_t begin = chunk * COUNTING_SORT_CHUNK_SIZE;
-      const int64_t end = std::min(begin + COUNTING_SORT_CHUNK_SIZE, indices.size());
-      for (int64_t i = begin; i < end; i++) {
-        const int group = indices[i];
+      const Span<int> chunk_indices = indices.slice_safe(begin, COUNTING_SORT_CHUNK_SIZE);
+      for (const int64_t i : chunk_indices.index_range()) {
+        const int group = chunk_indices[i];
         const int bucket = group >> shift;
-        r_pairs[bucket_offsets[bucket] + current_offsets[bucket]++] = int2(int(i), group);
+        r_pairs[bucket_offsets[bucket] + current_offsets[bucket]++] = int2(int(begin + i), group);
       }
     }
   });
@@ -318,7 +320,7 @@ static void sort_indices_into_groups(const Span<int> indices,
 
   if (groups_num <= COUNTING_SORT_MAX_GROUPS || shift == 0) {
     /* Few groups, single pass counting sort. */
-    Array<int> chunk_counts(chunks_num * groups_num, NoInitialization());
+    Array<int> chunk_counts(chunks_num * groups_num);
     count_indices_per_chunk(indices, 0, groups_num, chunk_counts);
 
     Span<int> group_offsets = known_group_offsets;
@@ -340,7 +342,7 @@ static void sort_indices_into_groups(const Span<int> indices,
 
   /* Many groups, two pass radix sort. */
   const int64_t buckets_num = ((groups_num - 1) >> shift) + 1;
-  Array<int> chunk_counts(chunks_num * buckets_num, NoInitialization());
+  Array<int> chunk_counts(chunks_num * buckets_num);
   count_indices_per_chunk(indices, shift, buckets_num, chunk_counts);
 
   Array<int> bucket_offset_data(buckets_num + 1, 0);
@@ -358,7 +360,7 @@ static void sort_indices_into_groups(const Span<int> indices,
   }
   const OffsetIndices<int> bucket_offsets(bucket_offset_data.as_span());
 
-  Array<int2> pairs(indices.size(), NoInitialization());
+  Array<int2> pairs(indices.size());
   fill_bucket_indices_per_chunk(
       indices, shift, bucket_offset_data.as_span().drop_back(1), chunk_counts, pairs);
 
@@ -437,7 +439,7 @@ GroupedSpan<int> build_groups_from_indices(const Span<int> indices,
     return {OffsetIndices<int>(offset_data), index_data};
   }
 
-  offset_data = Array<int>(groups_num + 1, NoInitialization());
+  offset_data = Array<int>(groups_num + 1);
   index_data.reinitialize(indices.size());
   sort_indices_into_groups(indices, groups_num, {}, offset_data, index_data);
   return {OffsetIndices<int>(offset_data), index_data};
