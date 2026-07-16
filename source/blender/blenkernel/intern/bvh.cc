@@ -146,8 +146,8 @@ static bool all_faces_are_triangles(const Mesh &mesh)
 
 static void add_positions(const Span<float3> positions, RTCGeometry geom_id)
 {
-  /* Unfortunately #rtcSetSharedGeometryBuffer cannot be used here because it must load past the
-   * end of the buffer for SIMD loads. */
+  /* Unfortunately #rtcSetSharedGeometryBuffer cannot be used here because Embree must load past
+   * the end of the buffer for SIMD loads. */
   float3 *positions_ptr = static_cast<float3 *>(rtcSetNewGeometryBuffer(
       geom_id, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, sizeof(float3), positions.size()));
   std::copy_n(positions.data(), positions.size(), positions_ptr);
