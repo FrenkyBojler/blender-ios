@@ -123,8 +123,12 @@ sibling of `generators/typescript.cc`**.
   byte-identical; **Pyright reports 0 errors** over the generated tree.
 
 ### Phase 4 — Workstream D: type-check + tests
-- [ ] `pyrightconfig.json` (strict) + mypy-clean secondary bar (ad-hoc Pyright
-      run over generated stubs already reports 0 errors).
+- [x] `pyrightconfig.json` + mypy-clean secondary bar. Two gates:
+      `pyrightconfig.stubs.json` (strict, generated stubs — 0 errors) and
+      `pyrightconfig.json` (standard, runtime package + tests — 0 errors;
+      dispatch rewritten to `isinstance` narrowing to get there).
+      `python -m mypy --strict --follow-imports=silent sculptcore/types`
+      is clean.
 - [x] `test_smoke.py` — construct Mesh, member/method round trips, dispose
       guards, leak checks (6 tests) — **no C module built**. Plus
       `test_bulk.py` (vectors + zero-copy numpy, 3 tests) and `test_dab.py`:
@@ -159,12 +163,27 @@ Full plan → **[mode-infra.md](./mode-infra.md)**. `bpy.types.ObjectModeType` +
 refresh seams wired. No undo type (P6), no draw hook (P5).
 
 ### Phase A — identity + registry + registrable type
-- [ ] A1 `OB_MODE_CUSTOM` bit + `OB_MODE_ALL_MODE_DATA` (`DNA_object_enums.h`).
-- [ ] A2 `Object.custom_mode_id[64]` (`DNA_object_types.h`).
-- [ ] A3 C `ObjectModeType` + global registry (`BKE_object_modes.hh`, new).
-- [ ] A4 `rna_object_mode.cc` (new, ← `rna_render.cc`): registrable type,
-      `enter`/`exit`/`flush`/`refresh` trampolines, `have_function[]`.
-- [ ] A5 Versioning/sanitize for unregistered idnames on load.
+- [x] A1 `OB_MODE_CUSTOM = (1 << 13)` + OR'd into `OB_MODE_ALL_MODE_DATA`
+      (`DNA_object_enums.h`).
+- [x] A2 `Object.custom_mode_id[64]` (`DNA_object_types.h`, after
+      `restore_mode`; persists, sanitize-on-load pending in A5).
+- [x] A3 C `ObjectModeType` + global registry (`BKE_object_modes.hh` +
+      `intern/object_modes_custom.cc`, new): idname (dotted context string) +
+      mangled `srna_idname` (RNA references, must persist), label/icon/
+      object-type mask/keymap/flag, callback pointers, `py_instance`,
+      `rna_ext`; add/remove/find/iterate/poll_object;
+      `BKE_object_mode_types_exit()` wired next to `RE_engines_exit()`.
+- [x] A4 `rna_object_mode.cc` (new, ← `rna_render.cc`): registrable
+      `bpy.types.ObjectModeType` (`bl_idname`/`bl_label`/`bl_icon`/
+      `bl_object_types` flag-enum over `1 << OB_*`/`bl_keymap`/
+      `bl_use_custom_undo`), `enter`/`exit`/`flush`/`refresh` trampolines
+      with `have_function[]`, persistent per-type py_instance released with
+      `BPY_DECREF_RNA_INVALIDATE` at unregister. Verified headless:
+      register / unregister / same-idname re-registration all pass.
+      Gotchas hit: `PROP_ENUM_FLAG` must be set before items;
+      `RNA_def_struct_ptr` references (doesn't copy) the identifier string.
+- [ ] A5 Versioning/sanitize for unregistered idnames on load (deliberately
+      last per plan §3 order of work).
 
 ### Phase B — the five blocker branches
 - [ ] B1 `mode_compat_test` custom branch (`bl_object_types` check).
