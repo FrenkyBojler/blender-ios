@@ -127,7 +127,7 @@ enum class WidgetStyle {
  */
 struct WidgetStateInfo {
   /** Copy of #Button.flag (possibly with overrides for drawing). */
-  int but_flag;
+  int64_t but_flag;
   /** Copy of #Button.drawflag (possibly with overrides for drawing). */
   int but_drawflag;
   /** Copy of #Button.emboss. */
@@ -2133,7 +2133,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     scissor_textbox.ymin = rect.ymin;
     scissor_textbox.ymax = scissor_textbox.ymin + BLI_rcti_size_y(&rect);
     BLI_rcti_isect(&scissor_rect, &scissor_textbox, &scissor_textbox);
-    /* Textbox text isn't clipped, apply scissors to avoid text overflowing the scrollbar. */
+    /* Text-box text isn't clipped, apply scissors to avoid text overflowing the scrollbar. */
     GPU_scissor(scissor_textbox.xmin,
                 scissor_textbox.ymin,
                 BLI_rcti_size_x(&scissor_textbox),
@@ -2984,7 +2984,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     }
   }
 
-  /* Textbox wraps content in lines, skip clipping text.  */
+  /* Text-box wraps content in lines, skip clipping text.  */
   if (but->type == ButtonType::TextBox) {
   }
   else if (but->text_direction != TextDirection::Default) {
@@ -6269,7 +6269,7 @@ void draw_menu_item(const uiFontStyle *fstyle,
                     const bool use_unpadded,
                     const char *name,
                     int iconid,
-                    int but_flag,
+                    int64_t but_flag,
                     MenuItemSeparatorType separator_type,
                     int *r_xmax)
 {
@@ -6456,7 +6456,7 @@ void draw_preview_item(const uiFontStyle *fstyle,
                        const float zoom,
                        const char *name,
                        int iconid,
-                       int but_flag,
+                       int64_t but_flag,
                        FontStyleAlign text_align)
 {
   WidgetType *wt = widget_type(WidgetStyle::MenuItemUnpadded);

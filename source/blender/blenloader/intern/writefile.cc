@@ -61,11 +61,13 @@
 
 #include <cerrno>
 #include <climits>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <iomanip>
+#include <mutex>
 #include <sstream>
 #include <xxhash.h>
 
@@ -105,6 +107,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.hh"
+#include "BLI_task_c.hh"
 #include "BLI_threads.hh"
 #include "BLI_time.hh"
 
@@ -224,17 +227,15 @@ bool RawWriteWrap::write(const void *buf, size_t buf_len)
   return ::write(file_handle, buf, buf_len) == buf_len;
 }
 
-struct ThreadSlot;
-
 class ZstdWriteWrap : public WriteWrap {
   struct ZstdWriteBlockTask;
 
   WriteWrap &base_wrap;
 
-  ListBaseT<ThreadSlot> threadpool = {};
-  ListBaseT<ZstdWriteBlockTask> tasks = {};
-  ThreadMutex mutex = {};
-  ThreadCondition condition = {};
+  TaskPool *pool = nullptr;
+
+  std::mutex mutex;
+  std::condition_variable condition;
   int next_frame = 0;
   int num_frames = 0;
 
@@ -250,62 +251,47 @@ class ZstdWriteWrap : public WriteWrap {
   bool write(const void *buf, size_t buf_len) override;
 
  private:
-  void write_task(ZstdWriteBlockTask *task);
+  static void compress_task_run(TaskPool *pool, void *taskdata);
   void write_u32_le(uint32_t val);
   void write_seekable_frames();
 };
 
 struct ZstdWriteWrap::ZstdWriteBlockTask {
-  ZstdWriteBlockTask *next, *prev;
+  ZstdWriteWrap *ww;
   void *data;
   size_t size;
   int frame_number;
-  ZstdWriteWrap *ww;
-
-  static void *write_task(void *userdata)
-  {
-    auto *task = static_cast<ZstdWriteBlockTask *>(userdata);
-    task->ww->write_task(task);
-    return nullptr;
-  }
 };
 
-void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
+void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
 {
+  ZstdWriteBlockTask *task = static_cast<ZstdWriteBlockTask *>(taskdata);
+  ZstdWriteWrap *ww = task->ww;
+
   size_t out_buf_len = ZSTD_compressBound(task->size);
   void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
   size_t out_size = ZSTD_compress(
       out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
-
   MEM_delete_void(task->data);
 
-  BLI_mutex_lock(&mutex);
-
-  while (next_frame != task->frame_number) {
-    BLI_condition_wait(&condition, &mutex);
-  }
-
+  std::unique_lock lock{ww->mutex};
+  ww->condition.wait(lock, [&] { return ww->next_frame == task->frame_number; });
   if (ZSTD_isError(out_size)) {
-    write_error = true;
+    ww->write_error = true;
+  }
+  else if (ww->base_wrap.write(out_buf, out_size)) {
+    ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
+    frameinfo->uncompressed_size = task->size;
+    frameinfo->compressed_size = out_size;
+    BLI_addtail(&ww->frames, frameinfo);
   }
   else {
-    if (base_wrap.write(out_buf, out_size)) {
-      ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
-      frameinfo->uncompressed_size = task->size;
-      frameinfo->compressed_size = out_size;
-      BLI_addtail(&frames, frameinfo);
-    }
-    else {
-      write_error = true;
-    }
+    ww->write_error = true;
   }
-
-  next_frame++;
-
-  BLI_mutex_unlock(&mutex);
-  BLI_condition_notify_all(&condition);
-
+  ww->next_frame++;
+  MEM_delete(task);
   MEM_delete_void(out_buf);
+  ww->condition.notify_all();
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -314,11 +300,7 @@ bool ZstdWriteWrap::open(const char *filepath)
     return false;
   }
 
-  /* Leave one thread open for the main writing logic, unless we only have one HW thread. */
-  int num_threads = max_ii(1, BLI_system_thread_count() - 1);
-  BLI_threadpool_init(&threadpool, ZstdWriteBlockTask::write_task, num_threads);
-  BLI_mutex_init(&mutex);
-  BLI_condition_init(&condition);
+  pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_HIGH);
 
   return true;
 }
@@ -366,11 +348,9 @@ void ZstdWriteWrap::write_seekable_frames()
 
 bool ZstdWriteWrap::close()
 {
-  BLI_threadpool_end(&threadpool);
-  tasks.free_no_destruct();
-
-  BLI_mutex_end(&mutex);
-  BLI_condition_end(&condition);
+  BLI_task_pool_work_and_wait(pool);
+  BLI_task_pool_free(pool);
+  pool = nullptr;
 
   write_seekable_frames();
   frames.free_no_destruct();
@@ -385,32 +365,13 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
   }
 
   ZstdWriteBlockTask *task = MEM_new_uninitialized<ZstdWriteBlockTask>(__func__);
+  task->ww = this;
   task->data = MEM_new_uninitialized(buf_len, __func__);
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
   task->frame_number = num_frames++;
-  task->ww = this;
 
-  BLI_mutex_lock(&mutex);
-  BLI_addtail(&tasks, task);
-
-  /* If there's a free worker thread, just push the block into that thread.
-   * Otherwise, we wait for the earliest thread to finish.
-   * We look up the earliest thread while holding the mutex, but release it
-   * before joining the thread to prevent a deadlock. */
-  ZstdWriteBlockTask *first_task = static_cast<ZstdWriteBlockTask *>(tasks.first);
-  BLI_mutex_unlock(&mutex);
-  if (!BLI_available_threads(&threadpool)) {
-    BLI_threadpool_remove(&threadpool, first_task);
-
-    /* If the task list was empty before we pushed our task, there should
-     * always be a free thread. */
-    BLI_assert(first_task != task);
-    BLI_remlink(&tasks, first_task);
-    MEM_delete(first_task);
-  }
-  BLI_threadpool_insert(&threadpool, task);
-
+  BLI_task_pool_push(pool, compress_task_run, task, false, nullptr);
   return true;
 }
 
@@ -870,7 +831,8 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const int struct_nr,
                                       const int64_t nr,
                                       const void *adr,
-                                      const void *data)
+                                      const void *data,
+                                      const BlendStructWriterFn fn)
 {
   BLI_assert(struct_nr > 0 && struct_nr <= dna::sdna_struct_id_get_max());
 
@@ -899,11 +861,13 @@ static void writestruct_at_address_nr(WriteData *wd,
   DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
   const dna::pointers::StructInfo &struct_info =
       wd->stable_address_ids.sdna_pointers->get_for_struct(struct_nr);
-  const bool can_write_raw_runtime_data = struct_info.pointers.is_empty();
+
+  const bool needs_general_pointer_remap = !wd->use_memfile && !struct_info.pointers.is_empty();
+  const bool has_custom_fn = bool(fn);
+  const bool can_write_raw_runtime_data = !needs_general_pointer_remap && !has_custom_fn;
 
   if (can_write_raw_runtime_data) {
-    /* The passed in data contains no pointers, so it can be written without an additional copy.
-     */
+    /* The passed in data contains no pointers, so it can be written without an additional copy. */
     data_to_write = data;
   }
   else {
@@ -911,13 +875,28 @@ static void writestruct_at_address_nr(WriteData *wd,
     data_to_write = buffer;
     memcpy(buffer, data, len_in_bytes);
 
-    /* Overwrite pointers with their corresponding address identifiers. */
-    for (const int i : IndexRange(nr)) {
-      for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
-        const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
-        const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
-        const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
-        *p_ptr = p_ptr_address_id;
+    /* Optionally allow custom modifications to the struct data before it is written. */
+    if (has_custom_fn) {
+      for (const int i : IndexRange(nr)) {
+        const int offset = i * struct_info.size_in_bytes;
+        BlendStructWriter struct_writer(
+            *wd,
+            struct_nr,
+            {static_cast<char *>(POINTER_OFFSET(buffer, offset)), struct_info.size_in_bytes});
+        fn(struct_writer);
+      }
+    }
+
+    /* When writing to file, use stable pointers for everything. */
+    if (needs_general_pointer_remap) {
+      /* Overwrite pointers with their corresponding address identifiers. */
+      for (const int i : IndexRange(nr)) {
+        for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
+          const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
+          const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
+          const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
+          *p_ptr = p_ptr_address_id;
+        }
       }
     }
   }
@@ -942,10 +921,52 @@ static void writestruct_at_address_nr(WriteData *wd,
   mywrite(wd, data_to_write, size_t(bh.len));
 }
 
-static void writestruct_nr(
-    WriteData *wd, const int filecode, const int struct_nr, const int64_t nr, const void *adr)
+void BlendStructWriter::runtime_ptr(const int64_t offset)
 {
-  writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr);
+#ifndef NDEBUG
+  const dna::pointers::StructInfo &struct_info =
+      wd_->stable_address_ids.sdna_pointers->get_for_struct(struct_nr_);
+  BLI_assert(struct_info.has_pointer_at_offset(offset));
+#else
+  UNUSED_VARS_NDEBUG(struct_nr_);
+#endif
+
+  data_.slice(offset, sizeof(void *)).fill(0);
+}
+
+void BlendStructWriter::generated_ptr(const int64_t offset)
+{
+  if (!wd_->use_memfile) {
+    /* When writing to file, all pointers are remapped to stable pointers. */
+    return;
+  }
+#ifndef NDEBUG
+  const dna::pointers::StructInfo &struct_info =
+      wd_->stable_address_ids.sdna_pointers->get_for_struct(struct_nr_);
+  BLI_assert(struct_info.has_pointer_at_offset(offset));
+#else
+  UNUSED_VARS_NDEBUG(struct_nr_);
+#endif
+
+  /* In undo case, replace generated pointers by corresponding stable pointers. */
+  const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(data_.data(), offset));
+  if (!*p_ptr) {
+    return;
+  }
+  /* Should exist if #BLO_write_generated_pointer_tag has been called before. */
+  BLI_assert(wd_->stable_address_ids.pointer_map.contains(*p_ptr));
+  const void *p_ptr_address_id = get_address_id(*wd_, *p_ptr);
+  *p_ptr = p_ptr_address_id;
+}
+
+static void writestruct_nr(WriteData *wd,
+                           const int filecode,
+                           const int struct_nr,
+                           const int64_t nr,
+                           const void *adr,
+                           const BlendStructWriterFn fn)
+{
+  writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr, fn);
 }
 
 static void write_raw_data_in_debug_file(WriteData *wd,
@@ -1028,12 +1049,13 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
 static void writelist_nr(WriteData *wd,
                          const int filecode,
                          const int struct_nr,
-                         const ListBase *lb)
+                         const ListBase *lb,
+                         const BlendStructWriterFn fn)
 {
   const Link *link = static_cast<Link *>(lb->first);
 
   while (link) {
-    writestruct_nr(wd, filecode, struct_nr, 1, link);
+    writestruct_nr(wd, filecode, struct_nr, 1, link, fn);
     link = link->next;
   }
 }
@@ -1058,11 +1080,11 @@ static void writelist_id(WriteData *wd, const int filecode, const char *structna
 }
 #endif
 
-#define writestruct_at_address(wd, filecode, struct_id, nr, adr, data) \
-  writestruct_at_address_nr(wd, filecode, dna::sdna_struct_id_get<struct_id>(), nr, adr, data)
+#define writestruct_at_address(wd, filecode, struct_id, nr, adr, data, fn) \
+  writestruct_at_address_nr(wd, filecode, dna::sdna_struct_id_get<struct_id>(), nr, adr, data, fn)
 
-#define writestruct(wd, filecode, struct_id, nr, adr) \
-  writestruct_nr(wd, filecode, dna::sdna_struct_id_get<struct_id>(), nr, adr)
+#define writestruct(wd, filecode, struct_id, nr, adr, fn) \
+  writestruct_nr(wd, filecode, dna::sdna_struct_id_get<struct_id>(), nr, adr, fn)
 
 /** \} */
 
@@ -1159,7 +1181,7 @@ static void write_keymapitem(BlendWriter *writer, const wmKeyMapItem *kmi)
 
 static void write_userdef(BlendWriter *writer, const UserDef *userdef)
 {
-  writestruct(writer->wd, BLO_CODE_USER, UserDef, 1, userdef);
+  writestruct(writer->wd, BLO_CODE_USER, UserDef, 1, userdef, nullptr);
 
   for (const bTheme &btheme : userdef->themes) {
     writer->write_struct(&btheme);
@@ -1269,7 +1291,7 @@ static void write_id_placeholder(WriteData *wd, ID *id)
   /* Only copy required data for the placeholder ID. */
   BLO_Write_IDBuffer id_buffer{*id, wd->use_memfile, true};
 
-  writestruct_at_address(wd, ID_LINK_PLACEHOLDER, ID, 1, id, &id_buffer);
+  writestruct_at_address(wd, ID_LINK_PLACEHOLDER, ID, 1, id, &id_buffer, nullptr);
 
   mywrite_id_end(wd, id);
 }
@@ -1471,7 +1493,7 @@ static void write_global(WriteData *wd, const int fileflags, Main *mainvar)
   fg.build_commit_timestamp = 0;
   STRNCPY(fg.build_hash, "unknown");
 #endif
-  writestruct(wd, BLO_CODE_GLOB, FileGlobal, 1, &fg);
+  writestruct(wd, BLO_CODE_GLOB, FileGlobal, 1, &fg, nullptr);
 }
 
 /**
@@ -2098,71 +2120,84 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
  * API to write chunks of data.
  */
 
-void BlendWriter::write_struct_by_name(const char *struct_name, const void *data)
+void BlendWriter::write_struct_by_name(const char *struct_name,
+                                       const void *data,
+                                       const BlendStructWriterFn fn)
 {
-  this->write_struct_array_by_name(struct_name, 1, data);
+  this->write_struct_array_by_name(struct_name, 1, data, fn);
 }
 
 void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const int64_t array_size,
-                                             const void *data)
+                                             const void *data,
+                                             const BlendStructWriterFn fn)
 {
   int struct_id = this->struct_id_by_name(struct_name);
   if (struct_id == -1) [[unlikely]] {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
-  this->write_struct_array_by_id(struct_id, array_size, data);
+  this->write_struct_array_by_id(struct_id, array_size, data, fn);
 }
 
-void BlendWriter::write_struct_by_id(const int struct_id, const void *data)
+void BlendWriter::write_struct_by_id(const int struct_id,
+                                     const void *data,
+                                     const BlendStructWriterFn fn)
 {
-  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, 1, data);
+  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, 1, data, fn);
 }
 
 void BlendWriter::write_struct_at_address_by_id(const int struct_id,
                                                 const void *address,
-                                                const void *data)
+                                                const void *data,
+                                                const BlendStructWriterFn fn)
 {
-  this->write_struct_at_address_by_id_with_filecode(BLO_CODE_DATA, struct_id, address, data);
+  this->write_struct_at_address_by_id_with_filecode(BLO_CODE_DATA, struct_id, address, data, fn);
 }
 
 void BlendWriter::write_struct_at_address_by_id_with_filecode(const int filecode,
                                                               const int struct_id,
                                                               const void *address,
-                                                              const void *data)
+                                                              const void *data,
+                                                              const BlendStructWriterFn fn)
 {
-  writestruct_at_address_nr(this->wd, filecode, struct_id, 1, address, data);
+  writestruct_at_address_nr(this->wd, filecode, struct_id, 1, address, data, fn);
 }
 
 void BlendWriter::write_struct_array_by_id(const int struct_id,
                                            const int64_t array_size,
-                                           const void *data)
+                                           const void *data,
+                                           const BlendStructWriterFn fn)
 {
-  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, data);
+  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, data, fn);
 }
 
 void BlendWriter::write_struct_array_at_address_by_id(const int struct_id,
                                                       const int64_t array_size,
                                                       const void *address,
-                                                      const void *data)
+                                                      const void *data,
+                                                      const BlendStructWriterFn fn)
 {
-  writestruct_at_address_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, address, data);
+  writestruct_at_address_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, address, data, fn);
 }
 
-void BlendWriter::write_struct_list_by_id(const int struct_id, const ListBase *list)
+void BlendWriter::write_struct_list_by_id(const int struct_id,
+                                          const ListBase *list,
+                                          const BlendStructWriterFn fn)
 {
-  writelist_nr(this->wd, BLO_CODE_DATA, struct_id, list);
+  writelist_nr(this->wd, BLO_CODE_DATA, struct_id, list, fn);
 }
 
-void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *list)
+void BlendWriter::write_struct_list_by_name(const char *struct_name,
+                                            ListBase *list,
+                                            const BlendStructWriterFn fn)
 {
   int struct_id = this->struct_id_by_name(struct_name);
   if (struct_id == -1) [[unlikely]] {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
   }
-  this->write_struct_list_by_id(struct_id, list);
+  this->write_struct_list_by_id(struct_id, list, fn);
 }
 
 int BlendWriter::struct_id_by_name(const char *struct_name) const
