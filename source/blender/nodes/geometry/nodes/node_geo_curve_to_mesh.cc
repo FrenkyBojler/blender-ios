@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "If the profile spline is cyclic, fill the ends of the generated mesh with N-gons");
   {
-    auto &p = b.add_panel("Miter Scale"_ustr);
+    auto &p = b.add_panel("Miter Scale"_ustr).default_closed(true);
     p.add_input<decl::Bool>("Miter Scale"_ustr)
         .panel_toggle()
         .description(
