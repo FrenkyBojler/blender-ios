@@ -237,8 +237,7 @@ static Vector<openvdb::CoordBBox> get_bounding_boxes(const bke::VolumeGridData &
                                                      const openvdb::GridBase &grid,
                                                      const bool coarse)
 {
-  /* Fine wireframes only need allocated leaf bounds, so avoid calculating active bounds for them.
-   */
+  /* Fine wireframes only use leaf bounds. */
   const openvdb::CoordBBox active_bounds = coarse ? volume_grid.active_bounds() :
                                                     openvdb::CoordBBox();
   GetBoundingBoxesOp op{grid, coarse, active_bounds};
