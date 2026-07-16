@@ -156,40 +156,6 @@ void sample_face_attribute(const Span<int> corner_tri_faces,
 }
 
 template<bool check_indices = false>
-static void sample_barycentric_weights(const Span<float3> vert_positions,
-                                       const Span<int> corner_verts,
-                                       const Span<int3> corner_tris,
-                                       const Span<int> tri_indices,
-                                       const Span<float3> sample_positions,
-                                       const IndexMask &mask,
-                                       MutableSpan<float3> bary_coords)
-{
-  mask.foreach_index([&](const int i) {
-    if constexpr (check_indices) {
-      if (tri_indices[i] == -1) {
-        bary_coords[i] = {};
-        return;
-      }
-    }
-    const int3 &tri = corner_tris[tri_indices[i]];
-    bary_coords[i] = compute_bary_coord_in_triangle(
-        vert_positions, corner_verts, tri, sample_positions[i]);
-  });
-}
-
-void sample_barycentric_weights(const Span<float3> vert_positions,
-                                const Span<int> corner_verts,
-                                const Span<int3> corner_tris,
-                                const Span<int> tri_indices,
-                                const Span<float3> sample_positions,
-                                const IndexMask &mask,
-                                MutableSpan<float3> bary_coords)
-{
-  sample_barycentric_weights<false>(
-      vert_positions, corner_verts, corner_tris, tri_indices, sample_positions, mask, bary_coords);
-}
-
-template<bool check_indices = false>
 static void sample_nearest_corner(const Span<float3> vert_positions,
                                   const Span<int> corner_verts,
                                   const Span<int3> corner_tris,

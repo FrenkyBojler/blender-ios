@@ -328,20 +328,28 @@ static void calc_face_centers(const Span<float3> positions,
 
 static void find_nearest_tris(const Span<float3> positions,
                               const bvh::Tree &bvhtree,
-                              MutableSpan<int> tris)
+                              MutableSpan<int> tris,
+                              MutableSpan<float3> bary_coords)
 {
   for (const int i : positions.index_range()) {
     const bvh::ClosestPointResult nearest = *bvhtree.closest_point(positions[i]);
     tris[i] = nearest.index;
+    if (!bary_coords.is_empty()) {
+      bary_coords[i] = float3(nearest.bary_coord.x,
+                              nearest.bary_coord.y,
+                              1.0f - nearest.bary_coord.x - nearest.bary_coord.y);
+    }
   }
 }
 
 static void find_nearest_tris_parallel(const Span<float3> positions,
                                        const bvh::Tree &bvhtree,
-                                       MutableSpan<int> tris)
+                                       MutableSpan<int> tris,
+                                       MutableSpan<float3> bary_coords)
 {
   threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
-    find_nearest_tris(positions.slice(range), bvhtree, tris.slice(range));
+    find_nearest_tris(
+        positions.slice(range), bvhtree, tris.slice(range), bary_coords.slice(range));
   });
 }
 
@@ -366,7 +374,7 @@ static void find_nearest_faces(const Span<int> src_tri_faces,
 
       Vector<int> &tri_indices = tls.tri_indices;
       tri_indices.reinitialize(range.size());
-      find_nearest_tris(face_centers, bvhtree, tri_indices);
+      find_nearest_tris(face_centers, bvhtree, tri_indices, {});
 
       array_utils::gather(src_tri_faces, tri_indices.as_span(), nearest_faces.slice(range));
     });
@@ -399,7 +407,7 @@ static void find_nearest_edges(const Span<float3> src_positions,
 
       Vector<int> &tri_indices = tls.tri_indices;
       tri_indices.reinitialize(range.size());
-      find_nearest_tris_parallel(edge_centers, bvhtree, tri_indices);
+      find_nearest_tris_parallel(edge_centers, bvhtree, tri_indices, {});
 
       Vector<int> &face_indices = tls.face_indices;
       face_indices.reinitialize(range.size());
@@ -566,14 +574,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   if (!point_ids.is_empty() || !corner_ids.is_empty()) {
     Array<int> vert_nearest_tris(dst_positions.size());
     Array<float3> bary_coords(dst_positions.size());
-    find_nearest_tris_parallel(dst_positions, bvhtree, vert_nearest_tris);
-    mesh_surface_sample::sample_barycentric_weights(src_positions,
-                                                    src_corner_verts,
-                                                    src_corner_tris,
-                                                    vert_nearest_tris,
-                                                    dst_positions,
-                                                    IndexMask(dst_positions.size()),
-                                                    bary_coords);
+    find_nearest_tris_parallel(dst_positions, bvhtree, vert_nearest_tris, bary_coords);
 
     if (!point_ids.is_empty()) {
       /* Copy vertex group names (otherwise `MeshVertexGroupsAttributeProvider` wont find them -
