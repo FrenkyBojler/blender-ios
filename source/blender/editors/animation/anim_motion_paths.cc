@@ -39,6 +39,8 @@
 #include "ED_anim_api.hh"
 #include "ED_keyframes_keylist.hh"
 
+#include "WM_api.hh"
+
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
@@ -522,6 +524,9 @@ namespace motionpath {
 
 /* Data owned by the thread which calculates the motion path. */
 struct MotionPathBuffer {
+  /* The bone name for pose bones, empty for objects. */
+  std::string bone_name;
+  int start_frame;
   Array<float3> points;
   Array<eMotionPathVert_Flag> flags;
 };
@@ -532,20 +537,226 @@ struct AsyncRangeData {
 };
 
 /* Runs on the worker thread. */
-static bool motionpath_buffer_callback(Depsgraph *dg, const int frame)
+static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer_data)
 {
+  MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
+  if (frame < buffer->start_frame || frame >= buffer->start_frame + buffer->points.size()) {
+    return false;
+  }
 
-  return true;
+  ID *id_eval = DEG_get_evaluated(dg, &id);
+  if (!id_eval) {
+    /* Should not happen. All IDs with a callback should be in the depsgraph. */
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  BLI_assert(GS(&id) == ID_OB);
+  Object *ob_eval = id_cast<Object *>(&id);
+
+  float3 motion_path_point;
+  if (buffer->bone_name.empty()) {
+    motion_path_point = ob_eval->object_to_world().location();
+  }
+  else {
+    BLI_assert(ob_eval->type == OB_ARMATURE);
+    bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose,
+                                                          buffer->bone_name.c_str());
+    /* TODO pass in motion path flags. */
+    // mpath->flag & MOTIONPATH_FLAG_BHEAD
+    if (true) {
+      motion_path_point = pchan_eval->pose_head;
+    }
+    else {
+      motion_path_point = pchan_eval->pose_tail;
+    }
+  }
+
+  /* TODO transform to camera space if required. */
+
+  const int point_index = frame - buffer->start_frame;
+  const bool is_data_different = buffer->points[point_index] != motion_path_point;
+  buffer->points[point_index] = motion_path_point;
+  return is_data_different;
 }
 
 /* Runs on main thread. */
-static void motionpath_update_callback() {}
-
-void register_motionpath_async(bMotionPath &motion_path)
+static void update_callback(ID &id, void *buffer_data)
 {
-  animviz::background_eval_register(motionpath_buffer_callback, motionpath_update_callback);
+  MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
+}
+
+void register_motionpath_async(Main &bmain,
+                               wmWindowManager &wm,
+                               wmWindow &window,
+                               Scene &scene,
+                               ViewLayer &view_layer,
+                               Object &armature_object,
+                               bPoseChannel &pose_bone,
+                               bMotionPath &motion_path)
+{
+  animviz::background_eval_register(bmain,
+                                    wm,
+                                    window,
+                                    scene,
+                                    view_layer,
+                                    {&armature_object.id, pose_bone.name},
+                                    buffer_callback,
+                                    update_callback);
 }
 
 }  // namespace motionpath
+
+namespace animviz {
+
+struct TargetData {
+  EvaluationTarget target;
+  void *buffer;
+  EvalCallback eval;
+  UpdateCallback update;
+  bool finished_left = false;
+  bool finished_right = false;
+};
+
+/* Data visible to the worker thread. */
+struct WorkerData {
+  /* Can be set from the main thread to tell the evaluating thread to start over.
+   * Is used because we cannot just stop the depsgraph evaluation. */
+  std::atomic<bool> restart;
+  /* The center frame around which to run the evaluation. */
+  std::atomic<int> evaluation_center;
+  /* The range of frames that were already evaluated. Inclusive/Exclusive. */
+  Bounds<int> evaluated_range;
+
+  /* The depsgraph to evaluate in the background. All copy on eval nodes have to be
+   * evaluated before it is sent to the thread. */
+  Depsgraph *dg = nullptr;
+  Vector<TargetData> target_data;
+};
+
+struct BGEvalJobData {
+  /* Has to stay first. */
+  WorkerData worker_data;
+  /* All targets currently evaluating. */
+  Set<EvaluationTarget> active_targets;
+};
+
+static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
+{
+  WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+  eval_data->restart.store(false, std::memory_order_release);
+  const int center_frame = eval_data->evaluation_center.load(std::memory_order_acquire);
+  eval_data->evaluated_range = {center_frame, center_frame + 1};
+
+  while (true) {
+    int frame;
+    /* TODO what about frame skipping i.e. every second. Would be determined by the evaluation
+     * targets. */
+    if (abs(eval_data->evaluated_range.min - center_frame) <
+        abs(eval_data->evaluated_range.max - center_frame))
+    {
+      frame = eval_data->evaluated_range.min - 1;
+      eval_data->evaluated_range.min -= 1;
+    }
+    else {
+      frame = eval_data->evaluated_range.max;
+      eval_data->evaluated_range.max += 1;
+    }
+
+    DEG_evaluate_on_framechange(eval_data->dg, frame);
+    for (TargetData &target_data : eval_data->target_data) {
+      const EvaluationTarget &target = target_data.target;
+      void *target_buffer = target_data.buffer;
+      const bool modified_data = target_data.eval(eval_data->dg, *target.id, frame, target_buffer);
+      if (!modified_data) {
+        if (frame < center_frame) {
+          target_data.finished_left = true;
+        }
+        else {
+          target_data.finished_right = true;
+        }
+      }
+    }
+    worker_status->do_update = true;
+  }
+}
+
+static void update_job(void *job_data)
+{
+  WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+}
+
+static void finish_job(void *job_data)
+{
+  WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+}
+
+static void free_job_data(void *job_data)
+{
+  BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(job_data);
+  DEG_graph_free(eval_data->worker_data.dg);
+  MEM_delete(eval_data);
+}
+
+constexpr const char *job_name = "Async Evaluate Frame Range";
+
+void background_eval_register(Main &bmain,
+                              wmWindowManager &wm,
+                              wmWindow &window,
+                              Scene &scene,
+                              ViewLayer &view_layer,
+                              const EvaluationTarget &target,
+                              EvalCallback buffer_cb,
+                              UpdateCallback update_cb)
+{
+  wmJob *wm_job = WM_jobs_get(
+      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+  if (WM_jobs_is_running(wm_job)) {
+    BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(WM_jobs_customdata_get(wm_job));
+    const bool id_already_registered = eval_data->worker_data.target_data.as_span().contains(
+        {target, nullptr});
+    if (id_already_registered) {
+      eval_data->worker_data.restart.store(true, std::memory_order_release);
+      return;
+    }
+    /* If the job is running and the ID is not yet registered, we have to kill it so we can modify
+     * BGEvalJobData without race conditions. This is a blocking call. */
+    WM_jobs_kill_type(&wm, &scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+  }
+
+  BGEvalJobData *eval_data = MEM_new<BGEvalJobData>(__func__);
+  Depsgraph *dg = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
+  /* TODO merge ID list with existing IDs. */
+  DEG_graph_build_from_ids(dg, {target.id});
+  /* Evaluate once on the main thread so the copy on eval nodes have run. */
+  DEG_evaluate_on_refresh(dg);
+  /* Don't allow reading main from the worker thread. */
+  DEG_set_allow_read_from_main(dg, false);
+  eval_data->worker_data.dg = dg;
+
+  WM_jobs_customdata_set(wm_job, eval_data, free_job_data);
+  WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
+  WM_jobs_start(&wm, wm_job);
+}
+
+void background_eval_deregister(wmWindowManager &wm, wmWindow &window, Scene &scene)
+{
+  wmJob *wm_job = WM_jobs_get(
+      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+  if (!WM_jobs_is_running(wm_job)) {
+    /* No job to deregister from. */
+    return;
+  }
+}
+
+void background_eval_set_center_frame(const int frame)
+{
+  /* wmJob *wm_job = WM_jobs_get(
+      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL); */
+}
+
+}  // namespace animviz
 
 }  // namespace blender

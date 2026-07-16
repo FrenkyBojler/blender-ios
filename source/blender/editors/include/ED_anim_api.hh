@@ -1299,6 +1299,15 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               MutableSpan<MPathTarget> targets,
                               eAnimvizCalcRange range);
 
+void register_motionpath_async(Main &bmain,
+                               wmWindowManager &wm,
+                               wmWindow &window,
+                               Scene &scene,
+                               ViewLayer &view_layer,
+                               Object &armature_object,
+                               bPoseChannel &pose_bone,
+                               bMotionPath &motion_path);
+
 /**
  * Update motion path computation range (in `ob.avs` or `armature.avs`) from user choice in
  * `ob.avs.path_range` or `arm.avs.path_range`, depending on active user mode.
@@ -1315,5 +1324,52 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene);
 void animviz_build_motionpath_targets(Object *ob, Vector<MPathTarget> &r_targets);
 
 /** \} */
+
+namespace animviz {
+
+/**
+ * Called for every frame that the worker evaluated.
+ *
+ * \return True if the evaluation result is different to buffered data. Returning false signals to
+ * the thread that for this frame, the evaluation was not required. This is used on the worker
+ * thread to dynamically figure out where the evaluation should end.
+ */
+using EvalCallback = FunctionRef<bool(Depsgraph *dg, ID &id, int frame, void *buffer_data)>;
+/* Callback that runs on the main thread periodically. Can be used to copy back data from the
+ * buffer. */
+using UpdateCallback = FunctionRef<void(ID &id, void *buffer_data)>;
+
+/**
+ * Uniquely identifies an entity to evaluate over a frame range.
+ */
+struct EvaluationTarget {
+  ID *id;
+  std::string component_name;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(id, component_name);
+  }
+};
+
+/**
+ *
+ * \param buffer_cb Will be called from the worker thread with the evaluated depsgraph for every
+ * frame. Don't touch main from this function.
+ * \param updated_cb Will be called periodically on the main thread. This can be used to copy data
+ * from the buffer to a storage in the main thread.
+ */
+void background_eval_register(Main &bmain,
+                              wmWindowManager &wm,
+                              wmWindow &window,
+                              Scene &scene,
+                              ViewLayer &view_layer,
+                              const EvaluationTarget &target,
+                              EvalCallback buffer_cb,
+                              UpdateCallback update_cb);
+void background_eval_deregister();
+void background_eval_set_center_frame(int frame);
+
+}  // namespace animviz
 
 }  // namespace blender
