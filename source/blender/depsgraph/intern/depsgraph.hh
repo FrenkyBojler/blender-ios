@@ -168,7 +168,8 @@ struct Depsgraph {
   DepsgraphDebug debug;
 
   bool is_evaluating;
-  /** When set to false, the copy on eval stage will be skipped during evaluation. */
+  /** When set to false, the depsgraph will skip any operations that would read from main. If any
+   * Copy on Eval nodes were not yet cached, the evaluation is skipped completely. */
   bool is_allowed_to_read_main;
 
   /* Is set to truth for dependency graph which are used for post-processing (compositor and

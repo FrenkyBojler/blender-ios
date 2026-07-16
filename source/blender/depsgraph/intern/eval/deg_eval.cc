@@ -86,6 +86,14 @@ struct DepsgraphEvalState {
   bool can_evaluate = true;
 };
 
+static bool operation_reads_main(OperationNode &operation_node)
+{
+  if (operation_node.type == NodeType::COPY_ON_EVAL) {
+    return true;
+  }
+  return false;
+}
+
 void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_node)
 {
   blender::Depsgraph *depsgraph = reinterpret_cast<blender::Depsgraph *>(state->graph);
@@ -93,13 +101,15 @@ void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_nod
   /* Sanity checks. */
   BLI_assert_msg(!operation_node->is_noop(), "NOOP nodes should not actually be scheduled");
   /* Perform operation. */
-  if (state->do_stats) {
-    const double start_time = BLI_time_now_seconds();
-    operation_node->evaluate(depsgraph);
-    operation_node->stats.current_time += BLI_time_now_seconds() - start_time;
-  }
-  else {
-    operation_node->evaluate(depsgraph);
+  if (!operation_reads_main(*operation_node) || state->graph->is_allowed_to_read_main) {
+    if (state->do_stats) {
+      const double start_time = BLI_time_now_seconds();
+      operation_node->evaluate(depsgraph);
+      operation_node->stats.current_time += BLI_time_now_seconds() - start_time;
+    }
+    else {
+      operation_node->evaluate(depsgraph);
+    }
   }
 
   /* Clear the flag early on, allowing partial updates without re-evaluating the same node multiple
@@ -484,6 +494,7 @@ void deg_evaluate_on_refresh(Depsgraph *graph)
     for (IDNode *id_node : graph->id_nodes) {
       if (id_node && deg_eval_copy_is_needed(id_node->id_type) && !id_node->id_cow) {
         state.can_evaluate = false;
+        printf("Skipping evaluation because not all Copy on Eval nodes are cached.\n");
         break;
       }
     }
