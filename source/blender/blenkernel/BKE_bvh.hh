@@ -40,6 +40,10 @@ struct Ray {
 struct RayHit {
   /* Ng. Not normalized. */
   float3 normal;
+  /**
+   * Triangle barycentric coordinates of the hit. The third component always makes the
+   * total 1.0.
+   */
   float2 bary_coord;
   int index;
   float distance;
@@ -50,13 +54,23 @@ struct RayHit {
 };
 
 struct ClosestPointResult {
+  /** Location of the closest point. */
   float3 position;
+  /**
+   * Triangle barycentric coordinates of the closest point. The third component always makes the
+   * total 1.0.
+   */
   float2 bary_coord;
   uint32_t index;
   /* Currently unused. */
   uint32_t geomID;
 };
 
+/**
+ * A wrapper around Embree's BVH tree and #BLI_kdopbvh.hh. Besides a simpler and more friendly API
+ * compared to Embree, this provides storage for index mapping for trees created from subsets of a
+ * geometry.
+ */
 class Tree {
  public:
   struct FallbackTree {
@@ -94,16 +108,21 @@ class Tree {
   /** Create a BVH tree from the entire mesh. */
   static Tree from_single_mesh(const Mesh &mesh);
 
-  void free();
-
+  /** Intersect a single ray against the tree. */
   std::optional<RayHit> ray_intersect(const Ray &ray) const;
 
+  /** Call a callback for every ray intersection. */
   void ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const;
 
+  /** Find the closest surface point to a given position. */
   std::optional<ClosestPointResult> closest_point(
       const float3 &point, float radius = std::numeric_limits<float>::max()) const;
 
+  /** Call a callback for every point within a given radius. */
   void range_query(const float3 &point, const float radius, FunctionRef<bool(int)> fn) const;
+
+ private:
+  void free();
 };
 
 }  // namespace bke::bvh
