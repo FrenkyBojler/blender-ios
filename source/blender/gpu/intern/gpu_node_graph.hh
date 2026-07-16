@@ -134,8 +134,8 @@ struct GPUOutput {
 using GPUInputConstantData =
     std::variant<float, float2, float3, float4, float4x4, int, int2, int3, int4, bool>;
 
-Span<const float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type);
-Span<const int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type);
+Span<float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type);
+Span<int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type);
 bool gpu_constant_to_bool(const GPUInputConstantData &data);
 
 struct GPUInput {

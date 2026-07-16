@@ -77,47 +77,47 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
   }
 }
 
-Span<const float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type)
+Span<float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type)
 {
   switch (type) {
     case GPU_FLOAT:
-      return Span<const float>(&std::get<float>(data), 1);
+      return Span<float>(&std::get<float>(data), 1);
     case GPU_VEC2: {
       const float2 &value = std::get<float2>(data);
-      return Span<const float>(&value.x, 2);
+      return Span<float>(&value.x, 2);
     }
     case GPU_VEC3: {
       const float3 &value = std::get<float3>(data);
-      return Span<const float>(&value.x, 3);
+      return Span<float>(&value.x, 3);
     }
     case GPU_VEC4: {
       const float4 &value = std::get<float4>(data);
-      return Span<const float>(&value.x, 4);
+      return Span<float>(&value.x, 4);
     }
     case GPU_MAT4:
-      return Span<const float>(std::get<float4x4>(data).base_ptr(), 16);
+      return Span<float>(std::get<float4x4>(data).base_ptr(), 16);
     default:
       BLI_assert_unreachable();
       return {};
   }
 }
 
-Span<const int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type)
+Span<int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type)
 {
   switch (type) {
     case GPU_INT:
-      return Span<const int>(&std::get<int>(data), 1);
+      return Span<int>(&std::get<int>(data), 1);
     case GPU_INT2: {
       const int2 &value = std::get<int2>(data);
-      return Span<const int>(&value.x, 2);
+      return Span<int>(&value.x, 2);
     }
     case GPU_INT3: {
       const int3 &value = std::get<int3>(data);
-      return Span<const int>(&value.x, 3);
+      return Span<int>(&value.x, 3);
     }
     case GPU_INT4: {
       const int4 &value = std::get<int4>(data);
-      return Span<const int>(&value.x, 4);
+      return Span<int>(&value.x, 4);
     }
     default:
       BLI_assert_unreachable();

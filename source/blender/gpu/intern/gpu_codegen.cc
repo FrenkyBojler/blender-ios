@@ -74,7 +74,7 @@ static std::ostream &operator<<(std::ostream &stream, const GPUOutput *output)
 }
 
 /* Print data constructor (i.e: vec2(1.0f, 1.0f)). */
-static std::ostream &operator<<(std::ostream &stream, const Span<const float> &span)
+static std::ostream &operator<<(std::ostream &stream, const Span<float> &span)
 {
   stream << gpu_float_type_from_element_count(span.size()) << "(";
   /* Use uint representation to allow exact same bit pattern even if NaN. This is
@@ -93,7 +93,7 @@ static std::ostream &operator<<(std::ostream &stream, const Span<const float> &s
 }
 
 /* Print data constructor (i.e: int2(1, 1)). */
-static std::ostream &operator<<(std::ostream &stream, const Span<const int> &span)
+static std::ostream &operator<<(std::ostream &stream, const Span<int> &span)
 {
   stream << gpu_int_type_from_element_count(span.size()) << "(";
   for (const int &element : span) {
@@ -346,7 +346,7 @@ void GPUCodegen::node_serialize(Set<StringRefNull> &used_libraries,
       if (from == GPU_VEC4 && to == GPU_FLOAT) {
         float coefficients[3];
         IMB_colormanagement_get_luminance_coefficients(coefficients);
-        eval_ss << ", " << Span<const float>(coefficients, 3);
+        eval_ss << ", " << Span<float>(coefficients, 3);
       }
       eval_ss << ")";
     }
