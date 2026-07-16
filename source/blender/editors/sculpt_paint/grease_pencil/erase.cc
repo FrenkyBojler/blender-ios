@@ -874,8 +874,14 @@ struct EraseOperationExecutor {
       cut_curve.radius_for_write().last() = this->eraser_radius;
     }
 
-    const Span<float3> pos = cut_curve.positions();
-    Array<float2> cut_pos2d(cut_curve.points_num());
+    bke::greasepencil::Drawing cut_drawing = bke::greasepencil::Drawing();
+    cut_drawing.strokes_for_write() = cut_curve;
+
+    const bke::CurvesGeometry outline = create_curves_outline(
+        cut_drawing, cut_curve.curves_range(), layer_to_world, 3, 0.0f, 0.0f, -1);
+
+    const Span<float3> pos = outline.positions();
+    Array<float2> cut_pos2d(outline.points_num());
     for (const int i : cut_pos2d.index_range()) {
       cut_pos2d[i] = float2(pos[i]);
     }
