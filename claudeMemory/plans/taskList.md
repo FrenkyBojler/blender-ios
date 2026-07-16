@@ -363,8 +363,18 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       for `CTX_MODE_CUSTOM` via `BKE_object_custom_mode_default_tool(ob)`
       before the generic fallback. `SculptCoreMode.bl_default_tool =
       "sculptcore.brush"`; verified the warning is gone on mode entry.
-- [ ] S4 Lifecycle hardening: object/workspace switch, file open/close, addon
-      disable mid-mode, refresh generations; ASAN session.
+- [~] S4 Lifecycle hardening (partial): `handlers.py` reconciles the session
+      registry against reality — `undo_post`/`redo_post` free any session
+      whose object left the mode (fixes the memfile-undo-across-the-enter-
+      boundary leak: the object drops to Object mode without an exit
+      callback), and `load_post` drops every session (its engine meshes were
+      built from the replaced file). Verified headless (register/unregister,
+      reconcile keeps in-mode / frees deleted-object sessions, load_post
+      clears all) and interactively (real undo across the boundary →
+      `undo_post` fires → stale session gone, no leak). Object/workspace
+      switch already exercised the generic-exit path (P2 B3); addon-disable
+      force-exit verified (S1). Remaining: a live GUI switch matrix and an
+      ASAN session.
 - [ ] S5 Integration points behind capability checks: draw provider (P5),
       wrapped undo (P6), multires (P8), brush breadth (P7).
 
