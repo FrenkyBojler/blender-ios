@@ -121,6 +121,9 @@ struct BakeAPIRender {
   float *progress;
   bool *do_update;
 
+  /* To check for job cancelation. */
+  wmWindowManager *wm;
+
   /* Operator state. */
   ReportList *reports;
   int result;
@@ -162,16 +165,21 @@ static wmOperatorStatus bake_modal(bContext *C, wmOperator * /*op*/, const wmEve
   return OPERATOR_PASS_THROUGH;
 }
 
+/* This could be bake_break but we would be required to use const_cast. */
+static bool bake_has_been_canceled(const BakeAPIRender *bkr)
+{
+  /* brk can be null when called via bake_exec. */
+  return G.is_break || (bkr != nullptr && WM_jobs_is_stopped(bkr->wm, bkr->scene));
+}
+
 /**
  * for exec() when there is no render job
  * NOTE: this won't check for the escape key being pressed, but doing so isn't thread-safe.
  */
-static bool bake_break(void * /*rjv*/)
+static bool bake_break(void *rjv)
 {
-  if (G.is_break) {
-    return true;
-  }
-  return false;
+  const BakeAPIRender *bkr = static_cast<BakeAPIRender *>(rjv);
+  return bake_has_been_canceled(bkr);
 }
 
 static void bake_update_image(ScrArea *area, Image *image)
@@ -1516,6 +1524,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     bake_targets_populate_pixels(bkr, &targets, ob_low, me_low_eval, pixel_array_low);
   }
 
+  if (bake_has_been_canceled(bkr)) {
+    op_result = OPERATOR_CANCELLED;
+    goto cleanup;
+  }
+
   if (bkr->is_selected_to_active) {
     int i = 0;
 
@@ -1645,6 +1658,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     pixel_array_high = MEM_new_array_uninitialized<BakePixel>(targets.pixels_num,
                                                               "bake pixels high poly");
 
+    if (bake_has_been_canceled(bkr)) {
+      op_result = OPERATOR_CANCELLED;
+      goto cleanup;
+    }
+
     if (!RE_bake_pixels_populate_from_objects(
             me_low_eval,
             pixel_array_low,
@@ -1660,6 +1678,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
             me_cage_eval))
     {
       BKE_report(reports, RPT_ERROR, "Error handling selected objects");
+      goto cleanup;
+    }
+
+    if (bake_has_been_canceled(bkr)) {
+      op_result = OPERATOR_CANCELLED;
       goto cleanup;
     }
 
@@ -1700,6 +1723,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
       BKE_report(reports, RPT_ERROR, "Current render engine does not support baking");
       goto cleanup;
     }
+  }
+
+  if (bake_has_been_canceled(bkr)) {
+    op_result = OPERATOR_CANCELLED;
+    goto cleanup;
   }
 
   /* normal space conversion
@@ -1785,6 +1813,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     }
   }
 
+  if (bake_has_been_canceled(bkr)) {
+    op_result = OPERATOR_CANCELLED;
+    goto cleanup;
+  }
+
   if (!ok) {
     BKE_reportf(reports, RPT_ERROR, "Problem baking object \"%s\"", ob_low->id.name + 2);
     op_result = OPERATOR_CANCELLED;
@@ -1852,6 +1885,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   bkr->view_layer = CTX_data_view_layer(C);
   bkr->scene = CTX_data_scene(C);
   bkr->area = screen ? BKE_screen_find_big_area(screen, SPACE_IMAGE, 10) : nullptr;
+  bkr->wm = CTX_wm_manager(C);
 
   bkr->pass_type = eScenePassType(RNA_enum_get(op->ptr, "type"));
   bkr->pass_filter = RNA_enum_get(op->ptr, "pass_filter");
@@ -2171,7 +2205,7 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   re = bkr->render;
 
   /* setup new render */
-  RE_test_break_cb(re, nullptr, bake_break);
+  RE_test_break_cb(re, bkr, bake_break);
   RE_progress_cb(re, bkr, bake_progress_update);
 
   /* setup job */
