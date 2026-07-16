@@ -27,6 +27,7 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_ordered_edge.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_list.hh"
 
@@ -37,7 +38,8 @@ struct UVEdge;
 struct UVIslandsMask;
 struct UVPrimitive;
 struct MeshData;
-struct UVVertex;
+struct UVIsland;
+struct UVVert;
 
 class TriangleToEdgeMap {
   Array<std::array<int, 3>> edges_of_triangle_;
@@ -75,7 +77,7 @@ struct MeshData {
   Array<int> vert_to_edge_indices;
   GroupedSpan<int> vert_to_edge_map;
 
-  Vector<int2> edges;
+  Vector<OrderedEdge> edges;
   Array<int> edge_to_primitive_offsets;
   Array<int> edge_to_primitive_indices;
   GroupedSpan<int> edge_to_primitive_map;
@@ -102,87 +104,89 @@ struct MeshData {
   }
 };
 
-struct UVVertex {
-  int vertex;
+struct UVVert {
+  int vert;
   /* Position in uv space. */
   float2 uv;
 
-  /* uv edges that share this UVVertex. */
-  Vector<UVEdge *> uv_edges;
+  /* uv edges that share this UVVert. */
+  Vector<int> uv_edges;
 
   struct {
     bool is_border : 1;
     bool is_extended : 1;
   } flags;
 
-  explicit UVVertex();
-  explicit UVVertex(const MeshData &mesh_data, int loop);
+  explicit UVVert();
+  explicit UVVert(const MeshData &mesh_data, int corner);
 };
 
 struct UVEdge {
-  std::array<UVVertex *, 2> vertices;
+  std::array<int, 2> verts;
   Vector<int, 2> uv_primitive_indices;
 
-  UVVertex *get_other_uv_vertex(int vertex_index);
-  bool has_same_vertices(const int2 &edge) const;
+  int get_other_uv_vert(const UVIsland &island, int vert);
+  bool has_same_verts(const UVIsland &island, const int2 &edge) const;
   bool is_border_edge() const;
 
  private:
-  bool has_same_vertices(int vert1, int vert2) const;
+  bool has_same_verts(const UVIsland &island, int vert1, int vert2) const;
 };
 
 struct UVPrimitive {
   /**
    * Index of the primitive in the original mesh.
    */
-  const int primitive_i;
-  Vector<UVEdge *, 3> edges;
+  int primitive_i;
+  std::array<int, 3> edges;
 
   explicit UVPrimitive(int primitive_i);
 
   /**
-   * Get the UVVertex in the order that the verts are ordered in the MeshPrimitive.
+   * Get the UVVert in the order that the verts are ordered in the MeshPrimitive.
    */
-  const UVVertex *get_uv_vertex(const MeshData &mesh_data, uint8_t mesh_vert_index) const;
+  int get_uv_vert(const UVIsland &island,
+                  const MeshData &mesh_data,
+                  uint8_t mesh_vert_index) const;
 
   /**
    * Get the UVEdge that share the given uv coordinates.
    * Will assert when no UVEdge found.
    */
-  UVEdge *get_uv_edge(float2 uv1, float2 uv2) const;
-  UVEdge *get_uv_edge(int v1, int v2) const;
+  int get_uv_edge(const UVIsland &island, float2 uv1, float2 uv2) const;
+  int get_uv_edge(const UVIsland &island, int v1, int v2) const;
 
-  bool contains_uv_vertex(const UVVertex *uv_vertex) const;
-  const UVVertex *get_other_uv_vertex(const UVVertex *v1, const UVVertex *v2) const;
+  bool contains_uv_vert(const UVIsland &island, const int uv_vert) const;
+  int get_other_uv_vert(const UVIsland &island, const int v1, const int v2) const;
 };
 
 struct UVBorderEdge {
-  UVEdge *edge;
-  UVPrimitive *uv_primitive;
+  int uv_edge_i;
+  /* Index into UVIsland::uv_primitives. */
+  int uv_primitive;
   /* Should the vertices of the edge be evaluated in reverse order. */
   bool reverse_order = false;
+  bool removed = false;
 
   /* Previous and next edge, forming a double linked list. */
   UVBorderEdge *prev = nullptr;
   UVBorderEdge *next = nullptr;
-  bool removed = false;
   int64_t border_index = -1;
   /* Stable ID for tie-break in the priority queue. */
   int64_t order = -1;
 
-  explicit UVBorderEdge(UVEdge *edge, UVPrimitive *uv_primitive);
+  explicit UVBorderEdge(int uv_edge_i, int uv_primitive);
 
-  UVVertex *get_uv_vertex(int index);
-  const UVVertex *get_uv_vertex(int index) const;
+  int get_uv_vert(const UVIsland &island, int index) const;
 
   /**
    * Get the uv vertex from the primitive that is not part of the edge.
    */
-  const UVVertex *get_other_uv_vertex() const;
+  int get_other_uv_vert(const UVIsland &island) const;
 
-  bool is_extendable() const;
+  bool is_extendable(const UVIsland &island) const;
 
-  float length() const;
+  float length(const UVIsland &island) const;
 };
 
 struct UVBorderCorner {
@@ -198,7 +202,7 @@ struct UVBorderCorner {
    * 'min_uv_distance' is the minimum distance between the corner and the
    * resulting uv coordinate. The distance is in uv space.
    */
-  float2 uv(float factor, float min_uv_distance);
+  float2 uv(const UVIsland &island, float factor, float min_uv_distance);
 
   /**
    * Does this corner exist as 2 connected edges of the mesh.
@@ -206,8 +210,8 @@ struct UVBorderCorner {
    * During the extraction phase a connection can be made in uv-space that
    * doesn't reflect to two connected edges inside the mesh.
    */
-  bool connected_in_mesh() const;
-  void print_debug() const;
+  bool connected_in_mesh(const UVIsland &island) const;
+  void print_debug(const UVIsland &island) const;
 };
 
 struct UVBorder {
@@ -219,7 +223,7 @@ struct UVBorder {
   /**
    * Check if the border is counter clock wise from its island.
    */
-  bool is_ccw() const;
+  bool is_ccw(const UVIsland &island) const;
 
   /**
    * Flip the order of the verts, changing the order between CW and CCW.
@@ -229,7 +233,7 @@ struct UVBorder {
   /**
    * Calculate the outside angle of the given vert.
    */
-  float outside_angle(const UVBorderEdge &edge) const;
+  float outside_angle(const UVIsland &island, const UVBorderEdge &edge) const;
 
   /** Setup prev and next pointers to turn edges into a linked list. */
   void setup_links(int64_t border_index);
@@ -242,9 +246,9 @@ struct UVIsland {
    * Useful during debugging to set a breaking condition on a specific island/vert.
    */
   int id;
-  VectorList<UVVertex> uv_vertices;
-  VectorList<UVEdge> uv_edges;
-  VectorList<UVPrimitive> uv_primitives;
+  Vector<UVVert> uv_verts;
+  Vector<UVEdge> uv_edges;
+  Vector<UVPrimitive> uv_primitives;
   /**
    * List of borders of this island. There can be multiple borders per island as a border could
    * be completely encapsulated by another one.
@@ -255,12 +259,12 @@ struct UVIsland {
    * Key is mesh vert index, Value is list of UVVertices that refer to the mesh vertex with that
    * index. Map is used internally to quickly lookup similar UVVertices.
    */
-  Map<int64_t, Vector<UVVertex *>> uv_vertex_lookup;
+  Map<int, Vector<int>> uv_vert_lookup;
 
-  UVVertex *lookup(const UVVertex &vertex);
-  UVVertex *lookup_or_create(const UVVertex &vertex);
-  UVEdge *lookup(const UVEdge &edge);
-  UVEdge *lookup_or_create(const UVEdge &edge);
+  int lookup(const UVVert &vert);
+  int lookup_or_create(const UVVert &vert);
+  int lookup(const UVEdge &edge);
+  int lookup_or_create(const UVEdge &edge);
 
   /** Initialize the border attribute. */
   void extract_borders();
@@ -271,7 +275,9 @@ struct UVIsland {
   void print_debug(const MeshData &mesh_data) const;
 };
 
-Array<UVIsland> build_uv_islands(const MeshData &mesh_data);
+Array<UVIsland> build_uv_islands(const MeshData &mesh_data,
+                                 GroupedSpan<int> tris_by_island,
+                                 const UVIslandsMask &uv_masks);
 
 /** Mask to find the index of the UVIsland for a given UV coordinate. */
 struct UVIslandsMask {
@@ -317,7 +323,7 @@ struct UVIslandsMask {
    * Add the given UV islands to the mask. Tiles should be added beforehand using the 'add_tile'
    * method.
    */
-  void add(const MeshData &mesh_data, Span<UVIsland> islands);
+  void add(const MeshData &mesh_data, GroupedSpan<int> tris_by_island);
 
   void dilate(int max_iterations);
 };

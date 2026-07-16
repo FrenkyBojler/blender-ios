@@ -9,9 +9,6 @@
  */
 
 #include <cstdio>
-#include <cstring>
-
-#include <array>
 
 #include "MEM_guardedalloc.h"
 
@@ -44,91 +41,82 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
   switch (type) {
     case GPU_FLOAT:
       return *std::get<const float *>(link->data);
-    case GPU_VEC2: {
-      const float *data = std::get<const float *>(link->data);
-      return float2(data[0], data[1]);
-    }
-    case GPU_VEC3: {
-      const float *data = std::get<const float *>(link->data);
-      return float3(data[0], data[1], data[2]);
-    }
-    case GPU_VEC4: {
-      const float *data = std::get<const float *>(link->data);
-      return float4(data[0], data[1], data[2], data[3]);
-    }
-    case GPU_MAT4: {
-      std::array<float, 16> mat4;
-      memcpy(mat4.data(), std::get<const float *>(link->data), sizeof(mat4));
-      return mat4;
-    }
+    case GPU_VEC2:
+      return float2(std::get<const float *>(link->data));
+    case GPU_VEC3:
+      return float3(std::get<const float *>(link->data));
+    case GPU_VEC4:
+      return float4(std::get<const float *>(link->data));
+    case GPU_MAT4:
+      return float4x4(std::get<const float *>(link->data));
     case GPU_INT:
       return *std::get<const int *>(link->data);
-    case GPU_INT2: {
-      const int *data = std::get<const int *>(link->data);
-      return int2(data[0], data[1]);
-    }
-    case GPU_INT3: {
-      const int *data = std::get<const int *>(link->data);
-      return int3(data[0], data[1], data[2]);
-    }
-    case GPU_INT4: {
-      const int *data = std::get<const int *>(link->data);
-      return int4(data[0], data[1], data[2], data[3]);
-    }
+    case GPU_INT2:
+      return int2(std::get<const int *>(link->data));
+    case GPU_INT3:
+      return int3(std::get<const int *>(link->data));
+    case GPU_INT4:
+      return int4(std::get<const int *>(link->data));
     case GPU_BOOL:
       return *std::get<const bool *>(link->data);
     default:
-      BLI_assert_unreachable();
-      return {};
+      break;
   }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
-Span<const float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type)
+Span<float> gpu_constant_to_float_span(const GPUInputConstantData &data, const GPUType type)
 {
   switch (type) {
     case GPU_FLOAT:
-      return Span<const float>(&std::get<float>(data), 1);
+      return Span<float>(&std::get<float>(data), 1);
     case GPU_VEC2: {
       const float2 &value = std::get<float2>(data);
-      return Span<const float>(&value.x, 2);
+      return Span<float>(&value.x, 2);
     }
     case GPU_VEC3: {
       const float3 &value = std::get<float3>(data);
-      return Span<const float>(&value.x, 3);
+      return Span<float>(&value.x, 3);
     }
     case GPU_VEC4: {
       const float4 &value = std::get<float4>(data);
-      return Span<const float>(&value.x, 4);
+      return Span<float>(&value.x, 4);
     }
     case GPU_MAT4:
-      return Span<const float>(std::get<std::array<float, 16>>(data).data(), 16);
+      return Span<float>(std::get<float4x4>(data).base_ptr(), 16);
     default:
-      BLI_assert_unreachable();
-      return {};
+      break;
   }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
-Span<const int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type)
+Span<int> gpu_constant_to_int_span(const GPUInputConstantData &data, const GPUType type)
 {
   switch (type) {
     case GPU_INT:
-      return Span<const int>(&std::get<int>(data), 1);
+      return Span<int>(&std::get<int>(data), 1);
     case GPU_INT2: {
       const int2 &value = std::get<int2>(data);
-      return Span<const int>(&value.x, 2);
+      return Span<int>(&value.x, 2);
     }
     case GPU_INT3: {
       const int3 &value = std::get<int3>(data);
-      return Span<const int>(&value.x, 3);
+      return Span<int>(&value.x, 3);
     }
     case GPU_INT4: {
       const int4 &value = std::get<int4>(data);
-      return Span<const int>(&value.x, 4);
+      return Span<int>(&value.x, 4);
     }
     default:
-      BLI_assert_unreachable();
-      return {};
+      break;
   }
+
+  BLI_assert_unreachable();
+  return {};
 }
 
 bool gpu_constant_to_bool(const GPUInputConstantData &data)
@@ -284,6 +272,52 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
   BLI_addtail(&node->inputs, input);
 }
 
+static GPUNodeLink *gpu_node_stack_constant_link(const GPUNodeStack &stack)
+{
+  switch (stack.type) {
+    case GPU_FLOAT:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
+      return GPU_constant(stack.vec);
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      return GPU_constant(&stack.integer_data.x);
+    case GPU_BOOL:
+      return GPU_constant(&stack.boolean_data);
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
+static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
+{
+  switch (stack.type) {
+    case GPU_FLOAT:
+    case GPU_VEC2:
+    case GPU_VEC3:
+    case GPU_VEC4:
+      return GPU_uniform(stack.vec);
+    case GPU_INT:
+    case GPU_INT2:
+    case GPU_INT3:
+    case GPU_INT4:
+      return GPU_uniform(&stack.integer_data.x);
+    case GPU_BOOL:
+      return GPU_uniform(&stack.boolean_data);
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return nullptr;
+}
+
 static const char *gpu_uniform_set_function_from_type(eNodeSocketDatatype type)
 {
   switch (type) {
@@ -332,7 +366,7 @@ static GPUNodeLink *gpu_uniformbuffer_link(GPUMaterial *mat,
     return nullptr;
   }
 
-  GPUNodeLink *link = GPU_uniform(stack->vec);
+  GPUNodeLink *link = gpu_node_stack_uniform_link(*stack);
 
   if (in_out == SOCK_IN) {
     GPU_link(mat, gpu_uniform_set_function_from_type(socket->type), link, &stack->link);
@@ -353,7 +387,7 @@ static void gpu_node_input_socket(
     gpu_node_input_link(node, sock->link, sock->type);
   }
   else {
-    gpu_node_input_link(node, GPU_constant(sock->vec), sock->type);
+    gpu_node_input_link(node, gpu_node_stack_constant_link(*sock), sock->type);
   }
 }
 
@@ -1289,23 +1323,7 @@ GPUNodeLink *GPU_node_get_input_link(const bNode &node,
   if (input.link) {
     return input.link;
   }
-  switch (input.type) {
-    case GPU_FLOAT:
-    case GPU_VEC2:
-    case GPU_VEC3:
-    case GPU_VEC4:
-      return GPU_uniform(input.vec);
-    case GPU_INT:
-    case GPU_INT2:
-    case GPU_INT3:
-    case GPU_INT4:
-      return GPU_uniform(&input.ivec.x);
-    case GPU_BOOL:
-      return GPU_uniform(&input.b);
-    default:
-      BLI_assert_unreachable();
-      return nullptr;
-  }
+  return gpu_node_stack_uniform_link(input);
 }
 
 }  // namespace blender
