@@ -16,13 +16,13 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_string_utf8.h"
+#include "BLI_string_utf8.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -258,7 +258,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   bke::node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
-  node->width = ntype->width;
+  node->width = ntype->default_width;
   node->height = ntype->height;
   node->color[0] = node->color[1] = node->color[2] = 0.608;
 
@@ -285,8 +285,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   ntype.idname = UString(idname);
   ntype.type_legacy = legacy_type;
   ntype.height = height;
-  ntype.width = width;
-  node_type_size_preset(ntype, eNodeSizePreset::Default);
+  ntype.default_width = width;
   ntype.minheight = 30.0f;
   ntype.maxheight = FLT_MAX;
 
@@ -308,7 +307,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
-  node->width = ntype.width;
+  node->width = ntype.default_width;
   node->height = ntype.height;
   node->color[0] = node->color[1] = node->color[2] = 0.608f;
 
@@ -450,6 +449,50 @@ void version_node_socket_index_animdata(Main *bmain,
 
       for (bNode *node : ntree->all_nodes()) {
         if (node->type_legacy != node_type) {
+          continue;
+        }
+
+        char node_name_escaped[sizeof(node->name) * 2];
+        BLI_str_escape(node_name_escaped, node->name, sizeof(node_name_escaped));
+        char *rna_path_prefix = BLI_sprintfN("nodes[\"%s\"].inputs", node_name_escaped);
+
+        const int new_index = input_index + socket_index_offset;
+        BKE_animdata_fix_paths_rename_all_ex(bmain,
+                                             owner_id,
+                                             rna_path_prefix,
+                                             nullptr,
+                                             nullptr,
+                                             input_index,
+                                             new_index,
+                                             /*verify_paths=*/false,
+                                             /*infix_is_name=*/true);
+        MEM_delete(rna_path_prefix);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+}
+
+void version_node_socket_index_animdata(Main *bmain,
+                                        const int node_tree_type,
+                                        const char *node_idname,
+                                        const int socket_index_orig,
+                                        const int socket_index_offset,
+                                        const int total_number_of_sockets)
+{
+
+  /* See preceeding definition of `version_node_socket_index_animdata` for the reasoning of why the
+   * input ids for loop is at the top level.*/
+  for (int input_index = total_number_of_sockets - 1; input_index >= socket_index_orig;
+       input_index--)
+  {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, owner_id) {
+      if (ntree->type != node_tree_type) {
+        continue;
+      }
+
+      for (bNode *node : ntree->all_nodes()) {
+        if (!STREQ(node->idname, node_idname)) {
           continue;
         }
 

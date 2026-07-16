@@ -19,17 +19,17 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
 #include "BLF_api.hh"
 
 #include "BKE_action.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_appdir.hh"
 #include "BKE_armature.hh"
 #include "BKE_blender_copybuffer.hh"
@@ -183,7 +183,7 @@ void OUTLINER_OT_highlight_update(wmOperatorType *ot)
 void outliner_item_openclose(TreeElement *te, bool open, bool toggle_all)
 {
   /* Only allow opening elements with children. */
-  if (!(te->flag & TE_PRETEND_HAS_CHILDREN) && BLI_listbase_is_empty(&te->subtree)) {
+  if (!(te->flag & TE_PRETEND_HAS_CHILDREN) && te->subtree.is_empty()) {
     return;
   }
 
@@ -351,7 +351,11 @@ static void do_item_rename(ARegion *region,
            TSE_RNA_PROPERTY,
            TSE_RNA_ARRAY_ELEM,
            TSE_ID_BASE) ||
-      ELEM(tselem->type, TSE_SCENE_OBJECTS_BASE, TSE_GENERIC_LABEL, TSE_GPENCIL_EFFECT_BASE))
+      ELEM(tselem->type,
+           TSE_SCENE_OBJECTS_BASE,
+           TSE_GENERIC_LABEL,
+           TSE_GPENCIL_EFFECT_BASE,
+           TSE_SHAPE_KEY_BASE))
   {
     BKE_report(reports, RPT_INFO, "Not an editable name");
   }
@@ -1607,15 +1611,25 @@ static void outliner_show_active(SpaceOutliner *space_outliner,
   }
 }
 
-void outliner_scroll_to_active(const bContext *C,
-                               SpaceOutliner *space_outliner,
-                               ARegion *region,
-                               TreeViewContext *tvc)
+void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, short idcode)
 {
+  outliner_set_coordinates(region, space_outliner);
   const View2D *v2d = &region->v2d;
-  TreeElement *active_te = outliner_show_active_get_element(
-      C, space_outliner, tvc->scene, tvc->view_layer);
+  TreeElement *active_te = nullptr;
 
+  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+    TreeStoreElem *tselem = TREESTORE(te);
+    if (tselem->flag & TSE_ACTIVE) {
+      if (tselem->type == TSE_SOME_ID) {
+        if (te->idcode == idcode) {
+          active_te = te;
+        }
+      }
+      else {
+        active_te = te;
+      }
+    }
+  });
   if (active_te) {
     if (!BLI_rctf_isect_y(&v2d->cur, active_te->ys)) {
       outliner_show_active(space_outliner, region, active_te, TREESTORE(active_te)->id);
@@ -2047,7 +2061,7 @@ static void tree_element_to_path(TreeElement *te,
   }
 
   /* free temp data */
-  BLI_freelistN(&hierarchy);
+  hierarchy.free_no_destruct();
 }
 
 /** \} */
@@ -2253,7 +2267,7 @@ static KeyingSet *verify_active_keyingset(Scene *scene, short add)
   if ((add) && (ks == nullptr)) {
     ks = BKE_keyingset_add(
         &scene->keyingsets, nullptr, nullptr, KEYINGSET_ABSOLUTE, INSERTKEY_NOFLAGS);
-    scene->active_keyingset = BLI_listbase_count(&scene->keyingsets);
+    scene->active_keyingset = scene->keyingsets.count();
   }
 
   return ks;
@@ -2300,7 +2314,7 @@ static void do_outliner_keyingset_editop(SpaceOutliner *space_outliner,
            * for now, we don't supply one, and just let this use the KeyingSet name */
           BKE_keyingset_add_path(
               ks, id, nullptr, path, array_index, eKSP_Settings(flag), groupmode);
-          ks->active_path = BLI_listbase_count(&ks->paths);
+          ks->active_path = ks->paths.count();
           break;
         }
         case KEYINGSET_EDITMODE_REMOVE: {

@@ -209,8 +209,9 @@ void SourceProcessor::lower_entry_points(Parser &parser)
                        "[[base_instance]] must be declared as "
                        "`const int`.");
         }
-        replace_word(srt_var, "gl_BaseInstance");
-        metadata_.builtins.emplace_back(Builtin(hash("gl_BaseInstance")));
+        replace_word(srt_var, "gpu_BaseInstance");
+        metadata_.builtins.emplace_back(Builtin(hash("gpu_BaseInstance")));
+        create_info_decl += "BUILTINS(BuiltinBits::INSTANCE_ID)\n";
       }
       else if (srt_attr == "point_size" && is_entry_point) {
         if (!is_vertex_func) {
@@ -269,7 +270,7 @@ void SourceProcessor::lower_entry_points(Parser &parser)
                        "[[viewport_index]] must be declared as const reference "
                        "(aka `const int &`).");
         }
-        replace_word(srt_var, "gl_ViewportIndex");
+        replace_word(srt_var, "gpu_ViewportIndex");
         create_info_decl += "BUILTINS(BuiltinBits::VIEWPORT_INDEX)\n";
       }
       else if (srt_attr == "position" && is_entry_point) {
@@ -403,6 +404,18 @@ void SourceProcessor::lower_entry_points(Parser &parser)
         else if (is_fragment_func) {
           replace_word_and_accessor(srt_var, srt_type + "_");
           // create_info_decl += "VERTEX_OUT(" + srt_type + ")\n";
+        }
+      }
+      else if (srt_attr == "subpass_in") {
+        if (is_compute_func) {
+          report_error(attributes[1], "[[subpass_in]] is only supported in fragment functions.");
+        }
+        else if (!is_const) {
+          report_error(type, "[[subpass_in]] must be declared as const reference.");
+        }
+        else if (is_fragment_func) {
+          replace_word_and_accessor(srt_var, srt_type + "_");
+          create_info_decl += "ADDITIONAL_INFO(" + srt_type + ")\n";
         }
       }
       else if (srt_attr == "out") {

@@ -54,6 +54,11 @@ void Operation::free_results()
   }
 }
 
+Context &Operation::context() const
+{
+  return context_;
+}
+
 Domain Operation::compute_domain()
 {
   /* Default to an identity domain in case no domain input was found, most likely because all
@@ -114,9 +119,9 @@ void Operation::evaluate_input_processors()
 
 void Operation::log_data() {};
 
-void Operation::populate_result(StringRef identifier, Result result)
+void Operation::populate_result(StringRef identifier, const ResultType type)
 {
-  results_.add_new(identifier, result);
+  results_.add_new(identifier, this->context().create_result(type));
 }
 
 void Operation::declare_input_descriptor(StringRef identifier, InputDescriptor descriptor)
@@ -136,11 +141,6 @@ void Operation::allocate_default_remaining_outputs()
       result.allocate_invalid();
     }
   }
-}
-
-Context &Operation::context() const
-{
-  return context_;
 }
 
 void Operation::add_and_evaluate_input_processor(StringRef identifier, SimpleOperation *processor)

@@ -192,6 +192,24 @@ static bool use_gnome_confine_hack = false;
  * See: https://bugs.kde.org/show_bug.cgi?id=461001
  */
 #define USE_KDE_TABLET_HIDDEN_CURSOR_HACK
+#ifdef USE_KDE_TABLET_HIDDEN_CURSOR_HACK
+static bool use_kde_tablet_hidden_cursor_hack = false;
+#endif
+
+#ifdef WITH_VULKAN_BACKEND
+/**
+ * KDE (plasma 6.3.5) has a bug where the cursor restore location is ignored
+ * if the request is made before the VULKAN display has shown, see: #137232.
+ *
+ * Apply workaround proposed here:
+ * https://bugs.kde.org/show_bug.cgi?id=520910#c6
+ * "Delay the pointer warp until the commit is applied".
+ */
+#  define USE_KDE_VULKAN_UNGRAB_CURSOR_HACK
+#endif
+#ifdef USE_KDE_VULKAN_UNGRAB_CURSOR_HACK
+static bool use_kde_vulkan_ungrab_cursor_hack = false;
+#endif
 
 /**
  * GNOME (mutter 50.1 has a regression), unlocking the cursor warps
@@ -1239,7 +1257,7 @@ struct GWL_Seat {
      * Timer for key repeats.
      *
      * \note For as long as #USE_EVENT_BACKGROUND_THREAD is defined, any access to this
-     * (including null checks, must lock `timer_mutex` first.
+     * (including null checks), must lock `timer_mutex` first.
      */
     GHOST_ITimerTask *timer = nullptr;
   } key_repeat;
@@ -2597,7 +2615,7 @@ static int ghost_wl_display_event_pump(wl_display *wl_display)
   /* Based on SDL's `Wayland_PumpEvents`. */
   int err;
 
-  /* NOTE: Without this, interactions with window borders aren't handled}. */
+  /* NOTE: Without this, interactions with window borders aren't handled. */
   wl_display_flush(wl_display);
 
   if (wl_display_prepare_read(wl_display) == 0) {
@@ -2617,6 +2635,94 @@ static int ghost_wl_display_event_pump(wl_display *wl_display)
   }
   return err;
 }
+
+#ifdef USE_KDE_VULKAN_UNGRAB_CURSOR_HACK
+
+static void surface_frame_apply_handle_done(void *data,
+                                            wl_callback * /*wl_callback*/,
+                                            uint32_t /*time*/)
+{
+  *static_cast<bool *>(data) = true;
+}
+
+static const wl_callback_listener surface_frame_apply_listener = {
+    /*done*/ surface_frame_apply_handle_done,
+};
+
+/**
+ * Commit `surface` and block until the commit has been applied
+ * by the compositor or `timeout_ms` passes.
+ * This works by requesting a frame callback with the commit,
+ * as the callback cannot fire before the commit has been applied.
+ *
+ * \note Caller must lock `server_mutex`.
+ * \return true when the commit was applied, false on time-out or error.
+ */
+static bool ghost_wl_surface_commit_and_wait_for_apply(GHOST_SystemWayland *system,
+                                                       wl_surface *surface,
+                                                       const int timeout_ms)
+{
+  wl_display *wl_display = system->wl_display_get();
+
+  /* A dedicated event queue is used so only the frame callback is dispatched while
+   * waiting, leaving all other events queued for the main event loop.
+   * Based on SDL-3.4's `Wayland_GLES_SwapWindow`. */
+  wl_event_queue *frame_queue = wl_display_create_queue(wl_display);
+  wl_surface *surface_wrapper = static_cast<wl_surface *>(wl_proxy_create_wrapper(surface));
+  wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(surface_wrapper), frame_queue);
+
+  bool apply_done = false;
+
+  /* The callback inherits the wrapper's queue. */
+  wl_callback *frame_callback = wl_surface_frame(surface_wrapper);
+  wl_callback_add_listener(frame_callback, &surface_frame_apply_listener, &apply_done);
+  wl_surface_commit(surface);
+
+  const uint64_t time_end = system->getMilliSeconds() + uint64_t(timeout_ms);
+  const int fd = wl_display_get_fd(wl_display);
+  while (!apply_done) {
+    /* Ignore errors: on `EAGAIN` (a full send buffer) the flush is retried next iteration,
+     * hard errors will cause the read/dispatch to fail (next). */
+    wl_display_flush(wl_display);
+
+    /* A non-zero return means there are pending events, dispatch them in case
+     * the frame callback is among them. Otherwise the display is prepared for
+     * reading and *must* be finished with a read or cancel. */
+    if (wl_display_prepare_read_queue(wl_display, frame_queue) != 0) {
+      if (wl_display_dispatch_queue_pending(wl_display, frame_queue) == -1) [[unlikely]] {
+        break;
+      }
+      continue;
+    }
+
+    const uint64_t time_now = system->getMilliSeconds();
+    if (time_now >= time_end) {
+      wl_display_cancel_read(wl_display);
+      break;
+    }
+
+    /* Use #GWL_IOR_NO_RETRY to ensure #SIGINT will break us out of our wait. */
+    if (file_descriptor_is_io_ready(
+            fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, int(time_end - time_now)) <= 0)
+    {
+      /* Time-out (or error). */
+      wl_display_cancel_read(wl_display);
+      break;
+    }
+
+    wl_display_read_events(wl_display);
+    if (wl_display_dispatch_queue_pending(wl_display, frame_queue) == -1) [[unlikely]] {
+      break;
+    }
+  }
+
+  wl_callback_destroy(frame_callback);
+  wl_proxy_wrapper_destroy(surface_wrapper);
+  wl_event_queue_destroy(frame_queue);
+  return apply_done;
+}
+
+#endif /* USE_KDE_VULKAN_UNGRAB_CURSOR_HACK */
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
 
@@ -2788,7 +2894,7 @@ static char *read_file_as_buffer(const int fd, const bool nil_terminate, size_t 
         break;
       }
       chunk->next = nullptr;
-      /* Using `read` causes issues with GNOME, see: #106040). */
+      /* Using `read` causes issues with GNOME, see: #106040. */
       const ssize_t len_chunk = read_exhaustive(fd, chunk->data, sizeof(ByteChunk::data));
       if (len_chunk <= 0) {
         if (len_chunk < 0) [[unlikely]] {
@@ -3084,7 +3190,9 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
                                       hotspot_x,
                                       hotspot_y);
 #ifdef USE_KDE_TABLET_HIDDEN_CURSOR_HACK
-        wl_surface_commit(tablet_tool->wl.surface_cursor);
+        if (use_kde_tablet_hidden_cursor_hack) {
+          wl_surface_commit(tablet_tool->wl.surface_cursor);
+        }
 #endif
       }
     }
@@ -3691,6 +3799,9 @@ static GWL_CurrentDesktopType ghost_wayland_current_desktop()
      */
     if (string_elem_split_by_delim(xdg_current_desktop, ':', "GNOME")) {
       return GWL_CurrentDesktopType::Gnome;
+    }
+    else if (string_elem_split_by_delim(xdg_current_desktop, ':', "KDE")) {
+      return GWL_CurrentDesktopType::KDE;
     }
   }
   return GWL_CurrentDesktopType::Other;
@@ -8253,7 +8364,7 @@ static void global_handle_add(void *data,
   /* Initialization avoids excessive calls by calling update after all have been initialized. */
   if (added) {
     if (display->registry_skip_update_all == false) {
-      /* See doc-string for rationale on updating all on add/removal. */
+      /* See docstring for rationale on updating all on add/removal. */
       gwl_registry_entry_update_all(display, interface_slot);
     }
   }
@@ -8285,7 +8396,7 @@ static void global_handle_remove(void *data,
 
   if (removed) {
     if (display->registry_skip_update_all == false) {
-      /* See doc-string for rationale on updating all on add/removal. */
+      /* See docstring for rationale on updating all on add/removal. */
       gwl_registry_entry_update_all(display, interface_slot);
     }
   }
@@ -8386,6 +8497,15 @@ GHOST_SystemWayland::GHOST_SystemWayland(const bool background)
   }
 
   const GWL_CurrentDesktopType current_desktop = ghost_wayland_current_desktop();
+  if (current_desktop == GWL_CurrentDesktopType::KDE) {
+#ifdef USE_KDE_TABLET_HIDDEN_CURSOR_HACK
+    use_kde_tablet_hidden_cursor_hack = true;
+#endif
+#ifdef USE_KDE_VULKAN_UNGRAB_CURSOR_HACK
+    use_kde_vulkan_ungrab_cursor_hack = true;
+#endif
+  }
+
   /* This may be removed later if decorations are required, needed as part of registration. */
   display_->xdg_decor = new GWL_XDG_Decor_System;
 
@@ -10514,7 +10634,8 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
                                                  const GHOST_Rect *wrap_bounds,
                                                  const GHOST_TAxisFlag wrap_axis,
                                                  wl_surface *wl_surface,
-                                                 const GWL_WindowScaleParams &scale_params)
+                                                 const GWL_WindowScaleParams &scale_params,
+                                                 const GHOST_TDrawingContextType context_type)
 {
   /* Caller must lock `server_mutex`. */
 
@@ -10531,6 +10652,10 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
   if (mode == mode_current) {
     return true;
   }
+
+#ifndef USE_KDE_VULKAN_UNGRAB_CURSOR_HACK
+  (void)context_type;
+#endif
 
 #ifdef USE_GNOME_CONFINE_HACK
   const bool was_software_confine = seat->use_pointer_software_confine;
@@ -10564,6 +10689,8 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
       /* Potentially add a motion event so the application has updated X/Y coordinates. */
       wl_fixed_t xy_motion[2] = {0, 0};
       bool xy_motion_create_event = false;
+      /* Set when a cursor position hint needs a commit before the lock is destroyed. */
+      bool surface_needs_commit = false;
 
       /* Request location to restore to. */
       if (mode_current == GHOST_kGrabWrap) {
@@ -10594,7 +10721,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
         seat->pointer.xy[1] = xy_next[1];
 
         zwp_locked_pointer_v1_set_cursor_position_hint(seat->wp.locked_pointer, UNPACK2(xy_next));
-        wl_surface_commit(wl_surface);
+        surface_needs_commit = true;
       }
       else if (mode_current == GHOST_kGrabHide) {
         const wl_fixed_t xy_next[2] = {
@@ -10607,7 +10734,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
         {
           zwp_locked_pointer_v1_set_cursor_position_hint(seat->wp.locked_pointer,
                                                          UNPACK2(xy_next));
-          wl_surface_commit(wl_surface);
+          surface_needs_commit = true;
 
           /* NOTE(@ideasman42): The new cursor position is a hint,
            * it's possible the hint is ignored. It doesn't seem like there is a good way to
@@ -10630,7 +10757,7 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
         if (was_software_confine) {
           zwp_locked_pointer_v1_set_cursor_position_hint(seat->wp.locked_pointer,
                                                          UNPACK2(seat->pointer.xy));
-          wl_surface_commit(wl_surface);
+          surface_needs_commit = true;
         }
       }
 #endif
@@ -10645,6 +10772,24 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
             wl_fixed_to_int(gwl_window_scale_wl_fixed_to(scale_params, xy_motion[0])),
             wl_fixed_to_int(gwl_window_scale_wl_fixed_to(scale_params, xy_motion[1])),
             GHOST_TABLET_DATA_NONE));
+      }
+
+      if (surface_needs_commit) {
+#ifdef USE_KDE_VULKAN_UNGRAB_CURSOR_HACK
+        if (use_kde_vulkan_ungrab_cursor_hack && (context_type == GHOST_kDrawingContextTypeVulkan))
+        {
+          /* Failure to apply the commit within this time limit simply means
+           * the cursor will be restored to the location the grab began instead
+           * of the visual location the software cursor is shown.
+           * (not great but not terrible), see define for details. */
+          const int timeout_ms = 500;
+          ghost_wl_surface_commit_and_wait_for_apply(this, wl_surface, timeout_ms);
+        }
+        else
+#endif /* USE_KDE_VULKAN_UNGRAB_CURSOR_HACK */
+        {
+          wl_surface_commit(wl_surface);
+        }
       }
 
       zwp_locked_pointer_v1_destroy(seat->wp.locked_pointer);

@@ -10,11 +10,10 @@
 
 #include <string>
 
-#include "BLI_ghash.h"
-#include "BLI_iterator.h"
+#include "BLI_iterator.hh"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_listBase.h"
@@ -33,7 +32,6 @@ struct ID;
 struct CollectionChild;
 struct CollectionImport;
 struct CollectionExport;
-struct GHash;
 struct Main;
 struct Object;
 struct Scene;

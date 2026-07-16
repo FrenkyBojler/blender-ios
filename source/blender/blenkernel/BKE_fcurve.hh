@@ -245,6 +245,10 @@ void BKE_fcurve_rnapath_set(FCurve &fcu, StringRef rna_path);
 void BKE_fmodifier_name_set(FModifier *fcm, const char *name);
 
 /**
+ * Disable modifiers that requires original data and are not first in the stack.
+ */
+void BKE_fmodifier_ensure_flag(ListBaseT<FModifier> *modifiers);
+/**
  * Callback used by lib_query to walk over all ID usages
  * (mimics `foreach_id` callback of #IDTypeInfo structure).
  *
@@ -378,13 +382,8 @@ bool BKE_fcurve_calc_bounds(const FCurve *fcu,
  * \note An interval of zero could be supported (this implies no rounding at all),
  * however this risks very small differences in float values being treated as separate keyframes.
  */
-float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
-                                        int fcurve_array_len,
-                                        float interval,
-                                        int *r_frames_len);
-float *BKE_fcurves_calc_keyed_frames(FCurve **fcurve_array,
-                                     int fcurve_array_len,
-                                     int *r_frames_len);
+Array<float> BKE_fcurves_calc_keyed_frames_ex(Span<FCurve *> fcurve_array, float interval);
+Array<float> BKE_fcurves_calc_keyed_frames(Span<FCurve *> fcurve_array);
 
 /**
  * Set the index that stores the FCurve's active keyframe, assuming that \a active_bezt

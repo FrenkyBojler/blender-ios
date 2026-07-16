@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -33,8 +33,7 @@ NodeOperation::NodeOperation(Context &context, const bNode &node) : Operation(co
       continue;
     }
 
-    const ResultType result_type = get_node_socket_result_type(output);
-    populate_result(output->identifier, context.create_result(result_type));
+    populate_result(output->identifier, get_node_socket_result_type(output));
   }
 
   for (const bNodeSocket *input : this->node().input_sockets()) {
@@ -106,16 +105,6 @@ void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
   }
 }
 
-void NodeOperation::set_instance_key(const bNodeInstanceKey &instance_key)
-{
-  instance_key_ = instance_key;
-}
-
-const bNodeInstanceKey &NodeOperation::get_instance_key() const
-{
-  return instance_key_;
-}
-
 void NodeOperation::set_compute_context(const ComputeContext &compute_context)
 {
   compute_context_ = &compute_context;
@@ -146,6 +135,18 @@ static destruct_ptr<nodes::eval_log::ImageInfoLog> get_image_info_log(LinearAllo
       to_string(result.precision()));
 }
 
+void NodeOperation::add_warning(nodes::NodeWarningType type, std::string message)
+{
+  nodes::eval_log::NodesEvalLog *log = this->context().nodes_evaluation_log();
+  if (!log) {
+    return;
+  }
+  nodes::eval_log::NodeTreeLogger &tree_logger = log->get_local_tree_logger(
+      this->get_compute_context());
+  tree_logger.node_warnings.append(*tree_logger.allocator,
+                                   {this->node().identifier, {type, message}});
+}
+
 void NodeOperation::log_data()
 {
   nodes::eval_log::NodesEvalLog *log = this->context().nodes_evaluation_log();
@@ -160,11 +161,12 @@ void NodeOperation::log_data()
       continue;
     }
 
-    const Result &input = this->get_input(input_socket->identifier);
-    if (!input_socket->is_logically_linked()) {
+    const InputDescriptor &input_descriptor = this->get_input_descriptor(input_socket->identifier);
+    if (!input_socket->is_logically_linked() && !input_descriptor.implicit_input.has_value()) {
       continue;
     }
 
+    const Result &input = this->get_input(input_socket->identifier);
     if (input.is_single_value()) {
       tree_logger.log_value(this->node(), *input_socket, input.single_value());
       continue;
