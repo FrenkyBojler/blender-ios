@@ -123,7 +123,7 @@ static void populate_gpu_node_stack(const bNodeSocket &socket, GPUNodeStack &sta
       stack.boolean_data = false;
       break;
     default:
-      BLI_assert_unreachable();
+      zero_v4(stack.vec);
       break;
   }
 
