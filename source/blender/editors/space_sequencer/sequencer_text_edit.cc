@@ -689,10 +689,8 @@ static void delete_character(const seq::CharInfo character, TextVars *data)
 static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_INPUT_IME
-  if (const wmWindow *win = CTX_wm_window(C)) {
-    if (win->runtime->ime_data_is_composing) {
-      return OPERATOR_CANCELLED;
-    }
+  if (const std::optional<wmOperatorStatus> status = WM_operator_IME_edit_maybe(C)) {
+    return *status;
   }
 #endif
 
@@ -810,17 +808,10 @@ static wmOperatorStatus sequencer_text_insert_invoke(bContext *C,
                                                      const wmEvent *event)
 {
 #ifdef WITH_INPUT_IME
-  if (const wmWindow *win = CTX_wm_window(C)) {
-    if (event->type == WM_IME_COMPOSITE_EVENT) {
-      const wmIMEData *ime_data = win->runtime->ime_data;
-      if (ime_data && !ime_data->result.empty()) {
-        RNA_string_set(op->ptr, "string", ime_data->result.c_str());
-        return sequencer_text_insert_exec(C, op);
-      }
-    }
-    if (win->runtime->ime_data_is_composing) {
-      return OPERATOR_CANCELLED;
-    }
+  if (const std::optional<wmOperatorStatus> status = WM_operator_IME_insert_maybe(
+          C, op, event, "string"))
+  {
+    return *status;
   }
 #endif
 
