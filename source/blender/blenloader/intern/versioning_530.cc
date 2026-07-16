@@ -36,7 +36,7 @@ namespace blender {
 
 void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 5)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
     bool has_alphabet_sort_method = false;
     bool has_skip_alphabet_sort_method = false;
     for (bScreen &screen : bmain->screens) {
