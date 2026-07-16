@@ -16,6 +16,7 @@
 #endif
 
 #include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
 #include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
@@ -152,6 +153,7 @@ struct UserData {
   Mesh *mesh;
   int cd_offset;
   const PathSelectParams *op_params;
+  short select_flag;
 };
 
 /** \} */
@@ -165,21 +167,23 @@ static bool verttag_filter_cb(BMVert *v, void * /*user_data_v*/)
 {
   return !BM_elem_flag_test(v, BM_ELEM_HIDDEN);
 }
-static bool verttag_test_cb(BMVert *v, void * /*user_data_v*/)
+static bool verttag_test_cb(BMVert *v, void *user_data_v)
 {
-  return BM_elem_flag_test_bool(v, BM_ELEM_SELECT);
+  UserData *user_data = static_cast<UserData *>(user_data_v);
+  return BM_elem_flag_test_bool(v, user_data->select_flag);
 }
 static void verttag_set_cb(BMVert *v, bool val, void *user_data_v)
 {
   UserData *user_data = static_cast<UserData *>(user_data_v);
-  BM_vert_select_set(user_data->bm, v, val);
+  BM_vert_select_set(user_data->bm, v, val, user_data->select_flag);
 }
 
 static void mouse_mesh_shortest_path_vert(Scene * /*scene*/,
                                           Object *obedit,
                                           const PathSelectParams *op_params,
                                           BMVert *v_act,
-                                          BMVert *v_dst)
+                                          BMVert *v_dst,
+                                          const short select_flag)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
@@ -201,7 +205,7 @@ static void mouse_mesh_shortest_path_vert(Scene * /*scene*/,
       break;
   }
 
-  UserData user_data = {bm, id_cast<Mesh *>(obedit->data), cd_offset, op_params};
+  UserData user_data = {bm, id_cast<Mesh *>(obedit->data), cd_offset, op_params, select_flag};
   LinkNode *path = nullptr;
   bool is_path_ordered = false;
 
@@ -222,7 +226,7 @@ static void mouse_mesh_shortest_path_vert(Scene * /*scene*/,
     }
 
     if (path) {
-      if (op_params->track_active) {
+      if (op_params->track_active && select_flag == BM_ELEM_SELECT) {
         BM_select_history_remove(bm, v_act);
       }
     }
@@ -266,7 +270,7 @@ static void mouse_mesh_shortest_path_vert(Scene * /*scene*/,
   EDBM_selectmode_flush(em);
   EDBM_uvselect_clear(em);
 
-  if (op_params->track_active) {
+  if (op_params->track_active && select_flag == BM_ELEM_SELECT) {
     /* even if this is selected it may not be in the selection list */
     if (BM_elem_flag_test(v_dst_last, BM_ELEM_SELECT) == 0) {
       BM_select_history_remove(bm, v_dst_last);
@@ -301,7 +305,7 @@ static bool edgetag_test_cb(BMEdge *e, void *user_data_v)
 
   switch (edge_mode) {
     case EDGE_MODE_SELECT:
-      return BM_elem_flag_test(e, BM_ELEM_SELECT) ? true : false;
+      return BM_elem_flag_test(e, user_data->select_flag) ? true : false;
     case EDGE_MODE_TAG_SEAM:
       return BM_elem_flag_test(e, BM_ELEM_SEAM) ? true : false;
     case EDGE_MODE_TAG_SHARP:
@@ -325,7 +329,7 @@ static void edgetag_set_cb(BMEdge *e, bool val, void *user_data_v)
 
   switch (edge_mode) {
     case EDGE_MODE_SELECT:
-      BM_edge_select_set(bm, e, val);
+      BM_edge_select_set(bm, e, val, user_data->select_flag);
       break;
     case EDGE_MODE_TAG_SEAM:
       BM_elem_flag_set(e, BM_ELEM_SEAM, val);
@@ -376,8 +380,12 @@ static void edgetag_ensure_cd_flag(Mesh *mesh, const char edge_mode)
 /* Mesh shortest path select, uses previously-selected edge. */
 
 /* since you want to create paths with multiple selects, it doesn't have extend option */
-static void mouse_mesh_shortest_path_edge(
-    Scene *scene, Object *obedit, const PathSelectParams *op_params, BMEdge *e_act, BMEdge *e_dst)
+static void mouse_mesh_shortest_path_edge(Scene *scene,
+                                          Object *obedit,
+                                          const PathSelectParams *op_params,
+                                          BMEdge *e_act,
+                                          BMEdge *e_dst,
+                                          const short select_flag)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
@@ -402,7 +410,7 @@ static void mouse_mesh_shortest_path_edge(
       break;
   }
 
-  UserData user_data = {bm, id_cast<Mesh *>(obedit->data), cd_offset, op_params};
+  UserData user_data = {bm, id_cast<Mesh *>(obedit->data), cd_offset, op_params, select_flag};
   LinkNode *path = nullptr;
   bool is_path_ordered = false;
 
@@ -465,12 +473,12 @@ static void mouse_mesh_shortest_path_edge(
   }
 
   if (op_params->edge_mode != EDGE_MODE_SELECT) {
-    if (op_params->track_active) {
+    if (op_params->track_active && select_flag == BM_ELEM_SELECT) {
       /* simple rules - last edge is _always_ active and selected */
       if (e_act) {
-        BM_edge_select_set(bm, e_act, false);
+        BM_edge_select_set(bm, e_act, false, select_flag);
       }
-      BM_edge_select_set(bm, e_dst_last, true);
+      BM_edge_select_set(bm, e_dst_last, true, select_flag);
       BM_select_history_store(bm, e_dst_last);
     }
   }
@@ -478,7 +486,7 @@ static void mouse_mesh_shortest_path_edge(
   EDBM_selectmode_flush(em);
   EDBM_uvselect_clear(em);
 
-  if (op_params->track_active) {
+  if (op_params->track_active && select_flag == BM_ELEM_SELECT) {
     /* even if this is selected it may not be in the selection list */
     if (op_params->edge_mode == EDGE_MODE_SELECT) {
       if (edgetag_test_cb(e_dst_last, &user_data) == 0) {
@@ -513,22 +521,24 @@ static bool facetag_filter_cb(BMFace *f, void * /*user_data_v*/)
   return !BM_elem_flag_test(f, BM_ELEM_HIDDEN);
 }
 // static bool facetag_test_cb(Scene * /*scene*/, BMesh * /*bm*/, BMFace *f)
-static bool facetag_test_cb(BMFace *f, void * /*user_data_v*/)
+static bool facetag_test_cb(BMFace *f, void *user_data_v)
 {
-  return BM_elem_flag_test_bool(f, BM_ELEM_SELECT);
+  UserData *user_data = static_cast<UserData *>(user_data_v);
+  return BM_elem_flag_test_bool(f, user_data->select_flag);
 }
 // static void facetag_set_cb(BMesh *bm, Scene * /*scene*/, BMFace *f, const bool val)
 static void facetag_set_cb(BMFace *f, bool val, void *user_data_v)
 {
   UserData *user_data = static_cast<UserData *>(user_data_v);
-  BM_face_select_set(user_data->bm, f, val);
+  BM_face_select_set(user_data->bm, f, val, user_data->select_flag);
 }
 
 static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
                                           Object *obedit,
                                           const PathSelectParams *op_params,
                                           BMFace *f_act,
-                                          BMFace *f_dst)
+                                          BMFace *f_dst,
+                                          const short select_flag)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
@@ -550,7 +560,7 @@ static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
       break;
   }
 
-  UserData user_data = {bm, id_cast<Mesh *>(obedit->data), cd_offset, op_params};
+  UserData user_data = {bm, id_cast<Mesh *>(obedit->data), cd_offset, op_params, select_flag};
   LinkNode *path = nullptr;
   bool is_path_ordered = false;
 
@@ -617,7 +627,7 @@ static void mouse_mesh_shortest_path_face(Scene * /*scene*/,
   EDBM_selectmode_flush(em);
   EDBM_uvselect_clear(em);
 
-  if (op_params->track_active) {
+  if (op_params->track_active && select_flag == BM_ELEM_SELECT) {
     /* even if this is selected it may not be in the selection list */
     if (facetag_test_cb(f_dst_last, &user_data) == 0) {
       BM_select_history_remove(bm, f_dst_last);
@@ -648,7 +658,8 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
                                        Object *obedit,
                                        const PathSelectParams *op_params,
                                        BMElem *ele_src,
-                                       BMElem *ele_dst)
+                                       BMElem *ele_dst,
+                                       const short select_flag = BM_ELEM_SELECT)
 {
   bool ok = false;
 
@@ -660,7 +671,8 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
                                   obedit,
                                   op_params,
                                   reinterpret_cast<BMVert *>(ele_src),
-                                  reinterpret_cast<BMVert *>(ele_dst));
+                                  reinterpret_cast<BMVert *>(ele_dst),
+                                  select_flag);
     ok = true;
   }
   else if (ele_src->head.htype == BM_EDGE) {
@@ -668,7 +680,8 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
                                   obedit,
                                   op_params,
                                   reinterpret_cast<BMEdge *>(ele_src),
-                                  reinterpret_cast<BMEdge *>(ele_dst));
+                                  reinterpret_cast<BMEdge *>(ele_dst),
+                                  select_flag);
     ok = true;
   }
   else if (ele_src->head.htype == BM_FACE) {
@@ -676,7 +689,8 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
                                   obedit,
                                   op_params,
                                   reinterpret_cast<BMFace *>(ele_src),
-                                  reinterpret_cast<BMFace *>(ele_dst));
+                                  reinterpret_cast<BMFace *>(ele_dst),
+                                  select_flag);
     ok = true;
   }
 
@@ -717,6 +731,75 @@ static BMElem *edbm_elem_active_elem_or_face_get(BMesh *bm)
   }
 
   return ele;
+}
+
+static void edbm_shortest_path_symmetry_update(Scene *scene,
+                                               Object *obedit,
+                                               const PathSelectParams *op_params,
+                                               BMElem *ele_src,
+                                               BMElem *ele_dst)
+{
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  Mesh *mesh = id_cast<Mesh *>(obedit->data);
+  if (mesh && mesh->symmetry != 0) {
+    uchar htype = 0;
+    if (em->selectmode & SCE_SELECT_VERTEX) {
+      htype = BM_VERT;
+    }
+    else if (em->selectmode & SCE_SELECT_EDGE) {
+      htype = BM_EDGE;
+    }
+    else if (em->selectmode & SCE_SELECT_FACE) {
+      htype = BM_FACE;
+    }
+
+    std::optional<EditMeshSymmetryHelper> sym_helper = EditMeshSymmetryHelper::create_if_needed(
+        obedit, htype);
+    if (sym_helper.has_value()) {
+      Vector<BMElem *> mirrored_srcs;
+      Vector<BMElem *> mirrored_dsts;
+      if (htype == BM_VERT) {
+        sym_helper->apply_on_mirror_verts(
+            (BMVert *)ele_src, [&](BMVert *v_mirr) { mirrored_srcs.append((BMElem *)v_mirr); });
+        sym_helper->apply_on_mirror_verts(
+            (BMVert *)ele_dst, [&](BMVert *v_mirr) { mirrored_dsts.append((BMElem *)v_mirr); });
+      }
+      else if (htype == BM_EDGE) {
+        sym_helper->apply_on_mirror_edges(
+            (BMEdge *)ele_src, [&](BMEdge *e_mirr) { mirrored_srcs.append((BMElem *)e_mirr); });
+        sym_helper->apply_on_mirror_edges(
+            (BMEdge *)ele_dst, [&](BMEdge *e_mirr) { mirrored_dsts.append((BMElem *)e_mirr); });
+      }
+      else if (htype == BM_FACE) {
+        sym_helper->apply_on_mirror_faces(
+            (BMFace *)ele_src, [&](BMFace *f_mirr) { mirrored_srcs.append((BMElem *)f_mirr); });
+        sym_helper->apply_on_mirror_faces(
+            (BMFace *)ele_dst, [&](BMFace *f_mirr) { mirrored_dsts.append((BMElem *)f_mirr); });
+      }
+
+      if (mirrored_srcs.is_empty() && !mirrored_dsts.is_empty()) {
+        for (int j = 0; j < mirrored_dsts.size(); j++) {
+          mirrored_srcs.append(ele_src);
+        }
+      }
+      if (mirrored_dsts.is_empty() && !mirrored_srcs.is_empty()) {
+        for (int j = 0; j < mirrored_srcs.size(); j++) {
+          mirrored_dsts.append(ele_dst);
+        }
+      }
+
+      const int num_mirrors = std::min(mirrored_srcs.size(), mirrored_dsts.size());
+      for (int i = 0; i < num_mirrors; i++) {
+        BMElem *m_src = mirrored_srcs[i];
+        BMElem *m_dst = mirrored_dsts[i];
+
+        if (m_src && m_dst && (m_src != ele_src || m_dst != ele_dst)) {
+          edbm_shortest_path_pick_ex(
+              scene, obedit, op_params, m_src, m_dst, BM_ELEM_MIRRORED_SELECT);
+        }
+      }
+    }
+  }
 }
 
 static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
@@ -790,6 +873,8 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  edbm_shortest_path_symmetry_update(vc.scene, vc.obedit, &op_params, ele_src, ele_dst);
+
   BKE_view_layer_synced_ensure(*vc.bmain, vc.scene, vc.view_layer);
   if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
     ed::object::base_activate(C, basact);
@@ -830,6 +915,8 @@ static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op
   if (!edbm_shortest_path_pick_ex(scene, obedit, &op_params, ele_src, ele_dst)) {
     return OPERATOR_CANCELLED;
   }
+
+  edbm_shortest_path_symmetry_update(scene, obedit, &op_params, ele_src, ele_dst);
 
   return OPERATOR_FINISHED;
 }
@@ -951,6 +1038,8 @@ static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *
       path_select_params_from_op(op, scene->toolsettings, &op_params);
 
       edbm_shortest_path_pick_ex(scene, obedit, &op_params, ele_src, ele_dst);
+
+      edbm_shortest_path_symmetry_update(scene, obedit, &op_params, ele_src, ele_dst);
 
       found_valid_elements = true;
     }

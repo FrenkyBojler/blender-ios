@@ -154,13 +154,15 @@ static bool recount_totsels_are_ok(BMesh *bm)
 /** \name BMesh helper functions for selection & hide flushing.
  * \{ */
 
-static bool bm_vert_is_edge_select_any_other(const BMVert *v, const BMEdge *e_first)
+static bool bm_vert_is_edge_select_any_other(const BMVert *v,
+                                             const BMEdge *e_first,
+                                             const short hflag = BM_ELEM_SELECT)
 {
   const BMEdge *e_iter = e_first;
 
   /* start by stepping over the current edge */
   while ((e_iter = bmesh_disk_edge_next(e_iter, v)) != e_first) {
-    if (BM_elem_flag_test(e_iter, BM_ELEM_SELECT)) {
+    if (BM_elem_flag_test(e_iter, hflag)) {
       return true;
     }
   }
@@ -197,13 +199,13 @@ static bool bm_vert_is_edge_visible_any(const BMVert *v)
   return false;
 }
 
-static bool bm_edge_is_face_select_any_other(BMLoop *l_first)
+static bool bm_edge_is_face_select_any_other(BMLoop *l_first, const short hflag = BM_ELEM_SELECT)
 {
   const BMLoop *l_iter = l_first;
 
   /* start by stepping over the current face */
   while ((l_iter = l_iter->radial_next) != l_first) {
-    if (BM_elem_flag_test(l_iter->f, BM_ELEM_SELECT)) {
+    if (BM_elem_flag_test(l_iter->f, hflag)) {
       return true;
     }
   }
@@ -619,7 +621,7 @@ void BM_mesh_select_flush_from_verts(BMesh *bm, const bool select)
   recount_totsels(bm);
 }
 
-void BM_vert_select_set(BMesh *bm, BMVert *v, const bool select)
+void BM_vert_select_set(BMesh *bm, BMVert *v, const bool select, const short hflag)
 {
   BLI_assert(v->head.htype == BM_VERT);
 
@@ -628,20 +630,24 @@ void BM_vert_select_set(BMesh *bm, BMVert *v, const bool select)
   }
 
   if (select) {
-    if (!BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(v, BM_ELEM_SELECT);
-      bm->totvertsel += 1;
+    if (!BM_elem_flag_test(v, hflag)) {
+      BM_elem_flag_enable(v, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totvertsel += 1;
+      }
     }
   }
   else {
-    if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-      bm->totvertsel -= 1;
-      BM_elem_flag_disable(v, BM_ELEM_SELECT);
+    if (BM_elem_flag_test(v, hflag)) {
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totvertsel -= 1;
+      }
+      BM_elem_flag_disable(v, hflag);
     }
   }
 }
 
-void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
+void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select, const short hflag)
 {
   BLI_assert(e->head.htype == BM_EDGE);
 
@@ -650,17 +656,21 @@ void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
   }
 
   if (select) {
-    if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(e, BM_ELEM_SELECT);
-      bm->totedgesel += 1;
+    if (!BM_elem_flag_test(e, hflag)) {
+      BM_elem_flag_enable(e, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totedgesel += 1;
+      }
     }
-    BM_vert_select_set(bm, e->v1, true);
-    BM_vert_select_set(bm, e->v2, true);
+    BM_vert_select_set(bm, e->v1, true, hflag);
+    BM_vert_select_set(bm, e->v2, true, hflag);
   }
   else {
-    if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e, BM_ELEM_SELECT);
-      bm->totedgesel -= 1;
+    if (BM_elem_flag_test(e, hflag)) {
+      BM_elem_flag_disable(e, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totedgesel -= 1;
+      }
     }
 
     if ((bm->selectmode & SCE_SELECT_VERTEX) == 0) {
@@ -669,19 +679,19 @@ void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
       /* check if the vert is used by a selected edge */
       for (i = 0; i < 2; i++) {
         BMVert *v = *((&e->v1) + i);
-        if (bm_vert_is_edge_select_any_other(v, e) == false) {
-          BM_vert_select_set(bm, v, false);
+        if (bm_vert_is_edge_select_any_other(v, e, hflag) == false) {
+          BM_vert_select_set(bm, v, false, hflag);
         }
       }
     }
     else {
-      BM_vert_select_set(bm, e->v1, false);
-      BM_vert_select_set(bm, e->v2, false);
+      BM_vert_select_set(bm, e->v1, false, hflag);
+      BM_vert_select_set(bm, e->v2, false, hflag);
     }
   }
 }
 
-void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
+void BM_face_select_set(BMesh *bm, BMFace *f, const bool select, const short hflag)
 {
   BMLoop *l_iter;
   BMLoop *l_first;
@@ -693,22 +703,26 @@ void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
   }
 
   if (select) {
-    if (!BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(f, BM_ELEM_SELECT);
-      bm->totfacesel += 1;
+    if (!BM_elem_flag_test(f, hflag)) {
+      BM_elem_flag_enable(f, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totfacesel += 1;
+      }
     }
 
     l_iter = l_first = BM_FACE_FIRST_LOOP(f);
     do {
-      BM_vert_select_set(bm, l_iter->v, true);
-      BM_edge_select_set(bm, l_iter->e, true);
+      BM_vert_select_set(bm, l_iter->v, true, hflag);
+      BM_edge_select_set(bm, l_iter->e, true, hflag);
     } while ((l_iter = l_iter->next) != l_first);
   }
   else {
 
-    if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(f, BM_ELEM_SELECT);
-      bm->totfacesel -= 1;
+    if (BM_elem_flag_test(f, hflag)) {
+      BM_elem_flag_disable(f, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totfacesel -= 1;
+      }
     }
     /**
      * \note This allows a temporarily invalid state - where for eg
@@ -721,8 +735,8 @@ void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
     if (bm->selectmode & SCE_SELECT_VERTEX) {
       l_iter = l_first = BM_FACE_FIRST_LOOP(f);
       do {
-        BM_vert_select_set(bm, l_iter->v, false);
-        BM_edge_select_set_noflush(bm, l_iter->e, false);
+        BM_vert_select_set(bm, l_iter->v, false, hflag);
+        BM_edge_select_set_noflush(bm, l_iter->e, false, hflag);
       } while ((l_iter = l_iter->next) != l_first);
     }
     else {
@@ -733,14 +747,14 @@ void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
       if (bm->selectmode & SCE_SELECT_EDGE) {
         l_iter = l_first = BM_FACE_FIRST_LOOP(f);
         do {
-          BM_edge_select_set_noflush(bm, l_iter->e, false);
+          BM_edge_select_set_noflush(bm, l_iter->e, false, hflag);
         } while ((l_iter = l_iter->next) != l_first);
       }
       else {
         l_iter = l_first = BM_FACE_FIRST_LOOP(f);
         do {
-          if (bm_edge_is_face_select_any_other(l_iter) == false) {
-            BM_edge_select_set_noflush(bm, l_iter->e, false);
+          if (bm_edge_is_face_select_any_other(l_iter, hflag) == false) {
+            BM_edge_select_set_noflush(bm, l_iter->e, false, hflag);
           }
         } while ((l_iter = l_iter->next) != l_first);
       }
@@ -748,8 +762,8 @@ void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
       /* flush down to verts */
       l_iter = l_first = BM_FACE_FIRST_LOOP(f);
       do {
-        if (bm_vert_is_edge_select_any_other(l_iter->v, l_iter->e) == false) {
-          BM_vert_select_set(bm, l_iter->v, false);
+        if (bm_vert_is_edge_select_any_other(l_iter->v, l_iter->e, hflag) == false) {
+          BM_vert_select_set(bm, l_iter->v, false, hflag);
         }
       } while ((l_iter = l_iter->next) != l_first);
     }
@@ -760,7 +774,7 @@ void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
 /** \name Non Flushing Versions Element Selection
  * \{ */
 
-void BM_edge_select_set_noflush(BMesh *bm, BMEdge *e, const bool select)
+void BM_edge_select_set_noflush(BMesh *bm, BMEdge *e, const bool select, const short hflag)
 {
   BLI_assert(e->head.htype == BM_EDGE);
 
@@ -769,20 +783,24 @@ void BM_edge_select_set_noflush(BMesh *bm, BMEdge *e, const bool select)
   }
 
   if (select) {
-    if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(e, BM_ELEM_SELECT);
-      bm->totedgesel += 1;
+    if (!BM_elem_flag_test(e, hflag)) {
+      BM_elem_flag_enable(e, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totedgesel += 1;
+      }
     }
   }
   else {
-    if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e, BM_ELEM_SELECT);
-      bm->totedgesel -= 1;
+    if (BM_elem_flag_test(e, hflag)) {
+      BM_elem_flag_disable(e, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totedgesel -= 1;
+      }
     }
   }
 }
 
-void BM_face_select_set_noflush(BMesh *bm, BMFace *f, const bool select)
+void BM_face_select_set_noflush(BMesh *bm, BMFace *f, const bool select, const short hflag)
 {
   BLI_assert(f->head.htype == BM_FACE);
 
@@ -791,15 +809,19 @@ void BM_face_select_set_noflush(BMesh *bm, BMFace *f, const bool select)
   }
 
   if (select) {
-    if (!BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-      BM_elem_flag_enable(f, BM_ELEM_SELECT);
-      bm->totfacesel += 1;
+    if (!BM_elem_flag_test(f, hflag)) {
+      BM_elem_flag_enable(f, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totfacesel += 1;
+      }
     }
   }
   else {
-    if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(f, BM_ELEM_SELECT);
-      bm->totfacesel -= 1;
+    if (BM_elem_flag_test(f, hflag)) {
+      BM_elem_flag_disable(f, hflag);
+      if (hflag == BM_ELEM_SELECT) {
+        bm->totfacesel -= 1;
+      }
     }
   }
 }

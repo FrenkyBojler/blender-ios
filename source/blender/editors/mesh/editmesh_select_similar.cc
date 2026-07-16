@@ -152,7 +152,7 @@ static void face_to_plane(const Object *ob, BMFace *face, float r_plane[4])
  */
 static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 {
-  const Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -457,7 +457,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      EDBM_selectmode_flush(em);
+      EDBM_selectmode_flush_mirrored(bmain, em);
       EDBM_uvselect_clear(em);
 
       EDBMUpdate_Params params{};
@@ -484,7 +484,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
           BM_face_select_set(bm, face, true);
         }
       }
-      EDBM_selectmode_flush(em);
+      EDBM_selectmode_flush_mirrored(bmain, em);
       EDBM_uvselect_clear(em);
 
       EDBMUpdate_Params params{};
@@ -560,7 +560,7 @@ static bool edge_data_value_set(BMEdge *edge, const int hflag, int *r_value)
  */
 static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 {
-  const Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -902,7 +902,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      EDBM_selectmode_flush(em);
+      EDBM_selectmode_flush_mirrored(bmain, em);
       EDBM_uvselect_clear(em);
 
       EDBMUpdate_Params params{};
@@ -929,7 +929,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
           BM_edge_select_set(bm, edge, true);
         }
       }
-      EDBM_selectmode_flush(em);
+      EDBM_selectmode_flush_mirrored(bmain, em);
       EDBM_uvselect_clear(em);
 
       EDBMUpdate_Params params{};
@@ -954,7 +954,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 {
-  const Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1256,7 +1256,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      EDBM_selectmode_flush(em);
+      EDBM_selectmode_flush_mirrored(bmain, em);
       EDBMUpdate_Params params{};
       params.calc_looptris = false;
       params.calc_normals = false;

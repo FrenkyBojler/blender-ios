@@ -77,25 +77,25 @@ void BM_mesh_elem_hflag_disable_all(BMesh *bm, char htype, char hflag, bool resp
  * Changes selection state of a single vertex
  * in a mesh
  */
-void BM_vert_select_set(BMesh *bm, BMVert *v, bool select);
+void BM_vert_select_set(BMesh *bm, BMVert *v, bool select, short hflag = BM_ELEM_SELECT);
 /**
  * \brief Select Edge
  *
  * Changes selection state of a single edge in a mesh.
  */
-void BM_edge_select_set(BMesh *bm, BMEdge *e, bool select);
+void BM_edge_select_set(BMesh *bm, BMEdge *e, bool select, short hflag = BM_ELEM_SELECT);
 /**
  * \brief Select Face
  *
  * Changes selection state of a single
  * face in a mesh.
  */
-void BM_face_select_set(BMesh *bm, BMFace *f, bool select);
+void BM_face_select_set(BMesh *bm, BMFace *f, bool select, short hflag = BM_ELEM_SELECT);
 
 /* Lower level functions which don't do flushing. */
 
-void BM_edge_select_set_noflush(BMesh *bm, BMEdge *e, bool select);
-void BM_face_select_set_noflush(BMesh *bm, BMFace *f, bool select);
+void BM_edge_select_set_noflush(BMesh *bm, BMEdge *e, bool select, short hflag = BM_ELEM_SELECT);
+void BM_face_select_set_noflush(BMesh *bm, BMFace *f, bool select, short hflag = BM_ELEM_SELECT);
 
 /**
  * Return true when there are a mix of selected/unselected elements.

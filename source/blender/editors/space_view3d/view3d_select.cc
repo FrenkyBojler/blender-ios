@@ -912,7 +912,7 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
   }
 
   if (data.is_changed) {
-    EDBM_selectmode_flush(vc->em);
+    EDBM_selectmode_flush_mirrored(vc->bmain, vc->em);
   }
 
   if (data.uv_selctx) {
@@ -4145,7 +4145,7 @@ static bool do_mesh_box_select(const ViewContext *vc,
   }
 
   if (data.is_changed) {
-    EDBM_selectmode_flush(vc->em);
+    EDBM_selectmode_flush_mirrored(vc->bmain, vc->em);
   }
 
   if (data.uv_selctx) {
@@ -4895,7 +4895,7 @@ static bool mesh_circle_select(const ViewContext *vc,
   changed |= data.is_changed;
 
   if (changed) {
-    BM_mesh_select_mode_flush_ex(vc->em->bm, vc->em->selectmode, BMSelectFlushFlag::None);
+    EDBM_selectmode_flush_mirrored(vc->bmain, vc->em);
   }
 
   if (data.uv_selctx) {
