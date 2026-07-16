@@ -186,12 +186,34 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
       last per plan §3 order of work).
 
 ### Phase B — the five blocker branches
-- [ ] B1 `mode_compat_test` custom branch (`bl_object_types` check).
-- [ ] B2 `object_mode_op_string` + generic `OBJECT_OT_custom_mode_toggle`.
-- [ ] B3 `ed_object_mode_generic_exit_ex` custom branch (forced exit safe).
-- [ ] B4 `'CUSTOM'` enum item + dynamic `object_mode_set_itemf` items +
-      `Object.custom_mode` + `space_view3d.py` header fix.
-- [ ] B5 `CTX_MODE_CUSTOM` + dynamic `CTX_data_mode_string` (panels/tools key).
+- [x] B1 `mode_compat_test` custom branch: looks up the pending target (see
+      B4) or `ob->custom_mode_id`, checks `bl_object_types` via
+      `BKE_object_mode_type_poll_object`.
+- [x] B2 `object_mode_op_string` branch + generic
+      `OBJECT_OT_custom_mode_toggle` (`object_edit.cc`): optional `mode_id`
+      string property; target resolution = property → pending → previous
+      idname; `mode_compat_set` exits other modes; curves-toggle boilerplate
+      (toolsystem update, DEG sync tag, msg-bus publish, ND_MODE notifier).
+- [x] B3 `ed_object_mode_generic_exit_ex` custom branch (null-context exit
+      trampoline; keeps `custom_mode_id` as restore info) +
+      `custom_mode_exit_all()` used by RNA unregister to force-exit.
+- [x] B4 `'CUSTOM'` static item in `rna_enum_object_mode_items` +
+      `rna_enum_context_mode_items`; `object_mode_set_itemf` appends one item
+      per registered mode (identifier = mangled `srna_idname`, 1-based
+      registry index encoded in value high bits, decoded in
+      `object_mode_set_exec` into the ED-level *pending target* — the enum
+      value alone can't carry the idname); read-only `Object.custom_mode`;
+      header shows the idname for 'CUSTOM'. Plain `mode_set(mode='CUSTOM')`
+      re-enters the previous custom mode.
+- [x] B5 `CTX_MODE_CUSTOM` slot + `data_mode_strings` "custom" fallback;
+      `CTX_data_mode_string` returns the registered idname (panels/keymaps
+      key off it). Note: `bpy.context.mode` is the context *enum* → 'CUSTOM';
+      the dotted idname is the context *string* (bl_context matching).
+- Verified headless (7 scenarios): toggle enter/exit with callbacks,
+  `mode_set` 'CUSTOM'/'OBJECT'/dynamic-identifier/EDIT-switch-exits-first,
+  and unregister-during-mode force-exit. Known cosmetic TODO: entering a
+  custom mode logs a missing `builtin.select_box` tool warning (no tools
+  registered for the mode yet — C2 territory).
 
 ### Phase C — keymap, tools, flush
 - [ ] C1 Dynamic keymap handler in `view3d_main_region_init` + hierarchy entry.

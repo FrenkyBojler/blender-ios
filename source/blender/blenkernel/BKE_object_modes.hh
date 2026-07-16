@@ -102,7 +102,7 @@ void BKE_object_mode_type_remove(ObjectModeType *mt);
 ObjectModeType *BKE_object_mode_type_find(const char *idname);
 
 /** The registry, for iteration (mode dropdown enum items etc.). */
-const ListBaseT<ObjectModeType> &BKE_object_mode_types_get();
+ListBaseT<ObjectModeType> &BKE_object_mode_types_get();
 
 /** True when `ob`'s type is in `mt`'s supported object-type mask. */
 bool BKE_object_mode_type_poll_object(const ObjectModeType *mt, const Object *ob);

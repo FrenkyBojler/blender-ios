@@ -49,7 +49,7 @@ ObjectModeType *BKE_object_mode_type_find(const char *idname)
   return nullptr;
 }
 
-const ListBaseT<ObjectModeType> &BKE_object_mode_types_get()
+ListBaseT<ObjectModeType> &BKE_object_mode_types_get()
 {
   return g_object_mode_types;
 }

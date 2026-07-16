@@ -29,6 +29,8 @@
 
 #  include "RNA_access.hh"
 
+#  include "ED_object.hh"
+
 #  include "UI_interface_c.hh"
 
 #  ifdef WITH_PYTHON
@@ -130,8 +132,11 @@ static bool rna_ObjectModeType_unregister(Main *bmain, StructRNA *type)
     return false;
   }
 
-  /* TODO(P2/B3): force-exit every object using this mode before the type
-   * goes away (needs the editor-level exit path from object_modes.cc). */
+  /* Force-exit every object still in this mode: after unregistration the
+   * callbacks are gone and the mode bit would dangle. */
+  if (bmain) {
+    ed::object::custom_mode_exit_all(bmain, mt);
+  }
 
   ui::refresh_for_srna_unregister(bmain, type);
 

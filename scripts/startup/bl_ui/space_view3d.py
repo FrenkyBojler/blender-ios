@@ -846,10 +846,16 @@ class VIEW3D_HT_header(Header):
         act_mode_item = bpy.types.Object.bl_rna.properties["mode"].enum_items[object_mode]
         act_mode_i18n_context = bpy.types.Object.bl_rna.properties["mode"].translation_context
 
+        mode_text = iface_(act_mode_item.name, act_mode_i18n_context)
+        if object_mode == 'CUSTOM' and obj is not None and obj.custom_mode:
+            # Addon-registered mode: the generic item only says "Custom",
+            # show the registered idname instead.
+            mode_text = obj.custom_mode
+
         sub = row.row(align=True)
         sub.operator_menu_enum(
             "object.mode_set", "mode",
-            text=iface_(act_mode_item.name, act_mode_i18n_context),
+            text=mode_text,
             icon=act_mode_item.icon,
         )
         del act_mode_item
