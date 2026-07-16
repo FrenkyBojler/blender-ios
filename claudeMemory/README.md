@@ -26,6 +26,8 @@ against the source at the start of the project.
 | `design/` | Design proposals for this integration. |
 | `plans/` | Implementation plans. One file per plan. |
 | `research/` | Research notes and investigations. |
+| `scripts/` | Dev tooling: `bl_env.bat` (build wrapper), `remote_repl.py` (main-thread-safe TCP REPL for interactive Blender). |
+| `tests/` | Headless regression suites. `addon_regression.py` runs the whole sculpt-mode addon vertical against a built Blender (see its docstring). |
 
 ---
 
