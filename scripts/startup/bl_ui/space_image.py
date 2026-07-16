@@ -1771,21 +1771,22 @@ class IMAGE_PT_overlay_text(Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
+        layout.use_property_split = False
 
         sima = context.space_data
         uvedit = sima.uv_editor
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_metadata", text="Metadata")
+        row = layout.row()
+        row.prop(uvedit, "show_metadata", text="Metadata")
 
         if (
             (sima.mode in {'MASK', 'VIEW'}) and
             (sima.image.source == 'VIEWER') and
             (sima.image.type == 'COMPOSITING')
         ):
-            layout.prop(overlay, "show_text_info", text="Dimensions")
+            row.prop(overlay, "show_text_info", text="Dimensions")
 
 
 class IMAGE_PT_overlay_mask(MASK_PT_display, Panel):
