@@ -245,9 +245,20 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
       the mode across the Main swap.
 
 ### Verification (per plan §4)
-- [ ] Test-addon callback-order matrix (enter/exit/switch/close/disable).
-- [ ] Memfile undo + save flush contract holds; header/panels/keymap live.
-- [ ] ASAN + `WITH_UNITY_BUILD=OFF` clean build.
+- [x] Test-addon callback-order matrix: enter/exit via toggle + `mode_set`
+      ('CUSTOM' / per-mode identifier / OBJECT), EDIT-switch exits first,
+      unregister-during-mode force-exit, save/reload restore — headless
+      scripts in the session scratchpad (promote into a shipped test with
+      P4's addon skeleton).
+- [x] Memfile undo + save flush contract: flush on save (headless) and
+      refresh on real undo (interactive remote_repl) verified. Header enum
+      renders (KeyError fixed by the static 'CUSTOM' item); panels/keymap key
+      off `CTX_data_mode_string` — interactive panel/keymap-event check rides
+      P4's addon (which registers real panels + keymap items).
+- [ ] Object/workspace *GUI* switch matrix + addon-disable while in mode in a
+      live session (generic-exit branch is unit-verified; GUI pass pending).
+- [ ] ASAN + `WITH_UNITY_BUILD=OFF` clean build (run before the P2 work is
+      called done-done; new headers + DNA touched).
 
 ---
 
