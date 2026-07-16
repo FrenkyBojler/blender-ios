@@ -4308,6 +4308,7 @@ void LayoutItemPanelHeader::resolve_impl()
 
 void LayoutItemPanelHeader::resolve_dynamic_height()
 {
+  Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelHeader &header = panel->runtime->layout_panels.headers[this->index];
   header.start_y = float(y_);
@@ -4329,6 +4330,7 @@ void LayoutItemPanelBody::resolve_impl()
 
 void LayoutItemPanelBody::resolve_dynamic_height()
 {
+  Layout::resolve_dynamic_height();
   Panel *panel = this->root_panel();
   LayoutPanelBody &body = panel->runtime->layout_panels.bodies[this->index];
   const int space = LayoutInternal::layout_space_get(this->parent_);
