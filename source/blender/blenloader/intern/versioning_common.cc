@@ -435,6 +435,7 @@ void version_node_socket_index_animdata(Main *bmain,
                                         const int socket_index_offset,
                                         const int total_number_of_sockets)
 {
+
   /* The for loop for the input ids is at the top level otherwise we lose the animation
    * keyframe data. Not sure what causes that, so I (Sybren) moved the code here from
    * versioning_290.cc as-is (structure-wise). */
@@ -479,6 +480,7 @@ void version_node_socket_index_animdata(Main *bmain,
                                         const int socket_index_offset,
                                         const int total_number_of_sockets)
 {
+
   /* See preceeding definition of `version_node_socket_index_animdata` for the reasoning of why the
    * input ids for loop is at the top level.*/
   for (int input_index = total_number_of_sockets - 1; input_index >= socket_index_orig;
