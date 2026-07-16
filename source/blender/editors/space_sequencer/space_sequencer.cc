@@ -889,8 +889,8 @@ static std::optional<rcti> sequencer_preview_region_cursor_ime(wmWindow *win,
                                                                const ScrArea * /*area*/,
                                                                const ARegion *region)
 {
-  WorkSpace *workspace = WM_window_get_active_workspace(win);
-  Scene *scene = workspace->sequencer_scene;
+  const WorkSpace *workspace = WM_window_get_active_workspace(win);
+  const Scene *scene = workspace->sequencer_scene;
   if (!scene) {
     return std::nullopt;
   }
