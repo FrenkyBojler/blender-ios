@@ -535,7 +535,7 @@ void LayoutInternal::layout_translate_y(Layout *layout, int delta)
 static void item_translate_y(Item *item, const int delta)
 {
   if (item->type() == ItemType::Button) {
-    auto *bitem = static_cast<ButtonItem *>(item);
+    const auto *bitem = static_cast<const ButtonItem *>(item);
     bitem->but->rect.ymin += delta;
     bitem->but->rect.ymax += delta;
   }
@@ -4309,7 +4309,7 @@ void LayoutItemPanelHeader::resolve_impl()
 void LayoutItemPanelHeader::resolve_dynamic_height()
 {
   Layout::resolve_dynamic_height();
-  Panel *panel = this->root_panel();
+  const Panel *panel = this->root_panel();
   LayoutPanelHeader &header = panel->runtime->layout_panels.headers[this->index];
   header.start_y = float(y_);
   header.end_y = float(y_ + h_);
@@ -4331,7 +4331,7 @@ void LayoutItemPanelBody::resolve_impl()
 void LayoutItemPanelBody::resolve_dynamic_height()
 {
   Layout::resolve_dynamic_height();
-  Panel *panel = this->root_panel();
+  const Panel *panel = this->root_panel();
   LayoutPanelBody &body = panel->runtime->layout_panels.bodies[this->index];
   const int space = LayoutInternal::layout_space_get(this->parent_);
   body.start_y = float(y_ - space);
@@ -5757,23 +5757,23 @@ void Layout::resolve_dynamic_height()
   {
     row_major = false;
     cols = flow->totcol;
-    rows = (flow->items().size() / std::max(cols, 1));
+    rows = std::ceil(float(flow->items().size() / float(std::max(cols, 1))));
   }
-  for (int row : IndexRange(rows)) {
+  for (const int row : IndexRange(rows)) {
     int max_row_heigth_new = 0;
     int max_row_heigth = 0;
-    for (int col : IndexRange(cols)) {
-      int i = (row_major ? (row * cols + col) : (col * rows + row));
+    for (const int col : IndexRange(cols)) {
+      const int i = (row_major ? (row * cols + col) : (col * rows + row));
       if (i >= this->items_.size()) {
         continue;
       }
       Item *subitem = this->items_[i];
-      int2 size = subitem->size();
+      const int2 size = subitem->size();
       max_row_heigth = std::max(max_row_heigth, size.y);
       item_translate_y(subitem, -y_offs);
 
       if (subitem->type() == ItemType::Button) {
-        auto *sub_bitem = static_cast<ButtonItem *>(subitem);
+        const auto *sub_bitem = static_cast<const ButtonItem *>(subitem);
         if (button_label_is_multiline(sub_bitem->but)) {
           resolve_label_multiline(static_cast<ButtonLabel *>(sub_bitem->but));
         }
@@ -5781,7 +5781,7 @@ void Layout::resolve_dynamic_height()
       else {
         static_cast<Layout *>(subitem)->resolve_dynamic_height();
       }
-      int2 new_size = subitem->size();
+      const int2 new_size = subitem->size();
       max_row_heigth_new = std::max(max_row_heigth_new, new_size.y);
     }
     y_offs += std::max(max_row_heigth_new - max_row_heigth, 0);
