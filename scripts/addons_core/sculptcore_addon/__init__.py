@@ -32,6 +32,7 @@ class SculptCoreMode(bpy.types.ObjectModeType):
     bl_icon = 'SCULPTMODE_HLT'
     bl_object_types = {'MESH'}
     bl_keymap = "SculptCore Mode"
+    bl_default_tool = "sculptcore.brush"
     # Inert until the wrapped undo type lands (undo-integration plan);
     # Tier-1 sessions ride memfile undo through flush/refresh.
     bl_use_custom_undo = False

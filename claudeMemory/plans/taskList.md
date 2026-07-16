@@ -345,11 +345,12 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       mode, True in mode), addon disable/re-enable is clean. Remaining:
       full keymap (smooth on Shift, radius/strength radials), invert
       already via Ctrl, pressure (M4), cursor overlay (GPU — GUI only).
-      **Known cosmetic gap:** entering the mode still logs
-      `builtin.select_box not found` — `toolsystem_default_tool` receives
-      only the `CTX_MODE_CUSTOM` enum, not the object, so it can't resolve
-      the per-mode default tool; needs an object-aware default-tool lookup
-      (deferred).
+      The former `builtin.select_box not found` warning is fixed: a custom
+      mode now declares `bl_default_tool` (new `ObjectModeType.default_tool`
+      field + RNA prop), and `toolsystem_reinit_ensure_toolref` resolves it
+      for `CTX_MODE_CUSTOM` via `BKE_object_custom_mode_default_tool(ob)`
+      before the generic fallback. `SculptCoreMode.bl_default_tool =
+      "sculptcore.brush"`; verified the warning is gone on mode entry.
 - [ ] S4 Lifecycle hardening: object/workspace switch, file open/close, addon
       disable mid-mode, refresh generations; ASAN session.
 - [ ] S5 Integration points behind capability checks: draw provider (P5),

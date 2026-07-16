@@ -52,6 +52,9 @@ struct ObjectModeType {
   uint64_t object_type_mask;
   /** Keymap name ensured at registration; empty for no keymap. */
   char keymap[64];
+  /** Idname of the tool made active on mode entry (the tool system's default
+   * for the mode); empty falls back to the generic default. */
+  char default_tool[64];
   /** #eObjectModeTypeFlag. */
   int flag;
 
@@ -100,6 +103,10 @@ void BKE_object_mode_type_remove(ObjectModeType *mt);
 
 /** Find a registered type by idname; null when not registered. */
 ObjectModeType *BKE_object_mode_type_find(const char *idname);
+
+/** The default-tool idname for the object's active custom mode, or null when
+ * the object is not in a registered custom mode / the mode declares none. */
+const char *BKE_object_custom_mode_default_tool(const Object *ob);
 
 /** The registry, for iteration (mode dropdown enum items etc.). */
 ListBaseT<ObjectModeType> &BKE_object_mode_types_get();

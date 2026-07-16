@@ -49,6 +49,18 @@ ObjectModeType *BKE_object_mode_type_find(const char *idname)
   return nullptr;
 }
 
+const char *BKE_object_custom_mode_default_tool(const Object *ob)
+{
+  if (ob == nullptr || (ob->mode & OB_MODE_CUSTOM) == 0 || ob->custom_mode_id[0] == '\0') {
+    return nullptr;
+  }
+  const ObjectModeType *mt = BKE_object_mode_type_find(ob->custom_mode_id);
+  if (mt == nullptr || mt->default_tool[0] == '\0') {
+    return nullptr;
+  }
+  return mt->default_tool;
+}
+
 ListBaseT<ObjectModeType> &BKE_object_mode_types_get()
 {
   return g_object_mode_types;

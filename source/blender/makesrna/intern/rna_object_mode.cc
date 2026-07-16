@@ -364,6 +364,14 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Keymap", "Name of the keymap active while the mode is active (empty for none)");
 
+  prop = RNA_def_property(srna, "bl_default_tool", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "default_tool");
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Default Tool",
+      "Identifier of the tool made active when entering the mode (empty uses the generic default)");
+
   prop = RNA_def_property(srna, "bl_use_custom_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", OBJECT_MODE_TYPE_USE_CUSTOM_UNDO);
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
