@@ -60,6 +60,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "NOD_defaults.hh"
+#include "NOD_shader.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1170,17 +1171,53 @@ static wmOperatorStatus node_add_material_exec(bContext *C, wmOperator *op)
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  bNode *material_node = add_static_node(*C, GEO_NODE_INPUT_MATERIAL, snode->runtime->cursor);
-  if (!material_node) {
-    BKE_report(op->reports, RPT_WARNING, "Could not add material");
-    return OPERATOR_CANCELLED;
+  switch (ntree->type) {
+    case NTREE_GEOMETRY: {
+      bNode *material_node = add_static_node(*C, GEO_NODE_INPUT_MATERIAL, snode->runtime->cursor);
+      if (!material_node) {
+        BKE_report(op->reports, RPT_WARNING, "Could not add material");
+        return OPERATOR_CANCELLED;
+      }
+
+      material_node->id = &material->id;
+      id_us_plus(&material->id);
+
+      BKE_main_ensure_invariants(*bmain, ntree->id);
+      DEG_relations_tag_update(bmain);
+      break;
+    }
+    case NTREE_SHADER: {
+      // todo(habib): can this happen when linking fails?
+      BLI_assert(material->nodetree != nullptr);
+      bNodeTree *ngroup = bke::node_tree_add_tree(bmain, "mat2group", ntree->idname);
+      Span<bNode *> nodes = material->nodetree->all_nodes();
+      const NodeSetCopy copied_nodes = NodeSetCopy::from_nodes(
+          *bmain, *material->nodetree, material->nodetree->all_nodes(), *ngroup);
+
+      bNode *gnode = add_node(*C, ntreeType_Shader->group_idname, snode->runtime->cursor);
+      gnode->id = id_cast<ID *>(ngroup);
+
+      NodeSetInterfaceParams params;
+      params.skip_hidden = false;
+      params.skip_unconnected = false;
+      params.use_unique_input = false;
+      params.use_unique_output = false;
+      // todo(habib): skip outputs
+      const NodeTreeInterfaceMapping io_mapping = build_node_set_interface(
+          params, *ntree, nodes, *ngroup);
+      connect_copied_nodes_to_interface(*C, copied_nodes, io_mapping);
+      // todo(habib): replace Material Output with Group Output
+
+      // todo(habib): verify notifiers, tags
+      WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
+      BKE_main_ensure_invariants(*bmain, ntree->id);
+      BKE_main_ensure_invariants(*bmain, ngroup->id);
+      DEG_relations_tag_update(bmain);
+      break;
+    }
+    default:
+      BLI_assert_unreachable();
   }
-
-  material_node->id = &material->id;
-  id_us_plus(&material->id);
-
-  BKE_main_ensure_invariants(*bmain, ntree->id);
-  DEG_relations_tag_update(bmain);
 
   return OPERATOR_FINISHED;
 }
@@ -1206,7 +1243,7 @@ static wmOperatorStatus node_add_material_invoke(bContext *C, wmOperator *op, co
 static bool node_add_material_poll(bContext *C)
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
-  return ED_operator_node_editable(C) && ELEM(snode->nodetree->type, NTREE_GEOMETRY);
+  return ED_operator_node_editable(C) && ELEM(snode->nodetree->type, NTREE_GEOMETRY, NTREE_SHADER);
 }
 
 void NODE_OT_add_material(wmOperatorType *ot)
