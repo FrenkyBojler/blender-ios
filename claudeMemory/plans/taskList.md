@@ -272,7 +272,15 @@ path. Deferral of modifier/GN/shape-key sculpting per
 ### Workstream A — SculptCore C-API
 - [ ] A1 `Mesh_fromArrays` (Blender layout: positions/corner_verts/face_offsets).
 - [ ] A2 `Mesh_toArrays` + old→new index map (freelist compaction aware).
-- [ ] A3 Bulk attribute copy in/out (v1 layer set) using the index map.
+- [~] A3 Bulk attribute copy — mask done: `Mesh_readVertFloatAttr` /
+      `Mesh_writeVertFloatAttr` (named FLOAT vertex attr, live-vert order,
+      create-on-write). Addon round-trips `.sculpt_mask` ⇄ `.spatial.v.mask`
+      (loaded on enter so masking protects verts during sculpting; written
+      on flush). Verified: MASK brush → flush creates `.sculpt_mask`, it
+      persists across exit, re-enter reloads it unchanged. Still to add:
+      face-sets (int face ⇄ POLYGROUP), color (COLOR), UV — plus the
+      compaction index-map path (identity holds on the positions-only fast
+      path today).
 - [ ] A4 `Mesh_topologyDirty` query (drives exit/flush fast path).
 
 ### Workstream B — Addon conversion module (`sculptcore_addon/convert.py`)

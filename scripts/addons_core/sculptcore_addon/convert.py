@@ -20,6 +20,10 @@ and stays valid because topology ops are not yet reachable.
 from . import engine
 from .session import Session
 
+# Blender mask attribute (float, point domain) <-> the engine's mask column.
+_BL_MASK = ".sculpt_mask"
+_SC_MASK = b".spatial.v.mask"
+
 
 class ConvertError(RuntimeError):
     pass
@@ -86,9 +90,38 @@ def enter(ob):
         capi.lib.freeMesh(mesh_ptr)
         raise ConvertError("SculptCore: spatial tree build failed for {!r}".format(ob.data.name))
 
+    _load_mask(ob.data, mesh_ptr, verts_num)
+
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
     return session
+
+
+def _load_mask(mesh, mesh_ptr, verts_num):
+    """Seed the engine mask column from the Blender `.sculpt_mask` attribute
+    (float, point). No-op when the mesh carries no mask."""
+    import numpy as np
+
+    attr = mesh.attributes.get(_BL_MASK)
+    if attr is None or attr.domain != 'POINT' or attr.data_type != 'FLOAT':
+        return
+    values = np.empty(verts_num, dtype=np.float32)
+    attr.data.foreach_get("value", values)
+    engine.capi().lib.Mesh_writeVertFloatAttr(mesh_ptr, _SC_MASK, values)
+
+
+def _flush_mask(mesh, mesh_ptr, verts_num):
+    """Write the engine mask column back into the Blender `.sculpt_mask`
+    attribute, creating it on first use. No-op when the engine has no mask."""
+    import numpy as np
+
+    values = np.empty(verts_num, dtype=np.float32)
+    if not engine.capi().lib.Mesh_readVertFloatAttr(mesh_ptr, _SC_MASK, values):
+        return
+    attr = mesh.attributes.get(_BL_MASK)
+    if attr is None:
+        attr = mesh.attributes.new(_BL_MASK, 'FLOAT', 'POINT')
+    attr.data.foreach_set("value", values)
 
 
 def flush(ob):
@@ -121,6 +154,7 @@ def flush(ob):
 
     mesh = ob.data
     mesh.vertices.foreach_set("co", positions.ravel())
+    _flush_mask(mesh, session.mesh_ptr, session.verts_num)
     mesh.update()
 
 

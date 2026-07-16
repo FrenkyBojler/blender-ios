@@ -87,6 +87,10 @@ class _CApi:
         lib.Mesh_toArrays.restype = ctypes.c_int
         lib.Mesh_topoStamp.argtypes = [ctypes.c_void_p]
         lib.Mesh_topoStamp.restype = ctypes.c_uint64
+        lib.Mesh_readVertFloatAttr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, f32p]
+        lib.Mesh_readVertFloatAttr.restype = ctypes.c_int
+        lib.Mesh_writeVertFloatAttr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, f32p]
+        lib.Mesh_writeVertFloatAttr.restype = ctypes.c_int
         lib.freeMesh.argtypes = [ctypes.c_void_p]
         lib.freeMesh.restype = None
         lib.Mesh_buildSpatialTree.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 3
