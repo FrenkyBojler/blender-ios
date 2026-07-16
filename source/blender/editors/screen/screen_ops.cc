@@ -6883,18 +6883,24 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   return start_playback(C, sync, mode);
 }
 
+/* Checks which screen has `animtimer`,if found, extracts its playback flags as a
+ * #PreScrubbingState. always sets `screen.scrubbing` to true before returning, regardless of
+ * whether playback was active. */
 std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen &screen)
 {
-  screen.scrubbing = true;
+  BLI_assert_msg(!screen.scrubbing, "scrubbing should not be active yet");
 
   bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(&C));
   if (!play_screen || !play_screen->animtimer) {
+    screen.scrubbing = true;
     return std::nullopt;
   }
   const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
   if (sad == nullptr) {
+    screen.scrubbing = true;
     return std::nullopt;
   }
+
   PreScrubbingState resume;
   resume.play_mode = (sad->flag & ANIMPLAY_FLAG_REVERSE) ? PlaybackDirection::BACKWARDS :
                                                            PlaybackDirection::FORWARDS;
@@ -6903,6 +6909,8 @@ std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen
                          ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
                                                                 PlaySyncMode::UNCHANGED);
   stop_playback(&C);
+  screen.scrubbing = true;
+
   return resume;
 }
 
@@ -6910,6 +6918,8 @@ void ED_screen_scrubbing_disable(bContext &C,
                                  bScreen &screen,
                                  const std::optional<PreScrubbingState> &resume)
 {
+  BLI_assert_msg(screen.scrubbing, "scrubbing should be active");
+
   screen.scrubbing = false;
   if (resume.has_value()) {
     ED_screen_animation_play(&C, int(resume->play_sync), int(resume->play_mode));

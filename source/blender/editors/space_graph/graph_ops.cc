@@ -196,12 +196,11 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
     PreScrubbingState *pre_scrubbing = static_cast<PreScrubbingState *>(op->customdata);
     bScreen *screen = CTX_wm_screen(C);
     if (screen) {
-      std::optional<PreScrubbingState> resume;
-      if (pre_scrubbing) {
-        resume = *pre_scrubbing;
-      }
+      std::optional<PreScrubbingState> resume = pre_scrubbing ? std::optional(*pre_scrubbing) :
+                                                                std::nullopt;
       ED_screen_scrubbing_disable(*C, *screen, resume);
     }
+
     MEM_delete(pre_scrubbing);
     op->customdata = nullptr;
   }
