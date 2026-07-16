@@ -23,7 +23,7 @@ bl_info = {
 
 import bpy
 
-from . import convert, engine
+from . import convert, engine, keymap, stroke
 
 
 class SculptCoreMode(bpy.types.ObjectModeType):
@@ -50,12 +50,16 @@ class SculptCoreMode(bpy.types.ObjectModeType):
 
 
 def register():
+    stroke.register()
     bpy.utils.register_class(SculptCoreMode)
+    keymap.register()
 
 
 def unregister():
     # Unregistering the mode type force-exits every object still in the
     # mode (exit -> flush -> free) before the class goes away; this only
     # catches sessions those exits left behind.
+    keymap.unregister()
     bpy.utils.unregister_class(SculptCoreMode)
+    stroke.unregister()
     engine.free_all_sessions()

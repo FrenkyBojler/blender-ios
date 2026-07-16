@@ -20,6 +20,11 @@ class Session:
         "verts_num",
         "topo_stamp",
         "generation",
+        # Bound engine wrappers built lazily on the first stroke and reused:
+        # the Mesh view, and the per-session Brush + CommandExecutor.
+        "mesh_obj",
+        "brush_obj",
+        "executor",
         "_freed",
     )
 
@@ -30,7 +35,24 @@ class Session:
         self.verts_num = verts_num
         self.topo_stamp = engine.capi().lib.Mesh_topoStamp(mesh_ptr)
         self.generation = 0
+        self.mesh_obj = None
+        self.brush_obj = None
+        self.executor = None
         self._freed = False
+
+    def mesh(self):
+        """Bound Mesh wrapper over the session's engine mesh (cached)."""
+        if self.mesh_obj is None:
+            mgr = engine.manager()
+            self.mesh_obj = mgr.get_bound_pointer(
+                mgr.get("sculptcore::mesh::Mesh"), self.mesh_ptr, deref=False)
+        return self.mesh_obj
+
+    def tree(self):
+        """Bound SpatialTree wrapper (cached)."""
+        mgr = engine.manager()
+        return mgr.get_bound_pointer(
+            mgr.get("sculptcore::spatial::SpatialTree"), self.tree_ptr, deref=False)
 
     def topology_changed(self):
         """True when a topology op ran since import — original Blender
@@ -43,6 +65,14 @@ class Session:
         if self._freed:
             return
         self._freed = True
+        # Owning engine wrappers (Brush, CommandExecutor) dispose their C++
+        # objects; the Mesh view is non-owning (freed via freeMesh below).
+        for obj in (self.executor, self.brush_obj):
+            if obj is not None and not getattr(obj, "_disposed", False):
+                obj.dispose()
+        self.executor = None
+        self.brush_obj = None
+        self.mesh_obj = None
         lib = engine.capi().lib
         if self.tree_ptr:
             lib.SpatialTree_free(self.tree_ptr)

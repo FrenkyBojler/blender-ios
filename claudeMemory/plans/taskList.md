@@ -319,8 +319,22 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       enable → enter → no-stroke round trip byte-identical → engine edit
       flushes on save and on exit → refresh rebuilds with generation bump →
       addon-disable force-exits the live session.
-- [ ] S2 First stroke: DRAW brush end-to-end; Phase-0 flush throttle; memfile
-      undo works; cursor overlay.
+- [~] S2 First stroke (DRAW): reusable dab core in `stroke.py`
+      (`stroke_begin` → `apply_dab` = `filterNodes` + `execBrush` +
+      throttled flush → `stroke_end` = `endStep` + `recalc_normals`) plus
+      `raycast` (engine `castRay`) and the `SCULPTCORE_OT_brush_stroke`
+      modal operator (`bl_options={'UNDO'}` → memfile bracket → mode flush).
+      `mapping.py` M1 (DRAW: radius/strength/spacing/invert via `apply_brush`
+      + `KERNEL_BY_TYPE`), `keymap.py` ("SculptCore Mode": LMB / Ctrl-LMB).
+      Verified headless (raycast hits sphere pole → 50 DRAW dabs touch 50
+      nodes → flush moves 44 units into the Blender mesh → exit persists) and
+      interactively (same stroke; **memfile undo restores positions exactly,
+      maxdiff 0.0**). Deferred: pixel-radius unprojection is written but only
+      exercised in the GUI path; cursor overlay is S3; the modal operator's
+      mouse-event path is smoke-checked (registers/polls) not driven.
+      **Known P6 item:** memfile undo that crosses the mode-enter boundary
+      lands back in Object mode leaving a stale `engine.sessions` entry (the
+      exit-boundary hard case in undo-integration §4).
 - [ ] S3 Usability: full keymap, single tool, brush panel, invert/smooth,
       pressure.
 - [ ] S4 Lifecycle hardening: object/workspace switch, file open/close, addon
@@ -393,9 +407,13 @@ SculptCore's reflected `Brush` + kernel selection; engine-only uniforms become
 auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
 (asset-serializable).
 
-- [ ] M1 Mapping table + `apply_brush` (DRAW first; then per-type breadth:
-      CLAY/SCRAPE/FILL plane family, GRAB, SNAKEHOOK, SMOOTH, INFLATE, PINCH,
-      MASK, KELVINLET, POSE, SHARP, COLOR, ENHANCE, LAYERDRAW…).
+- [~] M1 Mapping table + `apply_brush` — DRAW slice landed (`mapping.py`:
+      `KERNEL_BY_TYPE` covers DRAW/CLAY/INFLATE/PINCH/SMOOTH/SCRAPE/FILL/
+      GRAB/SNAKEHOOK/MASK/SHARP/LAYERDRAW → `SculptBrushes`; `apply_brush`
+      maps radius(world)/strength(+unified)/spacing(%→frac)/invert(dir⊕ctrl)
+      then `writeProps`). Per-type field breadth (plane family offsets,
+      kelvinlet mu/nu, falloff curve bake + hardness, autosmooth program)
+      still to fill in. Consumed by `stroke.SCULPTCORE_OT_brush_stroke`.
 - [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
 - [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
 - [ ] M4 Pressure → `pushDeviceInput` + by-name dynamics; autosmooth
