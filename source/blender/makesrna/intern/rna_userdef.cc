@@ -5426,15 +5426,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Reference Sphere Size", "Diameter of the HDRI reference spheres");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  /* Frame navigation wrapping */
-  prop = RNA_def_property(srna, "wrap_timeline_navigation", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_WRAP_TIMELINE_NAVIGATION);
-  RNA_def_property_ui_text(
-      prop,
-      "Wrap Timeline Navigation",
-      "Should the playhead wrap around the playback range when navigating the timeline");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
-
   /* View2D Grid Displays */
   prop = RNA_def_property(srna, "view2d_grid_spacing_min", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, nullptr, "v2d_min_gridsize");
