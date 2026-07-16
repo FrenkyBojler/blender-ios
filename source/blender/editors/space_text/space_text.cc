@@ -54,7 +54,7 @@ static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   stext = MEM_new<SpaceText>("inittext");
   stext->spacetype = SPACE_TEXT;
 
-  stext->lheight = 12;
+  stext->line_height = 12;
   stext->tabnumber = 4;
   stext->margin_column = 80;
   stext->showsyntax = true;
@@ -130,17 +130,17 @@ static std::optional<rcti> text_main_region_cursor_ime(wmWindow * /*win*/,
   }
   int offl, offc;
   space_text_wrap_offset(st, region, st->text->sell, st->text->selc, &offl, &offc);
-  const int lheight = TXT_LINE_HEIGHT(st);
+  const int line_height = TXT_LINE_HEIGHT(st);
   const int vsell = txt_get_span(static_cast<TextLine *>(st->text->lines.first), st->text->sell) -
                     st->top + offl;
   const int vselc = space_text_get_char_pos(st, st->text->sell->line, st->text->selc) - st->left +
                     offc;
-  const int x = TXT_BODY_LEFT(st) + (vselc * st->runtime->cwidth_px);
-  const int y = region->winy - vsell * lheight;
+  const int x = TXT_BODY_LEFT(st) + (vselc * st->runtime->char_width_px);
+  const int y = region->winy - vsell * line_height;
   rcti rect;
   rect.xmin = x;
-  rect.xmax = x + st->runtime->cwidth_px;
-  rect.ymin = y - lheight;
+  rect.xmax = x + st->runtime->char_width_px;
+  rect.ymin = y - line_height;
   rect.ymax = y;
   return rect;
 }

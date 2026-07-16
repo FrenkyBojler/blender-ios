@@ -48,7 +48,7 @@ static SpaceLink *console_create(const ScrArea * /*area*/, const Scene * /*scene
   sconsole = MEM_new<SpaceConsole>("initconsole");
   sconsole->spacetype = SPACE_CONSOLE;
 
-  sconsole->lheight = 14;
+  sconsole->line_height = 14;
 
   sconsole->runtime = MEM_new<SpaceConsole_Runtime>(__func__);
 
@@ -230,8 +230,8 @@ static std::optional<rcti> console_main_region_cursor_ime(wmWindow * /*win*/,
   }
   SpaceConsole *sc = static_cast<SpaceConsole *>(area->spacedata.first);
   /* Font metrics are cached during draw; zero means the region hasn't been drawn yet. */
-  const int lheight = sc->runtime->lheight_px;
-  if (lheight == 0) {
+  const int line_height = sc->runtime->line_height_px;
+  if (line_height == 0) {
     return std::nullopt;
   }
   const ConsoleLine *cl = static_cast<const ConsoleLine *>(sc->history.last);
@@ -244,7 +244,7 @@ static std::optional<rcti> console_main_region_cursor_ime(wmWindow * /*win*/,
   }
   /* Extend the caret position upward by the line height; the caller clamps to the region
    * bounds (the cursor may be scrolled out of view). */
-  return rcti{xy->x, xy->x, xy->y, xy->y + lheight};
+  return rcti{xy->x, xy->x, xy->y, xy->y + line_height};
 }
 
 #endif

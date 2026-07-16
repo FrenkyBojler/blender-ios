@@ -24,9 +24,9 @@ struct wmOperatorType;
 
 struct SpaceConsole_Runtime {
   /** Character width in physical pixels. */
-  int cwidth_px = 0;
+  int char_width_px = 0;
   /** Line height in physical pixels. */
-  int lheight_px = 0;
+  int line_height_px = 0;
 };
 
 /* `console_draw.cc` */
