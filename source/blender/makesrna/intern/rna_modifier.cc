@@ -1930,7 +1930,7 @@ static void rna_NodesModifier_node_group_update(Main *bmain, Scene *scene, Point
   Object *object = id_cast<Object *>(ptr->owner_id);
   NodesModifierData *nmd = static_cast<NodesModifierData *>(ptr->data);
   rna_Modifier_dependency_update(bmain, scene, ptr);
-  MOD_nodes_update_interface(object, nmd);
+  MOD_nodes_update_interface(*bmain, object, nmd);
 }
 
 static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
@@ -1973,7 +1973,7 @@ static nodes::eval_log::NodeTreeLog *get_nodes_modifier_log(const Object &object
     return nullptr;
   }
   bke::DataBlockComputeContext data_block_context{nullptr, object.id};
-  bke::ModifierComputeContext modifier_context{&data_block_context, nmd};
+  bke::GeometryNodesModifierComputeContext modifier_context{&data_block_context, nmd};
   return &nmd.runtime->eval_log->get_tree_log(modifier_context.hash());
 }
 

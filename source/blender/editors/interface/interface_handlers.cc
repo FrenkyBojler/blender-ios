@@ -1084,10 +1084,10 @@ static void apply_but_undo(Button *but, bool use_undo_grouped = false)
     if (ELEM(but->rnaprop, &rna_ID_name, &rna_Object_active_shape_key_index)) {
       /* pass */
     }
-    else {
+    else if (but->rnaprop) {
       ID *id = but->rnapoin.owner_id;
       if (!ED_undo_is_legacy_compatible_for_property(
-              static_cast<bContext *>(but->block->evil_C), id, but->rnapoin))
+              static_cast<bContext *>(but->block->evil_C), id, but->rnapoin, *but->rnaprop))
       {
         skip_undo = true;
       }
@@ -9452,8 +9452,8 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
     data->text_select_auto_scroll = nullptr;
   }
 
-  /* Only Textbox buttons can set #BUTTON_STATE_TEXTBOX_SCROLLING or #BUTTON_STATE_TEXTBOX_RESIZING
-   * as state. */
+  /* Only Text-box buttons can set
+   * #BUTTON_STATE_TEXTBOX_SCROLLING or #BUTTON_STATE_TEXTBOX_RESIZING as state. */
   BLI_assert(!ELEM(state, BUTTON_STATE_TEXTBOX_SCROLLING, BUTTON_STATE_TEXTBOX_RESIZING) ||
              but->type == ButtonType::TextBox);
 
