@@ -310,35 +310,6 @@ constexpr GPUType gpu_int_type_from_element_count(const int count)
   return GPU_NONE;
 }
 
-constexpr bool gpu_type_is_ubo_supported(const GPUType type)
-{
-  switch (type) {
-    case GPU_FLOAT:
-    case GPU_VEC2:
-    case GPU_VEC3:
-    case GPU_VEC4:
-    case GPU_MAT4:
-    case GPU_INT:
-    case GPU_INT2:
-    case GPU_INT3:
-    case GPU_INT4:
-    case GPU_BOOL:
-      return true;
-    case GPU_NONE:
-    case GPU_MAT3:
-    case GPU_TEX1D_ARRAY:
-    case GPU_TEX2D:
-    case GPU_TEX2D_ARRAY:
-    case GPU_TEX3D:
-    case GPU_CLOSURE:
-    case GPU_ATTR:
-      return false;
-  }
-
-  BLI_assert_unreachable();
-  return false;
-}
-
 enum GPUDefaultValue {
   GPU_DEFAULT_0 = 0,
   GPU_DEFAULT_1,

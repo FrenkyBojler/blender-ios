@@ -523,9 +523,6 @@ void GPUCodegen::generate_uniform_buffer()
   for (GPUNode &node : graph.nodes) {
     for (GPUInput &input : node.inputs) {
       if (input.source == GPU_SOURCE_UNIFORM && !input.link) {
-        if (!gpu_type_is_ubo_supported(input.type)) {
-          continue;
-        }
         /* We handle the UBO uniforms separately. */
         BLI_addtail(&ubo_inputs_, BLI_genericNodeN(&input));
         uniforms_total_++;
