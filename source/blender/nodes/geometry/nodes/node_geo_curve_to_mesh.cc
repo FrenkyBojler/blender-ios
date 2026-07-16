@@ -150,10 +150,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> scale_field = params.extract_input<Field<float>>("Scale"_ustr);
   const bool fill_caps = params.extract_input<bool>("Fill Caps"_ustr);
   const bool use_miter_limit_angle = params.extract_input<bool>("Miter Scale"_ustr);
-  const std::optional<float> miter_limit_angle =
-      use_miter_limit_angle ?
-          std::make_optional<float>(params.extract_input<float>("Miter Scale Limit"_ustr)) :
-          std::nullopt;
+  const std::optional<float> miter_limit_angle = use_miter_limit_angle ?
+                                                     std::make_optional<float>(
+                                                         std::abs(params.extract_input<float>(
+                                                             "Miter Scale Limit"_ustr))) :
+                                                     std::nullopt;
 
   bke::GeometryComponentEditData::remember_deformed_positions_if_necessary(curve_set);
   const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
