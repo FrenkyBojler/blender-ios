@@ -432,8 +432,16 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       (need per-stroke anchor state — bare `execBrush` null-derefs) and LAYER
       (needs a sculpt-layer attr + texture) are in `UNSUPPORTED`;
       `kernel_enum` returns None so the stroke operator refuses cleanly.
-      Still to fill in: kelvinlet mu/nu, falloff-curve bake + hardness,
-      autosmooth `[main, SMOOTH]` program, and the grab-family stroke path.
+      Grab-family: **fixed** the null-deref (missing `setStrokeGen` — gen 0
+      collided with the fresh orig-gen default; now a nonzero per-stroke
+      `session.stroke_gen` + `setGrabAccumAdd(False)` per dab). SNAKE_HOOK
+      works via the standard per-dab path; GRAB works via a new grab-class
+      path (`apply_grab_dab`: dab at the fixed anchor, `brush.grabTo`/
+      `grabFrom` = cursor delta, node filter widened by the drag; operator
+      projects the mouse onto the anchor plane). **12 brushes now sculpt.**
+      Still to fill in: POSE (pose-cage), ELASTIC_DEFORM→KELVINLET
+      (grab-class, shares grabTo), kelvinlet mu/nu, falloff-curve bake +
+      hardness, autosmooth `[main, SMOOTH]` program.
 - [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
 - [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
 - [ ] M4 Pressure → `pushDeviceInput` + by-name dynamics; autosmooth

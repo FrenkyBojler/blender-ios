@@ -36,16 +36,27 @@ _MAP = {
     'SMOOTH': ("SMOOTH", {}),
     'PINCH': ("PINCH", {"pinch": lambda b: b.strength}),
     'MASK': ("MASK", {}),
+    # Snake hook drags per dab at the cursor — the standard path works.
+    'SNAKE_HOOK': ("SNAKEHOOK", {}),
+    # Grab dabs at a fixed anchor and reads the cumulative cursor delta
+    # (grabTo/grabFrom); the stroke operator drives it via the grab-class path.
+    'GRAB': ("GRAB", {}),
 }
+
+# Brush types that dab at the stroke anchor with a cursor-delta (grabTo)
+# instead of at the moving cursor.
+GRAB_CLASS = {'GRAB'}
 
 # Kernels that exist but need infrastructure not wired yet — kept for
 # reference / a future UI "unsupported" hint, never entered.
 UNSUPPORTED = {
-    'GRAB': "SNAKEHOOK/grab needs per-stroke anchor state",
-    'SNAKE_HOOK': "needs per-stroke anchor state",
-    'POSE': "needs per-stroke anchor state",
+    'POSE': "needs the pose-cage anchor path",
     'LAYER': "needs a sculpt-layer attribute + brush texture",
 }
+
+
+def is_grab_class(bl_brush):
+    return bl_brush is not None and bl_brush.sculpt_brush_type in GRAB_CLASS
 
 # For UI / diagnostics: every mapped type (supported or not).
 KERNEL_BY_TYPE = {t: v[0] for t, v in _MAP.items()}

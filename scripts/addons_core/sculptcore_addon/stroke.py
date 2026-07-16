@@ -45,7 +45,13 @@ def _ensure_executor(session):
 
 
 def stroke_begin(session, *, has_dyntopo=False):
-    _ensure_executor(session).beginStep(has_dyntopo)
+    executor = _ensure_executor(session)
+    executor.beginStep(has_dyntopo)
+    # A nonzero, per-stroke generation is required for grab-class kernels
+    # (they orig-stamp against it); harmless for the rest.
+    session.stroke_gen += 1
+    executor.setStrokeGen(session.stroke_gen)
+    executor.setNonAccum(False)
 
 
 def apply_dab(session, brush_type, center, normal, radius):
@@ -64,10 +70,48 @@ def apply_dab(session, brush_type, center, normal, radius):
     try:
         if not tree.filterNodes(center_v, radius, nodes):
             return 0
+        # New logical dab primary image: grab-class kernels re-base from the
+        # stroke-start position each dab instead of accumulating (mirrors the
+        # native harness). No-op for non-grab kernels.
+        executor.setGrabAccumAdd(False)
         executor.execBrush(session.mesh(), brush_type, nodes, center_v, normal_v)
         return len(sculptcore.BoundVector(mgr, nodes.ptr, nodes.bind_type))
     finally:
         for obj in (nodes, center_v, normal_v):
+            obj.dispose()
+
+
+def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius):
+    """Grab-class dab: deform the fixed region under `anchor` by the
+    cumulative cursor delta (`brush.grabTo`/`grabFrom`). The dab centers on the
+    anchor and the node filter widens by the drag distance so the anchored
+    region stays covered as the cursor moves away."""
+    mgr = engine.manager()
+    executor = _ensure_executor(session)
+    brush = session.brush_obj
+    tree = session.tree()
+
+    gf = brush.grabFrom.vec
+    gt = brush.grabTo.vec
+    drag = 0.0
+    for i in range(3):
+        gf[i] = anchor[i]
+        gt[i] = cursor[i]
+        drag += (cursor[i] - anchor[i]) ** 2
+    drag = drag ** 0.5
+
+    anchor_v = _float3(mgr, *anchor)
+    normal_v = _float3(mgr, *normal)
+    nodes = mgr.construct("litestl::util::Vector<sculptcore::spatial::SpatialNode*,4>")
+    try:
+        if not tree.filterNodes(anchor_v, radius + drag, nodes):
+            return 0
+        executor.setGrabAccumAdd(False)
+        executor.execBrush(session.mesh(), brush_type, nodes, anchor_v, normal_v)
+        import sculptcore
+        return len(sculptcore.BoundVector(mgr, nodes.ptr, nodes.bind_type))
+    finally:
+        for obj in (nodes, anchor_v, normal_v):
             obj.dispose()
 
 
@@ -124,6 +168,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
 
         self._last_flush = 0.0
         self._dab_count = 0
+        self._grab_class = mapping.is_grab_class(self.brush)
+        self._anchor = None
+        self._anchor_normal = None
         stroke_begin(self.session)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.
@@ -141,7 +188,20 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         mapping.apply_brush(
             self.brush, unified, self.session.brush_obj,
             world_radius=world_radius, invert=invert)
-        apply_dab(self.session, self.kernel, position, normal, world_radius)
+
+        if self._grab_class:
+            if self._anchor is None:
+                # Anchor the region at the stroke-start surface point.
+                self._anchor = position
+                self._anchor_normal = normal
+                self._anchor_radius = world_radius
+            # Project the current mouse onto the plane through the anchor to
+            # get the drag target in object space.
+            cursor = _cursor_on_anchor_plane(context, event, self._anchor)
+            apply_grab_dab(self.session, self.kernel, self._anchor, cursor,
+                           self._anchor_normal, self._anchor_radius)
+        else:
+            apply_dab(self.session, self.kernel, position, normal, world_radius)
         self._dab_count += 1
 
         # Phase-0 draw: throttled positions flush + redraw tag.
@@ -185,6 +245,22 @@ def _ray_from_event(context, event, session):
     origin = matrix_inv @ origin_world
     direction = (matrix_inv.to_3x3() @ direction_world).normalized()
     return raycast(session, tuple(origin), tuple(direction))
+
+
+def _cursor_on_anchor_plane(context, event, anchor_obj):
+    """Object-space point where the mouse ray meets the view-facing plane
+    through the anchor — grab's drag target."""
+    import mathutils
+    from bpy_extras import view3d_utils
+
+    region = context.region
+    rv3d = context.region_data
+    ob = context.active_object
+    coord = (event.mouse_region_x, event.mouse_region_y)
+
+    anchor_world = ob.matrix_world @ mathutils.Vector(anchor_obj)
+    loc_world = view3d_utils.region_2d_to_location_3d(region, rv3d, coord, anchor_world)
+    return tuple(ob.matrix_world.inverted() @ loc_world)
 
 
 def _world_radius(context, brush, position):

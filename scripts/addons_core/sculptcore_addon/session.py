@@ -20,6 +20,10 @@ class Session:
         "verts_num",
         "topo_stamp",
         "generation",
+        # Monotonic per-stroke generation for setStrokeGen (grab-class kernels
+        # orig-stamp against it; must be nonzero — gen 0 collides with the
+        # fresh orig-gen default and crashes).
+        "stroke_gen",
         # Bound engine wrappers built lazily on the first stroke and reused:
         # the Mesh view, and the per-session Brush + CommandExecutor.
         "mesh_obj",
@@ -35,6 +39,7 @@ class Session:
         self.verts_num = verts_num
         self.topo_stamp = engine.capi().lib.Mesh_topoStamp(mesh_ptr)
         self.generation = 0
+        self.stroke_gen = 0
         self.mesh_obj = None
         self.brush_obj = None
         self.executor = None
