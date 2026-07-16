@@ -249,10 +249,8 @@ static void particle_undosys_step_decode(
 
   Object *ob = us->object_ref.ptr;
   if (ob->mode != OB_MODE_PARTICLE_EDIT) {
-    /* Undo steps can be decoded after entering another mode. Ensure its runtime data is cleaned
-     * up
-     * before restoring Particle Edit, otherwise the mode bits and runtime data are
-     * combined. */
+    /* Exit the current mode before restoring Particle Edit to clean up its runtime data and avoid
+     * combining incompatible mode bits. */
     ed::object::mode_generic_exit(bmain, depsgraph, scene, ob);
   }
   ED_object_particle_edit_mode_enter_ex(depsgraph, scene, ob);
