@@ -7,14 +7,10 @@
  * \ingroup bke
  */
 
-#include "BLI_bounds_types.hh"
-#include "BLI_function_ref.hh"
-
 namespace blender {
 
 struct BlendDataReader;
 struct BlendWriter;
-struct Depsgraph;
 struct Object;
 struct ReportList;
 struct Scene;
