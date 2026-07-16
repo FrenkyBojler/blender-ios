@@ -1,1 +1,1 @@
-Referenced by pull request #161499, WIP: Fix: Nodes: Missing rna accessors for Grease Pencil nodes
+Referenced by pull request #161499, WIP: Cleanup: Nodes: Remove unused `node_rna` in Merge Layers node
