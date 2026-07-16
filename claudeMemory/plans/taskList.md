@@ -335,8 +335,21 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       **Known P6 item:** memfile undo that crosses the mode-enter boundary
       lands back in Object mode leaving a stale `engine.sessions` entry (the
       exit-boundary hard case in undo-integration §4).
-- [ ] S3 Usability: full keymap, single tool, brush panel, invert/smooth,
-      pressure.
+- [~] S3 Usability (partial): `tools.py` registers a `WorkSpaceTool`
+      ("Brush") under the shared `'CUSTOM'` tool slot (both the C tool
+      storage `CTX_MODE_CUSTOM` and the Python toolbar key off it); stroke
+      input stays on the "SculptCore Mode" keymap so no tool keymap /
+      double-fire. `ui.py` adds N-panel Brush + Dyntopo panels polled on the
+      mode, reading the shared `tool_settings.sculpt`. Verified headless:
+      tool lands in the CUSTOM slot, panels poll correctly (False in Object
+      mode, True in mode), addon disable/re-enable is clean. Remaining:
+      full keymap (smooth on Shift, radius/strength radials), invert
+      already via Ctrl, pressure (M4), cursor overlay (GPU — GUI only).
+      **Known cosmetic gap:** entering the mode still logs
+      `builtin.select_box not found` — `toolsystem_default_tool` receives
+      only the `CTX_MODE_CUSTOM` enum, not the object, so it can't resolve
+      the per-mode default tool; needs an object-aware default-tool lookup
+      (deferred).
 - [ ] S4 Lifecycle hardening: object/workspace switch, file open/close, addon
       disable mid-mode, refresh generations; ASAN session.
 - [ ] S5 Integration points behind capability checks: draw provider (P5),
