@@ -41,34 +41,22 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
   switch (type) {
     case GPU_FLOAT:
       return *std::get<const float *>(link->data);
-    case GPU_VEC2: {
-      const float *data = std::get<const float *>(link->data);
-      return float2(data[0], data[1]);
-    }
-    case GPU_VEC3: {
-      const float *data = std::get<const float *>(link->data);
-      return float3(data[0], data[1], data[2]);
-    }
-    case GPU_VEC4: {
-      const float *data = std::get<const float *>(link->data);
-      return float4(data[0], data[1], data[2], data[3]);
-    }
+    case GPU_VEC2:
+      return float2(std::get<const float *>(link->data));
+    case GPU_VEC3:
+      return float3(std::get<const float *>(link->data));
+    case GPU_VEC4:
+      return float4(std::get<const float *>(link->data));
     case GPU_MAT4:
       return float4x4(std::get<const float *>(link->data));
     case GPU_INT:
       return *std::get<const int *>(link->data);
-    case GPU_INT2: {
-      const int *data = std::get<const int *>(link->data);
-      return int2(data[0], data[1]);
-    }
-    case GPU_INT3: {
-      const int *data = std::get<const int *>(link->data);
-      return int3(data[0], data[1], data[2]);
-    }
-    case GPU_INT4: {
-      const int *data = std::get<const int *>(link->data);
-      return int4(data[0], data[1], data[2], data[3]);
-    }
+    case GPU_INT2:
+      return int2(std::get<const int *>(link->data));
+    case GPU_INT3:
+      return int3(std::get<const int *>(link->data));
+    case GPU_INT4:
+      return int4(std::get<const int *>(link->data));
     case GPU_BOOL:
       return *std::get<const bool *>(link->data);
     default:

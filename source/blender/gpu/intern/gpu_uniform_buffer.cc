@@ -69,7 +69,7 @@ static constexpr size_t GPU_UBO_ALIGNMENT = 4;
 
 static bool gpu_type_is_ubo_scalar(const GPUType type)
 {
-  return ELEM(type, GPU_FLOAT, GPU_INT, GPU_BOOL);
+  return gpu_type_element_count(type) == 1;
 }
 
 static GPUType get_padded_gpu_type(LinkData *link)
@@ -131,15 +131,15 @@ static void gpu_constant_populate_ubo(void *destination,
   }
 }
 
-static void buffer_reorder_scalar_after_vec3(ListBaseT<LinkData> *inputs,
-                                             LinkData *vec3_link,
-                                             Map<GPUType, LinkData *> &first_links)
+static void buffer_reorder_scalar_after_size3_vec(ListBaseT<LinkData> *inputs,
+                                                  LinkData *size3_vec_link,
+                                                  Map<GPUType, LinkData *> &first_links)
 {
-  const GPUType vec3_type = static_cast<GPUInput *>(vec3_link->data)->type;
-  BLI_assert(ELEM(vec3_type, GPU_VEC3, GPU_INT3));
+  const GPUType size3_vec_type = static_cast<GPUInput *>(size3_vec_link->data)->type;
+  BLI_assert(ELEM(size3_vec_type, GPU_VEC3, GPU_INT3));
 
-  LinkData *link = vec3_link;
-  while (link != nullptr && static_cast<GPUInput *>(link->data)->type == vec3_type) {
+  LinkData *link = size3_vec_link;
+  while (link != nullptr && static_cast<GPUInput *>(link->data)->type == size3_vec_type) {
     LinkData *link_next = link->next;
 
     /* If followed by nothing or a scalar, no need for alignment. */
@@ -247,10 +247,10 @@ static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
   }
 
   if (first_links.contains(GPU_VEC3)) {
-    buffer_reorder_scalar_after_vec3(inputs, first_links.lookup(GPU_VEC3), first_links);
+    buffer_reorder_scalar_after_size3_vec(inputs, first_links.lookup(GPU_VEC3), first_links);
   }
   if (first_links.contains(GPU_INT3)) {
-    buffer_reorder_scalar_after_vec3(inputs, first_links.lookup(GPU_INT3), first_links);
+    buffer_reorder_scalar_after_size3_vec(inputs, first_links.lookup(GPU_INT3), first_links);
   }
 }
 
