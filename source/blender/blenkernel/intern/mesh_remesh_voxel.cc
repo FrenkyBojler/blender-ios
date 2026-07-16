@@ -348,8 +348,10 @@ static void find_nearest_tris_parallel(const Span<float3> positions,
                                        MutableSpan<float3> bary_coords)
 {
   threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
-    find_nearest_tris(
-        positions.slice(range), bvhtree, tris.slice(range), bary_coords.slice(range));
+    find_nearest_tris(positions.slice(range),
+                      bvhtree,
+                      tris.slice(range),
+                      bary_coords.is_empty() ? MutableSpan<float3>() : bary_coords.slice(range));
   });
 }
 
