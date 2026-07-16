@@ -1302,6 +1302,13 @@ if(TEST_SRC_DIR_EXISTS)
   endforeach()
 endif()
 
+if(WITH_OPENVDB)
+  add_blender_test(
+    geo_node_volume_cube_bounds
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_geo_node_volume_cube_bounds.py
+  )
+endif()
+
 # ------------------------------------------------------------------------------
 # SCREENSHOT TESTS
 # ------------------------------------------------------------------------------

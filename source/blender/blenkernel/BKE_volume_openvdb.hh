@@ -35,7 +35,7 @@ bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
 
 void BKE_volume_metadata_set(Volume &volume, openvdb::MetaMap::Ptr metadata);
 
-std::optional<Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase::ConstPtr grid);
+std::optional<Bounds<float3>> BKE_volume_grid_bounds(const bke::VolumeGridData &grid);
 
 /**
  * Return a new grid pointer with only the metadata and transform changed.

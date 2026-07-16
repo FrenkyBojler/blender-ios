@@ -633,8 +633,7 @@ std::optional<Bounds<float3>> BKE_volume_min_max(const Volume *volume)
     std::optional<Bounds<float3>> result;
     for (const int i : IndexRange(BKE_volume_num_grids(volume))) {
       const bke::VolumeGridData *volume_grid = BKE_volume_grid_get(volume, i);
-      bke::VolumeTreeAccessToken tree_token;
-      result = bounds::merge(result, BKE_volume_grid_bounds(volume_grid->grid_ptr(tree_token)));
+      result = bounds::merge(result, BKE_volume_grid_bounds(*volume_grid));
     }
     return result;
   }
@@ -1085,11 +1084,10 @@ float BKE_volume_simplify_factor(const Depsgraph *depsgraph)
 
 #ifdef WITH_OPENVDB
 
-std::optional<Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase::ConstPtr grid)
+std::optional<Bounds<float3>> BKE_volume_grid_bounds(const bke::VolumeGridData &grid)
 {
-  /* TODO: we can get this from grid metadata in some cases? */
-  openvdb::CoordBBox coordbbox;
-  if (!grid->baseTree().evalLeafBoundingBox(coordbbox)) {
+  const openvdb::CoordBBox &coordbbox = grid.active_bounds();
+  if (coordbbox.empty()) {
     return std::nullopt;
   }
 
@@ -1098,7 +1096,7 @@ std::optional<Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase::ConstPtr
   /* Add half voxel padding that is expected by volume rendering code. */
   index_bbox.expand(0.5);
 
-  const openvdb::BBoxd bbox = grid->transform().indexToWorld(index_bbox);
+  const openvdb::BBoxd bbox = grid.transform().indexToWorld(index_bbox);
   return Bounds<float3>{float3(bbox.min().asPointer()), float3(bbox.max().asPointer())};
 }
 

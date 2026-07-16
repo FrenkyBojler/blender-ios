@@ -173,7 +173,9 @@ void BKE_volume_dense_float_grid_clear(DenseFloatVolumeGrid *dense_grid)
 
 /** Returns bounding boxes that approximate the shape of the volume stored in the grid. */
 template<typename GridType>
-static Vector<openvdb::CoordBBox> get_bounding_boxes(const GridType &grid, const bool coarse)
+static Vector<openvdb::CoordBBox> get_bounding_boxes(const GridType &grid,
+                                                     const bool coarse,
+                                                     const openvdb::CoordBBox &active_bounds)
 {
   using TreeType = typename GridType::TreeType;
   using Depth2Type = typename TreeType::RootNodeType::ChildNodeType::ChildNodeType;
@@ -197,6 +199,11 @@ static Vector<openvdb::CoordBBox> get_bounding_boxes(const GridType &grid, const
       iter.getNode(node);
       if (node) {
         node->evalActiveBoundingBox(box, false);
+        /* Keep inactive parts of boundary leaf nodes from extending the displayed bounds. */
+        box.intersect(active_bounds);
+        if (box.empty()) {
+          continue;
+        }
       }
       else {
         continue;
@@ -209,9 +216,6 @@ static Vector<openvdb::CoordBBox> get_bounding_boxes(const GridType &grid, const
       }
     }
 
-    /* +1 to convert from exclusive to inclusive bounds. */
-    box.max() = box.max().offsetBy(1);
-
     boxes.append(box);
   }
 
@@ -221,19 +225,24 @@ static Vector<openvdb::CoordBBox> get_bounding_boxes(const GridType &grid, const
 struct GetBoundingBoxesOp {
   const openvdb::GridBase &grid;
   const bool coarse;
+  const openvdb::CoordBBox active_bounds;
 
   template<typename GridType> Vector<openvdb::CoordBBox> operator()()
   {
-    return get_bounding_boxes(static_cast<const GridType &>(grid), coarse);
+    return get_bounding_boxes(static_cast<const GridType &>(grid), coarse, active_bounds);
   }
 };
 
-static Vector<openvdb::CoordBBox> get_bounding_boxes(VolumeGridType grid_type,
+static Vector<openvdb::CoordBBox> get_bounding_boxes(const bke::VolumeGridData &volume_grid,
                                                      const openvdb::GridBase &grid,
                                                      const bool coarse)
 {
-  GetBoundingBoxesOp op{grid, coarse};
-  return BKE_volume_grid_type_operation(grid_type, op);
+  /* Fine wireframes only need allocated leaf bounds, so avoid calculating active bounds for them.
+   */
+  const openvdb::CoordBBox active_bounds = coarse ? volume_grid.active_bounds() :
+                                                    openvdb::CoordBBox();
+  GetBoundingBoxesOp op{grid, coarse, active_bounds};
+  return BKE_volume_grid_type_operation(volume_grid.grid_type(), op);
 }
 
 static void boxes_to_center_points(Span<openvdb::CoordBBox> boxes,
@@ -254,15 +263,16 @@ static void boxes_to_corner_points(Span<openvdb::CoordBBox> boxes,
   BLI_assert(boxes.size() * 8 == r_verts.size());
   for (const int i : boxes.index_range()) {
     const openvdb::CoordBBox &box = boxes[i];
+    const openvdb::Vec3d support_min = box.min().asVec3d() - openvdb::Vec3d(0.5);
+    const openvdb::Vec3d support_max = box.max().asVec3d() + openvdb::Vec3d(0.5);
 
-    /* The ordering of the corner points is lexicographic. */
-    std::array<openvdb::Coord, 8> corners;
-    box.getCornerPoints(corners.data());
-
+    /* CoordBBox stores inclusive voxel sample indices. Use the voxel support corners. */
     for (int j = 0; j < 8; j++) {
-      openvdb::Coord corner_i = corners[j];
-      openvdb::Vec3d corner_d = transform.indexToWorld(corner_i);
-      r_verts[8 * i + j] = float3(corner_d[0], corner_d[1], corner_d[2]);
+      const openvdb::Vec3d corner((j & 4) ? support_max.x() : support_min.x(),
+                                  (j & 2) ? support_max.y() : support_min.y(),
+                                  (j & 1) ? support_max.z() : support_min.z());
+      const openvdb::Vec3d position = transform.indexToWorld(corner);
+      r_verts[8 * i + j] = float3(position[0], position[1], position[2]);
     }
   }
 }
@@ -367,10 +377,10 @@ void BKE_volume_grid_wireframe(const Volume *volume,
 
   if (volume->display.wireframe_type == VOLUME_WIREFRAME_BOUNDS) {
     /* Bounding box. */
-    openvdb::CoordBBox box;
     Vector<float3> verts;
     Vector<std::array<int, 2>> edges;
-    if (grid.baseTree().evalLeafBoundingBox(box)) {
+    const openvdb::CoordBBox &box = volume_grid->active_bounds();
+    if (!box.empty()) {
       boxes_to_edge_mesh({box}, grid.transform(), verts, edges);
     }
     cb(cb_userdata,
@@ -380,10 +390,8 @@ void BKE_volume_grid_wireframe(const Volume *volume,
        edges.size());
   }
   else {
-    Vector<openvdb::CoordBBox> boxes = get_bounding_boxes(volume_grid->grid_type(),
-                                                          grid,
-                                                          volume->display.wireframe_detail ==
-                                                              VOLUME_WIREFRAME_COARSE);
+    Vector<openvdb::CoordBBox> boxes = get_bounding_boxes(
+        *volume_grid, grid, volume->display.wireframe_detail == VOLUME_WIREFRAME_COARSE);
 
     Vector<float3> verts;
     Vector<std::array<int, 2>> edges;
@@ -443,7 +451,7 @@ void BKE_volume_grid_selection_surface(const Volume * /*volume*/,
 #ifdef WITH_OPENVDB
   bke::VolumeTreeAccessToken tree_token;
   const openvdb::GridBase &grid = volume_grid->grid(tree_token);
-  Vector<openvdb::CoordBBox> boxes = get_bounding_boxes(volume_grid->grid_type(), grid, true);
+  Vector<openvdb::CoordBBox> boxes = get_bounding_boxes(*volume_grid, grid, true);
 
   Vector<float3> verts;
   Vector<std::array<int, 3>> tris;
