@@ -421,18 +421,30 @@ SculptCore's reflected `Brush` + kernel selection; engine-only uniforms become
 auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
 (asset-serializable).
 
-- [~] M1 Mapping table + `apply_brush` — DRAW slice landed (`mapping.py`:
-      `KERNEL_BY_TYPE` covers DRAW/CLAY/INFLATE/PINCH/SMOOTH/SCRAPE/FILL/
-      GRAB/SNAKEHOOK/MASK/SHARP/LAYERDRAW → `SculptBrushes`; `apply_brush`
-      maps radius(world)/strength(+unified)/spacing(%→frac)/invert(dir⊕ctrl)
-      then `writeProps`). Per-type field breadth (plane family offsets,
-      kelvinlet mu/nu, falloff curve bake + hardness, autosmooth program)
-      still to fill in. Consumed by `stroke.SCULPTCORE_OT_brush_stroke`.
+- [~] M1 Mapping table + `apply_brush` — 10 brush entries verified working
+      per-dab (`mapping.py`, keyed by *real* Blender `sculpt_brush_type`):
+      DRAW→DRAW, DRAW_SHARP→SHARP, INFLATE, CLAY/CLAY_STRIPS→CLAY,
+      PLANE→FILL, MULTIPLANE_SCRAPE→SCRAPE (plane family maps `plane_offset`),
+      SMOOTH, PINCH (maps `pinch`←strength — the kernel gates on it),
+      MASK (paints the mask attr, positions unchanged). `apply_brush` maps
+      radius(world)/strength(+unified)/spacing(%→frac)/invert(dir⊕ctrl) then
+      per-type extras + `writeProps`. **Crash guard:** GRAB/SNAKE_HOOK/POSE
+      (need per-stroke anchor state — bare `execBrush` null-derefs) and LAYER
+      (needs a sculpt-layer attr + texture) are in `UNSUPPORTED`;
+      `kernel_enum` returns None so the stroke operator refuses cleanly.
+      Still to fill in: kelvinlet mu/nu, falloff-curve bake + hardness,
+      autosmooth `[main, SMOOTH]` program, and the grab-family stroke path.
 - [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
 - [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
 - [ ] M4 Pressure → `pushDeviceInput` + by-name dynamics; autosmooth
       `[main, SMOOTH]` program; pixel-radius unprojection.
-- [ ] M5 Per-brush-type parity smoke harness (headless).
+- [~] M5 Per-brush-type parity harness (headless) — dabs each supported
+      brush on a sphere and asserts the expected effect (DRAW/SHARP/INFLATE
+      net-outward; CLAY/PLANE/SCRAPE/PINCH/SMOOTH move verts; MASK leaves
+      positions put), plus a guard check that every `UNSUPPORTED` type is
+      refused and `apply_brush` runs against real Blender brushes without a
+      field-name error. All pass. (Verification script in the session
+      scratchpad; formalize into a tracked addon test with S4.)
 - [ ] Phase 2: brush textures (`mtex` → `tex_*`), cavity automask.
 - [ ] Parity checklist maintained for unmapped features (cloth/boundary/
       multiplane, topology rake, front-face, accumulate, tip shape).
