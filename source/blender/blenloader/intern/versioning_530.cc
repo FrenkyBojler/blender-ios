@@ -33,26 +33,45 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
+static void compositing_node_group_to_effect(Main &main, Scene &scene)
+{
+  bNodeTree *node_group = version_get_scene_compositor_node_tree(&main, &scene);
+  if (!node_group) {
+    return;
+  }
+
+  SceneCompositorEffect &effect = bke::compositor::new_effect(scene, "Scene Compositor Effect");
+  effect.node_group = node_group;
+  if (!node_group->compositor_node_asset_traits) {
+    node_group->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
+  }
+  node_group->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_EFFECT;
+  bke::node_update_asset_metadata(*node_group);
+  scene.compositing_node_group = nullptr;
+}
+
+/* The now deprecated compositing_node_group is always written on file writes for forward
+ * compatibility, so we need to set it to nullptr after versioning is done. This happens on every
+ * file load and needn't be in a version check.
+ *
+ * Todo(#140111): Forward compatibility support will be removed in 6.0. */
+static void compositing_node_group_forward_compatibility(Main &main)
+{
+  for (Scene &scene : main.scenes) {
+    scene.compositing_node_group = nullptr;
+  }
+}
+
 void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
     for (Scene &scene : bmain->scenes) {
-      bNodeTree *node_group = version_get_scene_compositor_node_tree(bmain, &scene);
-      if (!node_group) {
-        continue;
-      }
-
-      SceneCompositorEffect &effect = bke::compositor::new_effect(scene,
-                                                                  "Scene Compositor Effect");
-      effect.node_group = node_group;
-      if (!node_group->compositor_node_asset_traits) {
-        node_group->compositor_node_asset_traits = MEM_new<CompositorNodeAssetTraits>(__func__);
-      }
-      node_group->compositor_node_asset_traits->flag |= COMPOSIT_NODE_ASSET_SCENE_EFFECT;
-      bke::node_update_asset_metadata(*node_group);
-      scene.compositing_node_group = nullptr;
+      compositing_node_group_to_effect(*bmain, scene);
     }
   }
+
+  /* This should not have a version check, see the function description for more information. */
+  compositing_node_group_forward_compatibility(*bmain);
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

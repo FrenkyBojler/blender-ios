@@ -391,7 +391,7 @@ static void scene_free_data(ID *id)
 
   BKE_keyingsets_free(&scene->keyingsets);
 
-  BLI_assert_msg(scene->nodetree == nullptr,
+  BLI_assert_msg(!scene->nodetree && !scene->compositing_node_group,
                  "Pointer should not be valid after blend file reading.");
 
   if (scene->rigidbody_world) {
@@ -1122,6 +1122,7 @@ static void scene_blend_write_compositor_forward_compat(Scene &scene,
   temp_nodetree_copy = nullptr;
   MEM_delete_void(reinterpret_cast<void *>(scene.nodetree));
   scene.nodetree = nullptr;
+  scene.compositing_node_group = nullptr;
 }
 
 static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -1133,6 +1134,16 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
     sce->cursor = View3DCursor{};
+  }
+
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. */
+  if (!is_write_undo) {
+    for (const SceneCompositorEffect &effect : sce->compositor_effects) {
+      if (bke::compositor::is_effect_enabled(effect, bke::compositor::ExecutionMode::Render)) {
+        sce->compositing_node_group = effect.node_group;
+        break;
+      }
+    }
   }
 
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not initialize the
