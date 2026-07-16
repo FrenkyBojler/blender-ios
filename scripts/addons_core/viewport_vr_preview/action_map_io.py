@@ -155,7 +155,7 @@ def amb_args_as_data(amb, type):
         s.append(f"\"threshold\": '{amb.threshold}'")
         if type == 'FLOAT':
             s.append(f"\"axis_region\": '{amb.axis0_region}'")
-        else: # type == 'VECTOR2D':
+        else:  # type == 'VECTOR2D':
             s.append(f"\"axis0_region\": '{amb.axis0_region}'")
             s.append(f"\"axis1_region\": '{amb.axis1_region}'")
     elif type == 'POSE':
@@ -175,31 +175,24 @@ def amb_data_from_args(amb, args, type):
         amb.threshold = float(args["threshold"])
         if type == 'FLOAT':
             amb.axis0_region = args["axis_region"]
-        else: # type == 'VECTOR2D':
+        else:  # type == 'VECTOR2D':
             amb.axis0_region = args["axis0_region"]
             amb.axis1_region = args["axis1_region"]
     elif type == 'POSE':
-        loc = args["pose_location"]
-        if isinstance(loc, tuple):
-            amb.pose_location.x = float(loc[0])
-            amb.pose_location.y = float(loc[1])
-            amb.pose_location.z = float(loc[2])
-        else:
-            l = loc.strip(')(').split(', ')
-            amb.pose_location.x = float(l[0])
-            amb.pose_location.y = float(l[1])
-            amb.pose_location.z = float(l[2])
-            
-        rot = args["pose_rotation"]
-        if isinstance(rot, tuple):
-            amb.pose_rotation.x = float(rot[0])
-            amb.pose_rotation.y = float(rot[1])
-            amb.pose_rotation.z = float(rot[2])
-        else:
-            l = rot.strip(')(').split(', ')
-            amb.pose_rotation.x = float(l[0])
-            amb.pose_rotation.y = float(l[1])
-            amb.pose_rotation.z = float(l[2])
+        def parse_pose_value(value):
+            if isinstance(value, tuple):
+                return value
+            return value.strip(')(').split(', ')
+
+        loc = parse_pose_value(args["pose_location"])
+        amb.pose_location.x = float(loc[0])
+        amb.pose_location.y = float(loc[1])
+        amb.pose_location.z = float(loc[2])
+
+        rot = parse_pose_value(args["pose_rotation"])
+        amb.pose_rotation.x = float(rot[0])
+        amb.pose_rotation.y = float(rot[1])
+        amb.pose_rotation.z = float(rot[2])
 
 
 def actionconfig_export_as_data(session_state, filepath, *, sort=False):

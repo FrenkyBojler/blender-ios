@@ -21,7 +21,7 @@ from math import radians
 from mathutils import Color, Euler, Matrix, Quaternion, Vector
 
 
-### Landmarks.
+# Landmarks.
 class VIEW3D_OT_vr_landmark_add(Operator):
     bl_idname = "view3d.vr_landmark_add"
     bl_label = "Add VR Landmark"

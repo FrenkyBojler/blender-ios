@@ -3863,7 +3863,6 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_offset_exec(bContext *C, wmOperator *op)
 {
-  printf("=== GREASE PENCIL KEYFRAME PATH: %s ===\n", __func__); fflush(stdout);
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
@@ -4136,7 +4135,6 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKe
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  printf("=== GREASE PENCIL KEYFRAME PATH: %s ===\n", __func__); fflush(stdout);
   Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;

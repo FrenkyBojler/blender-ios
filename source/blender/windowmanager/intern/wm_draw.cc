@@ -1016,14 +1016,6 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
     CTX_wm_region_set(C, &region);
     bool use_viewport = WM_region_use_viewport(area, &region);
 
-    if (WM_xr_session_is_ready(&wm->xr) && use_viewport) {
-      ARegion *xr_region = WM_xr_get_xr_region(&wm->xr);
-      if (!xr_region) {
-        ARegion *view3d_region = BKE_area_find_region_active_win(area);
-        WM_xr_set_xr_region(&wm->xr, view3d_region);
-      }
-    }
-
     GPU_debug_group_begin(use_viewport ? "Viewport" : "ARegion");
 
     if (stereo && wm_draw_region_stereo_set(bmain, area, &region, STEREO_LEFT_ID)) {

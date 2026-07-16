@@ -2295,9 +2295,6 @@ bool WM_xr_session_exists(const wmXrData *xr);
  */
 bool WM_xr_session_is_ready(const wmXrData *xr);
 
-ARegion *WM_xr_get_xr_region(wmXrData *xr_data);
-void WM_xr_set_xr_region(wmXrData *xr_data, ARegion *region);
-
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
 wmXrViewfinderState *WM_xr_session_state_viewfinder_handle_get(const wmXrData *xr);
 

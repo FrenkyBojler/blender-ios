@@ -98,7 +98,6 @@ bool GreasePencilPaintStroke::get_location(float location[3],
                                            const float mouse[2],
                                            bool /*force_original*/)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   location[0] = mouse[0];
   location[1] = mouse[1];
   location[2] = 0;
@@ -108,7 +107,6 @@ bool GreasePencilPaintStroke::get_location(float location[3],
 static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContext &C,
                                                                          wmOperator *op)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   const Paint *paint = BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush_for_read(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(&C);
@@ -197,7 +195,6 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
 
 bool GreasePencilPaintStroke::test_start(wmOperator * /*op*/, const float /*mouse*/[2])
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   return true;
 }
 
@@ -209,11 +206,6 @@ void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
   InputSample sample;
   RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
   sample.pressure = RNA_float_get(stroke_element, "pressure");
-
-  printf("=== GREASE PENCIL DRAW PATH: update_step ===\n");
-  printf("  -> Input: mouse(%.1f, %.1f), pressure: %.3f\n", 
-         sample.mouse_position.x, sample.mouse_position.y, sample.pressure);
-  fflush(stdout);
 
   if (!operation) {
     std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(
@@ -239,7 +231,6 @@ bool GreasePencilPaintStroke::test_cancel()
 
 void GreasePencilPaintStroke::done(bool /*is_cancel*/, bool /*stroke_started*/)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       mode_data_.get());
   if (operation != nullptr) {
@@ -268,7 +259,6 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
                                                           wmOperator *op,
                                                           const wmEvent *event)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   if (event->tablet.active == EVT_TABLET_ERASER) {
     RNA_enum_set(op->ptr, "brush_toggle", int(BrushSwitchMode::Erase));
   }
@@ -322,7 +312,6 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
   const wmOperatorStatus retval = stroke->modal(C, op, event);
 
@@ -335,7 +324,6 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
 
 static void grease_pencil_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
   stroke->cancel(C);
 }

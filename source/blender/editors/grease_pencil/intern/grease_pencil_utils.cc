@@ -467,15 +467,6 @@ void DrawingPlacement::reproject(const Span<float3> src, MutableSpan<float3> dst
   });
 }
 
-void DrawingPlacement::store_xr_point(Span<float3> src, MutableSpan<float3> dst) const
-{
-  threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-    for (const int i : range) {
-      dst[i] = src[i];
-    }
-  });
-}
-
 float4x4 DrawingPlacement::to_world_space() const
 {
   return layer_space_to_world_space_;

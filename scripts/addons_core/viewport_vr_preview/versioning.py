@@ -27,7 +27,7 @@ def actionconfig_update(actionconfig_data, actionconfig_version):
 #
 #            am_items = am_content["items"]
 #
-#            for (ami_name, ami_args, ami_data, ami_content) in am_items:
+#            for (ami_name, ami_args, ami_data, ami_content) in am_items
 #                # Apply action map item updates.
 #
 #                ami_bindings = ami_content["bindings"]

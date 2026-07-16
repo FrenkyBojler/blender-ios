@@ -232,18 +232,13 @@ static bool wm_xr_operator_gpencil_test_event(const wmOperator *op, const wmEven
   BLI_assert(event->customdata);
 
   wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
-  bool matched = (actiondata->ot == op->type);
-  printf("=== GREASE PENCIL DRAW PATH: wm_xr_operator_gpencil_test_event ===\n");
-  printf("  -> matched: %d\n", matched);
-  fflush(stdout);
-  return matched;
+  return actiondata->ot == op->type;
 }
 
 static wmOperatorStatus grease_pencil_xr_brush_stroke_invoke(bContext *C,
                                                              wmOperator *op,
                                                              const wmEvent *event)
 {
-  printf("=== GREASE PENCIL DRAW PATH: grease_pencil_xr_brush_stroke_invoke ===\n"); fflush(stdout);
   if (!wm_xr_operator_gpencil_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
@@ -286,7 +281,6 @@ static wmOperatorStatus grease_pencil_xr_brush_stroke_modal(bContext *C,
                                                             wmOperator *op,
                                                             const wmEvent *event)
 {
-  printf("=== GREASE PENCIL DRAW PATH: grease_pencil_xr_brush_stroke_modal ===\n"); fflush(stdout);
   if (!wm_xr_operator_gpencil_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
   }

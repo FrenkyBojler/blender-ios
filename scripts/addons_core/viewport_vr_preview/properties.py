@@ -9,7 +9,7 @@ from bpy.types import (
 from bpy.app.handlers import persistent
 
 
-### Landmarks.
+# Landmarks.
 @persistent
 def vr_ensure_default_landmark(context: bpy.context):
     # Ensure there's a default landmark (scene camera by default).

@@ -372,8 +372,6 @@ bool PaintStroke::update(bContext *C,
         /* Not enough motion to define an angle. */
         if (!rake_started_) {
           is_dry_run = true;
-          printf("  -> is_dry_run set to true because paint_calculate_rake_rotation returned false and !rake_started_\n");
-          fflush(stdout);
         }
       }
       else {
@@ -417,10 +415,6 @@ bool PaintStroke::update(bContext *C,
       /* don't set 'r_location_is_set', since we don't want to use the value. */
     }
   }
-
-  printf("=== GREASE PENCIL DRAW PATH: PaintStroke::update ===\n");
-  printf("  -> location_success: %d, is_dry_run: %d\n", location_success, is_dry_run);
-  fflush(stdout);
 
   return location_success && !is_dry_run;
 }
@@ -488,10 +482,6 @@ void PaintStroke::add_step(bContext *C,
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
-  printf("=== GREASE PENCIL DRAW PATH: PaintStroke::add_step ===\n");
-  printf("  -> is_xr: %d, pressure: %f\n", is_xr, pressure);
-  fflush(stdout);
-
 /* the following code is adapted from texture paint. It may not be needed but leaving here
  * just in case for reference (code in texpaint removed as part of refactoring).
  * It's strange that only texpaint had these guards. */
@@ -548,16 +538,11 @@ void PaintStroke::add_step(bContext *C,
   bool is_location_is_set;
   paint_runtime->last_hit = update(
       C, brush, mode, mval, mouse_out, pressure, location, &is_location_is_set);
-  
-  printf("  -> update() returned last_hit: %d\n", paint_runtime->last_hit);
-  fflush(stdout);
 
   if (is_location_is_set) {
     copy_v3_v3(paint_runtime->last_location, location);
   }
   if (!paint_runtime->last_hit) {
-    printf("  -> Returning early because !last_hit\n");
-    fflush(stdout);
     return;
   }
 
@@ -568,8 +553,6 @@ void PaintStroke::add_step(bContext *C,
     const float dash = float(dash_samples) / float(brush.dash_samples);
     if (dash > brush.dash_ratio) {
       add_step = false;
-      printf("  -> add_step set to false because of dash\n");
-      fflush(stdout);
     }
   }
 
@@ -1424,9 +1407,6 @@ static void paint_stroke_line_constrain(float2 last_mouse_position,
 
 wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal ===\n");
-  printf("  -> Event Type: %d, val: %d, event_type_: %d\n", event->type, event->val, event_type_);
-  fflush(stdout);
   PRF_scope(ProfileCategory::Editor);
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
   this->evil_C = C;
@@ -1449,7 +1429,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   if (event->type == INBETWEEN_MOUSEMOVE &&
       !paint_brush_type_require_inbetween_mouse_events(*br, mode))
   {
-    printf("  -> SKIPPED: INBETWEEN_MOUSEMOVE\n"); fflush(stdout);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -1463,7 +1442,9 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
   if (is_xr) {
     const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
-    pressure = actiondata->state[0];
+    if (actiondata != nullptr) {
+      pressure = actiondata->state[0];
+    }
   }
 
   if (print_pressure_status_enabled() && WM_event_is_tablet(event)) {
@@ -1481,12 +1462,19 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   }
 
   const int input_samples = BKE_brush_input_samples_get(paint, br);
+  float3 controller_position = float3(0.0f);
+  if (is_xr) {
+    BLI_assert(event->custom == EVT_DATA_XR);
+    const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
+    if (actiondata != nullptr) {
+      controller_position = float3(actiondata->controller_loc);
+    }
+  }
   this->add_sample(input_samples,
                    event->mval[0],
                    event->mval[1],
                    pressure,
-                   is_xr ? float3(event->cval[0], event->cval[1], event->cval[2]) :
-                           float3(0.0f, 0.0f, 0.0f),
+                   controller_position,
                    is_xr);
 
   PaintSample sample_average;
@@ -1534,10 +1522,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
                                                          last_world_space_position_);
     }
     stroke_started_ = this->test_start(op, sample_average.mouse);
-
-    printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal init ===\n");
-    printf("  -> stroke_started_: %d\n", stroke_started_);
-    fflush(stdout);
 
     if (stroke_started_) {
       /* StrokeTestStart often updates the currently active brush so we need to re-retrieve it
@@ -1598,9 +1582,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     if (this->constrain_line) {
       paint_stroke_line_constrain(this->last_mouse_position, this->constrained_pos, mouse);
     }
-    printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal ===\n");
-    printf("  -> KM_RELEASE triggered, ending stroke.\n");
-    fflush(stdout);
     this->line_end(C, op, mouse);
     this->done(C, false);
     return OPERATOR_FINISHED;
@@ -1632,19 +1613,12 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     }
   }
   else if (is_xr) {
-    printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal is_xr block ===\n");
-    printf("  -> stroke_started_: %d\n", stroke_started_);
-    fflush(stdout);
     if (stroke_started_) {
       defer_to_first_dab_step = first_dab && paint_space_stroke_enabled(*br, mode) &&
                                 !(br->flag & BRUSH_SMOOTH_STROKE);
-      printf("  -> defer_to_first_dab_step: %d\n", defer_to_first_dab_step);
-      fflush(stdout);
       if (!defer_to_first_dab_step) {
         float dist = math::distance(sample_average.controller, this->last_controller_position);
         stroke_distance_ += dist;
-        printf("  -> dist: %f, stroke_distance_: %f\n", dist, stroke_distance_);
-        fflush(stdout);
 
         this->add_step(C, op, sample_average.mouse, pressure, sample_average.controller, true);
         needs_redraw = true;
@@ -1658,9 +1632,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
            ((br->stroke_method == BRUSH_STROKE_AIRBRUSH) && event->type == TIMER &&
             event->customdata == timer_))
   {
-    printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal EVENT_MATCH ===\n"); 
-    printf("  -> first_modal: %d, ISMOUSE_MOTION: %d, TIMER: %d\n", first_modal, ISMOUSE_MOTION(event->type), event->type == TIMER);
-    fflush(stdout);
     if (paint_smooth_stroke(*this->brush,
                             &sample_average,
                             mode,
@@ -1671,7 +1642,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
                             mouse,
                             pressure))
     {
-      printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal smooth_stroke_passed ===\n"); fflush(stdout);
       if (stroke_started_) {
         if (paint_space_stroke_enabled(*br, mode)) {
           if (this->space_stroke(C, op, mouse, pressure)) {
@@ -1681,10 +1651,6 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
         else {
           const float2 mouse_delta = mouse - this->last_mouse_position;
           stroke_distance_ += math::length(mouse_delta);
-          
-          printf("=== GREASE PENCIL DRAW PATH: PaintStroke::modal add_step ===\n");
-          printf("  -> stroke_distance_: %.3f\n", stroke_distance_);
-          fflush(stdout);
 
           this->add_step(C, op, mouse, pressure, float3(0.0f, 0.0f, 0.0f), false);
           needs_redraw = true;

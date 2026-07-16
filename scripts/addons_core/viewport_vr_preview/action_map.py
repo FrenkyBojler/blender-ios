@@ -38,8 +38,10 @@ def vr_actionset_active_update(context):
 def vr_actions_use_gamepad_update(self, context):
     vr_actionset_active_update(context)
 
+
 def vr_actions_use_nextlab_update(self, context):
     vr_actionset_active_update(context)
+
 
 
 @persistent
@@ -86,17 +88,17 @@ def vr_create_actions(context: bpy.context):
             for amb in ami.bindings:
                 # Check for bindings that require OpenXR extensions.
                 if amb.name == defaults.VRDefaultActionbindings.REVERB_G2.value:
-                   if not scene.vr_actions_enable_reverb_g2:
-                       continue
+                    if not scene.vr_actions_enable_reverb_g2:
+                        continue
                 elif amb.name == defaults.VRDefaultActionbindings.VIVE_COSMOS.value:
-                   if not scene.vr_actions_enable_vive_cosmos:
-                       continue
+                    if not scene.vr_actions_enable_vive_cosmos:
+                        continue
                 elif amb.name == defaults.VRDefaultActionbindings.VIVE_FOCUS.value:
-                   if not scene.vr_actions_enable_vive_focus:
-                       continue
+                    if not scene.vr_actions_enable_vive_focus:
+                        continue
                 elif amb.name == defaults.VRDefaultActionbindings.HUAWEI.value:
-                   if not scene.vr_actions_enable_huawei:
-                       continue
+                    if not scene.vr_actions_enable_huawei:
+                        continue
 
                 ok = session_state.action_binding_create(context, am, ami, amb)
                 if not ok:

@@ -181,18 +181,6 @@ bool WM_xr_session_is_ready(const wmXrData *xr)
   return WM_xr_session_exists(xr) && GHOST_XrSessionIsRunning(xr->runtime->ghost_context);
 }
 
-ARegion *WM_xr_get_xr_region(wmXrData *xr_data) {
-  if (!xr_data)
-    return NULL;
-  return xr_data->xr_region;
-}
-
-void WM_xr_set_xr_region(wmXrData *xr_data, ARegion *region) {
-  if (!xr_data)
-    return;
-  xr_data->xr_region = region;
-}
-
 static void wm_xr_session_base_pose_calc(const Scene *scene,
                                          const XrSessionSettings *settings,
                                          GHOST_XrPose *r_base_pose,

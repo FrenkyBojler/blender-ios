@@ -323,17 +323,16 @@ struct PaintOperationExecutor {
                             const int material_index,
                             const bool use_fill)
   {
-    printf("=== GREASE PENCIL DRAW PATH: PaintOperationExecutor::%s ===\n", __func__); fflush(stdout);
-    
     self.is_xr_ = start_sample.is_xr;
-    
+
     const float2 start_coords = start_sample.mouse_position;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
     float3 start_location;
     if (start_sample.is_xr) {
-      start_location = math::transform_point(math::invert(self.placement_.to_world_space()), start_sample.controller_position);
+      start_location = math::transform_point(math::invert(self.placement_.to_world_space()),
+                                             start_sample.controller_position);
     }
     else if (self.placement_.use_project_to_stroke() || self.placement_.use_project_to_surface()) {
       const std::optional<float> depth = self.placement_.get_depth(start_coords);
@@ -733,11 +732,6 @@ struct PaintOperationExecutor {
 
     const bool is_first_sample = (curve_points.size() == 1);
 
-    printf("=== GREASE PENCIL DRAW PATH: PaintOperationExecutor::process_extension_sample ===\n");
-    printf("  -> Radius: %f (Brush Px: %f), Opacity: %f\n", radius, brush_radius_px, opacity);
-    printf("  -> Stroke Position [3D]: x=%f, y=%f, z=%f\n", position.x, position.y, position.z);
-    fflush(stdout);
-
     /* Use the vector from the previous to the next point. Set the direction based on the first two
      * samples. For subsequent samples, interpolate with the previous direction to get a smoothed
      * value over time. */
@@ -998,7 +992,9 @@ struct PaintOperationExecutor {
       }
     }
 
-    if (!extension_sample.is_xr && (self.placement_.use_project_to_stroke() || self.placement_.use_project_to_surface())) {
+    if (!extension_sample.is_xr &&
+        (self.placement_.use_project_to_stroke() || self.placement_.use_project_to_surface()))
+    {
       /* Find a new snap point and apply projection to trailing points. */
       self.update_stroke_depth_placement(extension_sample);
     }
@@ -1016,7 +1012,6 @@ struct PaintOperationExecutor {
 
   void execute(PaintOperation &self, const bContext &C, const InputSample &extension_sample)
   {
-    printf("=== GREASE PENCIL DRAW PATH: PaintOperationExecutor::%s ===\n", __func__); fflush(stdout);
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     this->process_extension_sample(self, C, extension_sample);
@@ -1211,14 +1206,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
   BLI_assert(grease_pencil->has_active_layer());
   const bke::greasepencil::Layer &layer = *grease_pencil->get_active_layer();
-  
-  printf("=== GREASE PENCIL DRAW PATH: on_stroke_begin ===\n");
-  printf("  -> Material Index: %d\n", object_->actcol);
-  printf("  -> Layer Name: %s\n", layer.name().c_str());
-  printf("  -> Layer Visibility: %d, Opacity: %f\n", layer.is_visible(), layer.opacity);
-  printf("  -> Placement Mode: %d\n", scene_->toolsettings->gpencil_v3d_align);
-  printf("  -> Camera Clip Start/End: %f / %f\n", view3d->clip_start, view3d->clip_end);
-  fflush(stdout);
 
   /* Initialize helper class for projecting screen space coordinates. */
   placement_ = ed::greasepencil::DrawingPlacement(*scene_, *region, *view3d, *eval_object, &layer);
@@ -1229,7 +1216,8 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   if (start_sample.is_xr) {
     float3 u_dir;
     float3 v_dir;
-    float3 origin = math::transform_point(math::invert(placement_.to_world_space()), start_sample.controller_position);
+    float3 origin = math::transform_point(math::invert(placement_.to_world_space()),
+                                          start_sample.controller_position);
     switch (scene_->toolsettings->gp_sculpt.lock_axis) {
       case GP_LOCKAXIS_VIEW:
         u_dir = math::normalize(placement_.project(float2(region->winx, 0.0f) +
@@ -1312,7 +1300,6 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   GreasePencil *grease_pencil = id_cast<GreasePencil *>(object_->data);
 
   PaintOperationExecutor executor{*scene_};
@@ -1749,7 +1736,6 @@ static void convert_stroke_type(bke::greasepencil::Drawing &drawing,
 
 void PaintOperation::on_stroke_done(const bContext &C)
 {
-  printf("=== GREASE PENCIL DRAW PATH: %s ===\n", __func__); fflush(stdout);
   using namespace blender::bke;
   RegionView3D *rv3d = CTX_wm_region_view3d(&C);
   const ARegion *region = CTX_wm_region(&C);

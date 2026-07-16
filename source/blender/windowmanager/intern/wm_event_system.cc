@@ -4055,15 +4055,12 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
   }
 
   const bool handler_op_type_match = (op_handler->op->type == actiondata->ot);
-  
-  /* Skip property comparison for running modal operators. The operator might have 
-   * modified its own properties during invoke (e.g. adding stroke data), which 
-   * would cause IDP_EqualsProperties to fail and incorrectly bypass the modal handler. */
-  const bool handler_op_properties_match = true;
-
-  printf("=== GREASE PENCIL DRAW PATH: wm_event_xr_handler_matches_actiondata ===\n");
-  printf("  -> type_match: %d, handler opname: %s\n", handler_op_type_match, op_handler->op->type->idname);
-  fflush(stdout);
+  const bool is_grease_pencil_xr_stroke = handler_op_type_match &&
+                                          STREQ(op_handler->op->type->idname,
+                                                "GREASE_PENCIL_XR_OT_brush_stroke_xr");
+  const bool handler_op_properties_match = is_grease_pencil_xr_stroke ||
+                                           IDP_EqualsProperties(op_handler->op->properties,
+                                                               actiondata->op_properties);
 
   return (handler_op_type_match && handler_op_properties_match);
 }
@@ -6584,7 +6581,6 @@ void wm_event_add_xrevent(wmWindow *win, wmXrActionData *actiondata, short val)
   event.custom = EVT_DATA_XR;
   event.customdata = actiondata;
   event.customdata_free = true;
-  copy_v3_v3(event.cval, actiondata->controller_loc);
 
   WM_event_add(win, &event);
 }
