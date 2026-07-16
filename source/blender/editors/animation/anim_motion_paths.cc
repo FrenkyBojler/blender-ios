@@ -24,6 +24,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
+#include "BKE_anim_visualization.h"
 #include "BKE_camera.h"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
@@ -516,5 +517,35 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
     GPU_BATCH_DISCARD_SAFE(mpath->batch_points);
   }
 }
+
+namespace motionpath {
+
+/* Data owned by the thread which calculates the motion path. */
+struct MotionPathBuffer {
+  Array<float3> points;
+  Array<eMotionPathVert_Flag> flags;
+};
+
+struct AsyncRangeData {
+  Array<MotionPathBuffer> results;
+  Bounds<int> frame_range;
+};
+
+/* Runs on the worker thread. */
+static bool motionpath_buffer_callback(Depsgraph *dg, const int frame)
+{
+
+  return true;
+}
+
+/* Runs on main thread. */
+static void motionpath_update_callback() {}
+
+void register_motionpath_async(bMotionPath &motion_path)
+{
+  animviz::background_eval_register(motionpath_buffer_callback, motionpath_update_callback);
+}
+
+}  // namespace motionpath
 
 }  // namespace blender

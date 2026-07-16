@@ -15,6 +15,11 @@
 #include "BKE_anim_visualization.h"
 #include "BKE_report.hh"
 
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
+
+#include "WM_api.hh"
+
 #include "GPU_batch.hh"
 
 #include "BLO_read_write.hh"
@@ -240,5 +245,130 @@ void animviz_motionpath_blend_read_data(BlendDataReader *reader, bMotionPath *mp
   mpath->batch_line = nullptr;
   mpath->batch_points = nullptr;
 }
+
+namespace animviz {
+
+/* Data visible to the worker thread. */
+struct WorkerData {
+  /* Can be set from the main thread to tell the evaluating thread to start over.
+   * Is used because we cannot just stop the depsgraph evaluation. */
+  std::atomic<bool> restart;
+  /* The center frame around which to run the evaluation. */
+  std::atomic<int> evaluation_center;
+  /* The range of frames that were already evaluated. Inclusive/Exclusive. */
+  Bounds<int> evaluated_range;
+
+  /* The depsgraph to evaluate in the background. All copy on eval nodes have to be
+   * evaluated before it is sent to the thread. */
+  Depsgraph *dg = nullptr;
+};
+
+struct BGEvalJobData {
+  WorkerData worker_data;
+
+  /* The IDs that are being evaluated. */
+  Array<ID *> ids;
+};
+
+static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
+{
+  WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+  eval_data->restart.store(false, std::memory_order_release);
+  const int center_frame = eval_data->evaluation_center.load(std::memory_order_acquire);
+  eval_data->evaluated_range = {center_frame, center_frame + 1};
+
+  while (true) {
+    int frame;
+    if (abs(eval_data->evaluated_range.min - center_frame) <
+        abs(eval_data->evaluated_range.max - center_frame))
+    {
+      frame = eval_data->evaluated_range.min - 1;
+      eval_data->evaluated_range.min -= 1;
+    }
+    else {
+      frame = eval_data->evaluated_range.max;
+      eval_data->evaluated_range.max += 1;
+    }
+
+    DEG_evaluate_on_framechange(eval_data->dg, frame);
+  }
+}
+
+static void update_job(void *job_data)
+{
+  WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+}
+
+static void finish_job(void *job_data)
+{
+  WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+}
+
+static void free_job_data(void *job_data)
+{
+  BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(job_data);
+  DEG_graph_free(eval_data->worker_data.dg);
+  MEM_delete(eval_data);
+}
+
+constexpr const char *job_name = "Async Evaluate Frame Range";
+
+void background_eval_register(Main &bmain,
+                              wmWindowManager &wm,
+                              wmWindow &window,
+                              Scene &scene,
+                              ViewLayer &view_layer,
+                              ID &id,
+                              EvalCallback buffer_cb,
+                              UpdateCallback update_cb)
+{
+  wmJob *wm_job = WM_jobs_get(
+      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+  if (WM_jobs_is_running(wm_job)) {
+    BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(WM_jobs_customdata_get(wm_job));
+    const bool id_already_registered = eval_data->ids.as_span().contains(&id);
+    if (id_already_registered) {
+      eval_data->worker_data.restart.store(true, std::memory_order_release);
+      return;
+    }
+    /* If the job is running and the ID is not yet registered, we have to kill it so we can modify
+     * BGEvalJobData without race conditions. This is a blocking call. */
+    WM_jobs_kill_type(&wm, &scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+  }
+
+  BGEvalJobData *eval_data = MEM_new<BGEvalJobData>(__func__);
+  Depsgraph *dg = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
+  /* TODO merge ID list with existing IDs. */
+  DEG_graph_build_from_ids(dg, {&id});
+  /* Evaluate once on the main thread so the copy on eval nodes have run. */
+  DEG_evaluate_on_refresh(dg);
+  /* Don't allow reading main from the worker thread. */
+  DEG_set_allow_read_from_main(dg, false);
+  eval_data->worker_data.dg = dg;
+
+  WM_jobs_customdata_set(wm_job, eval_data, free_job_data);
+  WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
+  WM_jobs_start(&wm, wm_job);
+}
+
+void background_eval_deregister(wmWindowManager &wm, wmWindow &window, Scene &scene)
+{
+  wmJob *wm_job = WM_jobs_get(
+      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+  if (!WM_jobs_is_running(wm_job)) {
+    /* No job to deregister from. */
+    return;
+  }
+}
+
+void background_eval_set_center_frame(const int frame)
+{
+  /* wmJob *wm_job = WM_jobs_get(
+      &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL); */
+}
+
+}  // namespace animviz
 
 }  // namespace blender

@@ -7,6 +7,9 @@
  * \ingroup bke
  */
 
+#include "BLI_bounds_types.hh"
+#include "BLI_function_ref.hh"
+
 namespace blender {
 
 struct BlendDataReader;
@@ -17,6 +20,7 @@ struct Scene;
 struct bAnimVizSettings;
 struct bMotionPath;
 struct bPoseChannel;
+struct Depsgraph;
 
 /* ---------------------------------------------------- */
 /* Animation Visualization */
@@ -57,5 +61,24 @@ struct bMotionPath *animviz_verify_motionpaths(struct ReportList *reports,
 
 void animviz_motionpath_blend_write(struct BlendWriter *writer, struct bMotionPath *mpath);
 void animviz_motionpath_blend_read_data(struct BlendDataReader *reader, struct bMotionPath *mpath);
+
+namespace animviz {
+
+/**
+ * Called for every frame that the worker evaluated.
+ *
+ * \return True if the evaluation result is different to buffered data. This
+ * is used on the worker thread to dynamically figure out where the evaluation should end.
+ */
+using EvalCallback = FunctionRef<bool(Depsgraph *dg, int frame)>;
+/* Callback that runs on the main thread periodically. Can be used to copy back data from the
+ * buffer. */
+using UpdateCallback = FunctionRef<void()>;
+
+void background_eval_register(EvalCallback buffer_cb, UpdateCallback update_cb);
+void background_eval_deregister();
+void background_eval_set_center_frame(int frame);
+
+}  // namespace animviz
 
 }  // namespace blender
