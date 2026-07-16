@@ -469,12 +469,7 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
     if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
       bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
-      EDBM_verts_mirror_cache_begin(em,
-                                    axis,
-                                    (em->selectmode & SCE_SELECT_VERTEX) != 0,
-                                    (em->selectmode & SCE_SELECT_EDGE) != 0,
-                                    (em->selectmode & SCE_SELECT_FACE) != 0,
-                                    use_topology);
+      EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
 
       if (em->selectmode & SCE_SELECT_VERTEX) {
         BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {

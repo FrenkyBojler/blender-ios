@@ -393,12 +393,7 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
 
   for (int axis = 0; axis < 3; axis++) {
     if (mesh_->symmetry & (ME_SYMMETRY_X << axis)) {
-      EDBM_verts_mirror_cache_begin(em_,
-                                    axis,
-                                    (htype_ & BM_VERT) != 0,
-                                    (htype_ & BM_EDGE) != 0,
-                                    (htype_ & BM_FACE) != 0,
-                                    use_topology_mirror_);
+      EDBM_verts_mirror_cache_begin(em_, axis, true, false, true, use_topology_mirror_);
 
       if (htype_ & BM_VERT) {
         BMVert *v_curr;
