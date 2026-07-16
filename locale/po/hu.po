@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-25 07:25+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-03-19 19:12+0000\n"
 "Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -655,6 +655,14 @@ msgid "Y Position"
 msgstr "Y pozíció"
 
 
+msgid "Current File"
+msgstr "Aktuális fájl"
+
+
+msgid "Custom"
+msgstr "Egyéni"
+
+
 msgid "Active Tag"
 msgstr "Aktív címke"
 
@@ -682,14 +690,6 @@ msgstr "Teljes elérési útvonal"
 msgctxt "ID"
 msgid "Data-block Type"
 msgstr "Adatblokk típus"
-
-
-msgid "Current File"
-msgstr "Aktuális fájl"
-
-
-msgid "Custom"
-msgstr "Egyéni"
 
 
 msgid "Actions"
@@ -3998,6 +3998,10 @@ msgid "General properties for Grease Pencil stroke sculpting tools"
 msgstr "A zsírkréta vonású szobrászeszközök általános tulajdonságai"
 
 
+msgid "Dynamic"
+msgstr "Dinamikus"
+
+
 msgid "Window"
 msgstr "Ablak"
 
@@ -4112,10 +4116,6 @@ msgstr "Lokális"
 
 msgid "Global"
 msgstr "Globális"
-
-
-msgid "Dynamic"
-msgstr "Dinamikus"
 
 
 msgid "Falloff Curve"
@@ -6610,6 +6610,26 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Merge"
+msgstr "Összefésülés"
+
+
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Metaball"
+msgstr "Meta test"
+
+
+msgid "Import"
+msgstr "Importálás"
+
+
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6626,8 +6646,8 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "Metaball"
-msgstr "Meta test"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
@@ -6648,26 +6668,6 @@ msgstr "Elfogadás"
 
 msgid "Track"
 msgstr "Nyom"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
 
 
 msgid "Keying"
@@ -12784,12 +12784,12 @@ msgid "Detail Size"
 msgstr "Részlet mérete"
 
 
-msgid "Motion Tracking"
-msgstr "Mozgáskövetés"
-
-
 msgid "Render Pass"
 msgstr "Render vezeték"
+
+
+msgid "Motion Tracking"
+msgstr "Mozgáskövetés"
 
 
 msgid "Chain Scaling"
@@ -12914,10 +12914,6 @@ msgstr "Python szkriptek automatikus futtatása"
 
 msgid "Bone Color Sets"
 msgstr "Csont színkészletek"
-
-
-msgid "Axis & Gizmo Colors"
-msgstr "Tengelyek & kütyük színei"
 
 
 msgid "Shaded"
@@ -14911,6 +14907,10 @@ msgid "XR Data for Window Manager Event"
 msgstr "XR adat ablakkezelő eseményhez"
 
 
+msgid "Cancel"
+msgstr "Mégsem"
+
+
 msgid "View operations (useful for keyboards without a numpad)"
 msgstr "Operációk megtekintése (hasznos olyan billentyűzeteknél ahol nincs numerikus billentyűzet)"
 
@@ -15112,6 +15112,11 @@ msgstr "Hiba bejelentése"
 
 msgid "Object Index"
 msgstr "Objektum index"
+
+
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Törlés"
 
 
 msgctxt "Operator"
@@ -15358,11 +15363,6 @@ msgstr "Áthelyezés:"
 
 msgid "Spline:"
 msgstr "Spline:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Törlés"
 
 
 msgid "Animation:"
@@ -16100,10 +16100,6 @@ msgstr "Ugyanaz a csont lett kijelölve..."
 
 msgid "Operation requires an active bone"
 msgstr "A művelet aktív csontot igényel"
-
-
-msgid "Cancel"
-msgstr "Mégsem"
 
 
 msgid "Cannot spin"

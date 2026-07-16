@@ -290,7 +290,7 @@ class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel)
         col.prop(view, "use_translate_new_dataname", text="New Data")
 
         layout.prop(view, "date_format")
-        layout.prop(view, "time_format", text="Time")
+        layout.prop(view, "time_format", text="Time", text_ctxt=i18n_contexts.editor_preferences)
 
 
 class USERPREF_PT_interface_accessibility(InterfacePanel, CenterAlignMixIn, Panel):
@@ -684,7 +684,7 @@ class USERPREF_PT_animation_timeline_advanced(AnimationPanel, CenterAlignMixIn, 
         row = layout.row(align=False)
         row.active = edit.use_negative_frames
         row.alignment = 'RIGHT'
-        row.label(icon="ERROR", text="Negative frames can cause issues with audio playback and exporters.")
+        row.label(icon='STATUS_WARNING', text="Negative frames can cause issues with audio playback and exporters.")
 
 
 # -----------------------------------------------------------------------------
@@ -726,12 +726,12 @@ class USERPREF_PT_system_cycles_devices(SystemPanel, CenterAlignMixIn, Panel):
         if bpy.app.build_options.cycles:
             addon = prefs.addons.get("cycles")
             if addon is None:
-                layout.label(text="Enable Cycles Render Engine add-on to use Cycles", icon='INFO')
+                layout.label(text="Enable Cycles Render Engine add-on to use Cycles", icon='STATUS_INFO')
             else:
                 addon.preferences.draw_impl(col, context)
             del addon
         else:
-            layout.label(text="Cycles is disabled in this build", icon='INFO')
+            layout.label(text="Cycles is disabled in this build", icon='STATUS_INFO')
 
 
 class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
@@ -756,12 +756,12 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
             col.prop(system, "gpu_preferred_device")
 
         if system.gpu_backend != gpu.platform.backend_type_get():
-            layout.label(text="A restart of Blender is required", icon='INFO')
+            layout.label(text="A restart of Blender is required", icon='STATUS_INFO')
 
         if system.gpu_backend == 'VULKAN':
             if sys.platform == "win32" and gpu.platform.device_type_get() == 'QUALCOMM':
                 col = layout.column()
-                col.label(text="Current Vulkan backend limitations:", icon='INFO')
+                col.label(text="Current Vulkan backend limitations:", icon='STATUS_INFO')
                 col.label(text="\u2022 Windows on ARM requires driver 31.0.112.0 or higher", icon='BLANK1')
 
 
@@ -1556,7 +1556,7 @@ class ThemeGenericClassGenerator:
         from bpy.types import Theme
 
         for theme_area in Theme.bl_rna.properties["theme_area"].enum_items_static:
-            if theme_area.identifier in {'USER_INTERFACE', 'STYLE', 'BONE_COLOR_SETS'}:
+            if theme_area.identifier in {'USER_INTERFACE', 'STYLE', 'BONE_COLOR_SETS', 'PROJECT'}:
                 continue
 
             panel_id = "USERPREF_PT_theme_" + theme_area.identifier.lower()
@@ -1767,7 +1767,7 @@ class USERPREF_UL_extension_repos(UIList):
                     (repo.use_custom_directory and repo.custom_directory == "") or
                     (repo.use_remote_url and repo.remote_url == "")
             ):
-                layout.label(text="", icon='ERROR')
+                layout.label(text="", icon='STATUS_ERROR')
 
         layout.prop(repo, "enabled", text="", emboss=False, icon='CHECKBOX_HLT' if repo.enabled else 'CHECKBOX_DEHLT')
 
@@ -2439,7 +2439,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         except Exception:
             import traceback
             traceback.print_exc()
-            box_prefs.label(text="Error (see console)", icon='ERROR')
+            box_prefs.label(text="Error (see console)", icon='STATUS_ERROR')
         del addon_preferences_class.layout
 
     @staticmethod
@@ -2448,7 +2448,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
         box = layout.box()
         sub = box.row()
         sub.label(text=lines[0])
-        sub.label(icon='ERROR')
+        sub.label(icon='STATUS_ERROR')
         for line in lines[1:]:
             box.label(text=line)
 
@@ -2519,7 +2519,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
             box = col.box()
             row = box.row()
             row.label(text="Multiple add-ons with the same name found!")
-            row.label(icon='ERROR')
+            row.label(icon='STATUS_ERROR')
             box.label(text="Delete one of each pair to resolve:")
             for (addon_name, addon_file, addon_path) in addon_utils.error_duplicates:
                 box.separator()
@@ -2606,7 +2606,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
             sub.label(text="{:s}: {:s}".format(iface_(bl_info["category"]), iface_(bl_info["name"])))
 
             if bl_info["warning"]:
-                sub.label(icon='ERROR')
+                sub.label(icon='STATUS_WARNING')
 
             # icon showing support level.
             sub.label(icon=self._support_icon_mapping.get(bl_info["support"], 'QUESTION'))
@@ -2636,7 +2636,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 if value := bl_info["warning"]:
                     split = colsub.row().split(factor=0.15)
                     split.label(text="Warning:")
-                    split.label(text="  " + iface_(value), icon='ERROR')
+                    split.label(text="  " + iface_(value), icon='STATUS_WARNING')
                 del value
 
                 user_addon = USERPREF_PT_addons.is_user_addon(mod, user_addon_paths)
@@ -2686,7 +2686,7 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                     colsub = box.column()
                     row = colsub.row(align=True)
 
-                    row.label(text="", icon='ERROR')
+                    row.label(text="", icon='STATUS_ERROR')
 
                     if is_enabled:
                         row.operator(
@@ -2718,9 +2718,10 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
             # Either online access is allowed, or the warning has already been dismissed. No need to draw.
             return
 
-        has_online_library = any(
-            library.enabled and library.use_remote_url for library in prefs.filepaths.asset_libraries
-        )
+        has_online_essentials = prefs.asset_libraries.use_online_essentials
+        has_online_library = has_online_essentials or any(
+            library.enabled and library.use_remote_url for library in prefs.filepaths.asset_libraries)
+
         if not has_online_library:
             # No online libraries, so no need to draw.
             return
@@ -2763,92 +2764,6 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
         # The only reason to prefer this over `screen.userpref_show`
         # is it will be disabled when `--offline-mode` is forced with a useful error for why.
         row.operator("extensions.userpref_allow_online", text="Allow Online Access", icon='CHECKMARK')
-
-
-# The panel is not located in the file paths section anymore and should be renamed. The old name is only kept for
-# compatibility (add-ons extend it). Planned for removal in 6.0, see #153901.
-class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
-    bl_label = "Asset Libraries"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = False
-        layout.use_property_decorate = False
-
-        paths = context.preferences.filepaths
-        active_library_index = paths.active_asset_library
-
-        row = layout.row()
-
-        row.template_list(
-            "USERPREF_UL_asset_libraries", "user_asset_libraries",
-            paths, "asset_libraries",
-            paths, "active_asset_library",
-        )
-
-        col = row.column(align=True)
-        if context.preferences.experimental.use_remote_asset_libraries:
-            col.operator_menu_enum("preferences.asset_library_add", "type", text="", icon='ADD')
-        else:
-            col.operator("preferences.asset_library_add", text="", icon='ADD').type = 'LOCAL'
-        props = col.operator("preferences.asset_library_remove", text="", icon='REMOVE')
-        props.index = active_library_index
-
-        try:
-            active_library = None if active_library_index < 0 else paths.asset_libraries[active_library_index]
-        except IndexError:
-            active_library = None
-
-        if active_library is None:
-            return
-
-        layout.separator()
-
-        if active_library.use_remote_url:
-            use_remote_libraries = context.preferences.experimental.use_remote_asset_libraries
-            if use_remote_libraries:
-                row = layout.row()
-                row.alert = active_library.remote_url == ""
-                row.prop(active_library, "remote_url", text="", icon='INTERNET', placeholder="Repository URL")
-
-            layout.prop(active_library, "import_method", text="Import Method")
-        else:
-            layout.prop(active_library, "path")
-            layout.prop(active_library, "import_method", text="Import Method")
-            layout.prop(active_library, "use_relative_path")
-
-
-class USERPREF_UL_asset_libraries(UIList):
-    def draw_item(self, context, layout, _data, item, _icon, _active_data, _active_propname, _index):
-        del context
-        asset_library = item
-
-        icon = 'INTERNET' if asset_library.use_remote_url else 'DISK_DRIVE'
-        row = layout.row(align=True)
-        row.prop(asset_library, "name", text="", icon=icon, emboss=False)
-
-        if asset_library.enabled:
-            if asset_library.use_remote_url and asset_library.remote_url == "":
-                row.label(text="", icon='ERROR')
-
-        row.prop(asset_library, "enabled", text="", emboss=False,
-                 icon='CHECKBOX_HLT' if asset_library.enabled else 'CHECKBOX_DEHLT')
-
-    def filter_items(self, context, data, property):
-        asset_libraries = getattr(data, property)
-
-        # Determine the bitflags for remote & non-remote asset libraries.
-        use_remote_libs = context.preferences.experimental.use_remote_asset_libraries
-        flag_remote = self.bitflag_filter_item if use_remote_libs else self.bitflag_item_never_show
-        flag_nonremote = self.bitflag_filter_item
-
-        # Construct arrays of flags & indices.
-        flags = [
-            flag_remote if asset_library.use_remote_url else flag_nonremote
-            for asset_library in asset_libraries]
-        indices = list(range(len(asset_libraries)))
-
-        return flags, indices
 
 
 # -----------------------------------------------------------------------------
@@ -3083,7 +2998,6 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
-                ({"property": "use_geometry_nodes_hair_dynamics"}, ("blender/blender/issues/141609", "#141609")),
             ),
         )
 
@@ -3219,7 +3133,6 @@ classes = (
     USERPREF_PT_addons,
 
     USERPREF_PT_assets,
-    USERPREF_PT_file_paths_asset_libraries,
 
     USERPREF_MT_extensions_active_repo,
     USERPREF_MT_extensions_active_repo_remove,
@@ -3241,7 +3154,6 @@ classes = (
     USERPREF_PT_developer_tools,
 
     # UI lists
-    USERPREF_UL_asset_libraries,
     USERPREF_UL_extension_repos,
 
     # Add dynamically generated editor theme panels last,

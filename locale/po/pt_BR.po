@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2026-05-25 07:25+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2026-04-13 10:12+0000\n"
 "Last-Translator: Gilberto Rodrigues <gilbertorodrigues@outlook.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -1545,6 +1545,26 @@ msgid "Armatures active edit bone"
 msgstr "Osso de edição ativo na armação"
 
 
+msgid "Asset Library"
+msgstr "Biblioteca de Recursos"
+
+
+msgid "Show assets from all of the listed asset libraries"
+msgstr "Mostrar itens de todas as bibliotecas listadas"
+
+
+msgid "Show the assets currently available in this Blender session"
+msgstr "Mostrar os itens atualmente disponíveis nesta sessão do Blender"
+
+
+msgid "Essentials"
+msgstr "Essenciais"
+
+
+msgid "Custom"
+msgstr "Personalizar"
+
+
 msgid "User Asset Libraries"
 msgstr "Bibliotecas de Ativos do Usuário"
 
@@ -1665,28 +1685,8 @@ msgid "Regions for quick access to assets"
 msgstr "Regiões para acesso rápido aos ativos"
 
 
-msgid "Asset Library"
-msgstr "Biblioteca de Recursos"
-
-
 msgid "Choose the asset library to display assets from"
 msgstr "Escolha a biblioteca de ativos para exibir os ativos"
-
-
-msgid "Show assets from all of the listed asset libraries"
-msgstr "Mostrar itens de todas as bibliotecas listadas"
-
-
-msgid "Show the assets currently available in this Blender session"
-msgstr "Mostrar os itens atualmente disponíveis nesta sessão do Blender"
-
-
-msgid "Essentials"
-msgstr "Essenciais"
-
-
-msgid "Custom"
-msgstr "Personalizar"
 
 
 msgid "ID Name"
@@ -4027,6 +4027,10 @@ msgstr "Tudo Abaixo"
 
 msgid "Simplify"
 msgstr "Simplificar"
+
+
+msgid "Pixel"
+msgstr "Pixeis"
 
 
 msgid "Input Samples"
@@ -11230,6 +11234,14 @@ msgid "Use Falloff"
 msgstr "Usar decaimento"
 
 
+msgid "Dynamic"
+msgstr "Dinâmico"
+
+
+msgid "Single"
+msgstr "Único"
+
+
 msgid "Items"
 msgstr "Itens"
 
@@ -11654,10 +11666,6 @@ msgstr "Local"
 
 msgid "Global"
 msgstr "Global"
-
-
-msgid "Dynamic"
-msgstr "Dinâmico"
 
 
 msgid "Crease Brush Pinch Factor"
@@ -15267,10 +15275,6 @@ msgstr "Graus"
 
 msgid "How many degrees path has to curve to make another render segment"
 msgstr "Define quantos graus o caminho tem de se curvar para que seja feito outro segmento de renderização."
-
-
-msgid "Pixel"
-msgstr "Pixeis"
 
 
 msgid "How many pixels path has to cover to make another render segment"
@@ -21184,12 +21188,64 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Mirror"
-msgstr "Espelhar"
+msgid "Face Data"
+msgstr "Dados das faces"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
+msgid "Merge"
+msgstr "Fundir"
+
+
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Special Characters"
+msgstr "Caracteres especiais"
+
+
+msgid "Metaball"
+msgstr "Meta-esfera"
+
+
+msgid "Math"
+msgstr "Matemática"
+
+
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
 
 
 msgid "Snap"
 msgstr "Atrair"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Import"
+msgstr "Importar"
+
+
+msgid "Mirror"
+msgstr "Espelhar"
 
 
 msgid "UV Mapping"
@@ -21224,6 +21280,10 @@ msgid "Select More/Less"
 msgstr "Selecionar mais ou menos"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Select Similar"
 msgstr "Selecionar por similaridades"
 
@@ -21232,20 +21292,12 @@ msgid "Select All by Trait"
 msgstr "Selecionar todos por características..."
 
 
-msgid "Math"
-msgstr "Matemática"
-
-
 msgid "Select Linked"
 msgstr "Selecionar vinculados(as)"
 
 
 msgid "Select Loops"
 msgstr "Selecionar anéis"
-
-
-msgid "Metaball"
-msgstr "Meta-esfera"
 
 
 msgid "Light"
@@ -21268,10 +21320,6 @@ msgid "Rigid Body"
 msgstr "Corpo rígido"
 
 
-msgid "Instances"
-msgstr "Instâncias"
-
-
 msgid "Apply"
 msgstr "Aplicar"
 
@@ -21284,16 +21332,12 @@ msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
 
 
-msgid "Import"
-msgstr "Importar"
+msgid "Linked"
+msgstr "Vinculando"
 
 
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Make Single User"
@@ -21308,12 +21352,16 @@ msgid "Hooks"
 msgstr "Ganchos"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Keying"
+msgstr "Inserção de chaves"
 
 
 msgid "Random Mask"
 msgstr "Máscara Aleatória"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
 
 
 msgid "Clear Transform"
@@ -21326,10 +21374,6 @@ msgstr "Entre as continuidades"
 
 msgid "Propagate"
 msgstr "Propagar"
-
-
-msgid "Names"
-msgstr "Nomes"
 
 
 msgid "Toggle Bone Options"
@@ -21346,42 +21390,6 @@ msgstr "Desabilitar as opções de ossos"
 
 msgid "Mesh Select Mode"
 msgstr "Modo de seleção de malhas"
-
-
-msgid "Face Data"
-msgstr "Dados das faces"
-
-
-msgid "Merge"
-msgstr "Fundir"
-
-
-msgid "Special Characters"
-msgstr "Caracteres especiais"
-
-
-msgid "Layout"
-msgstr "Organizar"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
-
-
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
 
 
 msgid "Basic"
@@ -27222,10 +27230,6 @@ msgid "Is Viewport"
 msgstr "É Janela e Exibição"
 
 
-msgid "Single"
-msgstr "Único"
-
-
 msgid "Fill Type"
 msgstr "Tipo de preenchimento"
 
@@ -28070,10 +28074,6 @@ msgstr "Ocultar o valor de entrada do conector."
 
 msgid "Unique identifier for mapping sockets"
 msgstr "Identificador único para mapeamento de conectores."
-
-
-msgid "Linked"
-msgstr "Vinculando"
 
 
 msgid "True if the socket is connected"
@@ -47979,6 +47979,10 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
+msgid "Render Pass"
+msgstr "Passo de renderização"
+
+
 msgid "Motion Tracking"
 msgstr "Captura de movimentos"
 
@@ -47993,10 +47997,6 @@ msgstr "Exibição Quadrante"
 
 msgid "Stereoscopy"
 msgstr "Estereoscopia"
-
-
-msgid "Render Pass"
-msgstr "Passo de renderização"
 
 
 msgid "Bone Constraints"
@@ -48547,10 +48547,6 @@ msgid "Shaded"
 msgstr "Sombreamento"
 
 
-msgid "Styles"
-msgstr "Estilos"
-
-
 msgid "Pie Menu"
 msgstr "Menus setorizados"
 
@@ -48594,11 +48590,6 @@ msgstr "Empurrar"
 msgctxt "Operator"
 msgid "Roll"
 msgstr "Rolagem"
-
-
-msgctxt "Operator"
-msgid "Bone Size"
-msgstr "Tamanho dos ossos"
 
 
 msgctxt "Operator"
@@ -49867,6 +49858,10 @@ msgstr "Sistema e OpenGL"
 
 msgid "Graphics driver and operating system settings"
 msgstr "Configurações de controlador gráfico e sistema operacional."
+
+
+msgid "Styles"
+msgstr "Estilos"
 
 
 msgid "Save on Exit"
@@ -58455,6 +58450,10 @@ msgid "Session State"
 msgstr "Estado da Sessão"
 
 
+msgid "Cancel"
+msgstr "Cancelar"
+
+
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "Janela"
@@ -58932,6 +58931,11 @@ msgstr "Luz Indireta"
 
 msgid "Roughness Threshold"
 msgstr "Ajuste de rugosidade"
+
+
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Limpar"
 
 
 msgid "Indexes"
@@ -59489,11 +59493,6 @@ msgstr "Parente:"
 
 msgid "Transform:"
 msgstr "Transformações:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Limpar"
 
 
 msgctxt "Operator"
@@ -62910,10 +62909,6 @@ msgid "Relax Pose"
 msgstr "Relaxar Pose"
 
 
-msgid "Cancel"
-msgstr "Cancelar"
-
-
 msgid "No keyframes to slide between"
 msgstr "Sem quadros-chave por entre os quais deslizar."
 
@@ -64382,10 +64377,6 @@ msgstr "Copiando sistema de partículas para os selecionados: %d concluído, %d 
 
 msgid "No Rigid Body World to add Rigid Body Constraint to"
 msgstr "Sem ambiente (mundo) de \"Corpo rígido\" definido para adicionar uma restrição do tipo \"Corpo rígido\"."
-
-
-msgid "Object has no Rigid Body Constraint to remove"
-msgstr "Objeto não possui restrição do tipo \"Corpo rígido\" para remover."
 
 
 msgid "Object '%s' already has a Rigid Body Constraint"
@@ -66968,6 +66959,10 @@ msgid "Strings"
 msgstr "Fios"
 
 
+msgid "Top Right"
+msgstr "Topo à Direita"
+
+
 msgid "Text Box Width"
 msgstr "Largura da caixa de texto"
 
@@ -66978,10 +66973,6 @@ msgstr "Altura da caixa de texto"
 
 msgid "Edge Crease"
 msgstr "Vincos de arestas"
-
-
-msgid "Top Right"
-msgstr "Topo à Direita"
 
 
 msgid "Rotate islands for best fit"

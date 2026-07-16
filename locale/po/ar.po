@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'24a58e1403ac')\n"
+"Project-Id-Version: Blender 5.2.0 LTS Release Candidate (b'3d8c46ac31f4')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-25 07:25+0000\n"
+"POT-Creation-Date: 2026-07-13 07:34+0000\n"
 "PO-Revision-Date: 2025-07-23 14:53+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Arabic <https://translate.blender.org/projects/blender-ui/ui/ar/>\n"
@@ -2277,6 +2277,10 @@ msgstr "ﺔﻗﺪﻟﺍ"
 
 msgid "Simplify"
 msgstr "ﻂﺴﺑ"
+
+
+msgid "Pixel"
+msgstr "ﻞﺴﻜﺑ"
 
 
 msgid "Input Samples"
@@ -8306,6 +8310,14 @@ msgid "Grid"
 msgstr "ﺔﻜﺒﺷ"
 
 
+msgid "Dynamic"
+msgstr "ﻙﺮﺤﺘﻣ"
+
+
+msgid "Single"
+msgstr "ﻱﺩﺮﻓ"
+
+
 msgid "Items"
 msgstr "ﺮﺻﺎﻨﻋ"
 
@@ -8584,10 +8596,6 @@ msgstr "ﻲﻠﺤﻣ"
 
 msgid "Global"
 msgstr "ﻲﻤﻟﺎﻋ"
-
-
-msgid "Dynamic"
-msgstr "ﻙﺮﺤﺘﻣ"
 
 
 msgid "Crease Brush Pinch Factor"
@@ -11675,10 +11683,6 @@ msgstr "ﺕﺎﺟﺭﺩ"
 
 msgid "How many degrees path has to curve to make another render segment"
 msgstr "ﻯﺮﺧﺃ ﺓﺮﻴﻴﺼﺗ ﻞﻤﻌﻴﻟ ءﺎﻨﺤﻧﻻ﻿ﺍ ﺭﺎﺴﻤﻟﺍ ﻰﻠﻋ ﺐﺠﻳ ﺔﺟﺭﺩ ﻢﻛ"
-
-
-msgid "Pixel"
-msgstr "ﻞﺴﻜﺑ"
 
 
 msgid "How many pixels path has to cover to make another render segment"
@@ -15652,12 +15656,48 @@ msgid "Material slot name"
 msgstr "ﺔﻣﺎﺨﻟﺍ ﺔﺤﺘﻓ ﻢﺳﺇ"
 
 
-msgid "Mirror"
-msgstr "ﻞﺛﺎﻣ"
+msgid "Face Data"
+msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
+
+
+msgid "Merge"
+msgstr "ﺞﻣﺩﺇ"
+
+
+msgid "Special Characters"
+msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
+
+
+msgid "Metaball"
+msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
+
+
+msgid "Math"
+msgstr "ﺏﺎﺴﺣ"
+
+
+msgid "Names"
+msgstr "ءﺎﻤﺳﺃ"
+
+
+msgid "Bone Roll"
+msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
 
 
 msgid "Snap"
 msgstr "ﻱﺫﺎﺣ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
+
+
+msgid "Import"
+msgstr "ﺩﺭﻮﺘﺳﺇ"
+
+
+msgid "Mirror"
+msgstr "ﻞﺛﺎﻣ"
 
 
 msgid "UV Mapping"
@@ -15680,6 +15720,10 @@ msgid "Select More/Less"
 msgstr "ﻞﻗﺍ/ﺮﺜﻛﺍ ﺭﺎﻴﺘﺧﺍ"
 
 
+msgid "UV"
+msgstr "ﺭﻭﺎﺤﻣ"
+
+
 msgid "Select Similar"
 msgstr "ﻞﺛﺎﻤﻤﻟﺍ ﺮﺘﺧﺇ"
 
@@ -15688,16 +15732,8 @@ msgid "Select All by Trait"
 msgstr "ﺔﻤﺴﻟﺍ ﺐﺴﺣ ﻞﻛ ﺭﺎﻴﺘﺧﺍ"
 
 
-msgid "Math"
-msgstr "ﺏﺎﺴﺣ"
-
-
 msgid "Select Linked"
 msgstr "ﺔﻄﺒﺗﺮﻤﻟﺍ ﺭﺎﺘﺧﺇ"
-
-
-msgid "Metaball"
-msgstr "ﺔﻠﻋﺎﻔﺘﻣ ﺓﺮﻛ"
 
 
 msgid "Light"
@@ -15724,8 +15760,8 @@ msgid "Quick Effects"
 msgstr "ﺔﻌﻳﺮﺳ ﺕﺍﺮﻴﺛﺄﺗ"
 
 
-msgid "Import"
-msgstr "ﺩﺭﻮﺘﺳﺇ"
+msgid "Layout"
+msgstr "ﻖﻴﺴﻨﺗ"
 
 
 msgid "Make Single User"
@@ -15736,42 +15772,6 @@ msgid "Hooks"
 msgstr "ﺕﺎﻓﺎﻄﺧ"
 
 
-msgid "UV"
-msgstr "ﺭﻭﺎﺤﻣ"
-
-
-msgid "In-Betweens"
-msgstr "ﻦﻴﺑ ﺎﻣ"
-
-
-msgid "Propagate"
-msgstr "ﻢﻤﻋ"
-
-
-msgid "Names"
-msgstr "ءﺎﻤﺳﺃ"
-
-
-msgid "Face Data"
-msgstr "ﻪﺟﻮﻟﺍ ﺕﺎﻧﺎﻴﺑ"
-
-
-msgid "Merge"
-msgstr "ﺞﻣﺩﺇ"
-
-
-msgid "Special Characters"
-msgstr "ﺔﺻﺎﺧ ﻑﺮﺣﺃ"
-
-
-msgid "Layout"
-msgstr "ﻖﻴﺴﻨﺗ"
-
-
-msgid "Bone Roll"
-msgstr "ﺔﻤﻈﻌﻟﺍ ءﺍﻮﺘﻟﺍ"
-
-
 msgid "Keying"
 msgstr "ﺺﺤﻔﻟﺍ"
 
@@ -15780,8 +15780,12 @@ msgid "Tracking"
 msgstr "ﺔﻘﺣﻼ﻿ﻤﻟﺍ"
 
 
-msgid "Proportional Editing Falloff"
-msgstr "ﻲﺒﺴﻨﻟﺍ ﺮﻳﺮﺤﺘﻟﺍ ﻲﺷﻼ﻿ﺗ"
+msgid "In-Betweens"
+msgstr "ﻦﻴﺑ ﺎﻣ"
+
+
+msgid "Propagate"
+msgstr "ﻢﻤﻋ"
 
 
 msgctxt "MovieClip"
@@ -18846,10 +18850,6 @@ msgstr "ﻲﻄﺧ ﺪﻴﻟﻮﺗ"
 
 msgid "Edge Angle"
 msgstr "ﺔﻓﺎﺤﻟﺍ ﺔﻳﻭﺍﺯ"
-
-
-msgid "Single"
-msgstr "ﻱﺩﺮﻓ"
 
 
 msgid "Fill Type"
@@ -27697,16 +27697,16 @@ msgid "Palette Color"
 msgstr "ﻥﻮﻠﻟﺍ ﺔﺣﻮﻟ"
 
 
+msgid "Render Pass"
+msgstr "ﺮﻴﻴﺼﺗ ﺮﻤﻣ"
+
+
 msgid "Motion Tracking"
 msgstr "ﺔﻛﺮﺤﻟﺍ ﺔﻘﺣﻼ﻿ﻣ"
 
 
 msgid "Transform Orientations"
 msgstr "ﻝﻮﺤﺘﻟﺍ ﺕﺎﻫﺎﺠﺗﺍ"
-
-
-msgid "Render Pass"
-msgstr "ﺮﻴﻴﺼﺗ ﺮﻤﻣ"
 
 
 msgid "Bone Constraints"
@@ -27987,10 +27987,6 @@ msgstr "ﻂﻤﻨﻟﺍ ءﺎﻀﻓ"
 
 msgid "Shaded"
 msgstr "ﻞﻠﻈﻣ"
-
-
-msgid "Styles"
-msgstr "ﺐﻴﻟﺎﺳﻷ﻿ﺍ"
 
 
 msgid "Text Style"
@@ -28995,6 +28991,10 @@ msgstr "OpenGL ﻭ ﻡﺎﻈﻨﻟﺍ"
 
 msgid "Graphics driver and operating system settings"
 msgstr "ﻞﻴﻐﺸﺘﻟﺍ ﻡﺎﻈﻧ ﻭ ﺕﺎﻳﺭﻮﺼﻟﺍ ﻒﻳﺮﻌﺗ ﺕﺍﺩﺍﺪﻋﺇ"
+
+
+msgid "Styles"
+msgstr "ﺐﻴﻟﺎﺳﻷ﻿ﺍ"
 
 
 msgid "View & Controls"
@@ -33016,6 +33016,10 @@ msgid "Operator Properties"
 msgstr "ﻞﻣﺎﻌﻟﺍ ﺹﺍﻮﺧ"
 
 
+msgid "Cancel"
+msgstr "ﻎﻟﺃ"
+
+
 msgctxt "WindowManager"
 msgid "Window"
 msgstr "ﺓﺬﻓﺎﻨﻟﺍ"
@@ -33345,6 +33349,11 @@ msgid "Object Index"
 msgstr "ﻦﺋﺎﻜﻟﺍ ﺮﺷﺆﻣ"
 
 
+msgctxt "Operator"
+msgid "Clear"
+msgstr "ﺢﺴﻣﺇ"
+
+
 msgid "No output node"
 msgstr "ﺝﺮﺧ ﺓﺪﻘﻋ ﺪﺟﻮﺗ ﻻ﻿"
 
@@ -33637,11 +33646,6 @@ msgstr ":ﻞﺻﻷ﻿ﺍ"
 
 msgid "Transform:"
 msgstr ":ﻞﻳﻮﺤﺗ"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "ﺢﺴﻣﺇ"
 
 
 msgctxt "Operator"
@@ -35123,10 +35127,6 @@ msgstr "ﺔﻟﻮﺼﻔﻣ ﻡﺎﻈﻋ"
 
 msgid "No active Keying Set to use"
 msgstr "ﻡﺍﺪﺨﺘﺳﻺ﻿ﻟ ﺔﻟﺎﻌّﻓ ﺢﻴﺗﺎﻔﻣ ﺔﻋﻮﻤﺠﻣ ﺪﺟﻮﺗ ﻻ﻿"
-
-
-msgid "Cancel"
-msgstr "ﻎﻟﺃ"
 
 
 msgid "No keyframes to slide between"

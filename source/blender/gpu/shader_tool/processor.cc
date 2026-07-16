@@ -501,7 +501,7 @@ void SourceProcessor::parse_includes(Parser &parser)
       metadata_.create_infos_dependencies.emplace_back(dependency_name);
     }
 
-    if (dependency_name == "BLI_utildefines_variadic.h") {
+    if (dependency_name == "BLI_utildefines_variadic.hh") {
       /* Skip GLSL-C++ stubs. They are only for IDE linting. */
       parser.erase(tokens.front(), tokens.back());
       return;
@@ -684,7 +684,7 @@ void SourceProcessor::lower_binary_literals(Parser &parser)
 
 string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str)
 {
-  Parser parser(str, error_handler);
+  IntermediateForm<FullLexer, DummyParser> parser(str, error_handler);
 
   auto process_shared_var = [&](Token shared_tok, Token type, Token name, Token decl_end) {
     if (shared_tok.str() == "shared") {
@@ -694,19 +694,10 @@ string SourceProcessor::threadgroup_variables_parse_and_remove(const string &str
       parser.erase(shared_tok, decl_end);
     }
   };
-  parser().foreach_match("AAA;", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
+  parser().foreach_match("AAA", [&](const vector<Token> &tokens) {
+    Token end = tokens[2].find_next(lexit::SemiColon);
+    process_shared_var(tokens[0], tokens[1], tokens[2], end);
   });
-  parser().foreach_match("AAA[..];", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
-  });
-  parser().foreach_match("AAA[..][..];", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
-  });
-  parser().foreach_match("AAA[..][..][..];", [&](const vector<Token> &tokens) {
-    process_shared_var(tokens[0], tokens[1], tokens[2], tokens.back());
-  });
-  /* If more array depth is needed, find a less dumb solution. */
 
   return parser.result_get();
 }
@@ -1120,7 +1111,7 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
       size_t align = type_info.alignment - (offset % type_info.alignment);
       if (align != type_info.alignment) {
         string err = "Misaligned member, missing " + to_string(align) + " padding bytes";
-        report_error(type, err.c_str());
+        report_error(type, err);
       }
 
       size_t array_size = 1;
@@ -1144,7 +1135,7 @@ void SourceProcessor::lower_host_shared_structures(Parser &parser)
     }
     else if (offset % 16 != 0) {
       string err = "Alignment issue, missing " + to_string(16 - (offset % 16)) + " padding bytes";
-      report_error(struct_name, err.c_str());
+      report_error(struct_name, err);
     }
     /* Insert an alias to the type that will get referenced for shaders that enforce usage of
      * linted types. */
@@ -1196,7 +1187,7 @@ void SourceProcessor::lint_reserved_tokens(Parser &parser)
   parser().foreach_token(Word, [&](Token tok) {
     if (reserved_symbols.contains(string(tok.str()))) {
       string err = string(tok.str()) + " is a reserved token";
-      report_error(tok, err.c_str());
+      report_error(tok, err);
     }
   });
 }
