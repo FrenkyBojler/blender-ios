@@ -534,6 +534,10 @@ void LayoutInternal::layout_translate_y(Layout *layout, int delta)
 
 static void item_translate_y(Item *item, const int delta)
 {
+  if (delta == 0) {
+    /* Early return for recursive calls. */
+    return;
+  }
   if (item->type() == ItemType::Button) {
     const auto *bitem = static_cast<const ButtonItem *>(item);
     bitem->but->rect.ymin += delta;
@@ -5739,6 +5743,8 @@ void Layout::resolve_dynamic_height()
   /* Extra vertical offsset. */
   int y_offs = 0;
 
+  /* For simplicity a column is a grid of n rows and 1 columns, and a row is a grid of 1 rows and n
+   * columns. */
   int rows = this->local_direction() == LayoutDirection::Vertical ? this->items().size() : 1;
   int cols = this->local_direction() == LayoutDirection::Horizontal ? this->items().size() : 1;
   bool row_major = this->local_direction() == LayoutDirection::Vertical;
@@ -5759,9 +5765,13 @@ void Layout::resolve_dynamic_height()
     cols = flow->totcol;
     rows = std::ceil(float(flow->items().size() / float(std::max(cols, 1))));
   }
+  /* Dynamic height is resolved row by row, and each row pushes down following rows. */
   for (const int row : IndexRange(rows)) {
-    int max_row_heigth_new = 0;
-    int max_row_heigth = 0;
+    /* Maximun sub-item heigth in the row before resolving its dynamic heigth. */
+    int max_row_subitem_heigth = 0;
+    /* Maximun sub-item heigth in the row after resolving its dynamic heigth. */
+    int max_row_subitem_heigth_new = 0;
+
     for (const int col : IndexRange(cols)) {
       const int i = (row_major ? (row * cols + col) : (col * rows + row));
       if (i >= this->items_.size()) {
@@ -5769,9 +5779,12 @@ void Layout::resolve_dynamic_height()
       }
       Item *subitem = this->items_[i];
       const int2 size = subitem->size();
-      max_row_heigth = std::max(max_row_heigth, size.y);
+      max_row_subitem_heigth = std::max(max_row_subitem_heigth, size.y);
+
+      /* Apply acumulated offset from previous rows. */
       item_translate_y(subitem, -y_offs);
 
+      /* Resolve sub-item dynamic heigth. */
       if (subitem->type() == ItemType::Button) {
         const auto *sub_bitem = static_cast<const ButtonItem *>(subitem);
         if (button_label_is_multiline(sub_bitem->but)) {
@@ -5782,10 +5795,13 @@ void Layout::resolve_dynamic_height()
         static_cast<Layout *>(subitem)->resolve_dynamic_height();
       }
       const int2 new_size = subitem->size();
-      max_row_heigth_new = std::max(max_row_heigth_new, new_size.y);
+      max_row_subitem_heigth_new = std::max(max_row_subitem_heigth_new, new_size.y);
     }
-    y_offs += std::max(max_row_heigth_new - max_row_heigth, 0);
+    /* Apply this row's extra height as offset to following rows. */
+    y_offs += std::max(max_row_subitem_heigth_new - max_row_subitem_heigth, 0);
   }
+
+  /* Apply change in heigth to this layout. */
   this->y_ -= y_offs;
   this->h_ += y_offs;
 }

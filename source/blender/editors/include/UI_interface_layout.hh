@@ -746,8 +746,12 @@ struct Layout : public Item, NonCopyable, NonMovable {
   void estimate();
   virtual void estimate_impl();
   void resolve();
-  virtual void resolve_dynamic_height();
   virtual void resolve_impl();
+  /**
+   * Resolve layouts containing items whose heights depends on their resolved width.
+   * Currently only for layouts containing multi-line labels.
+   */
+  virtual void resolve_dynamic_height();
 };
 
 inline bool Layout::active() const
