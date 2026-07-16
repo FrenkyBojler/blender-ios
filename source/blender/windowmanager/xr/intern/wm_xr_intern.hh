@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -31,7 +31,7 @@ struct wmWindowManager;
 struct wmXrActionSet;
 struct wmXrController;
 struct wmXrData;
-struct wmXrPanel;
+struct wmXrUiRegion;
 
 namespace gpu {
 class Texture;
@@ -162,7 +162,7 @@ struct wmXrRuntimeData {
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
-  eWMXrPanelMountPoint panel_mount_point;
+  eWMXrUiRegionMountPoint ui_region_mount_point;
 
   ListBaseT<XrActionMap> actionmaps;
   short actactionmap;
@@ -175,7 +175,7 @@ struct wmXrViewportPair {
   struct GPUViewport *viewport;
 };
 
-struct wmXrPanelPointerState {
+struct wmXrUiRegionPointerState {
   bool pressed;
   char subaction_path[64];
   char action_idname[128];
@@ -195,29 +195,28 @@ struct wmXrTempRegion {
   bool valid;
 };
 
-struct wmXrPanel {
-  wmXrPanel *next, *prev;
-  struct GPUOffScreen *panel_offscreen;
-  rcti panel_rect;
-  float panel_obmat[4][4];
-  eWMXrPanelMountPoint mount_point;
-  bool panel_valid;
-  bool panel_dirty;
-  bool panel_host_initialized;
-  uint64_t panel_frame_tag;
-  uint64_t panel_last_rebuild_tag;
-  struct wmWindow *panel_host_win;
-  struct ScrArea *panel_host_area;
-  struct ARegion *panel_host_region;
-  struct ARegion *panel_hover_region;
-  bool panel_hovered;
-  bool panel_cursor_visible;
-  int panel_window_xy[2];
-  int panel_region_xy[2];
-  float panel_cursor_world[3];
-  char panel_hover_subaction_path[64];
-  ListBaseT<wmXrTempRegion> temporary_regions;
-  wmXrPanelPointerState panel_pointer;
+struct wmXrUiRegion {
+  wmXrUiRegion *next, *prev;
+  struct GPUOffScreen *ui_region_offscreen;
+  rcti ui_region_rect;
+  float ui_region_obmat[4][4];
+  eWMXrUiRegionMountPoint mount_point;
+  bool ui_region_valid;
+  bool ui_region_dirty;
+  bool ui_region_host_initialized;
+  uint64_t ui_region_frame_tag;
+  uint64_t ui_region_last_rebuild_tag;
+  struct wmWindow *ui_region_host_win;
+  struct ScrArea *ui_region_host_area;
+  struct ARegion *ui_region_host_region;
+  struct ARegion *ui_region_hover_region;
+  bool ui_region_hovered;
+  bool ui_region_cursor_visible;
+  int ui_region_window_xy[2];
+  float ui_region_cursor_world[3];
+  char ui_region_hover_subaction_path[64];
+  ListBaseT<wmXrTempRegion> child_regions;
+  wmXrUiRegionPointerState ui_region_pointer;
 };
 
 struct wmXrSurfaceData {
@@ -226,18 +225,18 @@ struct wmXrSurfaceData {
 
   /** Dummy region type for controller draw callback. */
   struct ARegionType *controller_art;
-  struct ARegionType *panel_art;
+  struct ARegionType *ui_region_art;
   /** Controller draw callback handle. */
   void *controller_draw_handle;
-  /** Panel draw callback handle. */
-  void *panel_draw_handle;
+  /** UI region draw callback handle. */
+  void *ui_region_draw_handle;
 
-  /** World space UI panels. */
-  ListBaseT<wmXrPanel> panels;
-  wmXrPanel *active_panel;
+  /** World space UI regions. */
+  ListBaseT<wmXrUiRegion> ui_regions;
+  wmXrUiRegion *active_ui_region;
 
   /** Current frame number. */
-  uint64_t panels_frame_tag;
+  uint64_t ui_regions_frame_tag;
 };
 
 struct wmXrDrawData {
@@ -377,10 +376,10 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
  */
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const bContext *C, ARegion *region, void *customdata);
-void wm_xr_draw_panels_world_space(const bContext *C, ARegion *region, void *customdata);
+void wm_xr_draw_ui_regions_world_space(const bContext *C, ARegion *region, void *customdata);
 void wm_xr_temp_region_draw_to_world_quad(const float viewmat[4][4],
                                           const float winmat[4][4],
-                                          const wmXrPanel *panel,
+                                          const wmXrUiRegion *panel,
                                           const wmXrTempRegion *temp_region);
 void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr);
 bool wm_xr_surface_interaction_apply_action(const bContext *C,
@@ -388,9 +387,9 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                             const wmXrAction *action,
                                             const char *subaction_path,
                                             short event_val);
-void WM_xr_surface_panels_register(const bContext *C);
-void WM_xr_surface_panels_update(const bContext *C, const wmXrData *xr);
-void WM_xr_panel_host_free(wmXrPanel *panel);
+void WM_xr_surface_ui_regions_register(const bContext *C);
+void WM_xr_surface_ui_regions_update(const bContext *C, const wmXrData *xr);
+void wm_xr_ui_region_host_free(wmXrUiRegion *panel);
 
 /**
  * \brief Check if XR passthrough is enabled.

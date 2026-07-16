@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -80,7 +80,7 @@ static void wm_xr_ui_overlay_winmat_create(const float src_winmat[4][4], float r
   perspective_m4(r_winmat, left, right, bottom, top, near_clip, far_clip);
 }
 
-static void wm_xr_panel_cursor_draw_overlay(const float viewmat[4][4],
+static void wm_xr_ui_region_cursor_draw_overlay(const float viewmat[4][4],
                                             const float winmat[4][4],
                                             const wmXrSurfaceData *surface_data)
 {
@@ -101,12 +101,12 @@ static void wm_xr_panel_cursor_draw_overlay(const float viewmat[4][4],
   GPU_depth_test(GPU_DEPTH_NONE);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
-    if (!panel->panel_cursor_visible) {
+  for (const wmXrUiRegion *panel : ConstListBaseWrapper<wmXrUiRegion>(surface_data->ui_regions)) {
+    if (!panel->ui_region_cursor_visible) {
       continue;
     }
     GPU_matrix_push();
-    GPU_matrix_translate_3fv(panel->panel_cursor_world);
+    GPU_matrix_translate_3fv(panel->ui_region_cursor_world);
     GPU_matrix_scale_1f(0.0075f);
     GPU_batch_draw(sphere);
     GPU_matrix_pop();
@@ -116,7 +116,7 @@ static void wm_xr_panel_cursor_draw_overlay(const float viewmat[4][4],
   GPU_matrix_pop_projection();
 }
 
-static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
+static void wm_xr_draw_cached_ui_region_overlay(const float viewmat[4][4],
                                             const float winmat[4][4],
                                             const wmXrSurfaceData *surface_data)
 {
@@ -124,14 +124,14 @@ static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
     return;
   }
 
-  for (const bool draw_controller_panels : {false, true}) {
-    for (const wmXrPanel *panel : ConstListBaseWrapper<wmXrPanel>(surface_data->panels)) {
-      if (!panel->panel_valid || panel->panel_offscreen == nullptr) {
+  for (const bool draw_controller_ui_regions : {false, true}) {
+    for (const wmXrUiRegion *panel : ConstListBaseWrapper<wmXrUiRegion>(surface_data->ui_regions)) {
+      if (!panel->ui_region_valid || panel->ui_region_offscreen == nullptr) {
         continue;
       }
       const bool is_controller_panel = ELEM(
-          panel->mount_point, XR_PANEL_MOUNT_LEFT_HAND, XR_PANEL_MOUNT_RIGHT_HAND);
-      if (is_controller_panel != draw_controller_panels) {
+          panel->mount_point, XR_UI_REGION_MOUNT_LEFT_HAND, XR_UI_REGION_MOUNT_RIGHT_HAND);
+      if (is_controller_panel != draw_controller_ui_regions) {
         continue;
       }
 
@@ -139,10 +139,10 @@ static void wm_xr_draw_cached_panel_overlay(const float viewmat[4][4],
       wm_xr_ui_overlay_winmat_create(winmat, rv_tmp.winmat);
       copy_m4_m4(rv_tmp.viewmat, viewmat);
       ED_region_panels_draw_to_world_quad(
-          &rv_tmp, panel->panel_obmat, &panel->panel_rect, panel->panel_offscreen);
+          &rv_tmp, panel->ui_region_obmat, &panel->ui_region_rect, panel->ui_region_offscreen);
 
       for (const wmXrTempRegion *temp_region :
-           ConstListBaseWrapper<wmXrTempRegion>(panel->temporary_regions))
+           ConstListBaseWrapper<wmXrTempRegion>(panel->child_regions))
       {
         wm_xr_temp_region_draw_to_world_quad(viewmat, winmat, panel, temp_region);
       }
@@ -335,8 +335,8 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
   wm_xr_draw_viewport_buffers_to_active_framebuffer(xr_data->runtime, surface_data, draw_view);
 
   if ((settings->draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) != 0) {
-    wm_xr_draw_cached_panel_overlay(viewmat, winmat, surface_data);
-    wm_xr_panel_cursor_draw_overlay(viewmat, winmat, surface_data);
+    wm_xr_draw_cached_ui_region_overlay(viewmat, winmat, surface_data);
+    wm_xr_ui_region_cursor_draw_overlay(viewmat, winmat, surface_data);
   }
 
   GPU_matrix_push_projection();

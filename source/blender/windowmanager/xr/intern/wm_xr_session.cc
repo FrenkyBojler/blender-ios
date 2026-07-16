@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -470,7 +470,7 @@ bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm)
   /* Region for XR operator execution and modal handling. */
   CTX_wm_region_set(xr->runtime->b_context, xr->runtime->xr_operator_region);
 
-  WM_xr_surface_panels_register(xr->runtime->b_context);
+  WM_xr_surface_ui_regions_register(xr->runtime->b_context);
   CTX_wm_area_set(xr->runtime->b_context, xr->runtime->xr_operator_area);
   CTX_wm_region_set(xr->runtime->b_context, xr->runtime->xr_operator_region);
 
@@ -1558,9 +1558,9 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
         if ((val != KM_NOTHING) &&
             (!modal || (is_active_modal_action && is_active_modal_subaction)))
         {
-          const bool consumed_by_panel = wm_xr_surface_interaction_apply_action(
+          const bool consumed_by_ui_region = wm_xr_surface_interaction_apply_action(
               C, xr, action, action->subaction_paths[subaction_idx], val);
-          if (consumed_by_panel) {
+          if (consumed_by_ui_region) {
             continue;
           }
 
@@ -1688,11 +1688,11 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
       }
 
       SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
-      ARegionType *panel_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_XR) : nullptr;
-      if (panel_art && !surface_data->panel_draw_handle) {
-        surface_data->panel_art = panel_art;
-        surface_data->panel_draw_handle = ED_region_draw_cb_activate(
-            panel_art, wm_xr_draw_panels_world_space, xr, REGION_DRAW_POST_VIEW);
+      ARegionType *ui_region_art = st ? BKE_regiontype_from_id(st, RGN_TYPE_XR) : nullptr;
+      if (ui_region_art && !surface_data->ui_region_draw_handle) {
+        surface_data->ui_region_art = ui_region_art;
+        surface_data->ui_region_draw_handle = ED_region_draw_cb_activate(
+            ui_region_art, wm_xr_draw_ui_regions_world_space, xr, REGION_DRAW_POST_VIEW);
       }
     }
   }
@@ -1712,11 +1712,11 @@ void wm_xr_session_controller_data_clear(wmXrSessionState *state)
       surface_data->controller_draw_handle = nullptr;
     }
 
-    if (surface_data && surface_data->panel_draw_handle) {
-      if (surface_data->panel_art) {
-        ED_region_draw_cb_exit(surface_data->panel_art, surface_data->panel_draw_handle);
+    if (surface_data && surface_data->ui_region_draw_handle) {
+      if (surface_data->ui_region_art) {
+        ED_region_draw_cb_exit(surface_data->ui_region_art, surface_data->ui_region_draw_handle);
       }
-      surface_data->panel_draw_handle = nullptr;
+      surface_data->ui_region_draw_handle = nullptr;
     }
   }
 }
@@ -1742,7 +1742,7 @@ static void wm_xr_session_surface_draw(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrDrawData draw_data;
-  static uint64_t xr_panel_frame_tag = 0;
+  static uint64_t xr_ui_region_frame_tag = 0;
 
   if (!WM_xr_session_is_ready(&wm->xr)) {
     return;
@@ -1754,11 +1754,11 @@ static void wm_xr_session_surface_draw(bContext *C)
   if (draw_data.surface_data != nullptr) {
     CTX_wm_window_set(wm->xr.runtime->b_context, wm->xr.runtime->xr_window);
     CTX_wm_screen_set(wm->xr.runtime->b_context, wm->xr.runtime->xr_screen);
-    WM_xr_surface_panels_update(wm->xr.runtime->b_context, &wm->xr);
+    WM_xr_surface_ui_regions_update(wm->xr.runtime->b_context, &wm->xr);
     CTX_wm_area_set(wm->xr.runtime->b_context, wm->xr.runtime->xr_operator_area);
     CTX_wm_region_set(wm->xr.runtime->b_context, wm->xr.runtime->xr_operator_region);
-    const uint64_t frame_tag = ++xr_panel_frame_tag;
-    draw_data.surface_data->panels_frame_tag = frame_tag;
+    const uint64_t frame_tag = ++xr_ui_region_frame_tag;
+    draw_data.surface_data->ui_regions_frame_tag = frame_tag;
   }
 
   GHOST_XrSessionDrawViews(wm->xr.runtime->ghost_context, &draw_data);
@@ -1874,20 +1874,20 @@ static void wm_xr_session_surface_free_data(wmSurface *surface)
     BLI_freelinkN(lb, vp);
   }
 
-  while (wmXrPanel *panel = static_cast<wmXrPanel *>(BLI_pophead(&data->panels))) {
+  while (wmXrUiRegion *ui_region = static_cast<wmXrUiRegion *>(BLI_pophead(&data->ui_regions))) {
     while (wmXrTempRegion *temp_region = static_cast<wmXrTempRegion *>(
-               BLI_pophead(&panel->temporary_regions)))
+               BLI_pophead(&ui_region->child_regions)))
     {
       if (temp_region->offscreen) {
         GPU_offscreen_free(temp_region->offscreen);
       }
       MEM_delete(temp_region);
     }
-    if (panel->panel_offscreen) {
-      GPU_offscreen_free(panel->panel_offscreen);
+    if (ui_region->ui_region_offscreen) {
+      GPU_offscreen_free(ui_region->ui_region_offscreen);
     }
-    WM_xr_panel_host_free(panel);
-    MEM_delete(panel);
+    wm_xr_ui_region_host_free(ui_region);
+    MEM_delete(ui_region);
   }
 
   if (data->controller_art) {

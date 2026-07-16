@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2007 Blender Authors
+﻿/* SPDX-FileCopyrightText: 2007 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
@@ -80,15 +80,15 @@ struct wmXrRuntimeData;
 struct wmXrSessionState;
 struct wmXrViewfinderState;
 
-enum eWMXrPanelMountPoint {
-  XR_PANEL_MOUNT_NONE = 0,
-  XR_PANEL_MOUNT_LEFT_HAND = 1,
-  XR_PANEL_MOUNT_RIGHT_HAND = 2,
-  XR_PANEL_MOUNT_HEAD_FOLLOW = 3,
-  XR_PANEL_MOUNT_WORLD = 4,
+enum eWMXrUiRegionMountPoint {
+  XR_UI_REGION_MOUNT_NONE = 0,
+  XR_UI_REGION_MOUNT_LEFT_HAND = 1,
+  XR_UI_REGION_MOUNT_RIGHT_HAND = 2,
+  XR_UI_REGION_MOUNT_HEAD_FOLLOW = 3,
+  XR_UI_REGION_MOUNT_WORLD = 4,
 };
 
-void WM_xr_surface_panel_mount_set(wmXrData *xr, eWMXrPanelMountPoint mount_point);
+void WM_xr_surface_ui_region_mount_set(wmXrData *xr, eWMXrUiRegionMountPoint mount_point);
 #endif
 
 namespace bke::id {

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -349,14 +349,14 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     CTX_wm_region_set(xr_context, nullptr);
 
     if (wmXrSurfaceData *surface_data = WM_xr_surface_data_get()) {
-      for (wmXrPanel *panel = static_cast<wmXrPanel *>(surface_data->panels.first); panel != nullptr;
+      for (wmXrUiRegion *panel = static_cast<wmXrUiRegion *>(surface_data->ui_regions.first); panel != nullptr;
            panel = panel->next)
       {
-        if (panel->panel_host_area == nullptr) {
+        if (panel->ui_region_host_area == nullptr) {
           continue;
         }
-        CTX_wm_area_set(xr_context, panel->panel_host_area);
-        for (ARegion *region = static_cast<ARegion *>(panel->panel_host_area->regionbase.first);
+        CTX_wm_area_set(xr_context, panel->ui_region_host_area);
+        for (ARegion *region = static_cast<ARegion *>(panel->ui_region_host_area->regionbase.first);
              region != nullptr;
              region = region->next)
         {
@@ -368,14 +368,14 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
           BKE_area_region_panels_free(&region->panels);
         }
         CTX_wm_region_set(xr_context, nullptr);
-        WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, panel->panel_host_area);
+        WM_event_remove_handlers_by_area(&xr_win->runtime->handlers, panel->ui_region_host_area);
         if (xr_screen != nullptr) {
-          BLI_remlink(&xr_screen->areabase, panel->panel_host_area);
+          BLI_remlink(&xr_screen->areabase, panel->ui_region_host_area);
         }
-        ED_area_offscreen_free(wm, xr_win, panel->panel_host_area);
-        panel->panel_host_area = nullptr;
-        panel->panel_host_region = nullptr;
-        panel->panel_host_win = nullptr;
+        ED_area_offscreen_free(wm, xr_win, panel->ui_region_host_area);
+        panel->ui_region_host_area = nullptr;
+        panel->ui_region_host_region = nullptr;
+        panel->ui_region_host_win = nullptr;
       }
       CTX_wm_area_set(xr_context, nullptr);
     }
