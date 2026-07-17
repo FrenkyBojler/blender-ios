@@ -190,92 +190,6 @@ float2 panoramic_face_uv_from_direction(float3 direction, int face_id)
   return uv * 0.5f + 0.5f;
 }
 
-bool panoramic_uses_fisheye_face_rect(CameraData cam)
-{
-  switch (cam.type) {
-    case CAMERA_PANO_EQUIDISTANT:
-    case CAMERA_PANO_EQUISOLID:
-    case CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL:
-      return true;
-    default:
-      return false;
-  }
-}
-
-float4 panoramic_face_rect_get(CameraData cam, int face_id)
-{
-  float2 rect_min = float2(-1.0f);
-  float2 rect_max = float2(1.0f);
-
-  if (panoramic_uses_fisheye_face_rect(cam)) {
-    const float half_fov = clamp(cam.fisheye_fov * 0.5f, 0.0f, M_PI);
-    const float half_pi = M_PI_2;
-    const float half_pi_eps = 1.0e-4f;
-
-    if (half_fov < half_pi - half_pi_eps) {
-      const float sin_half_fov = sin(half_fov);
-      const float cos_half_fov = cos(half_fov);
-      const float tan_half_fov = tan(half_fov);
-
-      switch (face_id) {
-        case 0:
-        case 1: {
-          const float x_min = cos_half_fov / max(sin_half_fov, 1.0e-8f);
-          const float y_extent = min(safe_sqrt(max(square(tan_half_fov) - 1.0f, 0.0f)), 1.0f);
-          rect_min = (face_id == 0) ? float2(x_min, -y_extent) : float2(-1.0f, -y_extent);
-          rect_max = (face_id == 0) ? float2(1.0f, y_extent) : float2(-x_min, y_extent);
-          break;
-        }
-        case 2:
-        case 3: {
-          const float y_min = cos_half_fov / max(sin_half_fov, 1.0e-8f);
-          const float x_extent = min(safe_sqrt(max(square(tan_half_fov) - 1.0f, 0.0f)), 1.0f);
-          rect_min = (face_id == 2) ? float2(-x_extent, -1.0f) : float2(-x_extent, y_min);
-          rect_max = (face_id == 2) ? float2(x_extent, -y_min) : float2(x_extent, 1.0f);
-          break;
-        }
-        case 5: {
-          const float extent = min(tan_half_fov, 1.0f);
-          rect_min = float2(-extent);
-          rect_max = float2(extent);
-          break;
-        }
-        default:
-          break;
-      }
-    }
-    else if (half_fov <= half_pi + half_pi_eps) {
-      switch (face_id) {
-        case 0:
-          rect_min = float2(0.0f, -1.0f);
-          rect_max = float2(1.0f, 1.0f);
-          break;
-        case 1:
-          rect_min = float2(-1.0f, -1.0f);
-          rect_max = float2(0.0f, 1.0f);
-          break;
-        case 2:
-          rect_min = float2(-1.0f, -1.0f);
-          rect_max = float2(1.0f, 0.0f);
-          break;
-        case 3:
-          rect_min = float2(-1.0f, 0.0f);
-          rect_max = float2(1.0f, 1.0f);
-          break;
-        default:
-          break;
-      }
-    }
-  }
-
-  const float overscan = max(cam.panoramic_view_overscan, 1.0f);
-  const float2 center = (rect_min + rect_max) * 0.5f;
-  const float2 half_extent = (rect_max - rect_min) * (0.5f * overscan);
-  rect_min = center - half_extent;
-  rect_max = center + half_extent;
-  return float4(rect_min, rect_max);
-}
-
 float4 film_cryptomatte_false_color(float hash)
 {
   uint m3hash = floatBitsToUint(hash);
@@ -455,9 +369,8 @@ struct Film {
       return float2(-1.0f);
     }
 
-    const float2 face_coord = face_uv * 2.0f - 1.0f;
-    const float4 face_rect = panoramic_face_rect_get(uni.uniform_buf.camera, view_id);
-    const float2 render_uv = (face_coord - face_rect.xy) / (face_rect.zw - face_rect.xy);
+    const float overscan = max(uni.uniform_buf.camera.panoramic_view_overscan, 1.0f);
+    const float2 render_uv = (face_uv - 0.5f) / overscan + 0.5f;
     return render_uv;
   }
 
