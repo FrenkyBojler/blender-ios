@@ -511,7 +511,7 @@ struct ButtonLabel : public Button {
    * copied/moved around.
    */
   std::shared_ptr<TextWrapCache> wrap_cache;
-  /* Maximum lines to be drawn in multiline labels, 0 means all. */
+  /** Maximum lines to be drawn in multi-line labels, 0 means all. */
   int max_lines = 0;
   FontStyleAlign text_align = UI_STYLE_TEXT_LEFT;
 };
