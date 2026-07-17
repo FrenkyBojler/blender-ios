@@ -1665,8 +1665,7 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   load_data.effect.type = effect_type;
   const int num_inputs = seq::effect_get_num_inputs(load_data.effect.type);
 
-  VectorSet<Strip *> inputs = strip_effect_get_new_inputs(
-      scene, effect_type, num_inputs);
+  VectorSet<Strip *> inputs = strip_effect_get_new_inputs(scene, effect_type, num_inputs);
   StringRef error_msg = effect_inputs_validate(inputs, num_inputs);
 
   if (!error_msg.is_empty()) {

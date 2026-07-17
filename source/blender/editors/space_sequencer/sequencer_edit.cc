@@ -1349,7 +1349,8 @@ VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
       const int second_start = seq::time_left_handle_frame_get(scene, second);
       do_swap = (first_start > second_start) ||
                 (first_start == second_start &&
-                 seq::time_right_handle_frame_get(scene, first) > seq::time_right_handle_frame_get(scene, second));
+                 seq::time_right_handle_frame_get(scene, first) >
+                     seq::time_right_handle_frame_get(scene, second));
     }
     else if (first == seq::select_active_get(scene) ||
              (ignore_active && first->channel < second->channel))
