@@ -88,6 +88,7 @@
 #include "IMB_imbuf_types.hh"
 
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
 #include "view3d_intern.hh" /* own include */
 
@@ -1241,7 +1242,7 @@ static bool is_grease_pencil_with_layer_keyframe(const Object &ob)
 
 /**
  * Draw info beside axes in top-left corner:
- * frame-number, collection, object name, bone name (if available), marker name (if available).
+ * collection, object name, bone name (if available).
  */
 static void draw_selected_name(const Main &bmain,
                                const View3D *v3d,
@@ -1254,53 +1255,40 @@ static void draw_selected_name(const Main &bmain,
   const int cfra = scene->r.cfra;
   const char *msg_pin = " (Soloed)";
   const char *msg_sep = " : ";
-  const char *msg_space = " ";
+  /* Breadcrumbs separator (right angle chevron). */
+  const char *msg_sep_ob = "  \u203A  ";
 
   const int font_id = BLF_default();
 
   const char *info_array[16];
   int i = 0;
 
-  struct {
-    char frame[16];
-  } info_buffers;
-
   /* Info can contain:
-   * - 1 frame number `(7 + 2)`.
    * - 1 collection name `(MAX_ID_NAME - 2 + 3)`.
    * - 1 object name `(MAX_ID_NAME - 2)`.
    * - 1 object data name `(MAX_ID_NAME - 2)`.
    * - 2 non-ID data names (bones, shape-keys...) `(MAX_NAME * 2)`.
-   * - 2 BREAD_CRUMB_SEPARATOR(s) `(6)`.
+   * - 2 BREAD_CRUMB_SEPARATOR(s) `(10)`.
    * - 1 SHAPE_KEY_PINNED marker and a trailing '\0' `(9+1)` - translated, so give some room!
-   * - 1 marker name `(MAX_NAME + 3)`.
    */
-
-  SNPRINTF_UTF8(info_buffers.frame, "(%d)", cfra);
-  info_array[i++] = info_buffers.frame;
 
   if ((ob == nullptr) || (ob->mode == OB_MODE_OBJECT)) {
     BKE_view_layer_synced_ensure(bmain, scene, view_layer);
     LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
-    info_array[i++] = msg_space;
     info_array[i++] = BKE_collection_ui_name_get(layer_collection->collection);
     if (ob != nullptr) {
-      info_array[i++] = " |";
+      info_array[i++] = msg_sep_ob;
     }
   }
 
-  /* get name of marker on current frame (if available) */
-  const char *markern = BKE_scene_find_marker_name(scene, cfra);
-
   /* check if there is an object */
   if (ob) {
-    info_array[i++] = msg_space;
     info_array[i++] = ob->id.name + 2;
 
     /* Show object data name when not in object mode. */
     if (ob->mode != OB_MODE_OBJECT) {
       if (const ID *data_id = static_cast<const ID *>(ob->data)) {
-        info_array[i++] = " | ";
+        info_array[i++] = msg_sep_ob;
         info_array[i++] = data_id->name + 2;
       }
     }
@@ -1312,7 +1300,7 @@ static void draw_selected_name(const Main &bmain,
       /* show name of active bone too (if possible) */
       if (arm->edbo) {
         if (arm->act_edbone) {
-          info_array[i++] = msg_sep;
+          info_array[i++] = msg_sep_ob;
           info_array[i++] = arm->act_edbone->name;
         }
       }
@@ -1320,7 +1308,7 @@ static void draw_selected_name(const Main &bmain,
         if (arm->act_bone) {
 
           if (ANIM_bonecoll_is_visible_actbone(arm)) {
-            info_array[i++] = msg_sep;
+            info_array[i++] = msg_sep_ob;
             info_array[i++] = arm->act_bone->name;
           }
         }
@@ -1335,7 +1323,7 @@ static void draw_selected_name(const Main &bmain,
           bArmature *arm = id_cast<bArmature *>(armobj->data);
           if (arm->act_bone) {
             if (ANIM_bonecoll_is_visible_actbone(arm)) {
-              info_array[i++] = msg_sep;
+              info_array[i++] = msg_sep_ob;
               info_array[i++] = arm->act_bone->name;
             }
           }
@@ -1365,12 +1353,6 @@ static void draw_selected_name(const Main &bmain,
     {
       ui::theme::font_theme_color_set(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
     }
-  }
-
-  if (markern) {
-    info_array[i++] = " <";
-    info_array[i++] = markern;
-    info_array[i++] = ">";
   }
 
   if (v3d->flag2 & V3D_SHOW_VIEWER) {
@@ -1404,6 +1386,99 @@ static float4 get_low_fps_color()
   hsv_to_rgb_v(alert_hsv, alert_rgb);
   return alert_rgb;
 }
+
+static void get_fps_string(const Scene *scene, char *printable, const size_t printable_size)
+{
+  SceneFPS_State state;
+  if (!ED_scene_fps_average_calc(scene, &state)) {
+    return;
+  }
+
+  bool show_fractional = state.fps_target_is_fractional;
+
+  const int font_id = BLF_default();
+
+  /* Is this more than half a frame behind? */
+  if (state.fps_average + 0.5f < state.fps_target) {
+    /* Always show fractional when under performing. */
+    show_fractional = true;
+    float4 alert_rgb = get_low_fps_color();
+    BLF_color4fv(font_id, alert_rgb);
+  }
+
+  if (show_fractional) {
+    BLI_snprintf_utf8(printable, printable_size, ("%.2f fps"), state.fps_average);
+  }
+  else {
+    BLI_snprintf_utf8(printable, printable_size, ("%i fps"), int(state.fps_average + 0.5f));
+  }
+}
+
+/**
+ * Draw animation related info:
+ * frame-number, marker name (if any), active keying set (if any), and frames per second.
+ */
+static void draw_frame_info(Scene *scene, int xoffset, int *yoffset)
+{
+  const int cfra = scene->r.cfra;
+  const char *msg_sep = " | ";
+  const char *info_array[16];
+  int i = 0;
+
+  struct {
+    char frame[16];
+  } info_buffers;
+
+  /* Info can contain:
+   * - 1 frame number `(7)`.
+   * - 1 fps `(32 + 3)`.
+   * - 1 marker name `(MAX_NAME + 3)`.
+   * - 1 active keying set name `(MAX_NAME + 3)`.
+   */
+
+  SNPRINTF_UTF8(info_buffers.frame, "%d", cfra);
+  info_array[i++] = info_buffers.frame;
+
+  /* 8 4-bytes chars (complex writing systems like Devanagari in UTF8 encoding) */
+  char printable[32];
+  printable[0] = '\0';
+  get_fps_string(scene, printable, sizeof(printable));
+
+  if (U.uiflag & USER_SHOW_FPS && printable[0] != '\0') {
+    info_array[i++] = msg_sep;
+    info_array[i++] = printable;
+  }
+  else {
+    /* Draw marker name on current frame, if any. */
+    const char *markern = BKE_scene_find_marker_name(scene, cfra);
+
+    if (markern) {
+      info_array[i++] = msg_sep;
+      info_array[i++] = markern;
+    }
+
+    /* Draw scene active keying set name, if set. */
+    KeyingSet *active_ks = animrig::scene_get_active_keyingset(scene);
+
+    if (active_ks) {
+      info_array[i++] = msg_sep;
+      info_array[i++] = active_ks->name;
+    }
+  }
+
+  BLI_assert(i < int(ARRAY_SIZE(info_array)));
+
+  char info[MAX_ID_NAME * 4];
+  /* It's expected there will be enough room for the whole string in the buffer.
+   * If not, increase it. */
+  BLI_assert(BLI_string_len_array(info_array, i) < sizeof(info));
+
+  BLI_string_join_array(info, sizeof(info), info_array, i);
+
+  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+  BLF_draw_default(xoffset, *yoffset, 0.0f, info, sizeof(info));
+}
+
 static void draw_grid_unit_name(
     Scene *scene, ARegion *region, View3D *v3d, int xoffset, int *yoffset)
 {
@@ -1568,11 +1643,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
                       region->runtime->quadview_index == bke::ARegionQuadviewIndex::TopLeft);
 
     if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {
-      if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(wm) && region_ok) {
-        ED_scene_draw_fps(scene, xoffset, &yoffset);
-        BLF_color4fv(font_id, text_color);
-      }
-      else if (U.uiflag & USER_SHOW_VIEWPORTNAME) {
+      if (U.uiflag & USER_SHOW_VIEWPORTNAME) {
         draw_viewport_name(region, v3d, xoffset, &yoffset);
       }
 
@@ -1580,6 +1651,10 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
         BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         Object *ob = BKE_view_layer_active_object_get(view_layer);
         draw_selected_name(*bmain, v3d, scene, view_layer, ob, xoffset, &yoffset);
+        BLF_color4fv(font_id, text_color);
+
+        /* Draw current frame, marker, and active keying set, if any. */
+        draw_frame_info(scene, xoffset, &yoffset);
         BLF_color4fv(font_id, text_color);
       }
 
@@ -2748,25 +2823,7 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   /* 8 4-bytes chars (complex writing systems like Devanagari in UTF8 encoding) */
   char printable[32];
   printable[0] = '\0';
-
-  bool show_fractional = state.fps_target_is_fractional;
-
-  const int font_id = BLF_default();
-
-  /* Is this more than half a frame behind? */
-  if (state.fps_average + 0.5f < state.fps_target) {
-    /* Always show fractional when under performing. */
-    show_fractional = true;
-    float4 alert_rgb = get_low_fps_color();
-    BLF_color4fv(font_id, alert_rgb);
-  }
-
-  if (show_fractional) {
-    SNPRINTF_UTF8(printable, IFACE_("fps: %.2f"), state.fps_average);
-  }
-  else {
-    SNPRINTF_UTF8(printable, IFACE_("fps: %i"), int(state.fps_average + 0.5f));
-  }
+  get_fps_string(scene, printable, sizeof(printable));
 
   BLF_draw_default(xoffset, *yoffset, 0.0f, printable, sizeof(printable));
 }
