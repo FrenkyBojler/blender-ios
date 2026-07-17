@@ -156,20 +156,6 @@ static const char *wm_xr_viewfinder_get_hand_user_path(const XrSessionSettings *
   }
 }
 
-static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *settings,
-                                                       const wmXrSessionState *state)
-{
-  const char *user_path = wm_xr_viewfinder_get_hand_user_path(settings);
-
-  for (wmXrController &controller : state->controllers) {
-    if (STREQ(controller.subaction_path, user_path) && controller.grip_active) {
-      return &controller;
-    }
-  }
-
-  return nullptr;
-}
-
 static StringRefNull wm_xr_viewfinder_get_active_mode_str(const wmXrSessionState *state)
 {
   switch (state->viewfinder.active_mode) {
@@ -240,25 +226,19 @@ static bool wm_xr_viewfinder_get_capture_mat(const XrSessionSettings *settings,
                                              const float viewfinder_height,
                                              float r_mat[4][4])
 {
-  const wmXrController *viewfinder_controller = wm_xr_viewfinder_get_controller(settings, state);
-
-  if (!viewfinder_controller) {
+  if (settings == nullptr || state == nullptr) {
     return false;
   }
 
   /* Compute vertical offset. */
   constexpr float base_controller_offset = -0.1f;
   const float height_offset = (viewfinder_height / 2) * wmXrViewfinderState::xr_ui_unit_fac * -1;
-  const float viewfinder_vertical_offset = base_controller_offset + height_offset;
+  const float offset[3] = {0.0f, 0.0f, base_controller_offset + height_offset};
+  const float rotation[3] = {-float(M_PI_2), 0.0f, 0.0f};
+  const float scale[3] = {1.0f, 1.0f, 1.0f};
 
-  /* Obtain viewfinder capture mat from the chosen controller grip mat. */
-  float viewfinder_mat[4][4];
-  copy_m4_m4(viewfinder_mat, viewfinder_controller->grip_mat);
-  translate_m4(viewfinder_mat, 0.0f, 0.0f, viewfinder_vertical_offset);
-  rotate_m4(viewfinder_mat, 'X', -M_PI_2);
-
-  copy_m4_m4(r_mat, viewfinder_mat);
-  return true;
+  return wm_xr_controller_object_mat_calc(
+      state, wm_xr_viewfinder_get_hand_user_path(settings), true, offset, rotation, scale, r_mat);
 }
 
 static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,

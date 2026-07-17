@@ -206,6 +206,7 @@ struct wmXrUiRegion {
   bool ui_region_host_initialized;
   uint64_t ui_region_frame_tag;
   uint64_t ui_region_last_rebuild_tag;
+  uint64_t ui_region_last_update_tag;
   struct wmWindow *ui_region_host_win;
   struct ScrArea *ui_region_host_area;
   struct ARegion *ui_region_host_region;
@@ -368,6 +369,13 @@ void wm_xr_pose_to_mat(const GHOST_XrPose *pose, float r_mat[4][4]);
 void wm_xr_pose_scale_to_mat(const GHOST_XrPose *pose, float scale, float r_mat[4][4]);
 void wm_xr_pose_to_imat(const GHOST_XrPose *pose, float r_imat[4][4]);
 void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_imat[4][4]);
+bool wm_xr_controller_object_mat_calc(const wmXrSessionState *state,
+                                      const char *subaction_path,
+                                      bool require_grip_pose,
+                                      const float offset[3],
+                                      const float rotation[3],
+                                      const float scale[3],
+                                      float r_mat[4][4]);
 /**
  * \brief Draw a viewport for a single eye.
  *

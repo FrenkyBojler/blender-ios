@@ -57,6 +57,8 @@
 
 namespace blender {
 
+static CLG_LogRef LOG = {"xr"};
+
 static void wm_xr_ui_overlay_winmat_create(const float src_winmat[4][4], float r_winmat[4][4])
 {
   const float m00 = src_winmat[0][0];
@@ -81,8 +83,8 @@ static void wm_xr_ui_overlay_winmat_create(const float src_winmat[4][4], float r
 }
 
 static void wm_xr_ui_region_cursor_draw_overlay(const float viewmat[4][4],
-                                            const float winmat[4][4],
-                                            const wmXrSurfaceData *surface_data)
+                                                const float winmat[4][4],
+                                                const wmXrSurfaceData *surface_data)
 {
   if (surface_data == nullptr) {
     return;
@@ -117,15 +119,16 @@ static void wm_xr_ui_region_cursor_draw_overlay(const float viewmat[4][4],
 }
 
 static void wm_xr_draw_cached_ui_region_overlay(const float viewmat[4][4],
-                                            const float winmat[4][4],
-                                            const wmXrSurfaceData *surface_data)
+                                                const float winmat[4][4],
+                                                const wmXrSurfaceData *surface_data)
 {
   if (surface_data == nullptr) {
     return;
   }
 
   for (const bool draw_controller_ui_regions : {false, true}) {
-    for (const wmXrUiRegion *panel : ConstListBaseWrapper<wmXrUiRegion>(surface_data->ui_regions)) {
+    for (const wmXrUiRegion *panel : ConstListBaseWrapper<wmXrUiRegion>(surface_data->ui_regions))
+    {
       if (!panel->ui_region_valid || panel->ui_region_offscreen == nullptr) {
         continue;
       }
@@ -573,4 +576,3 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
 }
 
 }  // namespace blender
-

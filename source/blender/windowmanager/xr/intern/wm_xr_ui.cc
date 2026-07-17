@@ -787,39 +787,48 @@ static float wm_xr_ui_region_scale_get(const wmXrUiRegion *ui_region)
   return 1.0f / 1536.0f;
 }
 
-static bool wm_xr_controller_pose_find(const wmXrData *xr,
-                                       const char *subaction_path,
-                                       const wmXrController **r_controller,
-                                       bool *r_use_grip_pose)
+bool wm_xr_controller_object_mat_calc(const wmXrSessionState *state,
+                                      const char *subaction_path,
+                                      const bool require_grip_pose,
+                                      const float offset[3],
+                                      const float rotation[3],
+                                      const float scale[3],
+                                      float r_mat[4][4])
 {
-  if (subaction_path == nullptr || r_controller == nullptr || r_use_grip_pose == nullptr) {
-    return false;
-  }
-  *r_controller = nullptr;
-  *r_use_grip_pose = false;
-
-  if (xr == nullptr || xr->runtime == nullptr) {
-    return false;
-  }
-
-  for (const wmXrController *controller :
-       ConstListBaseWrapper<wmXrController>(xr->runtime->session_state.controllers))
+  if (state == nullptr || subaction_path == nullptr || offset == nullptr || rotation == nullptr ||
+      scale == nullptr || r_mat == nullptr)
   {
-    if (STREQ(controller->subaction_path, subaction_path)) {
-      if (controller->grip_active) {
-        *r_controller = controller;
-        *r_use_grip_pose = true;
-        return true;
+    return false;
+  }
+
+  const wmXrController *controller = nullptr;
+  bool use_grip_pose = false;
+  for (const wmXrController *candidate : ConstListBaseWrapper<wmXrController>(state->controllers))
+  {
+    if (STREQ(candidate->subaction_path, subaction_path)) {
+      if (candidate->grip_active) {
+        controller = candidate;
+        use_grip_pose = true;
+        break;
       }
-      if (controller->aim_active) {
-        *r_controller = controller;
-        *r_use_grip_pose = false;
-        return true;
+      if (!require_grip_pose && candidate->aim_active) {
+        controller = candidate;
+        use_grip_pose = false;
+        break;
       }
+      return false;
     }
   }
 
-  return false;
+  if (controller == nullptr) {
+    return false;
+  }
+
+  const float (*controller_mat)[4] = use_grip_pose ? controller->grip_mat : controller->aim_mat;
+  float local_mat[4][4];
+  loc_eul_size_to_mat4(local_mat, offset, rotation, scale);
+  mul_m4_m4m4(r_mat, controller_mat, local_mat);
+  return true;
 }
 
 static void wm_xr_ui_region_basis_from_back(const float back_in[3],
@@ -1003,43 +1012,26 @@ static bool wm_xr_ui_region_target_from_viewer(const wmXrData *xr, float r_pos[3
   return true;
 }
 
-static bool wm_xr_ui_region_target_from_controller(const wmXrData *xr,
-                                                   const char *subaction_path,
-                                                   float r_pos[3],
-                                                   float r_back[3])
+static bool wm_xr_ui_region_controller_mount_mat_calc(const wmXrData *xr,
+                                                      wmXrUiRegion *ui_region,
+                                                      const char *subaction_path,
+                                                      float r_mat[4][4])
 {
-  const wmXrController *controller = nullptr;
-  bool use_grip_pose = false;
-  if (!wm_xr_controller_pose_find(xr, subaction_path, &controller, &use_grip_pose)) {
+  if (xr == nullptr || xr->runtime == nullptr || ui_region == nullptr || r_mat == nullptr) {
     return false;
   }
 
-  float controller_right[3];
-  float controller_up[3];
-  float controller_forward[3];
-  const float (*controller_mat)[4] = use_grip_pose ? controller->grip_mat : controller->aim_mat;
-  const GHOST_XrPose *controller_pose = use_grip_pose ? &controller->grip_pose :
-                                                        &controller->aim_pose;
-  normalize_v3_v3(controller_right, controller_mat[0]);
-  normalize_v3_v3(controller_up, controller_mat[1]);
-  normalize_v3_v3(controller_forward, controller_mat[2]);
-
+  const float scale_fac = wm_xr_ui_region_scale_get(ui_region);
+  const int ui_region_px_height = std::max(BLI_rcti_size_y(&ui_region->ui_region_rect) + 1, 1);
+  const float ui_region_world_height = float(ui_region_px_height) * scale_fac;
   const float side_sign = STREQ(subaction_path, "/user/hand/right") ? 1.0f : -1.0f;
-  copy_v3_v3(r_pos, controller_pose->position);
-  madd_v3_v3fl(r_pos, controller_right, 0.08f * side_sign);
-  madd_v3_v3fl(r_pos, controller_up, 0.05f);
-  madd_v3_v3fl(r_pos, controller_forward, -0.04f);
-
-  if (xr != nullptr && xr->runtime != nullptr && xr->runtime->session_state.is_view_data_set) {
-    const GHOST_XrPose *viewer_pose = &xr->runtime->session_state.viewer_pose;
-    r_back[0] = r_pos[0] - viewer_pose->position[0];
-    r_back[1] = r_pos[1] - viewer_pose->position[1];
-    r_back[2] = 0.0f;
-  }
-  else {
-    r_back[0] = controller_forward[0];
-    r_back[1] = controller_forward[1];
-    r_back[2] = 0.0f;
+  const float offset[3] = {0.08f * side_sign, 0.0f, (ui_region_world_height * 0.5f) * -1.0f};
+  const float rotation[3] = {-float(M_PI_2), 0.0f, 0.0f};
+  const float scale[3] = {scale_fac, scale_fac, scale_fac};
+  if (!wm_xr_controller_object_mat_calc(
+          &xr->runtime->session_state, subaction_path, true, offset, rotation, scale, r_mat))
+  {
+    return false;
   }
 
   return true;
@@ -1109,16 +1101,20 @@ static void wm_xr_ui_region_mount_update(wmXrUiRegion *ui_region, const wmXrData
     case XR_UI_REGION_MOUNT_NONE:
       return;
     case XR_UI_REGION_MOUNT_LEFT_HAND:
-      has_target = wm_xr_ui_region_target_from_controller(xr, "/user/hand/left", pos, back);
-      if (!has_target) {
-        has_target = wm_xr_ui_region_target_from_viewer(xr, pos, back);
+      if (wm_xr_ui_region_controller_mount_mat_calc(
+              xr, ui_region, "/user/hand/left", ui_region->ui_region_obmat))
+      {
+        return;
       }
+      has_target = wm_xr_ui_region_target_from_viewer(xr, pos, back);
       break;
     case XR_UI_REGION_MOUNT_RIGHT_HAND:
-      has_target = wm_xr_ui_region_target_from_controller(xr, "/user/hand/right", pos, back);
-      if (!has_target) {
-        has_target = wm_xr_ui_region_target_from_viewer(xr, pos, back);
+      if (wm_xr_ui_region_controller_mount_mat_calc(
+              xr, ui_region, "/user/hand/right", ui_region->ui_region_obmat))
+      {
+        return;
       }
+      has_target = wm_xr_ui_region_target_from_viewer(xr, pos, back);
       break;
     case XR_UI_REGION_MOUNT_HEAD_FOLLOW:
       has_target = wm_xr_ui_region_target_from_head_follow(xr, ui_region, pos, back);
@@ -1889,6 +1885,9 @@ void wm_xr_draw_ui_regions_world_space(const bContext *C, ARegion * /*region*/, 
       continue;
     }
     found_host = true;
+    if (ui_region->ui_region_last_update_tag == surface_data->ui_regions_frame_tag) {
+      continue;
+    }
     wm_xr_ui_region_mount_update(ui_region, xr);
     wm_xr_ui_region_cache_refresh_host(C, ui_region);
 
@@ -1898,6 +1897,7 @@ void wm_xr_draw_ui_regions_world_space(const bContext *C, ARegion * /*region*/, 
         wm_xr_temp_region_cache_update(C, ui_region, temp_region);
       }
     }
+    ui_region->ui_region_last_update_tag = surface_data->ui_regions_frame_tag;
   }
   if (!found_host) {
     CLOG_ERROR(&LOG, "XR ui_region host not registered");
