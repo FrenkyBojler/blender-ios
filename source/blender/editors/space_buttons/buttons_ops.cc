@@ -137,16 +137,20 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
       }
     }
 
-    if (ptr.data) {
-      char namebuf[MAXBONENAME];
-      const char *bone_name = RNA_struct_name_get_alloc(&ptr, namebuf, sizeof(namebuf), nullptr);
-      if (bone_name) {
-        STRNCPY(sbuts->pin_bone_name, bone_name);
+    if (!ptr.data) {
+      return OPERATOR_CANCELLED;
+    }
 
-        if (bone_name != namebuf) {
-          MEM_delete(bone_name);
-        }
-      }
+    char namebuf[MAXBONENAME];
+    const char *bone_name = RNA_struct_name_get_alloc(&ptr, namebuf, sizeof(namebuf), nullptr);
+    if (!bone_name) {
+      return OPERATOR_CANCELLED;
+    }
+
+    STRNCPY(sbuts->pin_bone_name, bone_name);
+
+    if (bone_name != namebuf) {
+      MEM_delete(bone_name);
     }
   }
   else {
@@ -161,8 +165,8 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 void BUTTONS_OT_toggle_pin(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Toggle Pin ID";
-  ot->description = "Keep the current data-block displayed";
+  ot->name = "Toggle Pin";
+  ot->description = "Keep the current data-block or bone displayed";
   ot->idname = "BUTTONS_OT_toggle_pin";
 
   /* Callbacks. */
