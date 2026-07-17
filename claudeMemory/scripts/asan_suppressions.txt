@@ -1,0 +1,15 @@
+# ASAN runtime suppressions for the MSVC + ASAN Blender build (Windows), used to
+# run the SculptCore custom-mode tests. Pass via
+#   ASAN_OPTIONS=...:suppressions=claudeMemory/scripts/asan_suppressions.txt
+# (a RELATIVE path — an absolute one contains a drive colon, which ASAN_OPTIONS
+# parses as its option separator). User-poisoning stays ENABLED, so real
+# use-after-free of MEM_* (guardedalloc) undo allocations is still caught.
+#
+# This targets a PRE-EXISTING interaction, reproducible with a trivial
+# bpy.types.Operator and unrelated to project code: the ASAN-instrumented
+# bundled CPython poisons its own obmalloc pool memory, and Blender reads
+# PyObject fields from it during class registration. The mem*-interceptor reads
+# are suppressed here; the one direct field read (bpy_rna.cc
+# bpy_class_validate_recursive) is excluded via __declspec(no_sanitize_address)
+# in source, since MSVC has no file-based sanitizer ignorelist.
+interceptor_via_lib:python313.dll
