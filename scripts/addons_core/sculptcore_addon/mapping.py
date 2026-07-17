@@ -36,6 +36,9 @@ _MAP = {
     'SMOOTH': ("SMOOTH", {}),
     'PINCH': ("PINCH", {"pinch": lambda b: b.strength}),
     'MASK': ("MASK", {}),
+    # Vertex paint: brushColor synced from the Blender brush color (see
+    # apply_brush); writes the `color` float4 vertex attr.
+    'PAINT': ("COLOR", {}),
     # Face sets: paint the `group` face attr; the stroke operator assigns a
     # fresh active group id per stroke (see FACE_SET_TYPES).
     'DRAW_FACE_SETS': ("POLYGROUP", {}),
@@ -150,6 +153,11 @@ def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert):
     if entry is not None:
         for field, value in entry[1].items():
             setattr(sc_brush, field, value(bl_brush) if callable(value) else value)
+
+    if bl_brush.sculpt_brush_type == 'PAINT':
+        col = bl_brush.color  # linear RGB
+        bc = sc_brush.brushColor.vec
+        bc[0], bc[1], bc[2], bc[3] = col[0], col[1], col[2], 1.0
 
     _bake_falloff(bl_brush, sc_brush)
 

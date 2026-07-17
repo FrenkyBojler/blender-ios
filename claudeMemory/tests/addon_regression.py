@@ -250,6 +250,42 @@ def test_faceset_roundtrip():
     assert np.array_equal(read_fs(ob), persisted), "face sets changed across re-enter"
 
 
+def test_color_roundtrip():
+    import sculptcore_addon.stroke as stroke
+    import sculptcore_addon.convert as convert
+
+    def read_color(ob):
+        attr = ob.data.color_attributes.active_color
+        if attr is None:
+            return None
+        out = np.empty(len(ob.data.vertices) * 4, dtype=np.float32)
+        attr.data.foreach_get("color", out)
+        return out.reshape(-1, 4)
+
+    ob = fresh_sphere("COL")
+    assert read_color(ob) is None
+    session = enter("COL")
+    b = stroke._ensure_brush(session)
+    b.strength, b.radius, b.spacing = 1.0, 0.7, 0.1
+    bc = b.brushColor.vec
+    bc[0], bc[1], bc[2], bc[3] = 1.0, 0.0, 0.0, 1.0  # red
+    b.writeProps()
+    center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
+    dab_stroke(session, kernel("COLOR"), center, normal, n=8, radius=0.7)
+    convert.flush(ob)
+    col = read_color(ob)
+    assert col is not None, "flush did not create a color attribute"
+    reddish = int(((col[:, 0] > 0.5) & (col[:, 1] < 0.5)).sum())
+    assert reddish > 0, "no verts painted red"
+    exit_mode()
+    persisted = read_color(ob)
+    # Re-enter loads the color and a no-op round trip preserves it.
+    enter("COL")
+    convert.flush(ob)
+    exit_mode()
+    assert np.allclose(read_color(ob), persisted, atol=1e-4), "color changed across re-enter"
+
+
 def test_falloff_presets():
     """apply_brush bakes the Blender falloff preset into the engine LUT;
     SHARP concentrates displacement near the dab center more than SMOOTH,
@@ -333,6 +369,7 @@ SECTIONS = [
     ("grab family", test_grab_family),
     ("mask round trip", test_mask_roundtrip),
     ("face-set round trip", test_faceset_roundtrip),
+    ("color round trip", test_color_roundtrip),
     ("falloff presets", test_falloff_presets),
     ("tool + panels", test_tool_and_panels),
     ("lifecycle handlers", test_lifecycle_handlers),

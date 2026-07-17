@@ -282,9 +282,14 @@ path. Deferral of modifier/GN/shape-key sculpting per
       DRAW_FACE_SETS brush → POLYGROUP kernel, operator assigns a fresh
       `activeGroup` (maxFaceGroup + 1) per stroke. Verified for both mask
       and face sets: brush → flush creates the attribute, it persists across
-      exit, re-enter reloads it unchanged. Still to add: color (COLOR) and
-      UV — plus the compaction index-map path (identity holds on the
-      positions-only fast path today).
+      exit, re-enter reloads it unchanged. Color done too:
+      `Mesh_readVertFloat4Attr` / `Mesh_writeVertFloat4Attr`; addon
+      round-trips the active POINT/FLOAT_COLOR color attribute ⇄ the engine
+      `color` float4 attr (PAINT→COLOR brush, `brushColor` from the Blender
+      brush color; corner/byte color attrs left untouched with a warning).
+      All three (mask/face-set/color) verified brush→flush→persist→reload.
+      Still to add: UV, corner/byte color conversion, and the compaction
+      index-map path (identity holds on the positions-only fast path today).
 - [ ] A4 `Mesh_topologyDirty` query (drives exit/flush fast path).
 
 ### Workstream B — Addon conversion module (`sculptcore_addon/convert.py`)

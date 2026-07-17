@@ -28,6 +28,12 @@ _SC_MASK = b".spatial.v.mask"
 _BL_FACE_SET = ".sculpt_face_set"
 _SC_GROUP = b"group"
 
+# Vertex colors <-> the engine's `color` float4 vertex attr. v1 handles the
+# active color attribute when it is POINT-domain FLOAT_COLOR (the exact match);
+# corner/byte colors are left untouched (a warning is logged on flush).
+_SC_COLOR = b"color"
+_DEFAULT_COLOR_NAME = "Color"
+
 
 class ConvertError(RuntimeError):
     pass
@@ -96,6 +102,7 @@ def enter(ob):
 
     _load_mask(ob.data, mesh_ptr, verts_num)
     _load_face_sets(ob.data, mesh_ptr)
+    _load_color(ob.data, mesh_ptr, verts_num)
 
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
@@ -127,6 +134,48 @@ def _flush_face_sets(mesh, mesh_ptr):
     if attr is None:
         attr = mesh.attributes.new(_BL_FACE_SET, 'INT', 'FACE')
     attr.data.foreach_set("value", values)
+
+
+def _point_float_color(mesh):
+    """The active color attribute if it is the POINT/FLOAT_COLOR match the
+    engine's `color` float4 vertex attr expects, else None."""
+    attr = mesh.color_attributes.active_color
+    if attr is not None and attr.domain == 'POINT' and attr.data_type == 'FLOAT_COLOR':
+        return attr
+    return None
+
+
+def _load_color(mesh, mesh_ptr, verts_num):
+    """Seed the engine `color` attr from the active POINT/FLOAT_COLOR color
+    attribute. No-op when there is none of that kind."""
+    import numpy as np
+
+    attr = _point_float_color(mesh)
+    if attr is None:
+        return
+    values = np.empty(verts_num * 4, dtype=np.float32)
+    attr.data.foreach_get("color", values)
+    engine.capi().lib.Mesh_writeVertFloat4Attr(mesh_ptr, _SC_COLOR, values)
+
+
+def _flush_color(mesh, mesh_ptr, verts_num):
+    """Write the engine `color` attr back into the active POINT/FLOAT_COLOR
+    color attribute, creating one when none exists. Leaves corner/byte color
+    attributes untouched (logs a warning)."""
+    import numpy as np
+
+    values = np.empty(verts_num * 4, dtype=np.float32)
+    if not engine.capi().lib.Mesh_readVertFloat4Attr(mesh_ptr, _SC_COLOR, values):
+        return
+    attr = _point_float_color(mesh)
+    if attr is None:
+        if mesh.color_attributes.active_color is not None:
+            print("SculptCore: active color attribute is not POINT/FLOAT_COLOR; "
+                  "painted colors not written back")
+            return
+        attr = mesh.color_attributes.new(_DEFAULT_COLOR_NAME, 'FLOAT_COLOR', 'POINT')
+        mesh.color_attributes.active_color = attr
+    attr.data.foreach_set("color", values)
 
 
 def _load_mask(mesh, mesh_ptr, verts_num):
@@ -188,6 +237,7 @@ def flush(ob):
     mesh.vertices.foreach_set("co", positions.ravel())
     _flush_mask(mesh, session.mesh_ptr, session.verts_num)
     _flush_face_sets(mesh, session.mesh_ptr)
+    _flush_color(mesh, session.mesh_ptr, session.verts_num)
     mesh.update()
 
 
