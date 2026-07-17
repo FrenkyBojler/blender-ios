@@ -314,8 +314,14 @@ path. Deferral of modifier/GN/shape-key sculpting per
       is fast again; the v1 attribute layers (mask/face-set/color) re-flush
       onto the new topology (other customdata dropped, matching vanilla
       dyntopo). Verified via the dyntopo stroke (114→1358 verts rebuilt to
-      match). `from_pydata` is O(faces) Python — fine for v1, a bulk
-      `foreach_set` rebuild is the later optimization.
+      match). Bulk `foreach_set` rebuild (vert/loop/poly domains from the flat
+      arrays + `update(calc_edges=True)`) — ~22k verts in ~30 ms (vs the
+      O(faces) `from_pydata`); `validate()` clean. Also fixed a real bug: the
+      positions fast path scattered by *engine index*, which after dyntopo has
+      freelist gaps exceeding `verts_num` (out-of-bounds); it now writes in
+      live-iteration order (the order `dumpVertCo`/`Mesh_toArrays` share), so
+      the i-th row is Blender vert i. Regression covers a post-dyntopo
+      fast-path flush on the gappy mesh.
 - [x] B3 `exit`: flush + free (re-entrant for forced exits).
 - [x] B4 `refresh`: free + rebuild from the Mesh ID; generation bump.
       Verified via direct call (the C undo trampoline that invokes it is

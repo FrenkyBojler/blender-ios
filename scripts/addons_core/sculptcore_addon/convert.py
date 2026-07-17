@@ -206,9 +206,11 @@ def _flush_mask(mesh, mesh_ptr, verts_num):
 
 
 def _flush_positions_fast(session, mesh):
-    """Positions-only write-back — valid while the engine indices still match
-    the Blender mesh (no topology op ran)."""
-    import numpy as np
+    """Positions-only write-back. `dumpVertCo` emits (engine_index, x, y, z)
+    per live vert in the engine's live-iteration order — the same order
+    `Mesh_toArrays` uses, so the i-th row is Blender vert i regardless of the
+    freelist gaps dyntopo leaves in the engine index space. Write the coords in
+    order; the index column is ignored."""
     import sculptcore
 
     mgr = engine.manager()
@@ -216,11 +218,8 @@ def _flush_positions_fast(session, mesh):
         mgr.get("sculptcore::mesh::Mesh"), session.mesh_ptr, deref=False)
     with sculptcore.construct_from_items(mgr, mgr.get("float"), []) as dump:
         mesh_obj.dumpVertCo(dump)
-        data = dump.numpy().reshape(-1, 4).copy()
-    indices = data[:, 0].astype(np.int64)
-    positions = np.empty((session.verts_num, 3), dtype=np.float32)
-    positions[indices] = data[:, 1:4]
-    mesh.vertices.foreach_set("co", positions.ravel())
+        data = dump.numpy().reshape(-1, 4)
+        mesh.vertices.foreach_set("co", data[:, 1:4].reshape(-1).copy())
 
 
 def _flush_topology_rebuild(session, mesh):
@@ -243,10 +242,18 @@ def _flush_topology_rebuild(session, mesh):
     vert_map = np.empty(cap.value, dtype=np.int32)
     lib.Mesh_toArrays(session.mesh_ptr, positions, corner_verts, face_offsets, vert_map)
 
-    faces = [corner_verts[face_offsets[i]:face_offsets[i + 1]].tolist()
-             for i in range(nf.value)]
+    # Bulk rebuild (no per-face Python — dyntopo meshes get large). Build the
+    # vert/loop/poly domains directly from the flat arrays, then let update()
+    # derive the edges.
     mesh.clear_geometry()
-    mesh.from_pydata(positions.reshape(-1, 3).tolist(), [], faces)
+    mesh.vertices.add(nv.value)
+    mesh.vertices.foreach_set("co", positions)
+    mesh.loops.add(nc.value)
+    mesh.loops.foreach_set("vertex_index", corner_verts)
+    mesh.polygons.add(nf.value)
+    mesh.polygons.foreach_set("loop_start", face_offsets[:nf.value])
+    mesh.polygons.foreach_set("loop_total", np.diff(face_offsets))
+    mesh.update(calc_edges=True)
 
     session.verts_num = nv.value
     session.topo_stamp = lib.Mesh_topoStamp(session.mesh_ptr)

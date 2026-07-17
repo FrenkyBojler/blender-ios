@@ -399,8 +399,21 @@ def test_dyntopo():
     assert v1 > v0 and v1 == session.verts_num, (v0, v1, session.verts_num)
     assert not session.topology_changed(), "topo stamp not resynced"
     assert len(ob.data.polygons) > 0
-    convert.flush(ob)  # fast path again
+    # The bulk rebuild must produce valid topology (validate() returns True
+    # only when it had to *fix* something).
+    assert ob.data.validate() is False, "rebuilt mesh needed correction"
+    assert len(ob.data.edges) > 0, "edges not derived"
+
+    # Fast-path flush after dyntopo: the engine index space now has freelist
+    # gaps, so positions must write in live order (regression for the
+    # out-of-bounds scatter bug).
+    before = positions(ob).copy()
+    stroke.stroke_begin(session)  # no dyntopo
+    stroke.apply_dab(session, draw, center, normal, 0.5)
+    stroke.stroke_end(session)
+    convert.flush(ob)  # fast path on the gappy engine mesh
     assert len(ob.data.vertices) == v1
+    assert np.abs(positions(ob) - before).sum() > 1e-3, "post-dyntopo edit lost"
     exit_mode()
     assert len(ob.data.vertices) == v1
 
