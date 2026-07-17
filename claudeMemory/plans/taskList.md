@@ -308,11 +308,14 @@ path. Deferral of modifier/GN/shape-key sculpting per
 - [x] B1 `enter`: validate (refuse shape keys; warn on enabled modifiers /
       loose edges) → `foreach_get` positions/corner_verts/face_offsets →
       `Mesh_fromArrays` → `Mesh_buildSpatialTree` → session registry.
-- [~] B2 `flush`: fast path done (positions via `dumpVertCo` +
-      `foreach_set` + `mesh.update()`). Slow path (topology rebuild +
-      layer drop-with-warning) still to write — raises a clear error for now
-      (topology ops unreachable until dyntopo is wired). Layer round-trip is
-      P3 A3 territory.
+- [x] B2 `flush`: fast path (positions via `dumpVertCo` + `foreach_set`) +
+      slow path — on topology change, `Mesh_toArrays` → `mesh.clear_geometry`
+      + `from_pydata` rebuild; session sizes/stamp resynced so the next flush
+      is fast again; the v1 attribute layers (mask/face-set/color) re-flush
+      onto the new topology (other customdata dropped, matching vanilla
+      dyntopo). Verified via the dyntopo stroke (114→1358 verts rebuilt to
+      match). `from_pydata` is O(faces) Python — fine for v1, a bulk
+      `foreach_set` rebuild is the later optimization.
 - [x] B3 `exit`: flush + free (re-entrant for forced exits).
 - [x] B4 `refresh`: free + rebuild from the Mesh ID; generation bump.
       Verified via direct call (the C undo trampoline that invokes it is

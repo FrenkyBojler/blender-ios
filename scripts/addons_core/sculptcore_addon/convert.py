@@ -205,36 +205,67 @@ def _flush_mask(mesh, mesh_ptr, verts_num):
     attr.data.foreach_set("value", values)
 
 
-def flush(ob):
-    """Write engine state back into the Mesh ID (fast path: positions only,
-    valid while no topology op ran)."""
+def _flush_positions_fast(session, mesh):
+    """Positions-only write-back — valid while the engine indices still match
+    the Blender mesh (no topology op ran)."""
     import numpy as np
-
-    session = engine.sessions.get(ob.name)
-    if session is None or not session.mesh_ptr:
-        return
-
-    if session.topology_changed():
-        # Slow path (full re-export + Mesh rebuild) lands with the attribute
-        # copy stage; topology ops are not reachable until dyntopo is wired.
-        raise ConvertError(
-            "SculptCore: topology changed but the rebuild path is not implemented yet")
-
-    mgr = engine.manager()
     import sculptcore
 
+    mgr = engine.manager()
     mesh_obj = mgr.get_bound_pointer(
         mgr.get("sculptcore::mesh::Mesh"), session.mesh_ptr, deref=False)
     with sculptcore.construct_from_items(mgr, mgr.get("float"), []) as dump:
         mesh_obj.dumpVertCo(dump)
         data = dump.numpy().reshape(-1, 4).copy()
-
     indices = data[:, 0].astype(np.int64)
     positions = np.empty((session.verts_num, 3), dtype=np.float32)
     positions[indices] = data[:, 1:4]
+    mesh.vertices.foreach_set("co", positions.ravel())
+
+
+def _flush_topology_rebuild(session, mesh):
+    """Slow path — topology changed (dyntopo/remesh), so rebuild the Blender
+    mesh geometry from a full engine export. Customdata is dropped by
+    clear_geometry (matches vanilla dyntopo); the engine-owned v1 layers
+    (mask/face-set/color) are re-flushed afterwards onto the new topology.
+    Updates the session's sizes/stamp so the next flush is fast again."""
+    import ctypes
+
+    import numpy as np
+
+    lib = engine.capi().lib
+    nv, nc, nf, cap = (ctypes.c_int(0) for _ in range(4))
+    lib.Mesh_arraySizes(session.mesh_ptr, ctypes.byref(nv), ctypes.byref(nc),
+                        ctypes.byref(nf), ctypes.byref(cap))
+    positions = np.empty(nv.value * 3, dtype=np.float32)
+    corner_verts = np.empty(nc.value, dtype=np.int32)
+    face_offsets = np.empty(nf.value + 1, dtype=np.int32)
+    vert_map = np.empty(cap.value, dtype=np.int32)
+    lib.Mesh_toArrays(session.mesh_ptr, positions, corner_verts, face_offsets, vert_map)
+
+    faces = [corner_verts[face_offsets[i]:face_offsets[i + 1]].tolist()
+             for i in range(nf.value)]
+    mesh.clear_geometry()
+    mesh.from_pydata(positions.reshape(-1, 3).tolist(), [], faces)
+
+    session.verts_num = nv.value
+    session.topo_stamp = lib.Mesh_topoStamp(session.mesh_ptr)
+
+
+def flush(ob):
+    """Write engine state back into the Mesh ID. Fast path (positions only)
+    while the topology is unchanged; slow path (full geometry rebuild) after
+    dyntopo/remesh. Either way the v1 attribute layers are re-flushed."""
+    session = engine.sessions.get(ob.name)
+    if session is None or not session.mesh_ptr:
+        return
 
     mesh = ob.data
-    mesh.vertices.foreach_set("co", positions.ravel())
+    if session.topology_changed():
+        _flush_topology_rebuild(session, mesh)
+    else:
+        _flush_positions_fast(session, mesh)
+
     _flush_mask(mesh, session.mesh_ptr, session.verts_num)
     _flush_face_sets(mesh, session.mesh_ptr)
     _flush_color(mesh, session.mesh_ptr, session.verts_num)

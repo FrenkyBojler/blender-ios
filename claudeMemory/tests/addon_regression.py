@@ -350,7 +350,7 @@ def test_autosmooth():
         center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
         before = positions(ob).copy()
         stroke.stroke_begin(session)
-        prog = stroke.build_autosmooth_program(session, draw, autosmooth) if autosmooth else None
+        prog = stroke.build_program(session, draw, autosmooth) if autosmooth else None
         for i in range(24):
             c = (center[0] + (i % 6) * 0.02, center[1] + (i // 6) * 0.02, center[2])
             if prog is not None:
@@ -367,6 +367,42 @@ def test_autosmooth():
     assert np.abs(plain).sum() > 1e-2 and np.abs(smoothed).sum() > 1e-2
     # The smooth pass measurably changes the accumulated result.
     assert np.abs(plain - smoothed).sum() > 1e-2, "autosmooth had no effect"
+
+
+def test_dyntopo():
+    """A dyntopo stroke remeshes under the brush; the slow-path flush
+    rebuilds the Blender mesh geometry to match, then reverts to fast path."""
+    import sculptcore_addon.engine as engine
+    import sculptcore_addon.stroke as stroke
+    import sculptcore_addon.convert as convert
+    draw = kernel("DRAW")
+
+    ob = fresh_sphere("DT", segments=16, rings=8)
+    v0 = len(ob.data.vertices)
+    session = enter("DT")
+    b = stroke._ensure_brush(session)
+    b.strength, b.radius, b.spacing = 0.5, 0.5, 0.1
+    b.writeProps()
+    center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
+    prog = stroke.build_program(session, draw)
+    params = stroke.build_dyntopo_params(session, 0.05, 0.02)
+
+    stroke.stroke_begin(session, has_dyntopo=True)
+    for i in range(12):
+        c = (center[0] + (i % 4) * 0.02, center[1] + (i // 4) * 0.02, center[2])
+        stroke.apply_dyntopo_dab(session, prog, c, normal, 0.5, params, 1000 + i)
+    stroke.stroke_end(session)
+    assert session.topology_changed(), "dyntopo did not change topology"
+
+    convert.flush(ob)  # slow path
+    v1 = len(ob.data.vertices)
+    assert v1 > v0 and v1 == session.verts_num, (v0, v1, session.verts_num)
+    assert not session.topology_changed(), "topo stamp not resynced"
+    assert len(ob.data.polygons) > 0
+    convert.flush(ob)  # fast path again
+    assert len(ob.data.vertices) == v1
+    exit_mode()
+    assert len(ob.data.vertices) == v1
 
 
 def test_tool_and_panels():
@@ -416,6 +452,7 @@ SECTIONS = [
     ("color round trip", test_color_roundtrip),
     ("falloff presets", test_falloff_presets),
     ("autosmooth program", test_autosmooth),
+    ("dyntopo + slow flush", test_dyntopo),
     ("tool + panels", test_tool_and_panels),
     ("lifecycle handlers", test_lifecycle_handlers),
 ]

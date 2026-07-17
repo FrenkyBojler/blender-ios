@@ -32,6 +32,10 @@ class Session:
         # Reusable [main, SMOOTH] autosmooth program, rebuilt per stroke when
         # the brush's auto-smooth factor is nonzero.
         "program",
+        # Dyntopo state for the current stroke (so stroke_end knows to call
+        # endDynTopoStroke) and the reusable DynTopoParams.
+        "dyntopo_active",
+        "dtparams",
         "_freed",
     )
 
@@ -47,6 +51,8 @@ class Session:
         self.brush_obj = None
         self.executor = None
         self.program = None
+        self.dyntopo_active = False
+        self.dtparams = None
         self._freed = False
 
     def mesh(self):
@@ -76,9 +82,10 @@ class Session:
         self._freed = True
         # Owning engine wrappers (Brush, CommandExecutor) dispose their C++
         # objects; the Mesh view is non-owning (freed via freeMesh below).
-        for obj in (self.program, self.executor, self.brush_obj):
+        for obj in (self.dtparams, self.program, self.executor, self.brush_obj):
             if obj is not None and not getattr(obj, "_disposed", False):
                 obj.dispose()
+        self.dtparams = None
         self.program = None
         self.executor = None
         self.brush_obj = None

@@ -23,7 +23,7 @@ bl_info = {
 
 import bpy
 
-from . import convert, engine, handlers, keymap, stroke, tools, ui
+from . import convert, engine, handlers, keymap, props, stroke, tools, ui
 
 
 class SculptCoreMode(bpy.types.ObjectModeType):
@@ -51,6 +51,7 @@ class SculptCoreMode(bpy.types.ObjectModeType):
 
 
 def register():
+    props.register()
     stroke.register()
     bpy.utils.register_class(SculptCoreMode)
     keymap.register()
@@ -69,4 +70,5 @@ def unregister():
     keymap.unregister()
     bpy.utils.unregister_class(SculptCoreMode)
     stroke.unregister()
+    props.unregister()
     engine.free_all_sessions()

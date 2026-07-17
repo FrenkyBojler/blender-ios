@@ -47,11 +47,38 @@ def _ensure_executor(session):
 def stroke_begin(session, *, has_dyntopo=False):
     executor = _ensure_executor(session)
     executor.beginStep(has_dyntopo)
+    session.dyntopo_active = has_dyntopo
     # A nonzero, per-stroke generation is required for grab-class kernels
     # (they orig-stamp against it); harmless for the rest.
     session.stroke_gen += 1
     executor.setStrokeGen(session.stroke_gen)
     executor.setNonAccum(False)
+
+
+def build_dyntopo_params(session, l_max, l_min):
+    """Reusable DynTopoParams (edge-length bounds in object space)."""
+    mgr = engine.manager()
+    if session.dtparams is None:
+        session.dtparams = mgr.construct("sculptcore::dyntopo::DynTopoParams")
+    p = session.dtparams
+    p.l_max = l_max
+    p.l_min = min(l_min, l_max * 0.5)
+    return p
+
+
+def apply_dyntopo_dab(session, program, center, normal, radius, params, seed):
+    """One dab that also remeshes: applyDab runs the dyntopo pass, node filter
+    and the program together (it filters internally)."""
+    mgr = engine.manager()
+    executor = _ensure_executor(session)
+    center_v = _float3(mgr, *center)
+    normal_v = _float3(mgr, *normal)
+    try:
+        executor.setGrabAccumAdd(False)
+        executor.applyDab(program, center_v, normal_v, radius, params, seed)
+    finally:
+        center_v.dispose()
+        normal_v.dispose()
 
 
 def apply_dab(session, brush_type, center, normal, radius):
@@ -115,22 +142,23 @@ def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius):
             obj.dispose()
 
 
-def build_autosmooth_program(session, main_kernel, smooth_factor):
-    """Build a [main, SMOOTH] program so each dab also smooths by
-    `smooth_factor` (Blender's auto_smooth_factor). Returns the program,
-    owned by the session and reused across dabs."""
+def build_program(session, main_kernel, smooth_factor=0.0):
+    """Build a program `[main]`, or `[main, SMOOTH]` when `smooth_factor > 0`
+    (autosmooth). Owned by the session and reused across dabs; also the dab
+    unit for the dyntopo path (applyDab takes a program)."""
     mgr = engine.manager()
     if session.program is None:
         session.program = mgr.construct("sculptcore::brush::BrushProgram")
     prog = session.program
     prog.clear()
     prog.addCommand(main_kernel)
-    smooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["SMOOTH"])
-    idx = prog.addCommand(smooth)
-    # BrushProp::Strength == 0. The runtime can't marshal a string arg into a
-    # util::string method param, so the smooth strength is overridden by
-    # propId, not by name (setCommandFloatByName).
-    prog.setCommandFloat(idx, 0, smooth_factor)
+    if smooth_factor > 0.0:
+        smooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["SMOOTH"])
+        idx = prog.addCommand(smooth)
+        # BrushProp::Strength == 0. The runtime can't marshal a string arg into
+        # a util::string method param, so the smooth strength is overridden by
+        # propId, not by name (setCommandFloatByName).
+        prog.setCommandFloat(idx, 0, smooth_factor)
     return prog
 
 
@@ -156,7 +184,10 @@ def apply_dab_program(session, program, center, normal, radius):
 
 
 def stroke_end(session):
-    _ensure_executor(session).endStep()
+    executor = _ensure_executor(session)
+    if session.dyntopo_active:
+        executor.endDynTopoStroke()
+    executor.endStep()
     session.mesh().recalc_normals()
 
 
@@ -215,15 +246,26 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         if self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
             brush = _ensure_brush(self.session)
             brush.activeGroup = int(self.session.mesh().maxFaceGroup()) + 1
-        # Autosmooth: run a [main, SMOOTH] program per dab (not for grab-class
-        # or the smooth brush itself).
-        self._autosmooth = None
+        # Dyntopo (scene toggle) and autosmooth both run through a program;
+        # neither applies to grab-class. Autosmooth also skips the smooth
+        # brush itself.
+        scene = context.scene
+        smooth_factor = 0.0
         if (not self._grab_class
                 and self.brush.sculpt_brush_type != 'SMOOTH'
                 and self.brush.auto_smooth_factor > 0.0):
-            self._autosmooth = build_autosmooth_program(
-                self.session, self.kernel, self.brush.auto_smooth_factor)
-        stroke_begin(self.session)
+            smooth_factor = self.brush.auto_smooth_factor
+
+        self._dyntopo = None
+        self._program = None
+        if not self._grab_class and getattr(scene, "sculptcore_dyntopo", False):
+            detail = scene.sculptcore_detail
+            self._program = build_program(self.session, self.kernel, smooth_factor)
+            self._dyntopo = build_dyntopo_params(self.session, detail, detail * 0.5)
+        elif smooth_factor > 0.0:
+            self._program = build_program(self.session, self.kernel, smooth_factor)
+
+        stroke_begin(self.session, has_dyntopo=self._dyntopo is not None)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.
         self._dab_at(context, event)
@@ -252,8 +294,11 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             cursor = _cursor_on_anchor_plane(context, event, self._anchor)
             apply_grab_dab(self.session, self.kernel, self._anchor, cursor,
                            self._anchor_normal, self._anchor_radius)
-        elif self._autosmooth is not None:
-            apply_dab_program(self.session, self._autosmooth, position, normal, world_radius)
+        elif self._dyntopo is not None:
+            apply_dyntopo_dab(self.session, self._program, position, normal,
+                              world_radius, self._dyntopo, self._dab_count + 1)
+        elif self._program is not None:
+            apply_dab_program(self.session, self._program, position, normal, world_radius)
         else:
             apply_dab(self.session, self.kernel, position, normal, world_radius)
         self._dab_count += 1

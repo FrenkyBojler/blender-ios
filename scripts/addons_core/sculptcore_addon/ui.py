@@ -70,15 +70,12 @@ class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.use_property_split = True
-        sculpt = context.tool_settings.sculpt
-        # Reuse the vanilla Sculpt dyntopo DNA fields; live dyntopo is not
-        # reachable yet, so this is informational until the stroke operator
-        # threads dyntopo params.
+        scene = context.scene
+        layout.prop(scene, "sculptcore_dyntopo", text="Dynamic Topology")
         col = layout.column()
-        col.prop(sculpt, "detail_type_method", text="Detailing")
-        col.prop(sculpt, "detail_size")
-        layout.label(text="Not yet active in SculptCore", icon='INFO')
+        col.use_property_split = True
+        col.active = scene.sculptcore_dyntopo
+        col.prop(scene, "sculptcore_detail")
 
 
 _classes = (
