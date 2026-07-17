@@ -9,6 +9,7 @@
 #include "BKE_camera.h"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_rect.hh"
@@ -27,35 +28,43 @@
 
 namespace blender::eevee {
 
-constexpr uint PANORAMIC_VIEW_POS_X = 1u << 0u;
-constexpr uint PANORAMIC_VIEW_NEG_X = 1u << 1u;
-constexpr uint PANORAMIC_VIEW_POS_Y = 1u << 2u;
-constexpr uint PANORAMIC_VIEW_NEG_Y = 1u << 3u;
-constexpr uint PANORAMIC_VIEW_POS_Z = 1u << 4u;
-constexpr uint PANORAMIC_VIEW_NEG_Z = 1u << 5u;
-constexpr uint PANORAMIC_VIEW_ALL = (1u << 6u) - 1u;
-constexpr uint PANORAMIC_VIEW_SIDES = PANORAMIC_VIEW_POS_X | PANORAMIC_VIEW_NEG_X |
-                                      PANORAMIC_VIEW_POS_Y | PANORAMIC_VIEW_NEG_Y;
+/** Bitmask identifying which of the 6 cubemap faces (in `cubeface_mat()` order) are needed to
+ * cover a given panoramic projection. `FRONT`/`BACK` alias the `NEG_Z`/`POS_Z` faces since those
+ * are the primary and opposite view directions for all panoramic projections. */
+enum class PanoramicViewBits : uint32_t {
+  POS_X = 1u << 0u,
+  NEG_X = 1u << 1u,
+  POS_Y = 1u << 2u,
+  NEG_Y = 1u << 3u,
+  BACK = 1u << 4u,  /* Pos Z. */
+  FRONT = 1u << 5u, /* Neg Z. */
+};
+ENUM_OPERATORS(PanoramicViewBits)
+constexpr PanoramicViewBits PANORAMIC_VIEW_ALL = PanoramicViewBits((1u << 6u) - 1u);
+constexpr PanoramicViewBits PANORAMIC_VIEW_SIDES = PanoramicViewBits::POS_X |
+                                                   PanoramicViewBits::NEG_X |
+                                                   PanoramicViewBits::POS_Y |
+                                                   PanoramicViewBits::NEG_Y;
 
-static uint panoramic_fisheye_view_mask_get(const CameraData &cam)
+static PanoramicViewBits panoramic_fisheye_view_mask_get(const CameraData &cam)
 {
   constexpr float angle_epsilon = 1.0e-4f;
   const float half_fov = cam.fisheye_fov * 0.5f;
-  uint mask = PANORAMIC_VIEW_NEG_Z;
+  PanoramicViewBits mask = PanoramicViewBits::FRONT;
   if (half_fov >= float(M_PI_4) - angle_epsilon) {
     mask |= PANORAMIC_VIEW_SIDES;
   }
   if (half_fov >= 3.0f * float(M_PI_4) - angle_epsilon) {
-    mask |= PANORAMIC_VIEW_POS_Z;
+    mask |= PanoramicViewBits::BACK;
   }
   return mask;
 }
 
-static uint panoramic_view_mask_get(const CameraData &cam)
+static PanoramicViewBits panoramic_view_mask_get(const CameraData &cam)
 {
   switch (cam.type) {
     case CAMERA_PANO_EQUIANGULAR_CUBEMAP_FACE:
-      return PANORAMIC_VIEW_NEG_Z;
+      return PanoramicViewBits::FRONT;
     case CAMERA_PANO_EQUIDISTANT:
     case CAMERA_PANO_EQUISOLID:
     case CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL:
@@ -66,7 +75,7 @@ static uint panoramic_view_mask_get(const CameraData &cam)
       /* No face can be analytically excluded for these projections. */
       return PANORAMIC_VIEW_ALL;
     default:
-      return PANORAMIC_VIEW_NEG_Z;
+      return PanoramicViewBits::FRONT;
   }
 }
 
@@ -290,8 +299,8 @@ void Camera::sync()
   }
 
   data.panoramic_view_overscan = this->is_panoramic() ? 1.05f : 1.0f;
-  data.panoramic_view_mask = this->is_panoramic() ? panoramic_view_mask_get(data) :
-                                                    PANORAMIC_VIEW_NEG_Z;
+  data.panoramic_view_mask = uint32_t(this->is_panoramic() ? panoramic_view_mask_get(data) :
+                                                             PanoramicViewBits::FRONT);
   data_.initialized = true;
 
   update_bounds();
