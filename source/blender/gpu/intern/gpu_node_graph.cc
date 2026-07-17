@@ -288,11 +288,8 @@ static GPUNodeLink *gpu_node_stack_constant_link(const GPUNodeStack &stack)
     case GPU_BOOL:
       return GPU_constant(&stack.boolean_data);
     default:
-      break;
+      return GPU_constant(stack.vec);
   }
-
-  BLI_assert_unreachable();
-  return nullptr;
 }
 
 static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
@@ -311,11 +308,8 @@ static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
     case GPU_BOOL:
       return GPU_uniform(&stack.boolean_data);
     default:
-      break;
+      return GPU_uniform(stack.vec);
   }
-
-  BLI_assert_unreachable();
-  return nullptr;
 }
 
 static const char *gpu_uniform_set_function_from_type(eNodeSocketDatatype type)
