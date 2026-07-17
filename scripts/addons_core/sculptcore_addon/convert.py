@@ -259,6 +259,17 @@ def _flush_topology_rebuild(session, mesh):
     session.topo_stamp = lib.Mesh_topoStamp(session.mesh_ptr)
 
 
+def _engine_vert_num(session):
+    """Live vertex count of the engine mesh (may differ from the session's
+    cached size after a topology change, e.g. an undo that reverted dyntopo)."""
+    import ctypes
+
+    nv, nc, nf, cap = (ctypes.c_int(0) for _ in range(4))
+    engine.capi().lib.Mesh_arraySizes(session.mesh_ptr, ctypes.byref(nv), ctypes.byref(nc),
+                                      ctypes.byref(nf), ctypes.byref(cap))
+    return nv.value
+
+
 def flush(ob):
     """Write engine state back into the Mesh ID. Fast path (positions only)
     while the topology is unchanged; slow path (full geometry rebuild) after
@@ -268,7 +279,10 @@ def flush(ob):
         return
 
     mesh = ob.data
-    if session.topology_changed():
+    # The topo stamp catches forward topology edits, but a meshlog undo reverts
+    # the topology without rolling the stamp back; a live-vs-Blender vertex-count
+    # mismatch catches that case so undo/redo also take the rebuild path.
+    if session.topology_changed() or _engine_vert_num(session) != len(mesh.vertices):
         _flush_topology_rebuild(session, mesh)
     else:
         _flush_positions_fast(session, mesh)

@@ -214,10 +214,13 @@ static void ed_undo_step_post(bContext *C,
   }
 
   /* Custom-mode sessions re-sync against the (possibly replaced) data — a
-   * memfile decode swaps out the whole Main under Tier-1 undo. Gating this
-   * to memfile-only decodes lands with the custom undo type. */
+   * memfile decode swaps out the whole Main under Tier-1 undo. Modes that
+   * provide their own delta undo resync inside `undo_decode`; a full refresh
+   * (rebuild from the Mesh ID) would discard their in-engine history, so it is
+   * skipped for them (foreign-memfile resync is their own responsibility, per
+   * the undo-integration plan §4). */
   for (Object &ob : bmain->objects) {
-    if (ob.mode & OB_MODE_CUSTOM) {
+    if ((ob.mode & OB_MODE_CUSTOM) && !BKE_object_custom_mode_uses_custom_undo(&ob)) {
       ObjectModeType *mt = BKE_object_mode_type_find(ob.custom_mode_id);
       if (mt && mt->refresh) {
         wm->op_undo_depth++;

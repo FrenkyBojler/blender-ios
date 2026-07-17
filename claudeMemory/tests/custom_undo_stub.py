@@ -46,8 +46,8 @@ class StubUndoMode(bpy.types.ObjectModeType):
     def exit(self, context, ob):
         CALLS.append(("exit", ob.name))
 
-    def undo_decode(self, context, ob, state_id, direction):
-        CALLS.append(("decode", ob.name, state_id, direction))
+    def undo_decode(self, context, ob, state_id, direction, is_final):
+        CALLS.append(("decode", ob.name, state_id, direction, is_final))
 
     def undo_free(self, state_id):
         CALLS.append(("free", state_id))
@@ -95,9 +95,10 @@ def main():
     _push(context, 102)
     _push(context, 103)
 
-    # Blender decodes the step transitioned *to* (the checkpoint you land on),
-    # with the transition direction. From the 103 top, two undos land on 102
-    # then 101: decode(102, -1), decode(101, -1).
+    # The type decodes the active step too (UNDOTYPE_FLAG_DECODE_ACTIVE_STEP):
+    # each undo calls decode for the step being left (is_final False) then the
+    # destination (is_final True). Two undos from 103 -> 101:
+    #   (103,-1,False),(102,-1,True), (102,-1,False),(101,-1,True).
     del CALLS[:]
     bpy.ops.ed.undo()
     bpy.ops.ed.undo()
@@ -112,16 +113,17 @@ def main():
         _cleanup()
         return
 
-    got = [(c[2], c[3]) for c in decodes]
-    if got != [(102, -1), (101, -1)]:
-        _fail("undo decode sequence {!r}, expected [(102, -1), (101, -1)]".format(got))
+    got = [(c[2], c[3], c[4]) for c in decodes]
+    expected = [(103, -1, False), (102, -1, True), (102, -1, False), (101, -1, True)]
+    if got != expected:
+        _fail("undo decode sequence {!r}, expected {!r}".format(got, expected))
 
-    # Redo once: land back on 102 moving forward -> decode(102, +1).
+    # Redo once: only the destination (102) is entered -> decode(102, +1, True).
     del CALLS[:]
     bpy.ops.ed.redo()
-    redos = [c for c in CALLS if c[0] == "decode"]
-    if [(c[2], c[3]) for c in redos] != [(102, 1)]:
-        _fail("redo decode {!r}, expected [(102, 1)]".format(redos))
+    redos = [(c[2], c[3], c[4]) for c in CALLS if c[0] == "decode"]
+    if redos != [(102, 1, True)]:
+        _fail("redo decode {!r}, expected [(102, 1, True)]".format(redos))
 
     # Eviction: push a fresh step from the redone state; the truncated redo
     # branch (103) must be freed.

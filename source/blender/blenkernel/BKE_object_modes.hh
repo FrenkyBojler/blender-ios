@@ -78,10 +78,14 @@ struct ObjectModeType {
    * #OBJECT_MODE_TYPE_USE_CUSTOM_UNDO. The addon owns the real per-step state
    * (keyed by an integer id it manages); Blender's undo stack stores just the
    * id + a truthful byte size. `undo_decode` applies the addon's delta for a
-   * step (`direction`: -1 undo, +1 redo); `undo_free` drops the state. Null
+   * step (`direction`: -1 undo, +1 redo; `is_final`: true when this step is the
+   * transition's destination, false for an intermediate step being left behind
+   * — the type decodes the active step, so an undo passes the leaving step as
+   * non-final then the destination as final). `undo_free` drops the state. Null
    * when the registered class does not define them.
    */
-  void (*undo_decode)(ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction);
+  void (*undo_decode)(
+      ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction, bool is_final);
   void (*undo_free)(ObjectModeType *mt, int state_id);
 
   /**

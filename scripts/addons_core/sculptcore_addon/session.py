@@ -29,6 +29,13 @@ class Session:
         "mesh_obj",
         "brush_obj",
         "executor",
+        # Per-session undo history (wired to the executor as executor.meshLog);
+        # each stroke is one step. Drives Tier-2 delta undo (see undo.py).
+        "meshlog",
+        # Mirror of the meshlog's applied-step count (curStep_): bumped on
+        # stroke end, moved by undo/redo. Lets undo_decode seek to a target
+        # step even across memfile-boundary transitions it isn't called for.
+        "meshlog_cursor",
         # Reusable [main, SMOOTH] autosmooth program, rebuilt per stroke when
         # the brush's auto-smooth factor is nonzero.
         "program",
@@ -50,6 +57,8 @@ class Session:
         self.mesh_obj = None
         self.brush_obj = None
         self.executor = None
+        self.meshlog = None
+        self.meshlog_cursor = 0
         self.program = None
         self.dyntopo_active = False
         self.dtparams = None
@@ -80,14 +89,17 @@ class Session:
         if self._freed:
             return
         self._freed = True
-        # Owning engine wrappers (Brush, CommandExecutor) dispose their C++
-        # objects; the Mesh view is non-owning (freed via freeMesh below).
-        for obj in (self.dtparams, self.program, self.executor, self.brush_obj):
+        # Owning engine wrappers (Brush, CommandExecutor, MeshLog) dispose their
+        # C++ objects; the Mesh view is non-owning (freed via freeMesh below).
+        # The executor goes before the meshlog it points at.
+        for obj in (self.dtparams, self.program, self.executor, self.meshlog,
+                    self.brush_obj):
             if obj is not None and not getattr(obj, "_disposed", False):
                 obj.dispose()
         self.dtparams = None
         self.program = None
         self.executor = None
+        self.meshlog = None
         self.brush_obj = None
         self.mesh_obj = None
         lib = engine.capi().lib

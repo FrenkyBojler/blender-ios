@@ -23,7 +23,7 @@ bl_info = {
 
 import bpy
 
-from . import convert, engine, handlers, keymap, props, stroke, tools, ui
+from . import convert, engine, handlers, keymap, props, stroke, tools, ui, undo
 
 
 class SculptCoreMode(bpy.types.ObjectModeType):
@@ -33,9 +33,10 @@ class SculptCoreMode(bpy.types.ObjectModeType):
     bl_object_types = {'MESH'}
     bl_keymap = "SculptCore Mode"
     bl_default_tool = "sculptcore.brush"
-    # Inert until the wrapped undo type lands (undo-integration plan);
-    # Tier-1 sessions ride memfile undo through flush/refresh.
-    bl_use_custom_undo = False
+    # Tier-2 delta undo: each stroke pushes a CUSTOM_MODE step wrapping a
+    # meshlog step id (see undo.py). The Mesh ID still stays authoritative
+    # through flush for save/render; memfile remains the boundary fallback.
+    bl_use_custom_undo = True
 
     def enter(self, context, ob):
         convert.enter(ob)
@@ -48,6 +49,12 @@ class SculptCoreMode(bpy.types.ObjectModeType):
 
     def refresh(self, context, ob):
         convert.refresh(ob)
+
+    def undo_decode(self, context, ob, state_id, direction, is_final):
+        undo.decode(context, ob, state_id, direction, is_final)
+
+    def undo_free(self, state_id):
+        undo.free(state_id)
 
 
 def register():
@@ -72,3 +79,4 @@ def unregister():
     stroke.unregister()
     props.unregister()
     engine.free_all_sessions()
+    undo.reset()

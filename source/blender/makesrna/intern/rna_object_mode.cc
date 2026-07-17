@@ -107,7 +107,7 @@ static void object_mode_refresh(ObjectModeType *mt, bContext *C, Object *ob)
 }
 
 static void object_mode_undo_decode(
-    ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction)
+    ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction, bool is_final)
 {
   extern FunctionRNA *rna_ObjectModeType_undo_decode_func;
   ParameterList list;
@@ -120,6 +120,7 @@ static void object_mode_undo_decode(
   RNA_parameter_set_lookup(&list, "ob", &ob);
   RNA_parameter_set_lookup(&list, "state_id", &state_id);
   RNA_parameter_set_lookup(&list, "direction", &direction);
+  RNA_parameter_set_lookup(&list, "is_final", &is_final);
   mt->rna_ext.call(C, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -375,6 +376,9 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
   parm = RNA_def_int(func, "state_id", 0, INT_MIN, INT_MAX, "State ID", "", INT_MIN, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func, "direction", -1, -1, 1, "Direction", "-1 undo, +1 redo", -1, 1);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_boolean(
+      func, "is_final", false, "Is Final", "True when this step is the transition's destination");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "undo_free", nullptr);

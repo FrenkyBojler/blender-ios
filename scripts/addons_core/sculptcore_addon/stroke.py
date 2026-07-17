@@ -16,7 +16,7 @@ scriptable end-to-end.
 
 import bpy
 
-from . import convert, engine, mapping
+from . import convert, engine, mapping, undo
 
 
 def _float3(mgr, x, y, z):
@@ -36,11 +36,14 @@ def _ensure_brush(session):
 
 
 def _ensure_executor(session):
-    """The session's CommandExecutor, bound to its tree + brush."""
+    """The session's CommandExecutor, bound to its tree + brush, with a
+    per-session MeshLog wired in so each stroke records an undo step."""
     if session.executor is None:
         mgr = engine.manager()
         ctor = mgr.get_struct("sculptcore::brush::CommandExecutor").find_constructor("main")
         session.executor = mgr.construct_with(ctor, session.tree(), _ensure_brush(session))
+        session.meshlog = mgr.construct("sculptcore::meshlog::MeshLog")
+        session.executor.meshLog = session.meshlog
     return session.executor
 
 
@@ -188,6 +191,9 @@ def stroke_end(session):
     if session.dyntopo_active:
         executor.endDynTopoStroke()
     executor.endStep()
+    # endStep() advanced the meshlog's applied-step count; mirror it (a stroke
+    # begun after an undo truncates the redo branch, so +1 is always correct).
+    session.meshlog_cursor += 1
     session.mesh().recalc_normals()
 
 
@@ -213,9 +219,10 @@ def raycast(session, origin, direction):
 class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
     bl_idname = "sculptcore.brush_stroke"
     bl_label = "SculptCore Stroke"
-    # A memfile push on finish brackets the stroke and triggers the mode's
-    # flush (Tier-1 undo). Swapped for the wrapped undo type later.
-    bl_options = {'UNDO'}
+    # No 'UNDO': the stroke pushes its own CUSTOM_MODE step (delta undo) at end
+    # via undo.push, instead of a full memfile snapshot. The Mesh ID stays
+    # authoritative through the mode's flush for save/render.
+    bl_options = set()
 
     @classmethod
     def poll(cls, context):
@@ -311,19 +318,24 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             self._last_flush = now
         context.area.tag_redraw()
 
+    def _finish(self, context, status):
+        ob = context.active_object
+        stroke_end(self.session)
+        convert.flush(ob)
+        # The stroke mutated geometry (dabs applied before release/cancel), so
+        # push its delta-undo step regardless of finish vs cancel.
+        undo.push(context, ob, self.session)
+        context.area.tag_redraw()
+        return {status}
+
     def modal(self, context, event):
         if event.type == 'MOUSEMOVE':
             self._dab_at(context, event)
             return {'RUNNING_MODAL'}
         if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-            stroke_end(self.session)
-            convert.flush(context.active_object)
-            context.area.tag_redraw()
-            return {'FINISHED'}
+            return self._finish(context, 'FINISHED')
         if event.type in {'RIGHTMOUSE', 'ESC'}:
-            stroke_end(self.session)
-            convert.flush(context.active_object)
-            return {'CANCELLED'}
+            return self._finish(context, 'CANCELLED')
         return {'RUNNING_MODAL'}
 
 

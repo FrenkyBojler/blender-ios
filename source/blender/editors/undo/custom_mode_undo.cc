@@ -86,7 +86,7 @@ static bool custom_mode_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoS
 }
 
 static void custom_mode_undosys_step_decode(
-    bContext *C, Main * /*bmain*/, UndoStep *us_p, const eUndoStepDir dir, bool /*is_final*/)
+    bContext *C, Main * /*bmain*/, UndoStep *us_p, const eUndoStepDir dir, bool is_final)
 {
   CustomModeUndoStep *us = reinterpret_cast<CustomModeUndoStep *>(us_p);
   Object *ob = us->object_ref.ptr;
@@ -104,7 +104,7 @@ static void custom_mode_undosys_step_decode(
   if ((ob->mode & OB_MODE_CUSTOM) == 0 || !STREQ(ob->custom_mode_id, us->mode_idname)) {
     return;
   }
-  mt->undo_decode(mt, C, ob, us->state_id, dir == STEP_UNDO ? -1 : 1);
+  mt->undo_decode(mt, C, ob, us->state_id, dir == STEP_UNDO ? -1 : 1, is_final);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob->id);
 }
 
@@ -133,7 +133,11 @@ void ED_custom_mode_undosys_type(UndoType *ut)
   ut->step_decode = custom_mode_undosys_step_decode;
   ut->step_free = custom_mode_undosys_step_free;
   ut->step_foreach_ID_ref = custom_mode_undosys_foreach_ID_ref;
-  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE;
+  /* Decode the active step too: delta undo must un-apply the step being left,
+   * not only load the destination (which at a memfile boundary would be a
+   * memfile step this type never sees). The mode reverts its own engine state
+   * on undo, keyed off `is_final`. */
+  ut->flags = UNDOTYPE_FLAG_NEED_CONTEXT_FOR_ENCODE | UNDOTYPE_FLAG_DECODE_ACTIVE_STEP;
   ut->step_size = sizeof(CustomModeUndoStep);
 }
 
