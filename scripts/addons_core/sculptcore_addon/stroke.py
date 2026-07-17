@@ -236,6 +236,10 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
 
     def invoke(self, context, event):
         ob = context.active_object
+        # A foreign memfile undo may have changed the mesh under us (custom-undo
+        # modes skip the generic refresh); rebuild the session before sculpting
+        # if the engine no longer matches the Mesh.
+        convert.resync_if_diverged(ob)
         self.session = engine.sessions[ob.name]
         self.brush = context.tool_settings.sculpt.brush
         mgr = engine.manager()

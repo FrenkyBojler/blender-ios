@@ -315,3 +315,21 @@ def refresh(ob):
     session.free()
     new_session = enter(ob)
     new_session.generation = generation
+
+
+def resync_if_diverged(ob):
+    """Rebuild the session when the Blender Mesh no longer matches the engine —
+    a foreign memfile undo changed the topology under a custom-undo mode (whose
+    delta undo skips the generic refresh, see ed_undo.cc A3). Cheap: a vertex-
+    count mismatch is the topology-change signal. Sculpting on a stale engine
+    mesh would otherwise corrupt or crash; the rebuilt session bumps its
+    generation so orphaned meshlog steps decode as no-ops (see undo.py).
+
+    Returns True when it rebuilt (the caller's cached session handle is stale)."""
+    session = engine.sessions.get(ob.name)
+    if session is None or not session.mesh_ptr:
+        return False
+    if _engine_vert_num(session) != len(ob.data.vertices):
+        refresh(ob)
+        return True
+    return False
