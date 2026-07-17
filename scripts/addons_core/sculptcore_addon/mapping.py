@@ -97,20 +97,30 @@ _PRESET_FALLOFF = {
 
 def _bake_falloff(bl_brush, sc_brush):
     """Bake the Blender falloff (preset formula, or the editable curve for
-    CUSTOM) into the engine's 256-entry LUT, so brush feel matches Blender."""
-    preset = bl_brush.curve_distance_falloff_preset
-    fn = _PRESET_FALLOFF.get(preset)
-    n = _FALLOFF_CURVE_SIZE
-    if fn is not None:
-        for i in range(n):
-            sc_brush.setFalloffCurveEntry(i, min(1.0, max(0.0, fn(i / (n - 1)))))
-    else:  # CUSTOM: BKE evaluates the curve at (1 - t).
+    CUSTOM) into the engine's 256-entry LUT, folding in `hardness`, so brush
+    feel matches Blender. `t` = 1 - normalized distance (the value the engine
+    feeds falloffEval); hardness remaps the distance before the falloff so the
+    inner `hardness` fraction reads full strength."""
+    fn = _PRESET_FALLOFF.get(bl_brush.curve_distance_falloff_preset)
+    if fn is None:  # CUSTOM: strength(p) = curve(1 - p), matching BKE.
         cumap = bl_brush.curve_distance_falloff
         cumap.update()
         curve = cumap.curves[0]
-        for i in range(n):
-            t = i / (n - 1)
-            sc_brush.setFalloffCurveEntry(i, min(1.0, max(0.0, cumap.evaluate(curve, 1.0 - t))))
+        def fn(p, _c=cumap, _cv=curve):
+            return _c.evaluate(_cv, 1.0 - p)
+
+    hardness = min(1.0, max(0.0, bl_brush.hardness))
+    n = _FALLOFF_CURVE_SIZE
+    for i in range(n):
+        t = i / (n - 1)
+        d = 1.0 - t  # normalized distance
+        if hardness >= 1.0:
+            v = 1.0 if d < 1.0 else 0.0  # hard disc
+        elif hardness > 0.0:
+            v = 1.0 if d < hardness else fn(1.0 - (d - hardness) / (1.0 - hardness))
+        else:
+            v = fn(t)
+        sc_brush.setFalloffCurveEntry(i, min(1.0, max(0.0, v)))
     sc_brush.falloff_kind = _FALLOFF_KIND_CURVE
     # PROJECTED (2D view falloff) has no distinct engine metric yet; both use
     # the spherical distance for now.

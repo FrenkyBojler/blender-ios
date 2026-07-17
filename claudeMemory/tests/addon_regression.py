@@ -296,16 +296,18 @@ def test_falloff_presets():
     import sculptcore_addon.convert as convert
     draw = kernel("DRAW")
 
-    def inner_fraction(preset):
+    def inner_fraction(preset, hardness=0.0):
+        tag = preset + "_%d" % int(hardness * 100)
         bpy.ops.mesh.primitive_grid_add(x_subdivisions=60, y_subdivisions=60, size=4.0)
         ob = bpy.context.active_object
-        ob.name = "FO_" + preset
+        ob.name = "FO_" + tag
         bpy.context.view_layer.objects.active = ob
-        br = bpy.data.brushes.new("fo_" + preset, mode='SCULPT')
+        br = bpy.data.brushes.new("fo_" + tag, mode='SCULPT')
         br.sculpt_brush_type = 'DRAW'
         br.strength = 1.0
         br.curve_distance_falloff_preset = preset
-        session = enter("FO_" + preset)
+        br.hardness = hardness
+        session = enter("FO_" + tag)
         sc = stroke._ensure_brush(session)
         sc.radius = 1.2
         mapping.apply_brush(br, None, sc, world_radius=1.2, invert=False)
@@ -323,6 +325,10 @@ def test_falloff_presets():
 
     sharp, smooth, const = (inner_fraction(p) for p in ('SHARP', 'SMOOTH', 'CONSTANT'))
     assert sharp > smooth > const, (sharp, smooth, const)
+    # Hardness flattens the falloff: a hard SMOOTH spreads more (lower inner
+    # fraction, toward the constant disc) than a soft one.
+    smooth_hard = inner_fraction('SMOOTH', hardness=0.9)
+    assert smooth_hard < smooth, (smooth_hard, smooth)
 
 
 def test_autosmooth():
