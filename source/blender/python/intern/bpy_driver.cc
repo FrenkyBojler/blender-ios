@@ -180,8 +180,13 @@ static void bpy_pydriver_namespace_update_self(PathResolvedRNA *anim_rna)
       (pyrna_driver_is_equal_anim_rna(anim_rna, g_pydriver_state_prev.self) == false))
   {
     PyObject *item = pyrna_driver_self_from_anim_rna(anim_rna);
-    PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_self, item);
-    Py_DECREF(item);
+    if (PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_self, item) == -1) {
+      PyErr_Clear();
+      Py_CLEAR(item);
+    }
+    else {
+      Py_DECREF(item);
+    }
 
     g_pydriver_state_prev.self = item;
   }
@@ -221,8 +226,13 @@ static void bpy_pydriver_namespace_update_depsgraph(Depsgraph *depsgraph)
       (depsgraph != g_pydriver_state_prev.depsgraph->ptr->data))
   {
     PyObject *item = bpy_pydriver_depsgraph_as_pyobject(depsgraph);
-    PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_depsgraph, item);
-    Py_DECREF(item);
+    if (PyDict_SetItem(bpy_pydriver_Dict, bpy_intern_str_depsgraph, item) == -1) {
+      PyErr_Clear();
+      Py_CLEAR(item);
+    }
+    else {
+      Py_DECREF(item);
+    }
 
     g_pydriver_state_prev.depsgraph = reinterpret_cast<BPy_StructRNA *>(item);
   }
