@@ -423,8 +423,14 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
 - [x] D3 `external_batches_get` (`SculptBatch`-shaped, frustum-culled).
       `_per_material` variant (EEVEE) still to come.
 - [~] D4 Workbench consume branch done (gate + dispatch + batch source +
-      instanced-path exclusion in `draw_context.cc`). EEVEE branch pending.
-- [ ] D5 Overlay engines gated (no double-draw).
+      instanced-path exclusion in `draw_context.cc`) and **visually verified in a
+      GUI build** (the test triangle renders instead of the mesh). EEVEE branch
+      (`external_batches_per_material_get` + `eevee_sync`) pending. Three
+      GUI-only crashes fixed en route: null-PBVH sculpt handle, STATIC-usage VBO
+      use-after-free, and a NodeCache move double-free.
+- [x] D5 Overlay engines gated: Prepass/Facing/Fade/Mode-transfer draw the
+      provider geometry (outline follows it, not the mesh); Wireframe skips
+      external-draw objects (provider wireframe deferred).
 - [ ] D6 Native provider over `SpatialTree` (`NodeFlags` → update flags;
       attribute requests → `setTreeRequestedAttrs`).
 - [x] Test provider: `OBJECT_OT_external_draw_test_toggle` (dev-only, hardcoded
