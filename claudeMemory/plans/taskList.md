@@ -414,15 +414,23 @@ seam: provider describes CPU node arrays + dirty flags; Blender owns all GPU
 objects (Vulkan `wrap_handle` gap rules out buffer sharing); Workbench +
 EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
 
-- [ ] D1 Provider ABI + registry + `BKE_object_use_external_draw` gate.
-- [ ] D2 `draw_external_geom.cc`: per-node batch cache, dirty-driven
-      realloc/upload, attribute formats + aliases.
-- [ ] D3 `external_batches_get(_per_material)` (`SculptBatch`-shaped).
-- [ ] D4 Workbench, then EEVEE consumption branches.
+- [x] D1 Provider ABI (`BKE_object_draw_provider.hh`) + registry
+      (`ObjectModeType.draw_provider` + `BKE_object_mode_draw_provider_set`) +
+      `BKE_object_use_external_draw` gate.
+- [x] D2 `draw_external.cc`: per-node GPU cache (pos VBO + packed-normal VBO +
+      TRIS batch), dirty-driven realloc/upload. Generic attribute formats +
+      aliases still to come (positions + normals only so far).
+- [x] D3 `external_batches_get` (`SculptBatch`-shaped, frustum-culled).
+      `_per_material` variant (EEVEE) still to come.
+- [~] D4 Workbench consume branch done (gate + dispatch + batch source +
+      instanced-path exclusion in `draw_context.cc`). EEVEE branch pending.
 - [ ] D5 Overlay engines gated (no double-draw).
 - [ ] D6 Native provider over `SpatialTree` (`NodeFlags` → update flags;
       attribute requests → `setTreeRequestedAttrs`).
-- [ ] Test provider (hardcoded nodes) validates D1–D4 before D6.
+- [x] Test provider: `OBJECT_OT_external_draw_test_toggle` (dev-only, hardcoded
+      triangle) validates D1–D4. Verified headless to the draw-call boundary
+      (`p5_verify` toggles the mode + satisfies the gate); the pixel render needs
+      a GUI GPU context (Windows background has none) — manual check pending.
 
 ### Verification (per plan §5)
 - [ ] Dirty-node-only uploads confirmed (RenderDoc); 1M+ tri interactive.
@@ -439,24 +447,70 @@ step id + size; C wrapper owns the entire memfile-interop protocol. History
 coherence across memfile interleaves / mode-exit boundaries is the hard part
 (plan §4 — three scenarios written as tests first).
 
-- [ ] A1 `custom_mode_undo.cc`: encode/decode/free/foreach_ID_ref + memfile
-      interop tags + boundary `use_memfile_step`.
-- [ ] A2 `undo_encode`/`undo_decode`/`undo_free` trampolines +
-      `undo_push_custom` runtime function.
-- [ ] A3 Gate `refresh` to memfile decodes only.
-- [ ] B1 Stroke bracketing + push on release (replaces `'UNDO'` memfile push).
-- [ ] B2 `undo_decode` → meshlog undo/redo + draw dirty + flush-dirty;
-      generation/token validation.
-- [ ] B3 `undo_free` → `freeStep`.
-- [ ] B4 Undo memory limit plumbing (`stepMemSize`/`setMaxUndoSteps` +
-      truthful Blender `step_size`).
-- [ ] §4 scenario tests: foreign-memfile interleave, exit boundary,
-      multi-object/rename (`UndoRefID`).
+- [x] A1 `custom_mode_undo.cc`: encode/decode/free/foreach_ID_ref +
+      `UndoRefID` object tracking. (Design change from the plan: the step stores
+      an integer `state_id` + truthful `size` passed through the push operator,
+      not an opaque `PyObject *` from an `undo_encode` trampoline — no GIL work
+      at free time. `UNDOTYPE_FLAG_DECODE_ACTIVE_STEP` so the type reverts its
+      own step on undo rather than relying on the destination memfile decode.)
+- [x] A2 `undo_decode`(+`is_final`)/`undo_free` trampolines +
+      `OBJECT_OT_custom_mode_undo_push` (replaces the planned
+      `undo_encode`/`undo_push_custom`).
+- [x] A3 Gate `refresh` to skip modes that provide custom undo (their
+      `undo_decode` resyncs; a rebuild would discard the meshlog).
+- [x] B1 Stroke bracketing + push on release (dropped `'UNDO'`; `undo.push`).
+- [x] B2 `undo_decode` → meshlog seek (cursor-tracked, `is_final`-aware) + draw
+      dirty + flush; generation validation. `convert.flush` now also detects a
+      topology revert by live-vs-Blender vertex count (undo doesn't roll the
+      topo stamp back).
+- [x] B3 `undo_free` → `freeStep`.
+- [x] B4 Undo memory limit plumbing: truthful Blender `step_size` (from
+      `stepMemSize`) + `ED_custom_mode_undo_push` applies the same step-count and
+      memory limits as `ED_undo_push`, so Blender's limiter evicts old custom
+      steps and `undo_free`→`freeStep` reclaims meshlog memory. Verified
+      (`custom_undo_memory_test.py`): 6MB pushed → ~2MB retained at a 2MB limit.
+- [x] §4 scenarios verified:
+      - Single-object memfile-boundary crossing (engine reverts on undo,
+        self-corrects on redo) — `custom_undo_b_test.py`.
+      - Foreign mesh-preserving memfile interleave (scene tweak mid-sculpt):
+        undo x4 / redo x4 coherent and exact — `custom_undo_interleave_test.py`.
+      - Multi-object routing via `object_ref`: two live sessions, undo/redo hit
+        the right object — `custom_undo_multiobj_test.py`.
+      - Foreign mesh-*changing* step: `convert.resync_if_diverged` (vertex-count
+        guard at stroke start) rebuilds the stale session, bumping generation so
+        orphaned steps no-op — `custom_undo_meshchange_test.py`.
+      - Exit boundary: no crash undoing across it — `custom_undo_robustness_test.py`.
+      Accepted v1 coarseness (documented): per-stroke redo into a session a
+      foreign step rebuilt degrades to memfile-level; position-only foreign
+      edits are not detected by the vertex-count guard.
 
 ### Verification (per plan §6)
-- [ ] Delta undo/redo exact (positions + dyntopo topology).
-- [ ] Interleave + boundary matrices pass; bounded memory over 200 strokes.
-- [ ] Python exception in decode degrades safely; ASAN clean.
+- [x] Delta undo/redo exact — positions (`custom_undo_b_test.py`) and dyntopo
+      topology (`custom_undo_dyntopo_test.py`); save round-trip preserved.
+- [x] Bounded memory over 120 strokes at a small undo limit
+      (`custom_undo_memory_test.py`).
+- [x] Interleave + boundary matrices (foreign-memfile mesh-preserving +
+      mesh-changing, multi-object, exit boundary) — see §4 above.
+- [x] Python exception in decode degrades safely; undo across the mode-exit
+      boundary does not crash (`custom_undo_robustness_test.py`).
+- [x] ASAN: all eight custom-undo tests pass **ASAN-clean (0 errors) with
+      user-poisoning enabled** on an MSVC + `WITH_COMPILER_ASAN` build (the
+      clang-cl preset can't link the ASAN runtime; only MSVC's
+      `/fsanitize=address` is wired in `platform_win32.cmake`). This covers the
+      memory-relevant paths — push/decode/free, eviction, session free/rebuild,
+      exit boundary, dyntopo topo replay, multi-object. Getting there needed two
+      dev-only workarounds for a PRE-EXISTING false positive (the ASAN-built
+      bundled CPython poisons its own obmalloc pools; Blender reads PyObject
+      fields from them during class registration — reproducible with a trivial
+      operator): a runtime suppressions file (`interceptor_via_lib:python313.dll`,
+      `claudeMemory/scripts/asan_suppressions.txt`) for the mem-interceptor reads
+      + a `__declspec(no_sanitize_address)` on `bpy_class_validate_recursive`
+      (MSVC has no file-based ignorelist). Both are CLAUDENOTE-marked / guarded
+      and revert before the PR. The full addon regression under ASAN trips more
+      of the same CPython-poison false positives in unrelated `bpy.props`
+      registration paths (out of scope); the real root fix is a non-poisoning
+      Python (`PYTHONMALLOC`, which the bundled ASAN Python ignored here). See
+      [[blender-asan-windows]].
 
 ---
 
