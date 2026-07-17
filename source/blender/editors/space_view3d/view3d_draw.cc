@@ -1277,7 +1277,7 @@ static void draw_selected_name(const Main &bmain,
     LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
     info_array[i++] = BKE_collection_ui_name_get(layer_collection->collection);
     if (ob != nullptr) {
-      info_array[i++] = msg_sep_ob;
+      info_array[i++] = " | ";
     }
   }
 
