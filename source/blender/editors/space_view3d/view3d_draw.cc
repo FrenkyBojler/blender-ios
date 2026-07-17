@@ -1392,6 +1392,18 @@ static void draw_selected_name(const Main &bmain,
   BLF_draw_default(xoffset, *yoffset, 0.0f, info, sizeof(info));
 }
 
+static float4 get_low_fps_color()
+{
+  float alert_rgb[4];
+  float alert_hsv[4];
+  ui::theme::get_color_4fv(TH_REDALERT, alert_rgb);
+  /* Brighten since we favor dark shadows to increase contrast.
+   * This gives similar results to the old hardcoded 225, 36, 36. */
+  rgb_to_hsv_v(alert_rgb, alert_hsv);
+  alert_hsv[2] = 1.0;
+  hsv_to_rgb_v(alert_hsv, alert_rgb);
+  return alert_rgb;
+}
 static void draw_grid_unit_name(
     Scene *scene, ARegion *region, View3D *v3d, int xoffset, int *yoffset)
 {
@@ -1411,19 +1423,6 @@ static void draw_grid_unit_name(
       BLF_draw_default(xoffset, *yoffset, 0.0f, numstr[0] ? numstr : grid_unit, sizeof(numstr));
     }
   }
-}
-
-static float4 get_low_fps_color()
-{
-  float alert_rgb[4];
-  float alert_hsv[4];
-  ui::theme::get_color_4fv(TH_REDALERT, alert_rgb);
-  /* Brighten since we favor dark shadows to increase contrast.
-   * This gives similar results to the old hardcoded 225, 36, 36. */
-  rgb_to_hsv_v(alert_rgb, alert_hsv);
-  alert_hsv[2] = 1.0;
-  hsv_to_rgb_v(alert_hsv, alert_rgb);
-  return alert_rgb;
 }
 
 static void draw_performance_stats(Depsgraph *depsgraph,
