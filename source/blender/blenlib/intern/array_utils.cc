@@ -8,12 +8,13 @@
 
 #include <functional>
 
+#include "BLI_array.hh"
 #include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
+#include "BLI_sort_radix.hh"
 #include "BLI_threads.hh"
 
 #include "PRF_profile.hh"
-
-#include "atomic_ops.h"
 
 namespace blender::array_utils {
 
@@ -92,20 +93,99 @@ void copy_group_to_group(const OffsetIndices<int> src_offsets,
       exec_mode::grain_size(512));
 }
 
+static void count_indices_serial(const Span<int> indices, MutableSpan<int> counts)
+{
+  for (const int i : indices) {
+    counts[i]++;
+  }
+}
+
+static void count_indices_thread_local(const Span<int> indices, MutableSpan<int> counts)
+{
+  /* Count into thread local buffers, parallelized with chunks of indices. */
+  const int64_t groups_num = counts.size();
+  threading::EnumerableThreadSpecific<Array<int>> counts_by_thread(
+      [&]() { return Array<int>(groups_num, 0); });
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    Array<int> &local_counts = counts_by_thread.local();
+    for (const int i : indices.slice(range)) {
+      local_counts[i]++;
+    }
+  });
+
+  /* Sum counts for all threads. */
+  threading::parallel_for(IndexRange(groups_num), 4096, [&](const IndexRange range) {
+    for (const Array<int> &local_counts : counts_by_thread) {
+      for (const int64_t i : range) {
+        counts[i] += local_counts[i];
+      }
+    }
+  });
+}
+
+static void count_indices_radix(const Span<int> indices, MutableSpan<int> counts)
+{
+  /* Partition groups into buckets. */
+  const int64_t groups_num = counts.size();
+  const int shift = radix_sort::bucket_shift(groups_num, radix_sort::MAX_BUCKETS);
+  const int64_t buckets_num = radix_sort::buckets_num(groups_num, shift);
+
+  /* Count the number of indices that fall into each bucket, in parallel over chunks. */
+  const int64_t chunks_num = radix_sort::chunks_num(indices.size());
+  Array<int> chunk_offsets(chunks_num * buckets_num);
+  radix_sort::count_buckets_per_chunk(indices, shift, buckets_num, chunk_offsets);
+
+  /* Serially compute the start offset for each bucket, summing results from all chunks. */
+  Array<int> bucket_offsets(buckets_num + 1, 0);
+  radix_sort::chunk_counts_to_offsets(chunk_offsets,
+                                      bucket_offsets.as_mutable_span().drop_back(1));
+  radix_sort::counts_to_offsets(bucket_offsets);
+
+  /* Write group indices into array, in the range of the bucket they fall into. */
+  Array<int> partition_groups(indices.size());
+  radix_sort::partition_into_buckets<int>(
+      indices,
+      shift,
+      bucket_offsets.as_span().drop_back(1),
+      [](const int64_t /*position*/, const int group_index) { return group_index; },
+      chunk_offsets,
+      partition_groups);
+
+  /* Count groups in each bucket independently. */
+  threading::parallel_for(IndexRange(buckets_num), 1, [&](const IndexRange range) {
+    for (const int64_t bucket : range) {
+      const int end = bucket_offsets[bucket + 1];
+      for (int i = bucket_offsets[bucket]; i < end; i++) {
+        counts[partition_groups[i]]++;
+      }
+    }
+  });
+}
+
 void count_indices(const Span<int> indices, MutableSpan<int> counts)
 {
   PRF_scope_with_name("array_utils::count_indices", ProfileCategory::Default);
-  if (indices.size() < 8192 || BLI_system_thread_count() < 4) {
-    for (const int i : indices) {
-      counts[i]++;
-    }
+
+  /* With few indices or few cores, always do serial to avoid overhead. */
+  const int64_t threads_num = BLI_system_thread_count();
+  constexpr int64_t max_serial_indices = 1 << 16;
+  if (indices.size() < max_serial_indices || threads_num < 4) {
+    count_indices_serial(indices, counts);
+    return;
+  }
+
+  /* Up until a certain number of groups and memory usage, use thread local counting
+   * buffers. Beyond that radix sort is faster and uses less memory, even if it needs
+   * to do more passes over the data. */
+  constexpr int64_t max_thread_local_groups = 1 << 18;
+  constexpr int64_t max_thread_local_buffer = 64 * 1024 * 1024 / sizeof(int);
+  const int64_t thread_local_group_limit = std::min(max_thread_local_groups,
+                                                    max_thread_local_buffer / threads_num);
+  if (counts.size() <= thread_local_group_limit) {
+    count_indices_thread_local(indices, counts);
   }
   else {
-    threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
-      for (const int i : indices.slice(range)) {
-        atomic_add_and_fetch_int32(&counts[i], 1);
-      }
-    });
+    count_indices_radix(indices, counts);
   }
 }
 

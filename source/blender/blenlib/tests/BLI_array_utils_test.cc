@@ -321,4 +321,34 @@ TEST(array_utils, FindMaxElement4)
   find_max_element_test(VArray<int>::from_func(10, [](const int x) { return -x * x + 9 * x; }), 4);
 }
 
+static void count_indices_test(const int64_t groups_num, const int64_t indices_num)
+{
+  Array<int> indices(indices_num);
+  for (const int64_t i : indices.index_range()) {
+    indices[i] = int((uint64_t(i) * 2654435761u) % uint64_t(groups_num));
+  }
+
+  Array<int> expected(groups_num, 0);
+  for (const int i : indices) {
+    expected[i]++;
+  }
+
+  Array<int> counts(groups_num, 0);
+  array_utils::count_indices(indices, counts);
+  EXPECT_EQ_SPAN(expected.as_span(), counts.as_span());
+}
+
+TEST(array_utils, CountIndices)
+{
+  /* Serial path. */
+  count_indices_test(5, 100);
+  count_indices_test(1000, 40000);
+  /* Thread local counting path. */
+  count_indices_test(8, 100000);
+  count_indices_test(100000, 200000);
+  /* Radix partition path. */
+  count_indices_test(500000, 200000);
+  count_indices_test(2000000, 3000000);
+}
+
 }  // namespace blender
