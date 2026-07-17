@@ -288,8 +288,16 @@ path. Deferral of modifier/GN/shape-key sculpting per
       `color` float4 attr (PAINT→COLOR brush, `brushColor` from the Blender
       brush color; corner/byte color attrs left untouched with a warning).
       All three (mask/face-set/color) verified brush→flush→persist→reload.
-      Still to add: UV, corner/byte color conversion, and the compaction
-      index-map path (identity holds on the positions-only fast path today).
+      Autosmooth done: `build_autosmooth_program` builds a `[main, SMOOTH]`
+      `BrushProgram`, the operator runs it via `execProgram` per dab when
+      `brush.auto_smooth_factor > 0` (not grab-class / not SMOOTH). The
+      SMOOTH strength is set by propId (`setCommandFloat(idx, 0, factor)`):
+      the runtime cannot marshal a string into a `util::string` method arg
+      (`litestl::util::String` has no constructors), the same constraint that
+      makes `BrushFloatOverride` propId-keyed. Still to add: UV, corner/byte
+      color conversion, hardness fold-in, POSE (pose-segment placement — the
+      engine's cage support is a partial "Wave 4b" slice), and the
+      compaction index-map path.
 - [ ] A4 `Mesh_topologyDirty` query (drives exit/flush fast path).
 
 ### Workstream B — Addon conversion module (`sculptcore_addon/convert.py`)

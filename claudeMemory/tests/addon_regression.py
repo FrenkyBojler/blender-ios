@@ -325,6 +325,44 @@ def test_falloff_presets():
     assert sharp > smooth > const, (sharp, smooth, const)
 
 
+def test_autosmooth():
+    """A [main, SMOOTH] program per dab (execProgram) runs both commands and
+    changes the result vs the main brush alone. (Smoothing *quality* is a
+    subtle visual thing checked interactively; here we assert the program
+    path is exercised and affects geometry.)"""
+    import sculptcore_addon.engine as engine
+    import sculptcore_addon.stroke as stroke
+    import sculptcore_addon.convert as convert
+    draw = kernel("DRAW")
+
+    def run(autosmooth):
+        ob = fresh_sphere("AS_%d" % int(autosmooth * 100), segments=48, rings=32)
+        session = enter(ob.name)
+        b = stroke._ensure_brush(session)
+        b.strength, b.radius, b.spacing = 0.7, 0.5, 0.1
+        b.writeProps()
+        center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
+        before = positions(ob).copy()
+        stroke.stroke_begin(session)
+        prog = stroke.build_autosmooth_program(session, draw, autosmooth) if autosmooth else None
+        for i in range(24):
+            c = (center[0] + (i % 6) * 0.02, center[1] + (i // 6) * 0.02, center[2])
+            if prog is not None:
+                stroke.apply_dab_program(session, prog, c, normal, 0.5)
+            else:
+                stroke.apply_dab(session, draw, c, normal, 0.5)
+        stroke.stroke_end(session)
+        convert.flush(ob)
+        out = positions(ob) - before
+        exit_mode()
+        return out
+
+    plain, smoothed = run(0.0), run(1.0)
+    assert np.abs(plain).sum() > 1e-2 and np.abs(smoothed).sum() > 1e-2
+    # The smooth pass measurably changes the accumulated result.
+    assert np.abs(plain - smoothed).sum() > 1e-2, "autosmooth had no effect"
+
+
 def test_tool_and_panels():
     from bl_ui.space_toolsystem_toolbar import VIEW3D_PT_tools_active
     import sculptcore_addon.ui as ui
@@ -371,6 +409,7 @@ SECTIONS = [
     ("face-set round trip", test_faceset_roundtrip),
     ("color round trip", test_color_roundtrip),
     ("falloff presets", test_falloff_presets),
+    ("autosmooth program", test_autosmooth),
     ("tool + panels", test_tool_and_panels),
     ("lifecycle handlers", test_lifecycle_handlers),
 ]

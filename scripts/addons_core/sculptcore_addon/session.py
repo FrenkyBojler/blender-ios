@@ -29,6 +29,9 @@ class Session:
         "mesh_obj",
         "brush_obj",
         "executor",
+        # Reusable [main, SMOOTH] autosmooth program, rebuilt per stroke when
+        # the brush's auto-smooth factor is nonzero.
+        "program",
         "_freed",
     )
 
@@ -43,6 +46,7 @@ class Session:
         self.mesh_obj = None
         self.brush_obj = None
         self.executor = None
+        self.program = None
         self._freed = False
 
     def mesh(self):
@@ -72,9 +76,10 @@ class Session:
         self._freed = True
         # Owning engine wrappers (Brush, CommandExecutor) dispose their C++
         # objects; the Mesh view is non-owning (freed via freeMesh below).
-        for obj in (self.executor, self.brush_obj):
+        for obj in (self.program, self.executor, self.brush_obj):
             if obj is not None and not getattr(obj, "_disposed", False):
                 obj.dispose()
+        self.program = None
         self.executor = None
         self.brush_obj = None
         self.mesh_obj = None

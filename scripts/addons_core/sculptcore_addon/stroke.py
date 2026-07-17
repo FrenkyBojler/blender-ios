@@ -115,6 +115,46 @@ def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius):
             obj.dispose()
 
 
+def build_autosmooth_program(session, main_kernel, smooth_factor):
+    """Build a [main, SMOOTH] program so each dab also smooths by
+    `smooth_factor` (Blender's auto_smooth_factor). Returns the program,
+    owned by the session and reused across dabs."""
+    mgr = engine.manager()
+    if session.program is None:
+        session.program = mgr.construct("sculptcore::brush::BrushProgram")
+    prog = session.program
+    prog.clear()
+    prog.addCommand(main_kernel)
+    smooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["SMOOTH"])
+    idx = prog.addCommand(smooth)
+    # BrushProp::Strength == 0. The runtime can't marshal a string arg into a
+    # util::string method param, so the smooth strength is overridden by
+    # propId, not by name (setCommandFloatByName).
+    prog.setCommandFloat(idx, 0, smooth_factor)
+    return prog
+
+
+def apply_dab_program(session, program, center, normal, radius):
+    """Run a BrushProgram (e.g. [main, SMOOTH]) for one dab."""
+    import sculptcore
+
+    mgr = engine.manager()
+    executor = _ensure_executor(session)
+    tree = session.tree()
+    center_v = _float3(mgr, *center)
+    normal_v = _float3(mgr, *normal)
+    nodes = mgr.construct("litestl::util::Vector<sculptcore::spatial::SpatialNode*,4>")
+    try:
+        if not tree.filterNodes(center_v, radius, nodes):
+            return 0
+        executor.setGrabAccumAdd(False)
+        executor.execProgram(program, nodes, center_v, normal_v)
+        return len(sculptcore.BoundVector(mgr, nodes.ptr, nodes.bind_type))
+    finally:
+        for obj in (nodes, center_v, normal_v):
+            obj.dispose()
+
+
 def stroke_end(session):
     _ensure_executor(session).endStep()
     session.mesh().recalc_normals()
@@ -175,6 +215,14 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         if self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
             brush = _ensure_brush(self.session)
             brush.activeGroup = int(self.session.mesh().maxFaceGroup()) + 1
+        # Autosmooth: run a [main, SMOOTH] program per dab (not for grab-class
+        # or the smooth brush itself).
+        self._autosmooth = None
+        if (not self._grab_class
+                and self.brush.sculpt_brush_type != 'SMOOTH'
+                and self.brush.auto_smooth_factor > 0.0):
+            self._autosmooth = build_autosmooth_program(
+                self.session, self.kernel, self.brush.auto_smooth_factor)
         stroke_begin(self.session)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.
@@ -204,6 +252,8 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             cursor = _cursor_on_anchor_plane(context, event, self._anchor)
             apply_grab_dab(self.session, self.kernel, self._anchor, cursor,
                            self._anchor_normal, self._anchor_radius)
+        elif self._autosmooth is not None:
+            apply_dab_program(self.session, self._autosmooth, position, normal, world_radius)
         else:
             apply_dab(self.session, self.kernel, position, normal, world_radius)
         self._dab_count += 1
