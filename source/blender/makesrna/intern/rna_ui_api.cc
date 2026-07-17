@@ -1811,7 +1811,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_enum(func, "alignment", rna_enum_text_align, 0, "", "");
   parm = RNA_def_property(func, "max_lines", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_range(parm, 0, INT_MAX);
-  RNA_def_property_ui_text(parm, "", "Default maximum number of lines to display, 0 means all");
+  RNA_def_property_ui_text(parm, "", "Maximum number of lines to display, 0 means all");
 
   func = RNA_def_function(srna, "link", "rna_layout_link");
   RNA_def_function_ui_description(func, "Item. Displays a url that can be clicked in the layout.");
