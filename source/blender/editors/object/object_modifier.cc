@@ -8,6 +8,10 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <memory>
+
+#include <fmt/format.h>
 
 #include "CLG_log.h"
 
@@ -81,6 +85,10 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "MOD_nodes.hh"
+
+#include "NOD_eval_log.hh"
+#include "NOD_geometry_nodes_debug_view.hh"
 #include "NOD_geometry_nodes_srna.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -3561,6 +3569,202 @@ void OBJECT_OT_geometry_nodes_input_attribute_toggle(wmOperatorType *ot)
 
   RNA_def_string(ot->srna, "input_name", nullptr, 0, "Input Name", "");
   RNA_def_string(ot->srna, "modifier_name", nullptr, MAX_NAME, "Modifier Name", "");
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Geometry Nodes Debug View Selection
+ * \{ */
+
+static NodesModifierData *geometry_nodes_debug_view_modifier_get(bContext *C, Object **r_object)
+{
+  const PointerRNA modifier_ptr = edit_modifier_ptr_get(C, RNA_NodesModifier);
+  if (!modifier_ptr.data || !modifier_ptr.owner_id || GS(modifier_ptr.owner_id->name) != ID_OB) {
+    return nullptr;
+  }
+  Object *object = reinterpret_cast<Object *>(modifier_ptr.owner_id);
+  auto *nmd = static_cast<NodesModifierData *>(modifier_ptr.data);
+  if (BLI_findindex(&object->modifiers, nmd) == -1) {
+    return nullptr;
+  }
+  if (r_object) {
+    *r_object = object;
+  }
+  return nmd;
+}
+
+static Vector<nodes::debug_view::Candidate> geometry_nodes_debug_view_candidates_get(
+    NodesModifierData &nmd, std::shared_ptr<nodes::eval_log::NodesEvalLog> &r_eval_log)
+{
+  if (!(nmd.flag & NODES_MODIFIER_SHOW_DEBUG_VIEWS) || !nmd.runtime->eval_log) {
+    return {};
+  }
+  r_eval_log = nmd.runtime->eval_log;
+  return r_eval_log->debug_view_candidates();
+}
+
+static bool geometry_nodes_debug_view_poll(bContext *C)
+{
+  NodesModifierData *nmd = geometry_nodes_debug_view_modifier_get(C, nullptr);
+  if (!nmd) {
+    return false;
+  }
+  std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log;
+  return !geometry_nodes_debug_view_candidates_get(*nmd, eval_log).is_empty();
+}
+
+static void geometry_nodes_debug_view_notify(bContext *C, Object &object)
+{
+  DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, &object);
+  WM_event_add_notifier(C, NC_VIEWER_PATH, nullptr);
+}
+
+static const EnumPropertyItem *geometry_nodes_debug_view_itemf(bContext *C,
+                                                               PointerRNA * /*ptr*/,
+                                                               PropertyRNA * /*prop*/,
+                                                               bool *r_free)
+{
+  if (!C) {
+    return rna_enum_dummy_NULL_items;
+  }
+  NodesModifierData *nmd = geometry_nodes_debug_view_modifier_get(C, nullptr);
+  if (!nmd) {
+    return rna_enum_dummy_NULL_items;
+  }
+  std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log;
+  const Vector<nodes::debug_view::Candidate> candidates = geometry_nodes_debug_view_candidates_get(
+      *nmd, eval_log);
+
+  Vector<std::string> identifiers;
+  identifiers.reserve(candidates.size());
+  size_t strings_size = 0;
+  for (const int i : candidates.index_range()) {
+    identifiers.append(fmt::format("VIEW_{}", i));
+    strings_size += identifiers.last().size() + 1;
+    strings_size += candidates[i].display_name.size() + 1;
+    strings_size += candidates[i].full_name.size() + 1;
+  }
+
+  const size_t items_size = sizeof(EnumPropertyItem) * (candidates.size() + 1);
+  const size_t storage_items_num = (items_size + strings_size + sizeof(EnumPropertyItem) - 1) /
+                                   sizeof(EnumPropertyItem);
+  auto *items = MEM_new_array_zeroed<EnumPropertyItem>(storage_items_num, __func__);
+  char *string_storage = reinterpret_cast<char *>(items) + items_size;
+  const auto copy_string = [&](const StringRef string) {
+    char *result = string_storage;
+    memcpy(result, string.data(), string.size());
+    result[string.size()] = '\0';
+    string_storage += string.size() + 1;
+    return result;
+  };
+  for (const int i : candidates.index_range()) {
+    items[i].value = i;
+    items[i].identifier = copy_string(identifiers[i]);
+    items[i].name = copy_string(candidates[i].display_name);
+    items[i].description = copy_string(candidates[i].full_name);
+  }
+  *r_free = true;
+  return items;
+}
+
+static wmOperatorStatus geometry_nodes_debug_view_select_exec(bContext *C, wmOperator *op)
+{
+  Object *object = nullptr;
+  NodesModifierData *nmd = geometry_nodes_debug_view_modifier_get(C, &object);
+  if (!nmd) {
+    return OPERATOR_CANCELLED;
+  }
+  std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log;
+  const Vector<nodes::debug_view::Candidate> candidates = geometry_nodes_debug_view_candidates_get(
+      *nmd, eval_log);
+  const int index = RNA_enum_get(op->ptr, "view");
+  if (nodes::debug_view::select_candidate_index(
+          candidates.as_span(), index, nmd->runtime->active_debug_view) == -1)
+  {
+    return OPERATOR_CANCELLED;
+  }
+  geometry_nodes_debug_view_notify(C, *object);
+  return OPERATOR_FINISHED;
+}
+
+static std::string geometry_nodes_debug_view_select_description(bContext *C,
+                                                                wmOperatorType * /*ot*/,
+                                                                PointerRNA *ptr)
+{
+  NodesModifierData *nmd = geometry_nodes_debug_view_modifier_get(C, nullptr);
+  if (!nmd) {
+    return {};
+  }
+  std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log;
+  const Vector<nodes::debug_view::Candidate> candidates = geometry_nodes_debug_view_candidates_get(
+      *nmd, eval_log);
+  const int index = RNA_enum_get(ptr, "view");
+  if (!candidates.index_range().contains(index)) {
+    return {};
+  }
+  return fmt::format(fmt::runtime(TIP_("Select Debug View: {}")), candidates[index].full_name);
+}
+
+void OBJECT_OT_geometry_nodes_debug_view_select(wmOperatorType *ot)
+{
+  ot->name = "Select Geometry Nodes Debug View";
+  ot->description = "Select the persistent Debug View shown for this modifier";
+  ot->idname = "OBJECT_OT_geometry_nodes_debug_view_select";
+
+  ot->exec = geometry_nodes_debug_view_select_exec;
+  ot->poll = geometry_nodes_debug_view_poll;
+  ot->get_description = geometry_nodes_debug_view_select_description;
+  ot->flag = OPTYPE_INTERNAL;
+
+  PropertyRNA *prop = RNA_def_enum(
+      ot->srna, "view", rna_enum_dummy_NULL_items, 0, "Debug View", "Debug View to display");
+  RNA_def_enum_funcs(prop, geometry_nodes_debug_view_itemf);
+  RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+  ot->prop = prop;
+}
+
+static wmOperatorStatus geometry_nodes_debug_view_cycle_exec(bContext *C, wmOperator *op)
+{
+  Object *object = nullptr;
+  NodesModifierData *nmd = geometry_nodes_debug_view_modifier_get(C, &object);
+  if (!nmd) {
+    return OPERATOR_CANCELLED;
+  }
+  std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log;
+  const Vector<nodes::debug_view::Candidate> candidates = geometry_nodes_debug_view_candidates_get(
+      *nmd, eval_log);
+  const int step = RNA_boolean_get(op->ptr, "reverse") ? -1 : 1;
+  if (nodes::debug_view::cycle_candidate_index(
+          candidates.as_span(), step, nmd->runtime->active_debug_view) == -1)
+  {
+    return OPERATOR_CANCELLED;
+  }
+  geometry_nodes_debug_view_notify(C, *object);
+  return OPERATOR_FINISHED;
+}
+
+static std::string geometry_nodes_debug_view_cycle_description(bContext * /*C*/,
+                                                               wmOperatorType * /*ot*/,
+                                                               PointerRNA *ptr)
+{
+  return RNA_boolean_get(ptr, "reverse") ? TIP_("Show Previous Debug View") :
+                                           TIP_("Show Next Debug View");
+}
+
+void OBJECT_OT_geometry_nodes_debug_view_cycle(wmOperatorType *ot)
+{
+  ot->name = "Cycle Geometry Nodes Debug View";
+  ot->description = "Cycle the persistent Debug View shown for this modifier";
+  ot->idname = "OBJECT_OT_geometry_nodes_debug_view_cycle";
+
+  ot->exec = geometry_nodes_debug_view_cycle_exec;
+  ot->poll = geometry_nodes_debug_view_poll;
+  ot->get_description = geometry_nodes_debug_view_cycle_description;
+  ot->flag = OPTYPE_INTERNAL;
+
+  RNA_def_boolean(ot->srna, "reverse", false, "Reverse", "Cycle to the previous Debug View");
 }
 
 /** \} */

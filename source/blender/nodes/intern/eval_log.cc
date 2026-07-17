@@ -14,6 +14,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.hh"
 
+#include "BLT_translation.hh"
+
 #include "IMB_imbuf.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
@@ -444,6 +446,12 @@ const bke::GeometrySet *ViewerNodeLog::main_geometry() const
     }
   });
   return main_geometry_cache_ ? &*main_geometry_cache_ : nullptr;
+}
+
+bool ViewerNodeLog::is_geometry_debug_view_candidate() const
+{
+  return debug_view::is_geometry_candidate(
+      this->is_debug_view, this->is_shown, this->main_geometry() != nullptr);
 }
 
 static bool warning_is_propagated(const NodeWarningPropagation propagation,
@@ -899,14 +907,26 @@ NodeTreeLogger &NodesEvalLog::get_local_tree_logger(const ComputeContext &comput
   }
   if (const auto *context = dynamic_cast<const bke::GroupNodeComputeContext *>(&compute_context)) {
     tree_logger.parent_node_id.emplace(context->node_id());
+    tree_logger.context_type = NodeTreeLogger::ContextType::Group;
     if (const bNode *caller_node = context->node()) {
       tree_logger.tree_orig_session_uid = get_original_session_uid(caller_node->id);
+      tree_logger.context_order = caller_node->index();
+      if (caller_node->label[0] != '\0') {
+        tree_logger.context_name = caller_node->label;
+      }
+      else if (caller_node->id) {
+        tree_logger.context_name = BKE_id_name(*caller_node->id);
+      }
+      else {
+        tree_logger.context_name = caller_node->name;
+      }
     }
   }
   else if (const auto *context = dynamic_cast<const bke::RepeatZoneComputeContext *>(
                &compute_context))
   {
     tree_logger.parent_node_id.emplace(context->output_node_id());
+    tree_logger.context_type = NodeTreeLogger::ContextType::Zone;
     tree_logger.tree_orig_session_uid = parent_tree_session_uid;
   }
   else if (const auto *context =
@@ -914,18 +934,21 @@ NodeTreeLogger &NodesEvalLog::get_local_tree_logger(const ComputeContext &comput
                    &compute_context))
   {
     tree_logger.parent_node_id.emplace(context->output_node_id());
+    tree_logger.context_type = NodeTreeLogger::ContextType::Zone;
     tree_logger.tree_orig_session_uid = parent_tree_session_uid;
   }
   else if (const auto *context = dynamic_cast<const bke::SimulationZoneComputeContext *>(
                &compute_context))
   {
     tree_logger.parent_node_id.emplace(context->output_node_id());
+    tree_logger.context_type = NodeTreeLogger::ContextType::Zone;
     tree_logger.tree_orig_session_uid = parent_tree_session_uid;
   }
   else if (const auto *context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
                &compute_context))
   {
     tree_logger.parent_node_id.emplace(context->node_id());
+    tree_logger.context_type = NodeTreeLogger::ContextType::Zone;
     const std::optional<nodes::ClosureSourceLocation> &location =
         context->closure_source_location();
     if (location.has_value()) {
@@ -1123,34 +1146,75 @@ const ViewerNodeLog *NodesEvalLog::find_viewer_node_log_for_path(const ViewerPat
   return viewer_log;
 }
 
-const ViewerNodeLog *NodesEvalLog::find_shown_debug_viewer_log()
+Vector<debug_view::Candidate> NodesEvalLog::debug_view_candidates()
 {
-  const ViewerNodeLog *best_log = nullptr;
-  ComputeContextHash best_context_hash{};
-  int32_t best_node_id = 0;
+  Vector<debug_view::Candidate> candidates;
+
+  /* Parent and nested contexts may have been evaluated on different threads. Context metadata is
+   * identical for duplicate loggers with the same hash, so any one of them can describe the path.
+   */
+  Map<ComputeContextHash, const NodeTreeLogger *> tree_logger_by_context;
+  for (const LocalData &local_data : data_per_thread_) {
+    for (const auto item : local_data.tree_logger_by_context.items()) {
+      tree_logger_by_context.add_overwrite(item.key, item.value.get());
+    }
+  }
+
   for (LocalData &local_data : data_per_thread_) {
     for (const auto item : local_data.tree_logger_by_context.items()) {
       const ComputeContextHash &context_hash = item.key;
       const NodeTreeLogger &tree_logger = *item.value;
+
+      Vector<int> reversed_sort_order;
+      Vector<std::string> reversed_context_names;
+      bool supported_context = true;
+      const NodeTreeLogger *context_logger = &tree_logger;
+      while (context_logger) {
+        if (context_logger->context_type == NodeTreeLogger::ContextType::Zone) {
+          supported_context = false;
+          break;
+        }
+        if (context_logger->context_type == NodeTreeLogger::ContextType::Group) {
+          reversed_sort_order.append(context_logger->context_order);
+          reversed_context_names.append(context_logger->context_name);
+        }
+        if (!context_logger->parent_hash) {
+          break;
+        }
+        const NodeTreeLogger *const *parent_logger = tree_logger_by_context.lookup_ptr(
+            *context_logger->parent_hash);
+        if (!parent_logger) {
+          supported_context = false;
+          break;
+        }
+        context_logger = *parent_logger;
+      }
+      if (!supported_context) {
+        continue;
+      }
+      std::ranges::reverse(reversed_sort_order);
+      std::ranges::reverse(reversed_context_names);
+
       for (const NodeTreeLogger::ViewerNodeLogWithNode &viewer_log : tree_logger.viewer_node_logs)
       {
-        if (!viewer_log.viewer_log->is_debug_view || !viewer_log.viewer_log->is_shown ||
-            !viewer_log.viewer_log->main_geometry())
-        {
+        if (!viewer_log.viewer_log->is_geometry_debug_view_candidate()) {
           continue;
         }
-        if (!best_log || context_hash.v1 < best_context_hash.v1 ||
-            (context_hash.v1 == best_context_hash.v1 && context_hash.v2 < best_context_hash.v2) ||
-            (context_hash == best_context_hash && viewer_log.node_id < best_node_id))
-        {
-          best_log = viewer_log.viewer_log.get();
-          best_context_hash = context_hash;
-          best_node_id = viewer_log.node_id;
-        }
+        candidates.append({});
+        debug_view::Candidate &candidate = candidates.last();
+        candidate.identifier = {context_hash, viewer_log.node_id};
+        candidate.viewer_log = viewer_log.viewer_log.get();
+        candidate.sort_order = reversed_sort_order;
+        candidate.sort_order.append(viewer_log.viewer_log->node_order);
+        candidate.context_names = reversed_context_names;
+        candidate.viewer_name = viewer_log.viewer_log->debug_view_name.empty() ?
+                                    IFACE_("Viewer") :
+                                    viewer_log.viewer_log->debug_view_name;
       }
     }
   }
-  return best_log;
+  debug_view::finalize_candidates(candidates);
+  return candidates;
 }
 
 ContextualNodeTreeLogs::ContextualNodeTreeLogs(

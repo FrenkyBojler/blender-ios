@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 
 #include <fmt/format.h>
 
@@ -1870,7 +1871,10 @@ bool object_duplilist_debug_view(Depsgraph *depsgraph, Object *ob_eval, DupliLis
   const int required_mode = eModifierMode_Realtime |
                             (BKE_object_is_in_editmode(ob_orig) ? eModifierMode_Editmode : 0);
   const nodes::eval_log::ViewerNodeLog *viewer_log = nullptr;
-  for (ModifierData &md_orig : ob_orig->modifiers) {
+  std::shared_ptr<nodes::eval_log::NodesEvalLog> selected_eval_log;
+  /* A later applicable modifier is closer to the final stack result and therefore takes
+   * precedence when multiple modifiers have Debug Views enabled. */
+  for (ModifierData &md_orig : ob_orig->modifiers.items_reversed()) {
     if (md_orig.type != eModifierType_Nodes) {
       continue;
     }
@@ -1881,15 +1885,20 @@ bool object_duplilist_debug_view(Depsgraph *depsgraph, Object *ob_eval, DupliLis
     if (!(nmd_orig.flag & NODES_MODIFIER_SHOW_DEBUG_VIEWS) || !nmd_orig.runtime->eval_log) {
       continue;
     }
-    viewer_log = nmd_orig.runtime->eval_log->find_shown_debug_viewer_log();
-    if (viewer_log) {
+    std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log = nmd_orig.runtime->eval_log;
+    Vector<nodes::debug_view::Candidate> candidates = eval_log->debug_view_candidates();
+    const int candidate_index = nodes::debug_view::resolve_candidate_index(
+        candidates.as_span(), nmd_orig.runtime->active_debug_view);
+    if (candidate_index != -1) {
+      viewer_log = candidates[candidate_index].viewer_log;
+      selected_eval_log = std::move(eval_log);
       break;
     }
-    viewer_log = nullptr;
   }
   if (!viewer_log) {
     return false;
   }
+  BLI_assert(selected_eval_log);
 
   DupliContext ctx;
   Vector<Object *> instance_stack;

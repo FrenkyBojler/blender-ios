@@ -80,6 +80,7 @@ set(SRC
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
   intern/geometry_nodes_closure_zone.cc
+  intern/geometry_nodes_debug_view.cc
   intern/geometry_nodes_execute.cc
   intern/geometry_nodes_foreach_geometry_element_zone.cc
   intern/geometry_nodes_gizmos.cc
@@ -136,6 +137,7 @@ set(SRC
   NOD_geometry_nodes_closure_fwd.hh
   NOD_geometry_nodes_closure_location.hh
   NOD_geometry_nodes_closure_signature.hh
+  NOD_geometry_nodes_debug_view.hh
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh
   NOD_geometry_nodes_lazy_function.hh

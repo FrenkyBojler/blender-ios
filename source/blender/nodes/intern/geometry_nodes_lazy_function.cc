@@ -24,6 +24,7 @@
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_debug_view.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
@@ -847,6 +848,15 @@ class LazyFunctionForImplicitSelfObject : public LazyFunction {
  * The viewer node does not have outputs. Instead it is executed because the executor knows that it
  * has side effects. The side effect is that the inputs to the viewer are logged.
  */
+static void initialize_viewer_log(const bNode &node,
+                                  const bool is_debug_view,
+                                  eval_log::ViewerNodeLog &log)
+{
+  log.is_debug_view = is_debug_view;
+  log.node_order = node.index();
+  log.debug_view_name = debug_view::viewer_name_from_node(node.label, node.name);
+}
+
 class LazyFunctionForViewerNode : public LazyFunction {
  private:
   const bNode &bnode_;
@@ -920,7 +930,7 @@ class LazyFunctionForViewerNode : public LazyFunction {
       const bool show = show_variant->get<bool>();
       if (!show) {
         auto log = allocator.construct<eval_log::ViewerNodeLog>();
-        log->is_debug_view = true;
+        initialize_viewer_log(bnode_, true, *log);
         log->is_shown = false;
         tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
         for (const int i : IndexRange(storage.items_num)) {
@@ -948,7 +958,7 @@ class LazyFunctionForViewerNode : public LazyFunction {
     }
 
     auto log = allocator.construct<eval_log::ViewerNodeLog>();
-    log->is_debug_view = is_debug_view_;
+    initialize_viewer_log(bnode_, is_debug_view_, *log);
     geo_viewer_node_log(bnode_, values, *log);
     tree_logger->viewer_node_logs.append(allocator, {bnode_.identifier, std::move(log)});
   }

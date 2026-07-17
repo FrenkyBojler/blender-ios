@@ -5,8 +5,11 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "BLI_array.hh"
+
+#include "NOD_geometry_nodes_debug_view.hh"
 #include "NOD_socket_usage_inference_fwd.hh"
 
 namespace blender {
@@ -52,6 +55,11 @@ struct NodesModifierRuntime {
    * evaluation (e.g. for gizmo backpropagation).
    */
   std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log;
+  /**
+   * Runtime-only Debug View selection. Compute-context hashes are stable across ordinary
+   * reevaluation, but are intentionally not stored in blend files.
+   */
+  std::optional<nodes::debug_view::Identifier> active_debug_view;
   /**
    * Simulation cache that is shared between original and evaluated modifiers. This allows the
    * original modifier to be removed, without also removing the simulation state which may still be

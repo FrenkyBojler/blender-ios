@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <memory>
 #include <sstream>
 
 #include "BKE_compute_contexts.hh"
@@ -13,6 +14,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_object.hh"
 #include "BKE_screen.hh"
 
 #include "BLI_string.hh"
@@ -867,6 +869,53 @@ static void draw_manage_panel(const bContext *C,
   }
 }
 
+static void draw_debug_view_selector(const bContext &C,
+                                     ui::Layout &layout,
+                                     Object &object,
+                                     NodesModifierData &nmd)
+{
+  const int required_mode = eModifierMode_Realtime |
+                            (BKE_object_is_in_editmode(&object) ? eModifierMode_Editmode : 0);
+  if ((nmd.modifier.mode & required_mode) != required_mode ||
+      !(nmd.flag & NODES_MODIFIER_SHOW_DEBUG_VIEWS) || !nmd.runtime->eval_log)
+  {
+    return;
+  }
+
+  /* Keep the log alive while candidate pointers are used to build the UI. */
+  const std::shared_ptr<eval_log::NodesEvalLog> eval_log = nmd.runtime->eval_log;
+  Vector<debug_view::Candidate> candidates = eval_log->debug_view_candidates();
+  const int active_index = debug_view::resolve_candidate_index(candidates.as_span(),
+                                                               nmd.runtime->active_debug_view);
+  if (active_index == -1) {
+    return;
+  }
+
+  ui::Layout &split = layout.split(0.4f, false);
+  ui::Layout &name_row = split.row(false);
+  name_row.alignment_set(ui::LayoutAlign::Right);
+  name_row.label(IFACE_("Debug View"), ICON_NONE);
+
+  ui::Layout &controls = split.row(true);
+  if (candidates.size() == 1) {
+    controls.label(candidates.first().display_name, ICON_NONE);
+    return;
+  }
+
+  PointerRNA props = controls.op("OBJECT_OT_geometry_nodes_debug_view_cycle", "", ICON_TRIA_LEFT);
+  RNA_boolean_set(&props, "reverse", true);
+
+  props = controls.op_menu_enum(&C,
+                                "OBJECT_OT_geometry_nodes_debug_view_select",
+                                "view",
+                                candidates[active_index].display_name,
+                                ICON_DOWNARROW_HLT);
+  RNA_enum_set(&props, "view", active_index);
+
+  props = controls.op("OBJECT_OT_geometry_nodes_debug_view_cycle", "", ICON_TRIA_RIGHT);
+  RNA_boolean_set(&props, "reverse", false);
+}
+
 void draw_geometry_nodes_modifier_ui(const bContext &C,
                                      PointerRNA *modifier_ptr,
                                      ui::Layout &layout)
@@ -930,6 +979,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
         });
 
     layout.prop(modifier_ptr, "show_debug_views", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    draw_debug_view_selector(C, layout, object, nmd);
   }
 
   modifier_error_message_draw(layout, modifier_ptr);

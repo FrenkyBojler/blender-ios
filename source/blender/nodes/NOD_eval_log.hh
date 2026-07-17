@@ -46,6 +46,7 @@
 #include "BKE_volume_grid_fwd.hh"
 
 #include "NOD_geometry_nodes_closure_location.hh"
+#include "NOD_geometry_nodes_debug_view.hh"
 #include "NOD_geometry_nodes_list_fwd.hh"
 #include "NOD_geometry_nodes_warning.hh"
 
@@ -258,6 +259,9 @@ class ViewerNodeLog {
  public:
   bool is_debug_view = false;
   bool is_shown = true;
+  int node_order = 0;
+  /** Empty when the node has neither a custom label nor a meaningfully customized name. */
+  std::string debug_view_name;
 
   struct Item {
     int identifier;
@@ -275,6 +279,7 @@ class ViewerNodeLog {
   CustomIDVectorSet<Item, ItemIdentifierGetter> items;
 
   const bke::GeometrySet *main_geometry() const;
+  bool is_geometry_debug_view_candidate() const;
 };
 
 /* Compositor image result. */
@@ -313,8 +318,17 @@ using TimePoint = Clock::time_point;
  */
 class NodeTreeLogger {
  public:
+  enum class ContextType {
+    Other,
+    Group,
+    Zone,
+  };
+
   std::optional<ComputeContextHash> parent_hash;
   std::optional<int32_t> parent_node_id;
+  ContextType context_type = ContextType::Other;
+  int context_order = 0;
+  std::string context_name;
   Vector<ComputeContextHash> children_hashes;
   /**
    * The #ID.session_uid of the tree that this logger is for. It's an optional value because under
@@ -555,7 +569,7 @@ class NodesEvalLog {
 
   static ContextualNodeTreeLogs get_contextual_tree_logs(const SpaceNode &snode);
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
-  const ViewerNodeLog *find_shown_debug_viewer_log();
+  Vector<debug_view::Candidate> debug_view_candidates();
 };
 
 }  // namespace nodes::eval_log
