@@ -575,6 +575,90 @@ def view3d_texture_paint_complex():
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
 
 
+def view3d_particle_edit_undo_from_texture_paint():
+    import os
+    import tempfile
+
+    import bpy
+
+    e, t, window = ui.test_window()
+    yield from _view3d_startup_area_maximized(e)
+
+    def assert_particle_edit_valid():
+        ob = bpy.context.active_object
+        t.assertEqual(ob.mode, 'PARTICLE_EDIT')
+        t.assertEqual(bpy.context.mode, 'PARTICLE')
+        psys = ob.particle_systems.active
+        t.assertIsNotNone(psys)
+        t.assertEqual(psys.settings.type, 'HAIR')
+        t.assertGreater(len(psys.particles), 0)
+        t.assertGreater(len(psys.particles[0].hair_keys), 0)
+        t.assertTrue(bpy.ops.particle.select_all.poll())
+
+    yield from ui.call_menu(e, "Add -> Mesh -> Cube")
+    ob = window.view_layer.objects.active
+
+    material = bpy.data.materials.new("Material")
+    material.use_nodes = True
+    image = bpy.data.images.new("Paint Image", width=32, height=32)
+    image_node = material.node_tree.nodes.new("ShaderNodeTexImage")
+    image_node.image = image
+    image_node.select = True
+    material.node_tree.nodes.active = image_node
+    ob.data.materials.append(material)
+
+    yield from ui.call_operator(e, "Add Particle System Slot")
+    psys = ob.particle_systems.active
+    psys.settings.type = 'HAIR'
+    psys.settings.count = 8
+    psys.settings.hair_length = 1.0
+    window.view_layer.update()
+    yield
+
+    # Include the programmatic setup in a memfile undo step through a normal user action.
+    yield e.r.z().text("15").ret()
+
+    yield from ui.call_operator(e, "Particle Edit Toggle")
+    assert_particle_edit_valid()
+
+    # Establish particle-edit undo steps through the same shortcuts a user invokes.
+    yield e.alt.a()                     # Deselect all.
+    yield e.a()                         # Select all.
+
+    yield e.ctrl.tab().t()              # Texture Paint via the mode pie.
+    t.assertEqual(ob.mode, 'TEXTURE_PAINT')
+
+    # This used to combine Particle Edit with Texture Paint into invalid mode value 48.
+    yield e.ctrl.z()
+    assert_particle_edit_valid()
+
+    # Exercise the mode transition in both directions, then repeat the cross-mode undo.
+    yield e.ctrl.shift.z()
+    t.assertEqual(bpy.context.active_object.mode, 'TEXTURE_PAINT')
+    yield e.ctrl.z()
+    assert_particle_edit_valid()
+
+    # Verify the reconstructed Particle Edit session still accepts user operations.
+    yield e.alt.a()
+    assert_particle_edit_valid()
+    yield e.a()
+    assert_particle_edit_valid()
+
+    # Loading after this transition used to crash if undo left the object in invalid mode 48.
+    with tempfile.TemporaryDirectory(prefix="blender_test_particle_edit_undo_") as temp_dir:
+        filepath = os.path.join(temp_dir, "particle_edit_undo.blend")
+        t.assertEqual(
+            bpy.ops.wm.save_as_mainfile(filepath=filepath, check_existing=False, compress=False),
+            {'FINISHED'},
+        )
+        t.assertEqual(bpy.ops.wm.open_mainfile(filepath=filepath), {'FINISHED'})
+        yield
+        e, t, window = ui.test_window()
+        assert_particle_edit_valid()
+        yield e.alt.a()
+        assert_particle_edit_valid()
+
+
 def view3d_mesh_edit_separate():
     e, t, window = ui.test_window()
     yield from _view3d_startup_area_maximized(e)
