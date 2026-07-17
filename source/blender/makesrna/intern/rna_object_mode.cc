@@ -16,7 +16,12 @@
 
 #include "rna_internal.hh"
 
+#include <cstdlib>
+
+#include "BKE_object_draw_provider.hh"
 #include "BKE_object_modes.hh"
+
+#include "BLI_string.hh"
 
 #ifdef RNA_RUNTIME
 
@@ -157,6 +162,29 @@ static void rna_ObjectModeType_object_types_set(PointerRNA *ptr, const int value
 {
   ObjectModeType *mt = static_cast<ObjectModeType *>(ptr->data);
   mt->object_type_mask = uint64_t(uint32_t(value));
+}
+
+/* The external draw provider is a native pointer the addon owns; carry its
+ * address across the Python boundary as a decimal string (RNA function/property
+ * ints are 32-bit, too small for a 64-bit pointer). */
+static void rna_ObjectModeType_draw_provider_get(PointerRNA *ptr, char *value)
+{
+  const ObjectModeType *mt = static_cast<const ObjectModeType *>(ptr->data);
+  BLI_snprintf(value, 32, "%zu", size_t(uintptr_t(mt->draw_provider)));
+}
+
+static int rna_ObjectModeType_draw_provider_length(PointerRNA *ptr)
+{
+  const ObjectModeType *mt = static_cast<const ObjectModeType *>(ptr->data);
+  char buf[32];
+  return BLI_snprintf(buf, sizeof(buf), "%zu", size_t(uintptr_t(mt->draw_provider)));
+}
+
+static void rna_ObjectModeType_draw_provider_set(PointerRNA *ptr, const char *value)
+{
+  ObjectModeType *mt = static_cast<ObjectModeType *>(ptr->data);
+  const uintptr_t addr = uintptr_t(strtoull(value, nullptr, 10));
+  BKE_object_mode_draw_provider_set(mt, reinterpret_cast<const ExternalDrawProvider *>(addr));
 }
 
 static bool rna_ObjectModeType_unregister(Main *bmain, StructRNA *type)
@@ -432,6 +460,18 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
       prop,
       "Default Tool",
       "Identifier of the tool made active when entering the mode (empty uses the generic default)");
+
+  prop = RNA_def_property(srna, "bl_draw_provider", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_ObjectModeType_draw_provider_get",
+                                "rna_ObjectModeType_draw_provider_length",
+                                "rna_ObjectModeType_draw_provider_set");
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Draw Provider",
+      "Decimal address of the native ExternalDrawProvider the mode draws its viewport "
+      "geometry through (empty uses the default flush-to-mesh draw path)");
 
   prop = RNA_def_property(srna, "bl_use_custom_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", OBJECT_MODE_TYPE_USE_CUSTOM_UNDO);

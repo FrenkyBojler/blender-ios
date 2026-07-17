@@ -36,6 +36,9 @@ class Session:
         # stroke end, moved by undo/redo. Lets undo_decode seek to a target
         # step even across memfile-boundary transitions it isn't called for.
         "meshlog_cursor",
+        # The object's ID.session_uid, the key the external draw provider is
+        # registered under (P5 D6). 0 when external draw is unavailable.
+        "draw_key",
         # Reusable [main, SMOOTH] autosmooth program, rebuilt per stroke when
         # the brush's auto-smooth factor is nonzero.
         "program",
@@ -59,6 +62,7 @@ class Session:
         self.executor = None
         self.meshlog = None
         self.meshlog_cursor = 0
+        self.draw_key = 0
         self.program = None
         self.dyntopo_active = False
         self.dtparams = None

@@ -106,6 +106,15 @@ def enter(ob):
 
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
+
+    # Register the tree for external-provider viewport draw, keyed by the
+    # object's session_uid (the key Blender's draw path passes). Fill the
+    # GPU-node buffers once so the initial geometry draws.
+    session.draw_key = int(ob.session_uid)
+    lib = engine.capi().lib
+    lib.sc_external_draw_register(session.draw_key, tree_ptr)
+    lib.sc_external_draw_update(session.draw_key)
+
     return session
 
 
@@ -292,6 +301,11 @@ def flush(ob):
     _flush_color(mesh, session.mesh_ptr, session.verts_num)
     mesh.update()
 
+    # Refresh the external-provider GPU-node buffers so the viewport (which
+    # draws from the provider, not this Mesh) reflects the stroke.
+    if session.draw_key:
+        engine.capi().lib.sc_external_draw_update(session.draw_key)
+
 
 def exit_(ob):
     """Flush and free the session (re-entrant: forced exits may repeat)."""
@@ -301,6 +315,8 @@ def exit_(ob):
     try:
         flush(ob)
     finally:
+        if session.draw_key:
+            engine.capi().lib.sc_external_draw_unregister(session.draw_key)
         engine.sessions.pop(ob.name, None)
         session.free()
 

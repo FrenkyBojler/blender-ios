@@ -60,6 +60,15 @@ class SculptCoreMode(bpy.types.ObjectModeType):
 def register():
     props.register()
     stroke.register()
+    # Hand the mode the native external draw provider so custom-mode objects
+    # draw their per-node geometry from the engine (P5 D6). Best-effort: if the
+    # engine is unavailable the mode still registers and falls back to the
+    # flush-to-Mesh draw path.
+    try:
+        SculptCoreMode.bl_draw_provider = str(int(engine.capi().lib.sc_external_draw_provider()))
+    except Exception as ex:
+        print("SculptCore: external draw provider unavailable ({!r}); "
+              "using the flush-to-Mesh draw path".format(ex))
     bpy.utils.register_class(SculptCoreMode)
     keymap.register()
     tools.register()

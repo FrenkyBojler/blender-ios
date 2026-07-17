@@ -106,6 +106,18 @@ class _CApi:
         lib.SpatialTree_free.argtypes = [ctypes.c_void_p]
         lib.SpatialTree_free.restype = None
 
+        # External draw provider (P5 D6): register a tree under the object's
+        # session_uid, refresh its GPU-node CPU buffers, and hand Blender the
+        # native provider address.
+        lib.sc_external_draw_register.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+        lib.sc_external_draw_register.restype = None
+        lib.sc_external_draw_unregister.argtypes = [ctypes.c_uint]
+        lib.sc_external_draw_unregister.restype = None
+        lib.sc_external_draw_update.argtypes = [ctypes.c_uint]
+        lib.sc_external_draw_update.restype = None
+        lib.sc_external_draw_provider.argtypes = []
+        lib.sc_external_draw_provider.restype = ctypes.c_void_p
+
         self.lib = lib
 
 
