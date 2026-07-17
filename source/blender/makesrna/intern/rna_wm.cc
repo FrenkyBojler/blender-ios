@@ -2802,7 +2802,7 @@ static void rna_def_window(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Areas",
                            "Areas at the edges of the window that are not part of the flexible "
-                           "screen layout (such as top and status bar");
+                           "screen layout (such as top and status bar)");
 
   prop = RNA_def_property(srna, "workspace", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);

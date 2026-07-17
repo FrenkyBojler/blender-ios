@@ -1145,10 +1145,8 @@ std::optional<std::string> BKE_screen_path_to_area(const PointerRNA *ptr)
       for (const auto [win_index, win] : wm->windows.enumerate()) {
         const int area_index = BLI_findindex(&win.global_areas.areabase, area);
         if (area_index == -1) {
-          return std::nullopt;
+          return fmt::format("windows[{}].global_areas[{}]", win_index, area_index);
         }
-
-        return fmt::format("global_areas[{}]", area_index);
       }
       break;
     }
