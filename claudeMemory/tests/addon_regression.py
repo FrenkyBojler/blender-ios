@@ -250,6 +250,45 @@ def test_faceset_roundtrip():
     assert np.array_equal(read_fs(ob), persisted), "face sets changed across re-enter"
 
 
+def test_falloff_presets():
+    """apply_brush bakes the Blender falloff preset into the engine LUT;
+    SHARP concentrates displacement near the dab center more than SMOOTH,
+    CONSTANT spreads it most."""
+    import sculptcore_addon.engine as engine
+    import sculptcore_addon.stroke as stroke
+    import sculptcore_addon.mapping as mapping
+    import sculptcore_addon.convert as convert
+    draw = kernel("DRAW")
+
+    def inner_fraction(preset):
+        bpy.ops.mesh.primitive_grid_add(x_subdivisions=60, y_subdivisions=60, size=4.0)
+        ob = bpy.context.active_object
+        ob.name = "FO_" + preset
+        bpy.context.view_layer.objects.active = ob
+        br = bpy.data.brushes.new("fo_" + preset, mode='SCULPT')
+        br.sculpt_brush_type = 'DRAW'
+        br.strength = 1.0
+        br.curve_distance_falloff_preset = preset
+        session = enter("FO_" + preset)
+        sc = stroke._ensure_brush(session)
+        sc.radius = 1.2
+        mapping.apply_brush(br, None, sc, world_radius=1.2, invert=False)
+        center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
+        before = positions(ob).copy()
+        stroke.stroke_begin(session)
+        stroke.apply_dab(session, draw, center, normal, 1.2)
+        stroke.stroke_end(session)
+        convert.flush(ob)
+        disp = np.linalg.norm(positions(ob) - before, axis=1)
+        dist = np.linalg.norm(before[:, :2] - np.array(center[:2]), axis=1)
+        exit_mode()
+        total = disp.sum()
+        return (disp[dist < 0.6].sum() / total) if total > 1e-6 else 0.0
+
+    sharp, smooth, const = (inner_fraction(p) for p in ('SHARP', 'SMOOTH', 'CONSTANT'))
+    assert sharp > smooth > const, (sharp, smooth, const)
+
+
 def test_tool_and_panels():
     from bl_ui.space_toolsystem_toolbar import VIEW3D_PT_tools_active
     import sculptcore_addon.ui as ui
@@ -294,6 +333,7 @@ SECTIONS = [
     ("grab family", test_grab_family),
     ("mask round trip", test_mask_roundtrip),
     ("face-set round trip", test_faceset_roundtrip),
+    ("falloff presets", test_falloff_presets),
     ("tool + panels", test_tool_and_panels),
     ("lifecycle handlers", test_lifecycle_handlers),
 ]

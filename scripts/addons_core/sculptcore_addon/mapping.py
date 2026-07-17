@@ -68,6 +68,51 @@ UNSUPPORTED = {
 def is_grab_class(bl_brush):
     return bl_brush is not None and bl_brush.sculpt_brush_type in GRAB_CLASS
 
+
+# SculptCore FalloffKind / FalloffShape enum values (brush.h).
+_FALLOFF_KIND_CURVE = 3
+_FALLOFF_SHAPE_SPHERICAL = 0
+_FALLOFF_CURVE_SIZE = 256
+
+
+# Closed-form preset falloffs, keyed by `curve_distance_falloff_preset`. `t`
+# is 1 - normalized distance (1 at center, 0 at edge) — the same value the
+# engine feeds falloffEval. Mirrors BKE_brush_curve_strength so brush feel
+# matches Blender exactly; CUSTOM samples the editable CurveMapping instead.
+_PRESET_FALLOFF = {
+    'SHARP': lambda t: t * t,
+    'SMOOTH': lambda t: 3.0 * t * t - 2.0 * t * t * t,
+    'SMOOTHER': lambda t: t * t * t * (t * (t * 6.0 - 15.0) + 10.0),
+    'ROOT': lambda t: t ** 0.5,
+    'LIN': lambda t: t,
+    'CONSTANT': lambda t: 1.0,
+    'SPHERE': lambda t: max(0.0, 2.0 * t - t * t) ** 0.5,
+    'POW4': lambda t: t * t * t * t,
+    'INVSQUARE': lambda t: t * (2.0 - t),
+}
+
+
+def _bake_falloff(bl_brush, sc_brush):
+    """Bake the Blender falloff (preset formula, or the editable curve for
+    CUSTOM) into the engine's 256-entry LUT, so brush feel matches Blender."""
+    preset = bl_brush.curve_distance_falloff_preset
+    fn = _PRESET_FALLOFF.get(preset)
+    n = _FALLOFF_CURVE_SIZE
+    if fn is not None:
+        for i in range(n):
+            sc_brush.setFalloffCurveEntry(i, min(1.0, max(0.0, fn(i / (n - 1)))))
+    else:  # CUSTOM: BKE evaluates the curve at (1 - t).
+        cumap = bl_brush.curve_distance_falloff
+        cumap.update()
+        curve = cumap.curves[0]
+        for i in range(n):
+            t = i / (n - 1)
+            sc_brush.setFalloffCurveEntry(i, min(1.0, max(0.0, cumap.evaluate(curve, 1.0 - t))))
+    sc_brush.falloff_kind = _FALLOFF_KIND_CURVE
+    # PROJECTED (2D view falloff) has no distinct engine metric yet; both use
+    # the spherical distance for now.
+    sc_brush.falloff_shape = _FALLOFF_SHAPE_SPHERICAL
+
 # For UI / diagnostics: every mapped type (supported or not).
 KERNEL_BY_TYPE = {t: v[0] for t, v in _MAP.items()}
 
@@ -105,6 +150,8 @@ def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert):
     if entry is not None:
         for field, value in entry[1].items():
             setattr(sc_brush, field, value(bl_brush) if callable(value) else value)
+
+    _bake_falloff(bl_brush, sc_brush)
 
     # writeProps() bakes the scalar fields into the kernel's uniform block.
     sc_brush.writeProps()

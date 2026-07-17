@@ -462,9 +462,15 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       `grabFrom` = cursor delta, node filter widened by the drag; operator
       projects the mouse onto the anchor plane). ELASTIC_DEFORM→KELVINLET
       also landed (grab-class, shares grabFrom/grabTo; engine mu/nu defaults).
-      **14 brushes now sculpt** (incl. DRAW_FACE_SETS). Still to fill in:
-      POSE (pose-cage), falloff-curve bake + hardness, autosmooth
-      `[main, SMOOTH]` program.
+      **14 brushes now sculpt** (incl. DRAW_FACE_SETS). Falloff mapping
+      done: `apply_brush` bakes the Blender `curve_distance_falloff_preset`
+      (SHARP/SMOOTH/SMOOTHER/ROOT/LIN/CONSTANT/SPHERE/POW4/INVSQUARE closed
+      forms mirroring `BKE_brush_curve_strength`, CUSTOM samples the
+      CurveMapping) into the engine's 256-entry `falloff_curve` LUT +
+      `falloff_kind=Curve`. Verified: SHARP concentrates near center, SMOOTH
+      between, CONSTANT spreads (regression suite `falloff presets`). Still
+      to fill in: POSE (pose-cage), hardness fold-in, autosmooth
+      `[main, SMOOTH]` program, PROJECTED falloff shape.
 - [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
 - [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
 - [ ] M4 Pressure → `pushDeviceInput` + by-name dynamics; autosmooth
