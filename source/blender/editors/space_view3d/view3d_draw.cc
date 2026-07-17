@@ -1559,7 +1559,6 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   View3D *v3d = CTX_wm_view3d(C);
   Scene *scene = CTX_data_scene(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
