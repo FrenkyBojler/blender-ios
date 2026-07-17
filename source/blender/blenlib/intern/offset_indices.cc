@@ -10,7 +10,6 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_sort.hh"
 #include "BLI_sort_radix.hh"
 #include "BLI_task.hh"
 
@@ -158,21 +157,6 @@ OffsetIndices<int> build_reverse_offsets(const Span<int> indices, MutableSpan<in
   BLI_assert(std::all_of(offsets.begin(), offsets.end(), [](int value) { return value == 0; }));
   array_utils::count_indices(indices, offsets);
   return offset_indices::accumulate_counts_to_offsets(offsets);
-}
-
-void sort_groups(const OffsetIndices<int> groups, MutableSpan<int> indices)
-{
-  threading::parallel_for(
-      groups.index_range(),
-      1024,
-      [&](const IndexRange range) {
-        for (const int64_t index : range) {
-          MutableSpan<int> group = indices.slice(groups[index]);
-          parallel_sort(group);
-        }
-      },
-      threading::accumulated_task_sizes(
-          [&](const IndexRange range) { return groups[range].size(); }));
 }
 
 struct PositionValues {

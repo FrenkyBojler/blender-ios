@@ -198,12 +198,6 @@ void build_reverse_map(OffsetIndices<int> offsets, MutableSpan<int> r_map);
 OffsetIndices<int> build_reverse_offsets(Span<int> indices, MutableSpan<int> offsets);
 
 /**
- * Used as a final step for parallel creation of grouped indices, to make results deterministic as
- * each group's indices are potentially filled from multiple threads.
- */
-void sort_groups(OffsetIndices<int> groups, MutableSpan<int> indices);
-
-/**
  * Where the `group_indices` argument maps elements into buckets, and the `offsets` argument
  * describes the size of each bucket, this function fills `results` with the indices in each bucket
  * grouped by `offsets`. The results are deterministic, with the indices in each bucket sorted in
