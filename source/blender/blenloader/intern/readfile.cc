@@ -2452,7 +2452,8 @@ static Main *blo_add_main_for_library(FileData *fd,
                                       Library *reference_lib,
                                       const char *lib_filepath,
                                       char (&filepath_abs)[FILE_MAX],
-                                      const bool is_packed_library)
+                                      const bool is_packed_library,
+                                      const bool is_external_lib)
 {
   Main *bmain = BKE_main_new();
   fd->bmain->split_mains->add_new(bmain);
@@ -2480,6 +2481,10 @@ static Main *blo_add_main_for_library(FileData *fd,
       lib->archive_parent_library = reference_lib;
       constexpr uint16_t copy_flag = ~LIBRARY_FLAG_IS_ARCHIVE;
       lib->flag = (reference_lib->flag & copy_flag) | LIBRARY_FLAG_IS_ARCHIVE;
+
+      if (is_external_lib) {
+        lib->flag |= LIBRARY_FLAG_IS_EXTERNAL;
+      }
 
       lib->runtime->parent = reference_lib->runtime->parent;
       /* Only copy a subset of the reference library tags. E.g. an archive library should never be
@@ -2592,7 +2597,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
                        lib->runtime->filepath_abs);
 
       Main *parent_lib_bmain = blo_add_main_for_library(
-          fd, nullptr, nullptr, lib->filepath, lib->runtime->filepath_abs, false);
+          fd, nullptr, nullptr, lib->filepath, lib->runtime->filepath_abs, false, false);
       parent_lib = parent_lib_bmain->curlib;
       BLI_assert(parent_lib);
       oldnewmap_lib_insert(fd, lib->archive_parent_library, &parent_lib->id, ID_LI);
@@ -3225,8 +3230,14 @@ static void read_libblock_undo_restore_identical(
       /* The archive library ID has been moved in the new Main, but not its own old split main, as
        * these packed IDs should be handled like local ones in undo case. So a new split libmain
        * needs to be created to contain its packed IDs. */
-      blo_add_main_for_library(
-          fd, lib, lib->archive_parent_library, lib->filepath, lib->runtime->filepath_abs, true);
+      const bool is_external_lib = lib->flag & LIBRARY_FLAG_IS_EXTERNAL;
+      blo_add_main_for_library(fd,
+                               lib,
+                               lib->archive_parent_library,
+                               lib->filepath,
+                               lib->runtime->filepath_abs,
+                               true,
+                               is_external_lib);
     }
     else {
       BLI_assert_unreachable();
@@ -4790,7 +4801,8 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
                                                   const char *relabase,
                                                   const BHead *id_bhead,
                                                   const char *id_name,
-                                                  const bool is_packed_id)
+                                                  const bool is_packed_id,
+                                                  const bool is_external_lib)
 {
   Library *parent_lib = nullptr;
   char filepath_abs[FILE_MAX];
@@ -4868,7 +4880,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
       /* An archive library requires an existing parent library, create an empty, 'virtual' one if
        * needed. */
       Main *reference_bmain = blo_add_main_for_library(
-          fd, nullptr, nullptr, lib_filepath, filepath_abs, false);
+          fd, nullptr, nullptr, lib_filepath, filepath_abs, false, false);
       parent_lib = reference_bmain->curlib;
       CLOG_DEBUG(&LOG,
                  "Added new parent library '%s' for file path '%s'",
@@ -4879,7 +4891,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
   BLI_assert(parent_lib || !is_packed_id);
 
   Main *bmain = blo_add_main_for_library(
-      fd, nullptr, parent_lib, lib_filepath, filepath_abs, is_packed_id);
+      fd, nullptr, parent_lib, lib_filepath, filepath_abs, is_packed_id, is_external_lib);
 
   read_file_version_and_colorspace(fd, bmain);
 
@@ -5022,7 +5034,7 @@ static void expand_doit_library(void *fdhandle,
     Library *lib = reinterpret_cast<Library *>(
         read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
     Main *libmain = blo_find_main_for_library_and_idname(
-        fd, lib->filepath, fd->relabase, nullptr, nullptr, false);
+        fd, lib->filepath, fd->relabase, nullptr, nullptr, false, false);
     MEM_delete(lib);
 
     if (libmain->curlib == nullptr) {
@@ -5062,8 +5074,10 @@ static void expand_doit_library(void *fdhandle,
 
     Library *lib = reinterpret_cast<Library *>(
         read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
+    const bool is_external_lib = bool(lib->flag & LIBRARY_FLAG_IS_EXTERNAL);
+
     Main *libmain = blo_find_main_for_library_and_idname(
-        fd, lib->filepath, fd->relabase, bhead, id_name, is_packed_id);
+        fd, lib->filepath, fd->relabase, bhead, id_name, is_packed_id, is_external_lib);
     MEM_delete(lib);
 
     if (libmain->curlib == nullptr) {
@@ -5281,7 +5295,7 @@ static Main *library_link_begin(Main *mainvar,
   /* Find or create a Main matching the current library filepath. */
   /* Note: Directly linking packed IDs is not supported currently. */
   mainl = blo_find_main_for_library_and_idname(
-      fd, filepath, BKE_main_blendfile_path(mainvar), nullptr, nullptr, false);
+      fd, filepath, BKE_main_blendfile_path(mainvar), nullptr, nullptr, false, false);
   fd->fd_bmain = mainl;
   if (mainl->curlib) {
     mainl->curlib->runtime->filedata = fd;
