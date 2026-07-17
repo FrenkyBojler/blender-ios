@@ -3034,7 +3034,8 @@ class WM_OT_batch_rename(Operator):
                 )
             elif data_type == 'MARKER':
                 data = (
-                    [marker for marker in context.scene.timeline_markers if marker.select or not only_selected],
+                    [marker for marker in context.scene.timeline_markers if marker.select] if only_selected else
+                    context.scene.timeline_markers,
                     "name",
                     iface_("Timeline Marker(s)"),
                 )
