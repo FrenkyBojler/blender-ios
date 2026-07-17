@@ -3248,6 +3248,9 @@ static StructRNA *rna_SceneCompositorEffectProperties_refine(PointerRNA *effect_
   if (!effect->node_group || ID_MISSING(effect->node_group)) {
     return RNA_SceneCompositorEffectPropertiesEmpty;
   }
+  if (!effect->node_group->runtime->scene_compositor_effect_srna_data) {
+    return RNA_SceneCompositorEffectPropertiesEmpty;
+  }
   return effect->node_group->runtime->scene_compositor_effect_srna_data->properties_struct;
 }
 
@@ -9015,6 +9018,7 @@ static void rna_def_compositor_effect(BlenderRNA *brna)
       prop, nullptr, "flags", uint8_t(SceneCompositorEffectFlags::EnableForRender));
   RNA_def_property_ui_text(prop, "Render", "Use effect during render");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_RENDER_ON, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
 
   prop = RNA_def_property(srna, "enable_for_preview", PROP_BOOLEAN, PROP_NONE);
@@ -9022,6 +9026,7 @@ static void rna_def_compositor_effect(BlenderRNA *brna)
       prop, nullptr, "flags", uint8_t(SceneCompositorEffectFlags::EnableForPreview));
   RNA_def_property_ui_text(prop, "Preview", "Use effect during preview");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_ON, 1);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
 
   prop = RNA_def_property(srna, "is_active", PROP_BOOLEAN, PROP_NONE);
@@ -9030,6 +9035,7 @@ static void rna_def_compositor_effect(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_SceneCompositorEffect_is_active_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Is Active", "This effect is active");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
 
   prop = RNA_def_property(srna, "show_expanded", PROP_BOOLEAN, PROP_NONE);
@@ -9037,6 +9043,7 @@ static void rna_def_compositor_effect(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(
       prop, nullptr, "ui_panel_data_expansion", UI_PANEL_DATA_EXPAND_ROOT);
   RNA_def_property_ui_text(prop, "Expanded", "Show effect expanded");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 
   prop = RNA_def_property(srna, "show_node_group_selector", PROP_BOOLEAN, PROP_NONE);

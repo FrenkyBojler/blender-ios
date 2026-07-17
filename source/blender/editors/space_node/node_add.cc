@@ -1732,12 +1732,15 @@ static wmOperatorStatus new_compositing_node_group_invoke(bContext *C,
   return new_compositing_node_group_exec(C, op);
 }
 
+/* Todo(#140111): Unused, remove in 6.0. */
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "New Compositing Node Group";
   ot->idname = "NODE_OT_new_compositing_node_group";
-  ot->description = "Create a new compositing node group and initialize it with default nodes";
+  ot->description =
+      "Create a new compositing node group and initialize it with default nodes. Deprecated and "
+      "will be removed in 6.0";
 
   /* api callbacks */
   ot->exec = new_compositing_node_group_exec;

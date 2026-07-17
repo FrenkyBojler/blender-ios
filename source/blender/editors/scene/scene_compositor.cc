@@ -497,7 +497,7 @@ static bool unassigned_local_poll(const Main &bmain)
 {
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (ID_IS_ASSET(&group.id)) {
+    if (group.id.library_weak_reference || ID_IS_ASSET(&group.id)) {
       continue;
     }
     if (!group.compositor_node_asset_traits ||
@@ -519,17 +519,19 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
 
   ed::asset::AssetItemTree &tree = get_static_item_tree();
   tree = build_catalog_tree(*C);
-  if (!tree.catalogs.is_empty() || loading_finished) {
-    layout.separator();
-
-    if (!loading_finished) {
-      layout.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
-    }
-
-    tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-      ed::asset::draw_menu_for_catalog(item, "SEQUENCER_MT_add_effect_catalog_assets", layout);
-    });
+  if (tree.catalogs.is_empty() && loading_finished) {
+    return;
   }
+
+  layout.separator();
+
+  if (!loading_finished) {
+    layout.label(IFACE_("Loading Asset Libraries"), ICON_INFO);
+  }
+
+  tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
+    ed::asset::draw_menu_for_catalog(item, "SEQUENCER_MT_add_effect_catalog_assets", layout);
+  });
 
   if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(C))) {
     layout.separator();
@@ -624,7 +626,7 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   bool add_separator = !tree.unassigned_assets.is_empty();
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (ID_IS_ASSET(&group.id)) {
+    if (group.id.library_weak_reference || ID_IS_ASSET(&group.id)) {
       continue;
     }
     if (!group.compositor_node_asset_traits ||

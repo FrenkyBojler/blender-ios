@@ -284,13 +284,21 @@ SceneCompositorEffect &duplicate_effect(Scene &scene, SceneCompositorEffect &sou
   return new_effect;
 }
 
+void free_effect(SceneCompositorEffect &effect)
+{
+  if (effect.system_properties) {
+    IDP_FreeProperty_ex(effect.system_properties, false);
+  }
+  MEM_delete(&effect);
+}
+
 void remove_effect(Scene &scene, SceneCompositorEffect &effect)
 {
   if (effect.node_group) {
     id_us_min(&effect.node_group->id);
   }
   BLI_remlink(&scene.compositor_effects, &effect);
-  MEM_delete(&effect);
+  free_effect(effect);
   if (!scene.compositor_effects.is_empty()) {
     set_active_effect(scene, *scene.compositor_effects.begin());
   }
@@ -310,11 +318,8 @@ void copy_effects(Scene &target_scene, const Scene &source_scene, const int flag
 
 void free_effects(Scene &scene)
 {
-  for (const SceneCompositorEffect &effect : scene.compositor_effects.items_mutable()) {
-    if (effect.system_properties) {
-      IDP_FreeProperty_ex(effect.system_properties, false);
-    }
-    MEM_delete(&effect);
+  for (SceneCompositorEffect &effect : scene.compositor_effects.items_mutable()) {
+    free_effect(effect);
   }
   scene.compositor_effects.clear_no_delete();
 }

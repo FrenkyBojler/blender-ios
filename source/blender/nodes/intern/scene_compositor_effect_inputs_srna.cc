@@ -21,7 +21,7 @@
 
 namespace blender::nodes {
 
-static std::optional<std::string> rna_CompositorNodesEffectPropertyInput_path(
+static std::optional<std::string> rna_SceneCompositorEffectInputProperty_path(
     const PointerRNA *property_ptr)
 {
   const char *identifier = RNA_struct_identifier(property_ptr->type);
@@ -43,7 +43,7 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &node_group,
 
   StructRNA *srna = RNA_def_struct_ptr(
       r_generated.generated_rna, srna_identifier.c_str(), RNA_PropertyGroup);
-  RNA_def_struct_path_func_runtime(srna, rna_CompositorNodesEffectPropertyInput_path);
+  RNA_def_struct_path_func_runtime(srna, rna_SceneCompositorEffectInputProperty_path);
   if (stype->make_scene_compositor_effect_input_srna) {
     stype->make_scene_compositor_effect_input_srna(node_group, *srna, socket, r_generated);
   }
@@ -54,9 +54,8 @@ static StructRNA *get_input_socket_struct_rna(const bNodeTree &node_group,
 static StructRNA *create_inputs_srna(const bNodeTree &node_group,
                                      GeneratedTreeSrnaData &r_generated)
 {
-  StructRNA *srna = RNA_def_struct_ptr(r_generated.generated_rna,
-                                       "SceneCompositorEffectNodeGroupInterfaceInputs",
-                                       RNA_PropertyGroup);
+  StructRNA *srna = RNA_def_struct_ptr(
+      r_generated.generated_rna, "SceneCompositorEffectInterfaceInputs", RNA_PropertyGroup);
 
   node_group.ensure_interface_cache();
   for (const bNodeTreeInterfaceSocket *socket : node_group.interface_inputs()) {
@@ -65,7 +64,9 @@ static StructRNA *create_inputs_srna(const bNodeTree &node_group,
       continue;
     }
     const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
-    RNA_def_pointer_runtime(srna, identifier.c_str(), socket_srna, socket->name, "");
+    PropertyRNA *property = RNA_def_pointer_runtime(
+        srna, identifier.c_str(), socket_srna, socket->name, "");
+    RNA_def_property_override_flag(property, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
   return srna;
@@ -74,9 +75,8 @@ static StructRNA *create_inputs_srna(const bNodeTree &node_group,
 static StructRNA *create_panels_srna(const bNodeTree &node_group,
                                      GeneratedTreeSrnaData &r_generated)
 {
-  StructRNA *srna = RNA_def_struct_ptr(r_generated.generated_rna,
-                                       "SceneCompositorEffectNodeGroupInterfacePanels",
-                                       RNA_PropertyGroup);
+  StructRNA *srna = RNA_def_struct_ptr(
+      r_generated.generated_rna, "SceneCompositorEffectInterfacePanels", RNA_PropertyGroup);
 
   LinearAllocator<> &allocator = r_generated.scope.allocator();
 
@@ -105,7 +105,7 @@ std::shared_ptr<GeneratedTreeSrnaData> create_scene_compositor_effect_inputs_srn
   std::unique_ptr<GeneratedTreeSrnaData> generated = std::make_unique<GeneratedTreeSrnaData>();
 
   StructRNA *srna = RNA_def_struct_ptr(generated->generated_rna,
-                                       "SceneCompositorEffectNodeGroupInterface",
+                                       "SceneCompositorEffectInterface",
                                        RNA_SceneCompositorEffectProperties);
   generated->properties_struct = srna;
 

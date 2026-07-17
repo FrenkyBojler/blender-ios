@@ -130,6 +130,9 @@ SceneCompositorEffect &new_effect(Scene &scene, StringRef name);
 /* Copy the given compositor effect in the given scene. */
 SceneCompositorEffect &duplicate_effect(Scene &scene, SceneCompositorEffect &source_effect);
 
+/* Frees the given compositor effect from the given scene. */
+void free_effect(Scene &scene, SceneCompositorEffect &effect);
+
 /* Removes the given compositor effect from the given scene. */
 void remove_effect(Scene &scene, SceneCompositorEffect &effect);
 
