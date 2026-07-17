@@ -106,6 +106,40 @@ static void object_mode_refresh(ObjectModeType *mt, bContext *C, Object *ob)
   RNA_parameter_list_free(&list);
 }
 
+static void object_mode_undo_decode(
+    ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction)
+{
+  extern FunctionRNA *rna_ObjectModeType_undo_decode_func;
+  ParameterList list;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, mt->rna_ext.srna, mt);
+  FunctionRNA *func = rna_ObjectModeType_undo_decode_func;
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "context", &C);
+  RNA_parameter_set_lookup(&list, "ob", &ob);
+  RNA_parameter_set_lookup(&list, "state_id", &state_id);
+  RNA_parameter_set_lookup(&list, "direction", &direction);
+  mt->rna_ext.call(C, &ptr, func, &list);
+
+  RNA_parameter_list_free(&list);
+}
+
+static void object_mode_undo_free(ObjectModeType *mt, int state_id)
+{
+  extern FunctionRNA *rna_ObjectModeType_undo_free_func;
+  ParameterList list;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, mt->rna_ext.srna, mt);
+  FunctionRNA *func = rna_ObjectModeType_undo_free_func;
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "state_id", &state_id);
+  mt->rna_ext.call(nullptr, &ptr, func, &list);
+
+  RNA_parameter_list_free(&list);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -163,7 +197,7 @@ static StructRNA *rna_ObjectModeType_register(Main *bmain,
 {
   const char *error_prefix = "Registering object mode class:";
   ObjectModeType dummy_mt = {nullptr};
-  bool have_function[4];
+  bool have_function[6];
 
   PointerRNA dummy_mt_ptr = RNA_pointer_create_discrete(nullptr, RNA_ObjectModeType, &dummy_mt);
 
@@ -218,6 +252,8 @@ static StructRNA *rna_ObjectModeType_register(Main *bmain,
   mt->exit = have_function[1] ? object_mode_exit : nullptr;
   mt->flush = have_function[2] ? object_mode_flush : nullptr;
   mt->refresh = have_function[3] ? object_mode_refresh : nullptr;
+  mt->undo_decode = have_function[4] ? object_mode_undo_decode : nullptr;
+  mt->undo_free = have_function[5] ? object_mode_undo_free : nullptr;
 
   if (!BKE_object_mode_type_add(mt)) {
     BKE_reportf(
@@ -324,6 +360,27 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
   parm = RNA_def_pointer(func, "context", "Context", "", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "ob", "Object", "", "Object to refresh");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  /* Wrapped-undo callbacks (used when bl_use_custom_undo is set). Their order
+   * defines have_function indexes 4 and 5. */
+  func = RNA_def_function(srna, "undo_decode", nullptr);
+  RNA_def_function_ui_description(
+      func, "Apply the addon-owned undo/redo delta for a step (direction: -1 undo, +1 redo)");
+  RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+  parm = RNA_def_pointer(func, "context", "Context", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "ob", "Object", "", "Object the step applies to");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(func, "state_id", 0, INT_MIN, INT_MAX, "State ID", "", INT_MIN, INT_MAX);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(func, "direction", -1, -1, 1, "Direction", "-1 undo, +1 redo", -1, 1);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "undo_free", nullptr);
+  RNA_def_function_ui_description(func, "Drop the addon-owned state for an evicted undo step");
+  RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+  parm = RNA_def_int(func, "state_id", 0, INT_MIN, INT_MAX, "State ID", "", INT_MIN, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* Registration. */

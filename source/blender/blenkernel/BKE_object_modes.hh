@@ -74,6 +74,17 @@ struct ObjectModeType {
   void (*refresh)(ObjectModeType *mt, bContext *C, Object *ob);
 
   /**
+   * Wrapped (Tier-2) undo, used when the mode sets
+   * #OBJECT_MODE_TYPE_USE_CUSTOM_UNDO. The addon owns the real per-step state
+   * (keyed by an integer id it manages); Blender's undo stack stores just the
+   * id + a truthful byte size. `undo_decode` applies the addon's delta for a
+   * step (`direction`: -1 undo, +1 redo); `undo_free` drops the state. Null
+   * when the registered class does not define them.
+   */
+  void (*undo_decode)(ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction);
+  void (*undo_free)(ObjectModeType *mt, int state_id);
+
+  /**
    * The persistent Python instance of the registered class (one per type,
    * created lazily on the first trampoline call, released at unregister).
    */
@@ -113,6 +124,9 @@ ListBaseT<ObjectModeType> &BKE_object_mode_types_get();
 
 /** True when `ob`'s type is in `mt`'s supported object-type mask. */
 bool BKE_object_mode_type_poll_object(const ObjectModeType *mt, const Object *ob);
+
+/** True when `ob`'s active custom mode opts into the wrapped undo type. */
+bool BKE_object_custom_mode_uses_custom_undo(const Object *ob);
 
 /** Free every registered type (called from WM exit). */
 void BKE_object_mode_types_exit();

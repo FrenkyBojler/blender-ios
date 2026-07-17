@@ -2327,6 +2327,51 @@ void OBJECT_OT_custom_mode_toggle(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Custom Mode Undo Push Operator
+ * \{ */
+
+static wmOperatorStatus object_custom_mode_undo_push_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  if (!BKE_object_custom_mode_uses_custom_undo(ob)) {
+    return OPERATOR_CANCELLED;
+  }
+  char message[256];
+  RNA_string_get(op->ptr, "message", message);
+  const int state_id = RNA_int_get(op->ptr, "state_id");
+  const int size = RNA_int_get(op->ptr, "size");
+  blender::ed::ED_custom_mode_undo_push(C, message[0] ? message : "Custom Mode", state_id, size);
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_custom_mode_undo_push(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Custom Mode Undo Push";
+  ot->idname = "OBJECT_OT_custom_mode_undo_push";
+  ot->description = "Record an undo step handled by the active addon-registered mode";
+
+  /* API callbacks. */
+  ot->exec = object_custom_mode_undo_push_exec;
+  ot->poll = ED_operator_object_active;
+
+  /* No #OPTYPE_UNDO: this operator pushes its own custom undo step. */
+  ot->flag = OPTYPE_INTERNAL;
+
+  PropertyRNA *prop = RNA_def_string(
+      ot->srna, "message", nullptr, 256, "Message", "Name shown in the undo history");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna, "state_id", 0, INT_MIN, INT_MAX, "State ID", "Addon step key", INT_MIN, INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_int(
+      ot->srna, "size", 0, 0, INT_MAX, "Size", "Reported step size in bytes", 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Object Link/Move to Collection Operator
  * \{ */
 
