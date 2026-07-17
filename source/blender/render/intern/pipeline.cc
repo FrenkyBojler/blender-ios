@@ -184,25 +184,28 @@ static bool do_write_image_or_movie(Render *re,
 /* default callbacks, set in each new render */
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
 static void current_scene_nothing(void * /*arg*/, Scene * /*scene*/) {}
-static void stats_nothing(void * /*arg*/, RenderStats * /*rs*/) {}
 static void float_nothing(void * /*arg*/, float /*val*/) {}
 static bool default_break(void * /*arg*/)
 {
   return G.is_break == true;
 }
 
-static void stats_background(void * /*arg*/, RenderStats *rs)
+static void stats_update(void *arg, RenderStats *rs)
 {
   if (rs->infostr == nullptr) {
     return;
   }
+
+  Render *re = static_cast<Render *>(arg);
 
   /* Compositor calls this from multiple threads, mutex lock to ensure we don't
    * get garbled output. */
   static Mutex mutex;
   std::scoped_lock lock(mutex);
 
-  const bool show_info = CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
+  /* Only print render process to stdout when blender is running headless, because the same
+   * progress string will be displayed on the UI. */
+  const bool show_info = G.background && CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
   if (show_info) {
     CLOG_INFO(&LOG, "Fra: %d | %s", rs->cfra, rs->infostr);
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
@@ -211,7 +214,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, rs->infostr, BKE_CB_EVT_RENDER_STATS);
+  render_callback_exec_string(re, G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
 
   if (show_info) {
     fflush(stdout);
@@ -942,12 +945,8 @@ void RE_display_init(Render *re)
   re->display->current_scene_update_cb = current_scene_nothing;
   re->display->progress_cb = float_nothing;
   re->display->test_break_cb = default_break;
-  if (G.background) {
-    re->display->stats_draw_cb = stats_background;
-  }
-  else {
-    re->display->stats_draw_cb = stats_nothing;
-  }
+  re->display->stats_draw_cb = stats_update;
+  re->display->sdh = re;
 }
 
 void RE_display_ensure_gpu_context(Render *re)
@@ -1285,12 +1284,12 @@ static void do_render_compositor(Render *re)
         compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         for (RenderView &rv : re->result->views) {
           RE_compositor_execute(*re,
+                                *re->main,
                                 *re->pipeline_scene_eval,
                                 re->r,
                                 *ntree,
                                 rv.name,
                                 &compositor_render_context,
-                                nullptr,
                                 needed_outputs);
         }
         compositor_render_context.save_file_outputs(re->pipeline_scene_eval);
@@ -1680,6 +1679,35 @@ static bool is_compositing_possible_on_gpu(Scene *scene, ReportList *reports)
   if (width > 8192 || height > 8192) {
     BKE_report(reports, RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
     return false;
+  }
+
+  return true;
+}
+
+bool RE_disable_save_output_allowed(const bool is_animation, Scene &scene, ReportList *reports)
+{
+  const bool save_output = (scene.r.mode & R_SAVE_OUTPUT) != 0;
+  const bool do_compositing = (scene.r.scemode & R_DOCOMP) != 0;
+  const bool do_sequencer = RE_seq_render_active(&scene, &scene.r);
+
+  if (is_animation && do_sequencer && !save_output) {
+    BKE_report(reports, RPT_ERROR, "Render output disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && !do_compositing) {
+    BKE_report(reports, RPT_ERROR, "Render output and compositing disabled in Output properties");
+    return false;
+  }
+
+  if (is_animation && !save_output && do_compositing) {
+    if (!bke::compositor::node_tree_has_linked_file_output(scene.compositing_node_group)) {
+      BKE_report(reports,
+                 RPT_ERROR,
+                 "Render output disabled in Output properties and no active compositing File "
+                 "Output nodes");
+      return false;
+    }
   }
 
   return true;
@@ -2673,7 +2701,7 @@ void RE_layer_load_from_file(
   }
 
   /* OCIO_TODO: assume layer was saved in default color space */
-  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, IB_byte_data);
+  ImBuf *ibuf = IMB_load_image_from_filepath(filepath, ImBufFlags::ByteData);
   RenderPass *rpass = nullptr;
 
   /* multi-view: since the API takes no 'view', we use the first combined pass found */
@@ -2697,9 +2725,7 @@ void RE_layer_load_from_file(
         IMB_float_from_byte(ibuf);
       }
 
-      memcpy(rpass->ibuf->float_data_for_write(),
-             ibuf->float_data(),
-             sizeof(float[4]) * layer->rectx * layer->recty);
+      rpass->ibuf->float_buffer = ibuf->float_buffer;
     }
     else {
       if ((ibuf->x - x >= layer->rectx) && (ibuf->y - y >= layer->recty)) {

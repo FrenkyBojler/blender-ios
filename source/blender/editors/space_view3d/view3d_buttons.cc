@@ -1869,7 +1869,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
     vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, subset_type, &vgroup_tot, &subset_count);
     const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
-    const int vgroup_num = BLI_listbase_count(defbase);
+    const int vgroup_num = defbase->count();
     tfp->vertex_weights.resize(vgroup_num);
 
     for (i = 0, dg = static_cast<bDeformGroup *>(defbase->first); dg; i++, dg = dg->next) {
@@ -2537,13 +2537,13 @@ static void handle_curves_fill_opacity(bContext *C, void *, void *)
          const IndexMask &selection,
          bke::CurvesGeometry &curves) {
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-        bke::SpanAttributeWriter<float> fill_opacity =
-            attributes.lookup_or_add_for_write_span<float>(
-                "fill_opacity",
-                bke::AttrDomain::Curve,
-                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
-        index_mask::masked_fill(fill_opacity.span, modified_state.fill_opacity, selection);
-        fill_opacity.finish();
+        if (bke::SpanAttributeWriter<float> fill_opacity =
+                attributes.lookup_or_add_for_write_span<float>(
+                    "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
+        {
+          index_mask::masked_fill(fill_opacity.span, modified_state.fill_opacity, selection);
+          fill_opacity.finish();
+        }
       });
 }
 
@@ -2627,17 +2627,18 @@ static void knot_modes_menu(bContext * /*C*/, ui::Layout *layout, void *knot_mod
   layout->column(false);
 
   for (const EnumPropertyItem &item : enum_curve_knot_mode_items) {
-    uiDefButV(block,
-              ui::ButtonType::ButMenu,
-              CTX_IFACE_(BLT_I18NCONTEXT_ID_GPENCIL, item.name),
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_Y,
-              reinterpret_cast<int *>(knot_mode_p),
-              item.value,
-              0.0,
-              "");
+    ui::Button *but = uiDefButV(block,
+                                ui::ButtonType::ButMenu,
+                                CTX_IFACE_(BLT_I18NCONTEXT_ID_GPENCIL, item.name),
+                                0,
+                                0,
+                                UI_UNIT_X * 5,
+                                UI_UNIT_Y,
+                                reinterpret_cast<int *>(knot_mode_p),
+                                0.0,
+                                0.0,
+                                "");
+    button_enum_prop_value_set(but, item.value);
   }
 }
 
@@ -2653,17 +2654,18 @@ static void grease_pencil_cap_menu(bContext * /*C*/, ui::Layout *layout, void *c
   layout->column(false);
 
   for (const EnumPropertyItem &item : enum_grease_pencil_cap_items) {
-    uiDefButV(block,
-              ui::ButtonType::ButMenu,
-              CTX_IFACE_(BLT_I18NCONTEXT_ID_GPENCIL, item.name),
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_Y,
-              reinterpret_cast<int *>(cap_type_p),
-              item.value,
-              0.0,
-              "");
+    ui::Button *but = uiDefButV(block,
+                                ui::ButtonType::ButMenu,
+                                CTX_IFACE_(BLT_I18NCONTEXT_ID_GPENCIL, item.name),
+                                0,
+                                0,
+                                UI_UNIT_X * 5,
+                                UI_UNIT_Y,
+                                reinterpret_cast<int *>(cap_type_p),
+                                0.0,
+                                0.0,
+                                "");
+    button_enum_prop_value_set(but, item.value);
   }
 }
 

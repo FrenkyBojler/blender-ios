@@ -2370,7 +2370,7 @@ static int pyrna_prop_collection_bool(BPy_PropertyRNA *self)
   (void)0
 
 /**
- * \param result: The result of calling a subscription operation on a collection (never nullptr).
+ * \param value: The result of calling a subscription operation on a collection (never nullptr).
  */
 static int pyrna_prop_collection_subscript_is_valid_or_error(const PyObject *value)
 {
@@ -4638,7 +4638,7 @@ static PyObject *pyrna_struct_dir(BPy_StructRNA *self)
       PyList_APPEND(ret, PyUnicode_FromString(static_cast<const char *>(link.data)));
     }
 
-    BLI_freelistN(&lb);
+    lb.free_no_destruct();
   }
 
   {
@@ -5412,7 +5412,9 @@ static PyObject *pyrna_struct_get_id_data(BPy_DummyPointerRNA *self, void * /*cl
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_struct_get_data_doc,
-    "The data this property is using, *type* :class:`bpy.types.bpy_struct`");
+    "The data this property is using, (readonly)\n"
+    "\n"
+    ":type: :class:`bpy.types.bpy_struct`\n");
 static PyObject *pyrna_struct_get_data(BPy_DummyPointerRNA *self, void * /*closure*/)
 {
   return pyrna_struct_CreatePyObject(&self->ptr.value());
@@ -5421,7 +5423,9 @@ static PyObject *pyrna_struct_get_data(BPy_DummyPointerRNA *self, void * /*closu
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_struct_get_rna_type_doc,
-    "The property type for introspection.");
+    "The property type for introspection.\n"
+    "\n"
+    ":type: :class:`bpy.types.Property`\n");
 static PyObject *pyrna_struct_get_rna_type(BPy_PropertyRNA *self, void * /*closure*/)
 {
   PointerRNA tptr = RNA_pointer_create_discrete(nullptr, RNA_Property, self->prop);
@@ -8917,7 +8921,7 @@ void BPY_update_rna_module()
 }
 
 #if 0
-/* This is a way we can access doc-strings for RNA types
+/* This is a way we can access docstrings for RNA types
  * without having the data-types in Blender. */
 PyObject *BPY_rna_doc()
 {
@@ -10297,6 +10301,8 @@ void BPY_free_srna_pytype(StructRNA *srna)
   }
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name RNA Class Register Method
  * \{ */
@@ -10479,7 +10485,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
                  bpy_class_call,
                  bpy_class_free);
 
-  if (!BLI_listbase_is_empty(&reports.list)) {
+  if (!reports.list.is_empty()) {
     const bool has_error = (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1);
     if (!has_error) {
       BKE_report_print_level_set(&reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);

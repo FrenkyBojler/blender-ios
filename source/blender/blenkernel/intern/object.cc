@@ -221,7 +221,7 @@ static void object_copy_data(Main *bmain,
     ob_dst->iuser = MEM_dupalloc(ob_src->iuser);
   }
 
-  BLI_listbase_clear(&ob_dst->shader_fx);
+  ob_dst->shader_fx.clear_no_delete();
   for (ShaderFxData &fx : ob_src->shader_fx) {
     ShaderFxData *nfx = BKE_shaderfx_new(fx.type);
     STRNCPY(nfx->name, fx.name);
@@ -248,13 +248,13 @@ static void object_copy_data(Main *bmain,
   }
   BKE_rigidbody_object_copy(bmain, ob_dst, ob_src, flag_subdata);
 
-  BLI_listbase_clear(&ob_dst->modifiers);
-  BLI_listbase_clear(&ob_dst->greasepencil_modifiers);
+  ob_dst->modifiers.clear_no_delete();
+  ob_dst->greasepencil_modifiers.clear_no_delete();
   /* NOTE: Also takes care of soft-body and particle systems copying. */
   BKE_object_modifier_stack_copy(ob_dst, ob_src, true, flag_subdata);
   BLI_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
 
-  BLI_listbase_clear(&ob_dst->pc_ids);
+  ob_dst->pc_ids.clear_no_delete();
 
   ob_dst->avs = ob_src->avs;
   ob_dst->mpath = animviz_copy_motionpath(ob_src->mpath);
@@ -319,7 +319,7 @@ static void object_free_data(ID *id)
 
   BKE_sculptsession_free(ob);
 
-  BLI_freelistN(&ob->pc_ids);
+  ob->pc_ids.free_no_destruct();
 
   /* Free runtime curves data. */
   if (ob->runtime->curve_cache) {
@@ -656,7 +656,7 @@ static void object_foreach_cache(ID *id,
 {
   Object *ob = reinterpret_cast<Object *>(id);
   for (ModifierData &md : ob->modifiers) {
-    if (const ModifierTypeInfo *info = BKE_modifier_get_info(ModifierType(md.type))) {
+    if (const ModifierTypeInfo *info = BKE_modifier_get_info(md.type)) {
       if (info->foreach_cache) {
         info->foreach_cache(ob, &md, [&](const IDCacheKey &cache_key, void **cache_p, uint flags) {
           function_callback(id, &cache_key, cache_p, flags, user_data);
@@ -681,7 +681,7 @@ static void object_foreach_working_space_color(ID *id,
   }
 
   for (ModifierData &md : ob->modifiers) {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md.type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md.type);
     if (mti && mti->foreach_working_space_color) {
       mti->foreach_working_space_color(&md, fn);
     }
@@ -898,8 +898,9 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, bDeformGroup, &ob->defbase);
   BLO_read_struct_list(reader, bFaceMap, &ob->fmaps);
 
-  BLO_read_pointer_array(reader, ob->totcol, reinterpret_cast<void **>(&ob->mat));
-  BLO_read_char_array(reader, ob->totcol, &ob->matbits);
+  BLO_read_pointer_array_and_validate_size(reader, &ob->mat, &ob->totcol);
+  /* Ignore failure to read, matbis will become null which is valid. */
+  (void)BLO_read_array(reader, &ob->matbits, ob->totcol);
 
   /* do it here, below old data gets converted */
   BKE_modifier_blend_read_data(reader, &ob->modifiers, ob);
@@ -972,7 +973,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     sb->scratch = nullptr;
     /* although not used anymore */
     /* still have to be loaded to be compatible with old files */
-    BLO_read_pointer_array(reader, sb->totkey, reinterpret_cast<void **>(&sb->keys));
+    BLO_read_pointer_array_and_validate_size(reader, &sb->keys, &sb->totkey);
     if (sb->keys) {
       for (int a = 0; a < sb->totkey; a++) {
         BLO_read_struct(reader, SBVertex, &sb->keys[a]);
@@ -1021,7 +1022,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
     HookModifierData *hmd = reinterpret_cast<HookModifierData *>(
         BKE_modifier_new(eModifierType_Hook));
 
-    BLO_read_int32_array(reader, hook->totindex, &hook->indexar);
+    BLO_read_array_and_validate_size(reader, &hook->indexar, &hook->totindex);
 
     /* Do conversion here because if we have loaded
      * a hook we need to make sure it gets converted
@@ -1074,6 +1075,8 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   if (ob->lightprobe_cache) {
     BKE_lightprobe_cache_blend_read(reader, ob->lightprobe_cache);
   }
+
+  BKE_object_material_active_index_sanitize(ob);
 }
 
 static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
@@ -1216,8 +1219,8 @@ static void object_lib_override_apply_post(ID *id_dst, ID *id_src)
       }
     }
   }
-  BLI_freelistN(&pidlist_dst);
-  BLI_freelistN(&pidlist_src);
+  pidlist_dst.free_no_destruct();
+  pidlist_src.free_no_destruct();
 }
 
 static IDProperty *object_asset_dimensions_property(Object *ob)
@@ -1251,7 +1254,7 @@ static AssetTypeInfo AssetType_OB = {
 IDTypeInfo IDType_ID_OB = {
     .id_code = Object::id_type,
     .id_filter = FILTER_ID_OB,
-    /* Could be more specific, but simpler to just always say 'yes' here.*/
+    /* Could be more specific, but simpler to just always say 'yes' here. */
     .dependencies_id_types = FILTER_ID_ALL,
     .main_listbase_index = INDEX_ID_OB,
     .struct_size = sizeof(Object),
@@ -1438,7 +1441,8 @@ bool BKE_object_supports_modifiers(const Object *ob)
               OB_LATTICE,
               OB_POINTCLOUD,
               OB_VOLUME,
-              OB_GREASE_PENCIL);
+              OB_GREASE_PENCIL,
+              OB_EMPTY);
 }
 
 bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
@@ -1450,6 +1454,10 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
     return false;
   }
 
+  /* Empties only support geometry nodes modifiers. */
+  if (ob->type == OB_EMPTY) {
+    return modifier_type == eModifierType_Nodes;
+  }
   if (ELEM(ob->type, OB_POINTCLOUD, OB_CURVES)) {
     return ELEM(modifier_type, eModifierType_Nodes, eModifierType_MeshSequenceCache);
   }
@@ -1521,8 +1529,8 @@ ModifierData *BKE_object_copy_modifier(Main *bmain,
                                        const Object *ob_src,
                                        const ModifierData *md_src)
 {
-  const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md_src->type));
-  if (!object_modifier_type_copy_check(ModifierType(md_src->type))) {
+  const ModifierTypeInfo *mti = BKE_modifier_get_info(md_src->type);
+  if (!object_modifier_type_copy_check(md_src->type)) {
     /* We never allow copying those modifiers here. */
     return nullptr;
   }
@@ -1530,7 +1538,7 @@ ModifierData *BKE_object_copy_modifier(Main *bmain,
     return nullptr;
   }
   if (mti->flags & eModifierTypeFlag_Single) {
-    if (BKE_modifiers_findby_type(ob_dst, ModifierType(md_src->type)) != nullptr) {
+    if (BKE_modifiers_findby_type(ob_dst, md_src->type) != nullptr) {
       return nullptr;
     }
   }
@@ -1625,9 +1633,7 @@ bool BKE_object_modifier_stack_copy(Object *ob_dst,
                                     const bool do_copy_all,
                                     const int flag_subdata)
 {
-  if (!BLI_listbase_is_empty(&ob_dst->modifiers) ||
-      !BLI_listbase_is_empty(&ob_dst->greasepencil_modifiers))
-  {
+  if (!ob_dst->modifiers.is_empty() || !ob_dst->greasepencil_modifiers.is_empty()) {
     BLI_assert_msg(
         false,
         "Trying to copy a modifier stack into an object having a non-empty modifier stack.");
@@ -1635,7 +1641,7 @@ bool BKE_object_modifier_stack_copy(Object *ob_dst,
   }
 
   for (ModifierData &md_src : ob_src->modifiers) {
-    if (!do_copy_all && !object_modifier_type_copy_check(ModifierType(md_src.type))) {
+    if (!do_copy_all && !object_modifier_type_copy_check(md_src.type)) {
       continue;
     }
     if (!BKE_object_support_modifier_type_check(ob_dst, md_src.type)) {
@@ -2386,8 +2392,8 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int f
   psysn->bvhtree = nullptr;
   psysn->batch_cache = nullptr;
 
-  BLI_listbase_clear(&psysn->pathcachebufs);
-  BLI_listbase_clear(&psysn->childcachebufs);
+  psysn->pathcachebufs.clear_no_delete();
+  psysn->childcachebufs.clear_no_delete();
 
   if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
     /* XXX Disabled, fails when evaluating depsgraph after copying ID with no main for preview
@@ -2420,7 +2426,7 @@ void BKE_object_copy_particlesystems(Object *ob_dst, const Object *ob_src, const
     return;
   }
 
-  BLI_listbase_clear(&ob_dst->particlesystem);
+  ob_dst->particlesystem.clear_no_delete();
   for (ParticleSystem &psys : ob_src->particlesystem) {
     ParticleSystem *npsys = BKE_object_copy_particlesystem(&psys, flag);
 
@@ -3227,10 +3233,8 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
   }
   else {
     copy_m4_m4(r_mat, pchan->pose_mat);
-
-    /* but for backwards compatibility, the child has to move to the tail */
     copy_v3_v3(vec, r_mat[1]);
-    mul_v3_fl(vec, pchan_bone->length);
+    mul_v3_fl(vec, pchan_bone->length * ob->parent_bone_head_tail_factor);
     add_v3_v3(r_mat[3], vec);
   }
 }
@@ -3565,6 +3569,7 @@ float4x4 BKE_object_calc_parent(Depsgraph *depsgraph, Scene *scene, Object *ob)
   workob.par1 = ob->par1;
   workob.par2 = ob->par2;
   workob.par3 = ob->par3;
+  workob.parent_bone_head_tail_factor = ob->parent_bone_head_tail_factor;
 
   /* The effects of constraints should NOT be included in the parent-inverse matrix. Constraints
    * are supposed to be applied after the object's local loc/rot/scale. If the (inverted) effect of
@@ -4038,6 +4043,15 @@ void BKE_object_foreach_display_point(Object *ob,
       }
     }
   }
+  else if (ob->type == OB_POINTCLOUD) {
+    PointCloud &pointcloud = *id_cast<PointCloud *>(ob->data);
+    const Span<float3> positions = pointcloud.positions();
+    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
+      for (const int i : range) {
+        func_cb(math::transform_point(float4x4(obmat), positions[i]), user_data);
+      }
+    });
+  }
 }
 
 void BKE_scene_foreach_display_point(Depsgraph *depsgraph,
@@ -4162,16 +4176,16 @@ void BKE_object_protected_scale_set(Object *ob, const float scale[3])
 
 void BKE_object_protected_rotation_quaternion_set(Object *ob, const float quat[4])
 {
-  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
     ob->quat[0] = quat[0];
   }
-  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTX) == 0) {
     ob->quat[1] = quat[1];
   }
-  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTY) == 0) {
     ob->quat[2] = quat[2];
   }
-  if ((ob->protectflag & OB_LOCK_ROTW) == 0) {
+  if ((ob->protectflag & OB_LOCK_ROTZ) == 0) {
     ob->quat[3] = quat[3];
   }
 }
@@ -4269,7 +4283,7 @@ void BKE_object_sculpt_data_create(Object *ob)
 {
   BLI_assert((ob->runtime->sculpt_session == nullptr) && (ob->mode & OB_MODE_ALL_SCULPT));
   ob->runtime->sculpt_session = MEM_new<SculptSession>(__func__);
-  ob->runtime->sculpt_session->mode_type = eObjectMode(ob->mode);
+  ob->runtime->sculpt_session->mode_type = ob->mode;
 }
 
 bool BKE_object_obdata_texspace_get(Object *ob,
@@ -4769,7 +4783,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   MEM_delete(kb);
 
   /* Unset active when all are freed. */
-  if (BLI_listbase_is_empty(&key->block)) {
+  if (key->block.is_empty()) {
     ob->shapenr = 0;
   }
   else if (ob->shapenr > 1) {
@@ -4865,7 +4879,7 @@ bool BKE_object_moves_in_time(const Object *object, bool recurse_parent)
   if (BKE_animdata_id_is_animated(&object->id)) {
     return true;
   }
-  if (!BLI_listbase_is_empty(&object->constraints)) {
+  if (!object->constraints.is_empty()) {
     return true;
   }
   if (recurse_parent && object->parent != nullptr) {
@@ -4884,7 +4898,7 @@ static bool object_deforms_in_time(Object *object)
   if (BKE_key_from_object(object) != nullptr) {
     return true;
   }
-  if (!BLI_listbase_is_empty(&object->modifiers)) {
+  if (!object->modifiers.is_empty()) {
     return true;
   }
   return object_moves_in_time(object);
@@ -4981,7 +4995,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
        md && (flag != (eModifierMode_Render | eModifierMode_Realtime));
        md = md->next)
   {
-    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
     bool can_deform = mti->type == ModifierTypeType::OnlyDeform || is_modifier_animated;
 
     if (!can_deform) {
@@ -5415,7 +5429,7 @@ static void object_cacheIgnoreClear(Object *ob, const bool state)
     }
   }
 
-  BLI_freelistN(&pidlist);
+  pidlist.free_no_destruct();
 }
 
 struct ObjectModifierUpdateContext {

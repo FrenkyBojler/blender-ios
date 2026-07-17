@@ -56,10 +56,9 @@ set(SRC
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
   intern/bake_geometry_nodes_modifier_pack.cc
-  intern/bake_items.cc
   intern/bake_items_paths.cc
   intern/bake_items_serialize.cc
-  intern/bake_items_socket.cc
+  intern/bake_values.cc
   intern/blender.cc
   intern/blender_cli_command.cc
   intern/blender_copybuffer.cc
@@ -228,8 +227,8 @@ set(SRC
   intern/node_enum_definition.cc
   intern/node_runtime.cc
   intern/node_socket_value.cc
+  intern/node_socket_value_iter.cc
   intern/node_tree_dot_export.cc
-  intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
   intern/node_tree_reference_lifetimes.cc
   intern/node_tree_structure_type_inferencing.cc
@@ -330,6 +329,7 @@ set(SRC
   BKE_asset_edit.hh
   BKE_attribute.h
   BKE_attribute.hh
+  BKE_attribute_enums.hh
   BKE_attribute_filter.hh
   BKE_attribute_filters.hh
   BKE_attribute_legacy_convert.hh
@@ -341,10 +341,9 @@ set(SRC
   BKE_bake_data_block_map.hh
   BKE_bake_geometry_nodes_modifier.hh
   BKE_bake_geometry_nodes_modifier_pack.hh
-  BKE_bake_items.hh
   BKE_bake_items_paths.hh
   BKE_bake_items_serialize.hh
-  BKE_bake_items_socket.hh
+  BKE_bake_values.hh
   BKE_blender.hh
   BKE_blender_cli_command.hh
   BKE_blender_copybuffer.hh
@@ -476,6 +475,7 @@ set(SRC
   BKE_node_runtime.hh
   BKE_node_socket_value.hh
   BKE_node_socket_value_fwd.hh
+  BKE_node_socket_value_iter.hh
   BKE_node_tree_dot_export.hh
   BKE_node_tree_interface.hh
   BKE_node_tree_interface_convert.hh
@@ -586,6 +586,7 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::imbuf::opencolorio
   PRIVATE bf::intern::clog
+  PUBLIC bf::intern::profile
   bf_intern_ghost
   PRIVATE bf::intern::guardedalloc
   PUBLIC bf::intern::optional::openvdb  # Contains intern-openvdb items in public headers
@@ -753,6 +754,7 @@ if(WITH_GTESTS)
     intern/armature_test.cc
     intern/asset_metadata_test.cc
     intern/attribute_storage_test.cc
+    intern/bake_items_serialize_test.cc
     intern/bpath_test.cc
     intern/brush_test.cc
     intern/cryptomatte_test.cc
@@ -773,7 +775,9 @@ if(WITH_GTESTS)
     intern/lib_query_test.cc
     intern/lib_remap_test.cc
     intern/main_test.cc
+    intern/main_namemap_test.cc
     intern/nla_test.cc
+    intern/node_socket_value_iter_test.cc
     intern/path_templates_test.cc
     intern/scene_test.cc
     intern/subdiv_ccg_test.cc

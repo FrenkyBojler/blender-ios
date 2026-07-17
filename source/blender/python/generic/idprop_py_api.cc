@@ -253,6 +253,12 @@ static int BPy_IDGroup_SetData(BPy_IDProperty *self, IDProperty *prop, PyObject 
 }
 #endif
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_IDGroup_GetName_doc,
+    "The name of this Group.\n"
+    "\n"
+    ":type: str\n");
 static PyObject *BPy_IDGroup_GetName(BPy_IDProperty *self, void * /*closure*/)
 {
   return PyUnicode_FromString(self->prop->name);
@@ -299,7 +305,7 @@ static PyGetSetDef BPy_IDGroup_getseters[] = {
     {"name",
      reinterpret_cast<getter>(BPy_IDGroup_GetName),
      reinterpret_cast<setter>(BPy_IDGroup_SetName),
-     "The name of this Group.",
+     BPy_IDGroup_GetName_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr},
 };
@@ -2118,7 +2124,11 @@ PyDoc_STRVAR(
     /* Wrap. */
     BPy_IDGroup_Type_doc,
     "A dictionary-like group of ID properties, "
-    "supporting key access, iteration, and membership testing.");
+    "supporting key access, iteration, and membership testing.\n"
+    "\n"
+    ".. note::\n"
+    "\n"
+    "   Only supports a maximum of 1024 levels of nesting.");
 
 PyTypeObject BPy_IDGroup_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
@@ -2210,7 +2220,9 @@ PyDoc_STRVAR(
     BPy_IDArray_get_typecode_doc,
     "The type of the data in the array "
     "{'f': float (32-bit), 'd': double (64-bit), 'i': int, 'b': bool}. "
-    "Both 'f' and 'd' use Python's :class:`float` type but differ in storage precision.");
+    "Both 'f' and 'd' use Python's :class:`float` type but differ in storage precision.\n"
+    "\n"
+    ":type: Literal['f', 'd', 'i', 'b']\n");
 static PyObject *BPy_IDArray_get_typecode(BPy_IDArray *self, void * /*closure*/)
 {
   const char *typecode;

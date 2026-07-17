@@ -76,6 +76,14 @@ bool ED_space_clip_view_clip_poll(bContext *C)
 
   return false;
 }
+bool ED_space_clip_view_clip_with_region_poll(bContext *C)
+{
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    return false;
+  }
+  return ED_space_clip_view_clip_poll(C);
+}
 
 bool ED_space_clip_tracking_poll(bContext *C)
 {
@@ -856,7 +864,8 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
   while ((mem = prefetch_thread_next_frame(queue, clip, &size, &current_frame))) {
     ImBuf *ibuf;
     MovieClipUser user = {};
-    int flag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
+    ImBufFlags flag = ImBufFlags::ByteData | ImBufFlags::MultiLayer | ImBufFlags::AlphaDetect |
+                      ImBufFlags::Metadata;
     int result;
     char *colorspace_name = nullptr;
     const bool use_proxy = (clip->flag & MCLIP_USE_PROXY) &&

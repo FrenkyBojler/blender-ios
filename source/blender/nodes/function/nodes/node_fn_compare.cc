@@ -37,7 +37,8 @@ NODE_STORAGE_FUNCS(NodeFunctionCompare)
 
 static bool is_supported_data_block_type(const eNodeSocketDatatype data_type)
 {
-  return ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_FONT, SOCK_SOUND);
+  return ELEM(
+      data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL, SOCK_FONT, SOCK_SOUND);
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -48,7 +49,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (node != nullptr) {
     const NodeFunctionCompare &storage = node_storage(*node);
     const NodeCompareOperation operation = NodeCompareOperation(storage.operation);
-    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
+    const eNodeSocketDatatype data_type = storage.data_type;
     const NodeCompareMode mode = NodeCompareMode(storage.mode);
 
     const bool type_is_float = ELEM(data_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
@@ -160,7 +161,7 @@ static std::optional<eNodeSocketDatatype> get_compare_type_for_operation(
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
+  const eNodeSocketDatatype type = params.other_socket().type;
   if (!ELEM(type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_STRING) &&
       !is_supported_data_block_type(type))
   {
@@ -218,6 +219,8 @@ static auto to_static_data_block_type(const eNodeSocketDatatype socket_type, Fn 
       return fn.template operator()<Image>();
     case SOCK_COLLECTION:
       return fn.template operator()<Collection>();
+    case SOCK_MATERIAL:
+      return fn.template operator()<Material>();
     case SOCK_FONT:
       return fn.template operator()<VFont>();
     case SOCK_SOUND:
@@ -236,7 +239,7 @@ static bool data_blocks_are_equal(const ID *a, const ID *b)
 static const mf::MultiFunction *get_multi_function(const bNode &node)
 {
   const NodeFunctionCompare *data = (NodeFunctionCompare *)node.storage;
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(data->data_type);
+  const eNodeSocketDatatype data_type = data->data_type;
 
   static auto exec_preset_all = mf::build::exec_presets::AllSpanOrSingle();
   static auto exec_preset_first_two = mf::build::exec_presets::SomeSpanOrSingle<0, 1>();
@@ -707,7 +710,7 @@ static void data_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
     node_storage->operation = NODE_COMPARE_EQUAL;
   }
   else if ((node_storage->data_type == SOCK_STRING ||
-            is_supported_data_block_type(eNodeSocketDatatype(node_storage->data_type))) &&
+            is_supported_data_block_type(node_storage->data_type)) &&
            !ELEM(node_storage->operation, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL))
   {
     node_storage->operation = NODE_COMPARE_EQUAL;
@@ -785,7 +788,7 @@ static void node_rna(StructRNA *srna)
                                                  NODE_COMPARE_COLOR_DARKER);
                                    });
         }
-        if (is_supported_data_block_type(eNodeSocketDatatype(data->data_type))) {
+        if (is_supported_data_block_type(data->data_type)) {
           return enum_items_filter(
               rna_enum_node_compare_operation_items, [](const EnumPropertyItem &item) {
                 return ELEM(item.value, NODE_COMPARE_EQUAL, NODE_COMPARE_NOT_EQUAL);

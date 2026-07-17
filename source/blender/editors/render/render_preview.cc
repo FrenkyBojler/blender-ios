@@ -697,7 +697,7 @@ static bool ed_preview_draw_rect(
 
   RE_AcquireResultImageViews(re, &rres);
 
-  if (!BLI_listbase_is_empty(&rres.views)) {
+  if (!rres.views.is_empty()) {
     /* material preview only needs monoscopy (view 0) */
     rv = RE_RenderViewGetById(&rres, 0);
   }
@@ -920,7 +920,7 @@ static void object_preview_render(const PreviewImage *prv_img,
                                                       DEG_get_evaluated(depsgraph, scene->camera),
                                                       prv_img->w[icon_size],
                                                       prv_img->h[icon_size],
-                                                      IB_byte_data,
+                                                      ImBufFlags::ByteData,
                                                       V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS,
                                                       R_ALPHAPREMUL,
                                                       nullptr,
@@ -1038,7 +1038,7 @@ static void action_preview_render(const PreviewImage *prv_img,
                                                       camera_eval,
                                                       prv_img->w[icon_size],
                                                       prv_img->h[icon_size],
-                                                      IB_byte_data,
+                                                      ImBufFlags::ByteData,
                                                       V3D_OFSDRAW_NONE,
                                                       R_ADDSKY,
                                                       nullptr,
@@ -1100,7 +1100,7 @@ static void scene_preview_render(const PreviewImage *prv_img,
                                                       camera_eval,
                                                       prv_img->w[icon_size],
                                                       prv_img->h[icon_size],
-                                                      IB_byte_data,
+                                                      ImBufFlags::ByteData,
                                                       V3D_OFSDRAW_NONE,
                                                       R_ADDSKY,
                                                       nullptr,
@@ -1162,9 +1162,7 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
   RenderResult *rr = RE_AcquireResultWrite(re);
   RenderView *rv = static_cast<RenderView *>(rr->views.first);
   ImBuf *rv_ibuf = RE_RenderViewEnsureImBuf(rr, rv);
-  IMB_assign_float_buffer(rv_ibuf,
-                          MEM_new_array_zeroed<float>(4 * width * height, "texture render result"),
-                          IB_TAKE_OWNERSHIP);
+  rv_ibuf->assign_float_data(MEM_new_array_zeroed<float>(size_t(4) * width * height, __func__));
   RE_ReleaseResult(re);
 
   /* Get texture image pool (if any) */
@@ -2148,7 +2146,7 @@ bool ED_preview_use_image_size(const PreviewImage *preview, eIconSizes size)
   return size == ICON_SIZE_PREVIEW && preview->runtime->deferred_loading_data;
 }
 
-bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
+bool ED_preview_id_render_is_supported(const ID *id, const char **r_disabled_hint)
 {
   if (id == nullptr) {
     return false;
@@ -2173,9 +2171,23 @@ bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
                 RPT_("Scenes without a camera do not support previews")};
       case ID_BR:
         return {false, RPT_("Brushes do not support automatic previews")};
+      case ID_MA:
+        return {true, ""};
+      case ID_TE:
+        return {true, ""};
+      case ID_WO:
+        return {true, ""};
+      case ID_LA:
+        return {true, ""};
+      case ID_IM:
+        return {true, ""};
+      case ID_AC:
+        return {true, ""};
+      case ID_SCR:
+        return {false, RPT_("Screens do not support automatic previews")};
       default:
-        return {BKE_previewimg_id_get_p(id) != nullptr,
-                RPT_("Data-block type does not support automatic previews")};
+        BLI_assert(!BKE_previewimg_id_get_p(id));
+        return {false, RPT_("Data-block type does not support automatic previews")};
     }
   }();
 
@@ -2197,6 +2209,11 @@ void ED_preview_icon_render(
     }
 
     PreviewLoadJob::load_jobless(prv_img, icon_size);
+    return;
+  }
+
+  /* Check if the ID supports the auto-generated previews at all. */
+  if (!ED_preview_id_render_is_supported(id)) {
     return;
   }
 
@@ -2252,7 +2269,7 @@ void ED_preview_icon_job(
   }
 
   /* Check if the ID supports the auto-generated previews at all. */
-  if (!ED_preview_id_is_supported(id)) {
+  if (!ED_preview_id_render_is_supported(id)) {
     return;
   }
 

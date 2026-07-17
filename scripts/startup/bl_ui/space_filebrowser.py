@@ -450,7 +450,7 @@ class FILEBROWSER_PT_directory_path(Panel):
 
         subsubrow = subrow.row()
         subsubrow.operator_context = 'EXEC_DEFAULT'
-        subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="")
+        subsubrow.operator("file.directory_new", icon='NEWFOLDER', text="").confirm = False
 
         subrow.template_file_select_path(params)
 
@@ -563,7 +563,7 @@ class FILEBROWSER_MT_context_menu(FileBrowserMenu, Menu):
 
         sub = layout.row()
         sub.operator_context = 'EXEC_DEFAULT'
-        sub.operator("file.directory_new", text="New Folder")
+        sub.operator("file.directory_new", text="New Folder").confirm = False
         layout.operator("file.bookmark_add", text="Add Bookmark")
 
         layout.separator()
@@ -646,7 +646,10 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
                     row.prop(filter_id, identifier, toggle=False)
 
         if use_remote_asset_libraries:
-            layout.prop(params, "show_online_assets", text="Online Assets")
+            col = layout.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(params, "asset_access", text="Access")
 
 
 class AssetBrowserMenu:
@@ -665,6 +668,7 @@ class ASSETBROWSER_MT_editor_menus(AssetBrowserMenu, Menu):
 
         layout.menu("ASSETBROWSER_MT_view")
         layout.menu("ASSETBROWSER_MT_select")
+        layout.menu("ASSETBROWSER_MT_library")
         layout.menu("ASSETBROWSER_MT_catalog")
 
 
@@ -702,6 +706,16 @@ class ASSETBROWSER_MT_select(AssetBrowserMenu, Menu):
         layout.separator()
 
         layout.operator("file.select_box")
+
+
+class ASSETBROWSER_MT_library(AssetBrowserMenu, Menu):
+    bl_label = "Library"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("asset.library_refresh", text="Refresh")
+        layout.operator("asset.library_reload_listing", text="Refresh Remote Listing")
 
 
 class ASSETBROWSER_MT_catalog(AssetBrowserMenu, Menu):
@@ -800,6 +814,43 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         self.metadata_prop(layout, metadata, "author")
 
 
+class ASSETBROWSER_PT_import(asset_utils.AssetMetaDataPanel, Panel):
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Import"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        if not asset_utils.AssetMetaDataPanel.poll(context):
+            return False
+
+        metadata = context.asset.metadata
+        is_editable = not metadata.is_property_readonly("use_preferred_import_method")
+
+        # Hide the import options when the import method cannot be edited and isn't used. Otherwise
+        # show them.
+        return is_editable or metadata.use_preferred_import_method
+
+    def draw(self, context):
+        layout = self.layout
+        metadata = context.asset.metadata
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        heading = "Preferred Method"
+        if metadata.is_property_readonly("use_preferred_import_method"):
+            # Don't show the checkbox when the metadata cannot be edited. We only show the preferred
+            # import method as indicator to the user in that case.
+            layout.prop(metadata, "preferred_import_method", text=heading)
+        else:
+            row = layout.row(align=True, heading=heading)
+            row.prop(metadata, "use_preferred_import_method", text="")
+            sub = row.row(align=True)
+            sub.active = metadata.use_preferred_import_method
+            sub.prop(metadata, "preferred_import_method", text="")
+
+
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
     bl_label = "Preview"
 
@@ -869,10 +920,11 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         params = st.params
 
         if bpy.ops.asset.assets_download.poll():
-            layout.operator("asset.assets_download")
+            layout.operator("asset.assets_download", icon='DOWNLOAD')
             layout.separator()
 
         layout.operator("asset.library_refresh", icon='FILE_REFRESH')
+        layout.operator("asset.library_reload_listing", text="Refresh Remote Listing")
 
         layout.separator()
 
@@ -884,6 +936,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         layout.separator()
 
         layout.operator("asset.open_containing_blend_file", icon='FILE_BLEND')
+        layout.operator("asset.browse_containing_blend_file")
 
         layout.separator()
 
@@ -915,6 +968,7 @@ classes = (
     ASSETBROWSER_MT_editor_menus,
     ASSETBROWSER_MT_view,
     ASSETBROWSER_MT_select,
+    ASSETBROWSER_MT_library,
     ASSETBROWSER_MT_catalog,
     ASSETBROWSER_PT_import_settings,
     ASSETBROWSER_MT_metadata_preview_menu,
@@ -922,6 +976,7 @@ classes = (
     ASSETBROWSER_PT_metadata_preview,
     ASSETBROWSER_PT_metadata_tags,
     ASSETBROWSER_UL_metadata_tags,
+    ASSETBROWSER_PT_import,
     ASSETBROWSER_MT_context_menu,
 )
 

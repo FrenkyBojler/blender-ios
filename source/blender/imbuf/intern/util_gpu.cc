@@ -28,13 +28,13 @@ static CLG_LogRef LOG = {"image.gpu"};
 
 static bool imb_is_grayscale_texture_format_compatible(const ImBuf *ibuf)
 {
-  if (ibuf->planes > 8) {
+  if (ibuf->color_mode != ImColorMode::BW) {
     return false;
   }
 
   if (ibuf->byte_data() && !ibuf->float_data()) {
 
-    if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
+    if (IMB_colormanagement_space_is_scene_linear_srgb(ibuf->byte_buffer.colorspace) ||
         IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace))
     {
       /* Grey-scale byte buffers with these color transforms utilize float buffers under the hood
@@ -49,7 +49,7 @@ static bool imb_is_grayscale_texture_format_compatible(const ImBuf *ibuf)
   /* Only #IMBuf's with color-space that do not modify the chrominance of the texture data relative
    * to the scene color space can be uploaded as single channel textures. */
   if (IMB_colormanagement_space_is_data(ibuf->float_buffer.colorspace) ||
-      IMB_colormanagement_space_is_srgb(ibuf->float_buffer.colorspace) ||
+      IMB_colormanagement_space_is_scene_linear_srgb(ibuf->float_buffer.colorspace) ||
       IMB_colormanagement_space_is_scene_linear(ibuf->float_buffer.colorspace))
   {
     return true;
@@ -82,8 +82,8 @@ static void imb_gpu_get_format(const ImBuf *ibuf,
       *r_texture_format = (is_grayscale) ? gpu::TextureFormat::UNORM_8 :
                                            gpu::TextureFormat::UNORM_8_8_8_8;
     }
-    else if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace)) {
-      /* sRGB, store as byte texture that the GPU can decode directly. */
+    else if (IMB_colormanagement_space_is_scene_linear_srgb(ibuf->byte_buffer.colorspace)) {
+      /* scene linear + sRGB, store as byte texture that the GPU can decode directly. */
       *r_texture_format = (is_grayscale) ? gpu::TextureFormat::SFLOAT_16 :
                                            gpu::TextureFormat::SRGBA_8_8_8_8;
     }
@@ -168,10 +168,11 @@ static void *imb_gpu_get_data(ImBuf *ibuf,
     if (IMB_colormanagement_space_is_data(ibuf->byte_buffer.colorspace)) {
       /* Non-color data, just store buffer as is. */
     }
-    else if (IMB_colormanagement_space_is_srgb(ibuf->byte_buffer.colorspace) ||
+    else if (IMB_colormanagement_space_is_scene_linear_srgb(ibuf->byte_buffer.colorspace) ||
              IMB_colormanagement_space_is_scene_linear(ibuf->byte_buffer.colorspace))
     {
-      /* sRGB or scene linear, store as byte texture that the GPU can decode directly. */
+      /* scene linear + sRGB or scene linear, store as byte texture that the GPU can decode
+       * directly. */
       data_rect = MEM_new_uninitialized((is_grayscale ? sizeof(float[4]) : sizeof(uchar[4])) *
                                             IMB_get_pixel_count(ibuf),
                                         __func__);
@@ -219,23 +220,36 @@ static void *imb_gpu_get_data(ImBuf *ibuf,
   }
 
   if (do_rescale) {
-    const uint8_t *rect = (is_float_rect) ? nullptr : static_cast<uint8_t *>(data_rect);
-    const float *rect_float = (is_float_rect) ? static_cast<float *>(data_rect) : nullptr;
-
-    ImBuf *scale_ibuf = IMB_allocFromBuffer(rect, rect_float, ibuf->x, ibuf->y, 4);
-    IMB_scale(scale_ibuf, UNPACK2(rescale_size), IMBScaleFilter::Box, false);
-
-    if (freedata) {
-      MEM_delete_void(data_rect);
+    if (is_float_rect) {
+      float *new_rect = MEM_new_array_uninitialized<float>(
+          4 * size_t(rescale_size[0]) * size_t(rescale_size[1]), __func__);
+      IMB_scale_box(static_cast<float *>(data_rect),
+                    int2(ibuf->x, ibuf->y),
+                    4,
+                    new_rect,
+                    rescale_size,
+                    true);
+      if (freedata) {
+        MEM_delete_void(data_rect);
+      }
+      data_rect = new_rect;
+      *r_freedata = freedata = true;
     }
-
-    data_rect = (is_float_rect) ? static_cast<void *>(scale_ibuf->float_data_for_write()) :
-                                  static_cast<void *>(scale_ibuf->byte_data_for_write());
-    *r_freedata = freedata = true;
-    /* Steal the rescaled buffer to avoid double free. */
-    (void)IMB_steal_byte_buffer(scale_ibuf);
-    (void)IMB_steal_float_buffer(scale_ibuf);
-    IMB_freeImBuf(scale_ibuf);
+    else {
+      uchar *new_rect = MEM_new_array_uninitialized<uchar>(
+          4 * size_t(rescale_size[0]) * size_t(rescale_size[1]), __func__);
+      IMB_scale_box(static_cast<uchar *>(data_rect),
+                    int2(ibuf->x, ibuf->y),
+                    4,
+                    new_rect,
+                    rescale_size,
+                    true);
+      if (freedata) {
+        MEM_delete_void(data_rect);
+      }
+      data_rect = new_rect;
+      *r_freedata = freedata = true;
+    }
   }
 
   /* Pack first channel data manually at the start of the buffer. */

@@ -161,8 +161,9 @@ ENUM_OPERATORS(bPoseChannelRuntimeFlag);
 
 /* PoseChannel (transform) flags. */
 enum ePchan_Flag : short {
-  /* (1 << 0) to (1 << 3) used to be flags to determine if a type of channel should be modified by
-     pose sliding. This has been moved to the `SlideSubject` struct in Blender 5.2.  */
+  /* (1 << 0) to (1 << 3) used to be flags to determine if a type of channel
+   * should be modified by pose sliding.
+   * This has been moved to the `SlideSubject` struct in Blender 5.2. */
 
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
@@ -583,7 +584,7 @@ ENUM_OPERATORS(eTimeline_Cache_Flag)
 
 /** Data point for motion path (`mpv`). */
 struct bMotionPathVert {
-  /** Coordinates of point in 3D-space. */
+  /** Coordinates of point in world space or NDC space. */
   float co[3] = {};
   /** Quick settings. */
   eMotionPathVert_Flag flag = {};
@@ -676,8 +677,11 @@ struct bPoseChannel_BBoneSegmentBoundary {
   float depth_scale = 0;
 };
 
+static constexpr int64_t BONE_INDEX_UNKNOWN = -1;
 struct bPoseChannel_Runtime {
   SessionUID session_uid;
+
+  int64_t bone_index = BONE_INDEX_UNKNOWN;
 
   /* Cached dual quaternion for deformation. */
   struct DualQuat deform_dual_quat;
@@ -757,8 +761,6 @@ struct bPoseChannel {
   DNA_DEPRECATED char bboneflag = 0;
   char _pad0[4] = {};
 
-  /** Set on read file or rebuild pose. */
-  struct Bone *bone = nullptr; /* Soon to be DNA_DEPRECATED. */
   /** Set on read file or rebuild pose. */
   struct bPoseChannel *parent = nullptr;
   /** Set on read file or rebuild pose, the 'ik' child, for b-bones. */
@@ -875,8 +877,6 @@ struct bPoseChannel {
 
   BoneColor color; /* MUST be named the same as in Bone and EditBone structs. */
 
-  void *_pad2 = nullptr;
-
   /** Runtime data (keep last). */
   struct bPoseChannel_Runtime runtime;
 
@@ -893,6 +893,9 @@ struct bPoseChannel {
    * Get the armature bone that corresponds to this bPoseChannel.
    *
    * Prefer bone_get(object) over this function, as that performs more checks at runtime.
+   *
+   * \warning only use when you are sure bone indices are up to date.
+   * Call `BKE_pose_ensure_bone_indices` to ensure bone indices are correct.
    */
   const Bone *bone_get(const bArmature &armature) const;
   Bone *bone_get(bArmature &armature);
@@ -936,7 +939,7 @@ struct bPose {
   ePose_IKSolverType iksolver = {};
   /** Temporary IK data, depends on the IK solver. Not saved in file. */
   void *ikdata = nullptr;
-  /** IK solver parameter for ItaSC .*/
+  /** IK solver parameter for ItaSC. */
   bItasc *ikparam = nullptr;
 
   /** Settings for visualization of bone animation. */

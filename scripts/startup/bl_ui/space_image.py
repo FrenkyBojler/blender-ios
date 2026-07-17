@@ -942,7 +942,7 @@ class IMAGE_HT_header(Header):
 
         if show_uvedit:
             mesh = context.edit_object.data
-            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="")
+            layout.prop_search(mesh.uv_layers, "active", mesh, "uv_layers", text="", icon='GROUP_UVS')
 
         if ima:
             seq_scene = context.sequencer_scene
@@ -1631,12 +1631,6 @@ class IMAGE_PT_overlay_guides(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Guides"
     bl_parent_id = "IMAGE_PT_overlay"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-
-        return sima.show_uvedit
 
     def draw(self, context):
         layout = self.layout

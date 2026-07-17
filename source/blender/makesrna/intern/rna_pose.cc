@@ -25,6 +25,8 @@
 
 #include "WM_types.hh"
 
+#include "ANIM_rna.hh"
+
 namespace blender {
 
 /* Bone and Group Color Sets */
@@ -134,10 +136,7 @@ static std::optional<std::string> rna_Pose_path(const PointerRNA * /*ptr*/)
 static std::optional<std::string> rna_PoseBone_path(const PointerRNA *ptr)
 {
   const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr->data);
-  char name_esc[sizeof(pchan->name) * 2];
-
-  BLI_str_escape(name_esc, pchan->name, sizeof(name_esc));
-  return fmt::format("pose.bones[\"{}\"]", name_esc);
+  return animrig::get_pose_bone_rna_path(*pchan);
 }
 
 /* shared for actions groups and bone groups */
@@ -298,8 +297,7 @@ static PointerRNA rna_PoseChannel_bone_get(PointerRNA *ptr)
   /* Replace the id_data pointer with the Armature ID. */
   tmp_ptr.owner_id = ob->data;
 
-  bArmature *arm = id_cast<bArmature *>(ob->data);
-  return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone_get(*arm));
+  return RNA_pointer_create_with_parent(tmp_ptr, RNA_Bone, pchan->bone_get(*ob));
 }
 
 static bool rna_PoseChannel_has_ik_get(PointerRNA *ptr)

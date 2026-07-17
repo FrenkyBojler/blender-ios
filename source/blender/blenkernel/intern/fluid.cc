@@ -110,7 +110,7 @@ bool BKE_fluid_reallocate_fluid(FluidDomainSettings *fds, int res[3], int free_o
   if (free_old && fds->fluid) {
     manta_free(fds->fluid);
   }
-  if (!min_iii(res[0], res[1], res[2])) {
+  if (!std::min({res[0], res[1], res[2]})) {
     fds->fluid = nullptr;
   }
   else {
@@ -433,7 +433,11 @@ static void manta_set_domain_from_mesh(FluidDomainSettings *fds,
   }
   /* Apply object scale. */
   for (i = 0; i < 3; i++) {
-    size[i] = fabsf(size[i] * ob->scale[i]);
+    const float scale = ob->scale[i];
+    size[i] = fabsf(size[i] * (isfinite(scale) ? scale : 1.0f));
+    if (!isfinite(size[i])) {
+      size[i] = 1.0f;
+    }
   }
   copy_v3_v3(fds->global_size, size);
   copy_v3_v3(fds->dp0, min);

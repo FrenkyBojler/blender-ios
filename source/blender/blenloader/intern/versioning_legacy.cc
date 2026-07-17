@@ -1373,9 +1373,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         if (ob->softflag & OB_SB_POSTDEF) {
           ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first);
 
-          while (md && BKE_modifier_get_info(ModifierType(md->type))->type ==
-                           ModifierTypeType::OnlyDeform)
-          {
+          while (md && BKE_modifier_get_info(md->type)->type == ModifierTypeType::OnlyDeform) {
             md = md->next;
           }
 
@@ -1390,7 +1388,6 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
 
       if (ob->pose) {
         for (bPoseChannel &pchan : ob->pose->chanbase) {
-          /* NOTE: pchan->bone is also lib-link stuff. */
           if (pchan.limitmin[0] == 0.0f && pchan.limitmax[0] == 0.0f) {
             pchan.limitmin[0] = pchan.limitmin[1] = pchan.limitmin[2] = -180.0f;
             pchan.limitmax[0] = pchan.limitmax[1] = pchan.limitmax[2] = 180.0f;
@@ -2235,7 +2232,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *bmain)
         BLI_addtail(&ob->particlesystem, psys);
 
         md = BKE_modifier_new(eModifierType_ParticleSystem);
-        SNPRINTF_UTF8(md->name, "ParticleSystem %i", BLI_listbase_count(&ob->particlesystem));
+        SNPRINTF_UTF8(md->name, "ParticleSystem %i", ob->particlesystem.count());
         psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
         psmd->psys = psys;
         BLI_addtail(&ob->modifiers, md);

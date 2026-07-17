@@ -452,6 +452,7 @@ static bool screen_area_join_aligned(
   }
 
   screen_delarea(C, screen, sa2);
+  BKE_screen_remove_double_scrverts(screen);
   /* Update preview thumbnail */
   BKE_icon_changed(screen->id.icon_id);
 
@@ -603,7 +604,7 @@ void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type sp
   area->regionbase = slink->regionbase;
 
   BLI_addhead(&area->spacedata, slink);
-  BLI_listbase_clear(&slink->regionbase);
+  slink->regionbase.clear_no_delete();
 }
 
 /* ****************** EXPORTED API TO OTHER MODULES *************************** */
@@ -1925,18 +1926,43 @@ ScrArea *ED_screen_temp_space_open(
   return nullptr;
 }
 
+void ED_screen_animation_stop(Main *bmain,
+                              wmWindowManager *wm,
+                              FunctionRef<bool(const bScreen &screen)> should_stop_fn)
+{
+  /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the window,
+   * and we need the screen too. */
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
+    if (!screen || !screen->animtimer) {
+      continue;
+    }
+    if (!should_stop_fn(*screen)) {
+      continue;
+    }
+
+    screen_stop_playback(bmain, wm, &win, screen);
+  }
+}
+
+void ED_screen_animation_timer_remove(wmWindowManager *wm, wmWindow *win)
+{
+  bScreen *stopscreen = ED_screen_animation_playing(wm);
+  if (!stopscreen) {
+    return;
+  }
+  WM_event_timer_remove(wm, win, stopscreen->animtimer);
+  stopscreen->animtimer = nullptr;
+}
+
 void ED_screen_animation_timer(
     bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  bScreen *stopscreen = ED_screen_animation_playing(wm);
 
-  if (stopscreen) {
-    WM_event_timer_remove(wm, win, stopscreen->animtimer);
-    stopscreen->animtimer = nullptr;
-  }
+  ED_screen_animation_timer_remove(wm, win);
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");

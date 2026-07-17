@@ -435,6 +435,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.link);
   }
 
+  if (!USER_VERSION_ATLEAST(502, 32)) {
+    btheme->space_view3d.grid_axis_brightness = U_theme_default.space_view3d.grid_axis_brightness;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 42)) {
+    FROM_DEFAULT_V4_UCHAR(tui.wcol_state.error);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1304,7 +1312,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(292, 9)) {
-    if (BLI_listbase_is_empty(&userdef->asset_libraries)) {
+    if (userdef->asset_libraries.is_empty()) {
       BKE_preferences_asset_library_default_add(userdef);
     }
   }
@@ -1493,7 +1501,7 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(402, 36)) {
     /* Reset repositories. */
-    while (!BLI_listbase_is_empty(&userdef->extension_repos)) {
+    while (!userdef->extension_repos.is_empty()) {
       BKE_preferences_extension_repo_remove(
           userdef, static_cast<bUserExtensionRepo *>(userdef->extension_repos.first));
     }
@@ -1757,12 +1765,19 @@ void blo_do_versions_userdef(UserDef *userdef)
     }
   }
 
-  if (!USER_VERSION_ATLEAST(502, 3)) {
-    userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
-  }
-
   if (!USER_VERSION_ATLEAST(502, 13)) {
     userdef->geometry_nodes_stack_limit = 100;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 35)) {
+    /* Instead of removing the flag entirely, it is forced to be on. Once it is 100% certain the
+     * Remote Asset Libraries feature will be shipped with 5.2 (which depends on other factors than
+     * just code), the flag can be removed. */
+    userdef->experimental.use_remote_asset_libraries = true;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 42)) {
+    userdef->asset_flag |= USER_ASSETS_USE_ONLINE_ESSENTIALS;
   }
 
   /**
@@ -1795,6 +1810,11 @@ void BLO_sanitize_experimental_features_userpref_blend(UserDef *userdef)
 #endif
 
   MEMSET_STRUCT_AFTER(&userdef->experimental, 0, SANITIZE_AFTER_HERE);
+
+  /* Instead of removing the flag entirely, it is forced to be on. Once it is 100% certain the
+   * Remote Asset Libraries feature will be shipped with 5.2 (which depends on other factors than
+   * just code), the flag can be removed. */
+  userdef->experimental.use_remote_asset_libraries = true;
 }
 
 #undef USER_LMOUSESELECT

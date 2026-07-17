@@ -242,6 +242,10 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
   }
+  /* WORKAROUND: We have an extra check in place on Metal for clip distances (see #160847). */
+  if (bool(info.builtins_ & shader::BuiltinBits::CLIP_DISTANCES)) {
+    info.define("USE_WORLD_CLIP_PLANES");
+  }
   return processed_str;
 };
 
@@ -801,6 +805,11 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   ShaderCreateInfo specialized_info = orig_info;
 
+  /* WORKAROUND: For BSL shaders, allow to disable costly builtins programatically. */
+  if (bool(specialized_info.builtins_ & BuiltinBits::NO_VIEWPORT_INDEX)) {
+    specialized_info.builtins_ &= ~BuiltinBits::VIEWPORT_INDEX;
+  }
+
   if (!specialized_info.compilation_constants_.is_empty()) {
     auto predicate = [&](const ShaderCreateInfo::Resource &res) {
       return !res.conditions.evaluate(specialized_info.compilation_constants_);
@@ -873,7 +882,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_VERTEX_SHADER\n");
     if (!info.geometry_source_.is_empty()) {
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
@@ -898,7 +906,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_FRAGMENT_SHADER\n");
     if (!info.geometry_source_.is_empty()) {
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
@@ -947,7 +954,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
     Vector<StringRefNull> sources;
     standard_defines(sources);
-    sources.append("#define GPU_COMPUTE_SHADER\n");
     sources.append(defines);
     sources.append(layout);
     sources.append(resources);

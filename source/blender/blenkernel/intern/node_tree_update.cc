@@ -583,18 +583,11 @@ class NodeTreeMainUpdater {
     this->update_individual_nodes(ntree);
     this->update_internal_links(ntree);
     this->update_generic_callback(ntree);
-    this->remove_unused_previews_when_necessary(ntree);
     this->make_node_previews_dirty(ntree);
 
     this->propagate_runtime_flags(ntree);
     if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT, NTREE_SHADER)) {
       if (this->propagate_enum_definitions(ntree)) {
-        result.interface_changed = true;
-      }
-    }
-
-    if (ntree.type == NTREE_GEOMETRY) {
-      if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
     }
@@ -703,7 +696,7 @@ class NodeTreeMainUpdater {
           /* Should have been created when the node was registered. */
           BLI_assert(ntype.static_declaration != nullptr);
           if (ntype.static_declaration->is_context_dependent) {
-            nodes::update_node_declaration_and_sockets(ntree, *node);
+            nodes::update_node_declaration_and_sockets(ntree, *node, bmain_);
           }
         }
         else if (node->is_undefined()) {
@@ -919,17 +912,6 @@ class NodeTreeMainUpdater {
       return;
     }
     ntree.typeinfo->update(&ntree);
-  }
-
-  void remove_unused_previews_when_necessary(bNodeTree &ntree)
-  {
-    /* Don't trigger preview removal when only those flags are set. */
-    const uint32_t allowed_flags = NTREE_CHANGED_LINK | NTREE_CHANGED_SOCKET_PROPERTY |
-                                   NTREE_CHANGED_NODE_PROPERTY | NTREE_CHANGED_NODE_OUTPUT;
-    if ((ntree.runtime->changed_flag & allowed_flags) == ntree.runtime->changed_flag) {
-      return;
-    }
-    bke::node_preview_remove_unused(&ntree);
   }
 
   void make_node_previews_dirty(bNodeTree &ntree)
@@ -1468,14 +1450,6 @@ class NodeTreeMainUpdater {
 
   void update_link_validation(bNodeTree &ntree)
   {
-    /* Tests if enum references are undefined. */
-    const auto is_invalid_enum_ref = [](const bNodeSocket &socket) -> bool {
-      if (socket.type == SOCK_MENU) {
-        return socket.default_value_typed<bNodeSocketValueMenu>()->enum_items == nullptr;
-      }
-      return false;
-    };
-
     const bNodeTreeZones *fallback_zones = nullptr;
     if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_SHADER) && !ntree.zones() &&
         ntree.runtime->last_valid_zones)
@@ -1489,12 +1463,18 @@ class NodeTreeMainUpdater {
         link.flag &= ~NODE_LINK_VALID;
         continue;
       }
-      if (is_invalid_enum_ref(*link.fromsock) || is_invalid_enum_ref(*link.tosock)) {
-        link.flag &= ~NODE_LINK_VALID;
-        ntree.runtime->link_errors.add(
-            NodeLinkKey{link},
-            NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
-        continue;
+      if (link.fromsock->type == SOCK_MENU && link.tosock->type == SOCK_MENU) {
+        const bNodeSocketValueMenu *from_value =
+            link.fromsock->default_value_typed<bNodeSocketValueMenu>();
+        const bNodeSocketValueMenu *to_value =
+            link.tosock->default_value_typed<bNodeSocketValueMenu>();
+        if (from_value->has_conflict() || to_value->has_conflict()) {
+          link.flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{link},
+              NodeLinkError{TIP_("Use node groups to reuse the same menu multiple times")});
+          continue;
+        }
       }
       const bNode &from_node = *link.fromnode;
       const bNode &to_node = *link.tonode;
@@ -1508,8 +1488,8 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.typeinfo->validate_link) {
-        const eNodeSocketDatatype from_type = eNodeSocketDatatype(link.fromsock->type);
-        const eNodeSocketDatatype to_type = eNodeSocketDatatype(link.tosock->type);
+        const eNodeSocketDatatype from_type = link.fromsock->type;
+        const eNodeSocketDatatype to_type = link.tosock->type;
         if (!ntree.typeinfo->validate_link(from_type, to_type)) {
           link.flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
@@ -2090,7 +2070,7 @@ class NodeTreeMainUpdater {
     bool changed = false;
     ntree.ensure_interface_cache();
     for (bNodeTreeInterfaceItem *item : ntree.interface_items()) {
-      if (item->item_type != NODE_INTERFACE_PANEL) {
+      if (item->item_type != NodeTreeInterfaceItemType::Panel) {
         continue;
       }
       bNodeTreeInterfacePanel *panel = reinterpret_cast<bNodeTreeInterfacePanel *>(item);

@@ -77,10 +77,12 @@ bool operator==(const AssetWeakReference &a, const AssetWeakReference &b)
     return false;
   }
 
-  const char *a_lib_idenfifier = a.asset_library_identifier ? a.asset_library_identifier : "";
-  const char *b_lib_idenfifier = b.asset_library_identifier ? b.asset_library_identifier : "";
-  if (BLI_path_cmp_normalized(a_lib_idenfifier, b_lib_idenfifier) != 0) {
-    return false;
+  if (a.asset_library_type == ASSET_LIBRARY_CUSTOM) {
+    const char *a_lib_idenfifier = a.asset_library_identifier ? a.asset_library_identifier : "";
+    const char *b_lib_idenfifier = b.asset_library_identifier ? b.asset_library_identifier : "";
+    if (BLI_path_cmp_normalized(a_lib_idenfifier, b_lib_idenfifier) != 0) {
+      return false;
+    }
   }
   const char *a_asset_idenfifier = a.relative_asset_identifier ? a.relative_asset_identifier : "";
   const char *b_asset_idenfifier = b.relative_asset_identifier ? b.relative_asset_identifier : "";
@@ -130,7 +132,7 @@ void BKE_asset_catalog_path_list_free(ListBaseT<AssetCatalogPathLink> &catalog_p
     MEM_delete(catalog_path.path);
     BLI_freelinkN(&catalog_path_list, &catalog_path);
   }
-  BLI_assert(BLI_listbase_is_empty(&catalog_path_list));
+  BLI_assert(catalog_path_list.is_empty());
 }
 
 ListBaseT<AssetCatalogPathLink> BKE_asset_catalog_path_list_duplicate(

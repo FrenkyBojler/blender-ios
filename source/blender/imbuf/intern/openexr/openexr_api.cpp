@@ -116,6 +116,7 @@ using namespace Imath;
 static bool exr_has_multiview(MultiPartInputFile &file);
 static bool exr_has_multipart_file(MultiPartInputFile &file);
 static bool exr_has_alpha(MultiPartInputFile &file);
+static bool exr_has_channels(MultiPartInputFile &file);
 static const ColorSpace *imb_exr_part_colorspace(const Header &header);
 
 /* XYZ with Illuminant E */
@@ -500,6 +501,27 @@ static int openexr_header_get_compression(const Header &header)
   return R_IMF_EXR_CODEC_NONE;
 }
 
+static bool openexr_metadata_skip_read(const char *name, const bool is_multi)
+{
+  /* For multi-layer reads, the part name and view are used for the view, layer, pass
+   * names. The metadata from the first part is used as shared metadata for all passes,
+   * as OpenEXR has no global metadata. So this would be wrong for all but the first pass.
+   *
+   * For single layer images we keep it, as in that case writing out the image again
+   * would otherwise lose the metadata. */
+  return is_multi && STR_ELEM(name, "name", "view");
+}
+
+static bool openexr_metadata_skip_write(const char *name, const bool is_multi)
+{
+  /* Do not blindly pass along compression or colorInteropID, as they might have changed
+   * and will already be written when appropriate.
+   *
+   * Multi-layer name and view are skipped, see #openexr_metadata_skip_read. */
+  return STR_ELEM(name, "compression", "colorInteropID") ||
+         (is_multi && STR_ELEM(name, "name", "view"));
+}
+
 static void openexr_header_metadata_global(Header *header, IDProperty *metadata)
 {
   header->insert(
@@ -508,9 +530,7 @@ static void openexr_header_metadata_global(Header *header, IDProperty *metadata)
 
   if (metadata) {
     for (IDProperty &prop : metadata->data.group) {
-      /* Do not blindly pass along compression or colorInteropID, as they might have
-       * changed and will already be written when appropriate. */
-      if ((prop.type == IDP_STRING) && !STR_ELEM(prop.name, "compression", "colorInteropID")) {
+      if ((prop.type == IDP_STRING) && !openexr_metadata_skip_write(prop.name, false)) {
         header->insert(prop.name, StringAttribute(IDP_string_get(&prop)));
       }
     }
@@ -567,15 +587,6 @@ static void openexr_header_metadata_colorspace(Header *header, const ImBuf *ibuf
   openexr_header_metadata_colorspace(header, colorspace);
 }
 
-static void openexr_header_metadata_callback(void *data,
-                                             const char *propname,
-                                             char *prop,
-                                             int /*len*/)
-{
-  Header *header = (Header *)data;
-  header->insert(propname, StringAttribute(prop));
-}
-
 struct RGBAHalf {
   uint16_t r;
   uint16_t g;
@@ -586,7 +597,7 @@ struct RGBAHalf {
 static void convert_input_to_half_rgba(const ImBuf *ibuf, RGBAHalf *dst)
 {
   const int channels = ibuf->channels;
-  const bool is_alpha = (channels >= 4) && (ibuf->planes == 32);
+  const bool is_alpha = (channels >= 4) && (ibuf->can_contain_alpha());
   const int width = ibuf->x;
   const int height = ibuf->y;
 
@@ -700,13 +711,13 @@ static void save_setup_framebuffer(const ImBuf *ibuf,
   }
 }
 
-bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int /*flags*/)
+bool imb_save_openexr(ImBuf *ibuf, const char *filepath, ImBufFlags /*flags*/)
 {
   /* Use half precision when asked for it, or if source is a
    * byte image (half precision is always enough for that case). */
   const bool half_precision = (ibuf->foptions.flag & OPENEXR_HALF) ||
                               ibuf->float_data() == nullptr;
-  const bool is_alpha = (ibuf->channels >= 4) && (ibuf->planes == 32);
+  const bool is_alpha = (ibuf->channels >= 4) && (ibuf->can_contain_alpha());
   try {
     Header header(ibuf->x, ibuf->y);
     save_setup_header(ibuf, half_precision, is_alpha, header);
@@ -731,14 +742,14 @@ bool imb_save_openexr(ImBuf *ibuf, const char *filepath, int /*flags*/)
   return true;
 }
 
-Vector<uint8_t> imb_save_buffer_openexr(ImBuf *ibuf, int /*flags*/)
+Vector<uint8_t> imb_save_buffer_openexr(ImBuf *ibuf, ImBufFlags /*flags*/)
 {
   /* Use half precision when asked for it, or if source is a
    * byte image (half precision is always enough for that case). */
   const bool half_precision = (ibuf->foptions.flag & OPENEXR_HALF) ||
                               ibuf->float_data() == nullptr;
 
-  const bool is_alpha = (ibuf->channels >= 4) && (ibuf->planes == 32);
+  const bool is_alpha = (ibuf->channels >= 4) && (ibuf->can_contain_alpha());
   try {
     Header header(ibuf->x, ibuf->y);
     save_setup_header(ibuf, half_precision, is_alpha, header);
@@ -919,7 +930,7 @@ void IMB_exr_add_channels(ExrHandle *handle,
                           StringRefNull colorspace,
                           size_t xstride,
                           size_t ystride,
-                          float *rect,
+                          const float *rect,
                           bool use_half_float)
 {
   /* For multipart, part name includes view since part names must be unique. */
@@ -970,7 +981,8 @@ void IMB_exr_add_channels(ExrHandle *handle,
 
     echan.xstride = xstride;
     echan.ystride = ystride;
-    echan.rect = rect + channel;
+    /* This is used for writing, the data should not be modified. ????????? */
+    echan.rect = const_cast<float *>(rect + channel);
     echan.use_half_float = use_half_float;
   }
 
@@ -989,7 +1001,15 @@ static void openexr_header_metadata_multi(ExrHandle *handle,
     addMultiView(header, handle->views);
   }
   BKE_stamp_info_callback(
-      &header, const_cast<StampData *>(stamp), openexr_header_metadata_callback, false);
+      &header,
+      const_cast<StampData *>(stamp),
+      [](void *data, const char *propname, char *prop, int /*len*/) {
+        if (!openexr_metadata_skip_write(propname, true)) {
+          Header *header = (Header *)data;
+          header->insert(propname, StringAttribute(prop));
+        }
+      },
+      false);
 }
 
 bool IMB_exr_begin_write(ExrHandle *handle,
@@ -1044,7 +1064,16 @@ bool IMB_exr_begin_write(ExrHandle *handle,
     if (part_headers.is_empty() || last_part_name != echan.part_name) {
       Header part_header = header;
 
-      /* When writing multipart, set name, view,type and colorspace in each part. */
+      /* Store global metadata in the first header only. Large metadata like cryptomatte would
+       * be bad to duplicate many times. */
+      if (part_headers.is_empty()) {
+        openexr_header_metadata_multi(handle, part_header, stamp);
+      }
+
+      /* When writing multipart, set name, view, type and colorspace in each part.
+       *
+       * Note we do this after openexr_header_metadata_multi to replace any attributes with the
+       * same name, because e.g. the part header name is really just a "name" attribute. */
       if (handle->write_multipart) {
         part_header.setName(echan.part_name);
         if (!echan.view.empty()) {
@@ -1052,12 +1081,6 @@ bool IMB_exr_begin_write(ExrHandle *handle,
         }
         part_header.insert("type", StringAttribute(SCANLINEIMAGE));
         openexr_header_metadata_colorspace(&part_header, echan.colorspace);
-      }
-
-      /* Store global metadata in the first header only. Large metadata like cryptomatte would
-       * be bad to duplicate many times. */
-      if (part_headers.is_empty()) {
-        openexr_header_metadata_multi(handle, part_header, stamp);
       }
 
       part_headers.append(std::move(part_header));
@@ -1204,7 +1227,7 @@ void IMB_exr_write_channels(ExrHandle *handle)
 
       if (echan.use_half_float) {
         const float *src_float = echan.rect;
-        /* Convert & clamp input floats to halfs. */
+        /* Convert & clamp input floats to half-floats. */
         threading::parallel_for(IndexRange(num_pixels), 16 * 1024, [&](IndexRange range) {
           Array<float> gathered_floats(range.size());
           int64_t i = 0;
@@ -1917,6 +1940,18 @@ static bool exr_has_xyz(MultiPartInputFile &file)
           header.channels().findChannel("z") != nullptr);
 }
 
+static bool exr_has_channels(MultiPartInputFile &file)
+{
+  const Header &header = file.header(0);
+  return header.channels().begin() != header.channels().end();
+}
+
+static const char *exr_unknown_channel_name(MultiPartInputFile &file)
+{
+  const Header &header = file.header(0);
+  return header.channels().begin().name();
+}
+
 static bool exr_is_half_float(MultiPartInputFile &file)
 {
   const ChannelList &channels = file.header(0).channels();
@@ -2094,7 +2129,10 @@ void IMB_exr_get_display_window(ExrHandle *handle,
   get_exr_display_window(*handle->ifile, display_size, display_offset, data_offset);
 }
 
-ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
+ImBuf *imb_load_openexr(const uchar *mem,
+                        size_t size,
+                        ImBufFlags flags,
+                        ImFileColorSpace &r_colorspace)
 {
   ImBuf *ibuf = nullptr;
   IMemStream *membuf = nullptr;
@@ -2124,17 +2162,20 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
     is_multi = imb_exr_is_multi(*file);
 
     /* do not make an ibuf when */
-    if (is_multi && !(flags & IB_test) && !(flags & IB_multilayer)) {
+    if (is_multi && !flag_is_set(flags, ImBufFlags::Test) &&
+        !flag_is_set(flags, ImBufFlags::MultiLayer))
+    {
       CLOG_ERROR(&LOG, "Cannot process EXR multilayer file");
     }
     else {
       const bool is_alpha = exr_has_alpha(*file);
 
-      ibuf = IMB_allocImBuf(width, height, is_alpha ? 32 : 24, 0);
+      ibuf = IMB_allocImBuf(width, height, ImBufFlags::Zero);
+      ibuf->color_mode = is_alpha ? ImColorMode::RGBA : ImColorMode::RGB;
       ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
       ibuf->foptions.flag |= openexr_header_get_compression(file_header);
 
-      ibuf->flags |= IB_has_display_window;
+      ibuf->flags |= ImBufFlags::HasDisplayWindow;
       get_exr_display_window(*file, ibuf->display_size, ibuf->display_offset, ibuf->data_offset);
 
       exr_get_ppm(*file, ibuf->ppm);
@@ -2143,26 +2184,30 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
 
       ibuf->ftype = IMB_FTYPE_OPENEXR;
 
-      if (!(flags & IB_test)) {
+      if (!flag_is_set(flags, ImBufFlags::Test)) {
 
-        if (flags & IB_metadata) {
+        if (flag_is_set(flags, ImBufFlags::Metadata)) {
           Header::ConstIterator iter;
 
           IMB_metadata_ensure(&ibuf->metadata);
           for (iter = file_header.begin(); iter != file_header.end(); iter++) {
+            if (openexr_metadata_skip_read(iter.name(), is_multi)) {
+              continue;
+            }
+
             const StringAttribute *attr = file_header.findTypedAttribute<StringAttribute>(
                 iter.name());
 
             /* not all attributes are string attributes so we might get some NULLs here */
             if (attr) {
               IMB_metadata_set_field(ibuf->metadata, iter.name(), attr->value().c_str());
-              ibuf->flags |= IB_metadata;
+              ibuf->flags |= ImBufFlags::Metadata;
             }
           }
         }
 
-        /* Only enters with IB_multilayer flag set. */
-        if (is_multi && ((flags & IB_thumbnail) == 0)) {
+        /* Only enters with ImBufFlags::MultiLayer flag set. */
+        if (is_multi && !flag_is_set(flags, ImBufFlags::Thumbnail)) {
           /* constructs channels for reading, allocates memory in channels */
           ExrHandle *handle = imb_exr_begin_read_mem(*membuf, *file, width, height);
           if (handle) {
@@ -2173,6 +2218,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
         else {
           const char *rgb_channels[3];
           const int num_rgb_channels = exr_has_rgb(*file, rgb_channels);
+          const int has_channels = exr_has_channels(*file);
           const bool has_luma = exr_has_luma(*file);
           const bool has_xyz = exr_has_xyz(*file);
           FrameBuffer frameBuffer;
@@ -2212,6 +2258,10 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
             frameBuffer.insert(
                 exr_rgba_channelname(*file, "RY"),
                 Slice(Imf::FLOAT, (char *)(first + 2), xstride, ystride, 1, 1, 0.5f));
+          }
+          else if (has_channels) {
+            frameBuffer.insert(exr_unknown_channel_name(*file),
+                               Slice(Imf::FLOAT, (char *)first, xstride, ystride, 1, 1));
           }
 
           /* 1.0 is fill value, this still needs to be assigned even when (is_alpha == 0) */
@@ -2267,8 +2317,8 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
         delete file;
       }
 
-      if (flags & IB_alphamode_detect) {
-        ibuf->flags |= IB_alphamode_premul;
+      if (flag_is_set(flags, ImBufFlags::AlphaDetect)) {
+        ibuf->flags |= ImBufFlags::AlphaPremul;
       }
     }
     return ibuf;
@@ -2296,7 +2346,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
 }
 
 ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
-                                           const int /*flags*/,
+                                           const ImBufFlags /*flags*/,
                                            const size_t max_thumb_size,
                                            ImFileColorSpace &r_colorspace,
                                            size_t *r_width,
@@ -2358,7 +2408,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     int dest_w = std::max(int(source_w * scale_factor), 1);
     int dest_h = std::max(int(source_h * scale_factor), 1);
 
-    ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
+    ibuf = IMB_allocImBuf(dest_w, dest_h, ImBufFlags::FloatData);
 
     /* A single row of source pixels. */
     Imf::Array<Imf::Rgba> pixels(source_w);
