@@ -531,6 +531,29 @@ struct Film {
     out_depth = imageLoadFast(depth_img, texel_film).r;
   }
 
+  /* Same as `copy_history()` but resets to background instead of copying. Used for
+   * panoramic texels that no subview owns at all (e.g. outside the fisheye lens), so that they
+   * do not keep displaying stale data. */
+  void clear_history(int2 texel_film, float4 &out_color, float &out_depth)
+  {
+    [[resource_table]] const Uniform &uni = this->uniforms;
+
+    imageStoreFast(out_weight_img, int3(texel_film, FILM_WEIGHT_LAYER_ACCUMULATION), float4(0.0f));
+    imageStoreFast(out_weight_img, int3(texel_film, FILM_WEIGHT_LAYER_DISTANCE), float4(0.0f));
+
+    if (combined_id != -1) {
+      imageStoreFast(out_combined_img, texel_film, float4(0.0f, 0.0f, 0.0f, 1.0f));
+    }
+
+    if (uni.uniform_buf.film.depth_id != -1) {
+      /* Match clear value in render_layer_allocate_pass / store_depth. */
+      imageStoreFast(depth_img, texel_film, float4(1e10f));
+    }
+
+    out_color = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    out_depth = 1e10f;
+  }
+
   /* Returns motion in pixel space to retrieve the pixel history. */
   float2 pixel_history_motion_vector(int2 texel_sample)
   {
@@ -1006,6 +1029,12 @@ struct Film {
       /* Panoramic views use a single owning cubemap face per film texel. */
       panoramic_sample = sample_get(0, texel_film, panoramic_view_id_get());
       if (panoramic_sample.weight == 0.0f) {
+        if (!panoramic_texel_has_valid_projection(texel_film)) {
+          /* No subview owns this texel under the current projection at all (e.g. outside the
+           * fisheye lens). Clear it instead of copying stale data. */
+          clear_history(texel_film, out_color, out_depth);
+          return;
+        }
         /* TODO: Have a stencil mask of each subview to avoid computing weights for the whole
          * screen for each. Using a mesh to draw the region is not recommended due to quad
          * over-shading and the amount of tesselation needed. Using a mesh to mark the stencil
