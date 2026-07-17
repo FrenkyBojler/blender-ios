@@ -263,6 +263,14 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
   return result;
 }
 
+Vector<SculptBatch> external_batches_per_material_get(const Object *ob,
+                                                      Span<const GPUMaterial *> /*materials*/)
+{
+  /* v1: positions + normals only; per-node material_slot already groups the
+   * result. Generic per-material attributes land with the attribute stage. */
+  return external_batches_get(ob, SCULPT_BATCH_DEFAULT);
+}
+
 void external_draw_cache_free(const Object *ob)
 {
   if (ob == nullptr) {

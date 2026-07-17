@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include "BLI_span.hh"
 #include "BLI_vector.hh"
 
 #include "draw_sculpt.hh"
 
 namespace blender {
 struct Object;
+struct GPUMaterial;
 namespace gpu {
 class Batch;
 }
@@ -37,6 +39,12 @@ namespace blender::draw {
  * selects the attribute set, mirroring #sculpt_batches_get.
  */
 Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature features);
+
+/** Per-material variant for EEVEE. v1 draws positions + normals only (one
+ * material slot); the `materials` span is accepted for parity and future
+ * per-material attribute requests. */
+Vector<SculptBatch> external_batches_per_material_get(const Object *ob,
+                                                      Span<const GPUMaterial *> materials);
 
 /** Free the cached GPU buffers/batches for `ob` (mode exit, provider
  * unregister, or object removal). Safe to call when nothing is cached. */
