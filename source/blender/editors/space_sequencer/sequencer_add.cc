@@ -1729,12 +1729,12 @@ void sequencer_image_strip_reserve_frames(
   }
 }
 
-static void frame_filename_set(char *dst,
-                               size_t dst_len,
-                               const char *filename_stripped,
-                               const int frame,
-                               const int numdigits,
-                               const char *ext)
+void frame_filename_set(char *dst,
+                        size_t dst_len,
+                        const char *filename_stripped,
+                        const int frame,
+                        const int numdigits,
+                        const char *ext)
 {
   BLI_strncpy(dst, filename_stripped, dst_len);
   BLI_path_frame(dst, dst_len, frame, numdigits);

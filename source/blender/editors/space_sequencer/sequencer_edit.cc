@@ -65,6 +65,7 @@
 #include "RNA_prototypes.hh"
 
 #include "ED_fileselect.hh"
+#include "ED_image.hh"
 #include "ED_numinput.hh"
 #include "ED_object.hh"
 #include "ED_scene.hh"
@@ -3686,12 +3687,19 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
     int len;
     StripElem *se;
 
+    ListBaseT<ImageFrameRange> ranges;
+
     /* Need to find min/max frame for placeholders. */
     if (use_placeholders) {
       len = sequencer_image_strip_get_minmax_frame(op, strip->sfra, &minext_frameme, &numdigits);
     }
     else {
-      len = RNA_property_collection_length(op->ptr, RNA_struct_find_property(op->ptr, "files"));
+      const char *blendfile_path = BKE_main_blendfile_path(bmain);
+      ranges = ED_image_filesel_detect_sequences(blendfile_path, blendfile_path, op, false);
+      len = 0;
+      for (ImageFrameRange &range : ranges) {
+        len += range.frames.count();
+      }
     }
     if (len == 0) {
       return OPERATOR_CANCELLED;
@@ -3715,12 +3723,22 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
       sequencer_image_strip_reserve_frames(op, se, len, minext_frameme, numdigits);
     }
     else {
-      RNA_BEGIN (op->ptr, itemptr, "files") {
-        std::string filename = RNA_string_get(&itemptr, "name");
-        STRNCPY(se->filename, filename.c_str());
-        se++;
+      char ext[FILE_MAX];
+      char filename_stripped[FILE_MAX];
+      char filename[FILE_MAX];
+      for (ImageFrameRange &range : ranges) {
+        BLI_path_split_file_part(range.filepath, filename_stripped, sizeof(filename_stripped));
+        BLI_path_frame_strip(filename_stripped, ext, sizeof(ext));
+        for (ImageFrame &frame : range.frames) {
+          frame_filename_set(
+              filename, sizeof(filename), filename_stripped, frame.framenr, numdigits, ext);
+
+          STRNCPY(se->filename, filename);
+          se++;
+        }
+        range.frames.free_no_destruct();
       }
-      RNA_END;
+      ranges.free_no_destruct();
     }
 
     if (len == 1) {
@@ -3821,6 +3839,14 @@ void SEQUENCER_OT_change_path(wmOperatorType *ot)
                   false,
                   "Use Placeholders",
                   "Use placeholders for missing frames of the strip");
+
+  /* Required for `ED_image_filesel_detect_sequences`, but not shown in UI. */
+  RNA_def_boolean(
+      ot->srna,
+      "use_sequence_detection",
+      true,
+      "Detect Sequences",
+      "Automatically detect animated sequences in selected images (based on file names)");
 }
 
 /** \} */

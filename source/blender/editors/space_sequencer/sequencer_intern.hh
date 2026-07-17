@@ -327,6 +327,13 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_add_scene_strip_from_scene_asset(wmOperatorType *ot);
 
+void frame_filename_set(char *dst,
+                        size_t dst_len,
+                        const char *filename_stripped,
+                        const int frame,
+                        const int numdigits,
+                        const char *ext);
+
 /* `sequencer_drag_drop.cc` */
 
 void sequencer_dropboxes();
