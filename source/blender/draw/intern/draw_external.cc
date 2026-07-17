@@ -119,8 +119,12 @@ static void node_upload(NodeCache &cache, const ExternalDrawNode &node)
       GPU_batch_discard(cache.batch);
       cache.batch = nullptr;
     }
-    cache.pos = gpu::VertBufPtr(GPU_vertbuf_create_with_format(position_format()));
-    cache.nor = gpu::VertBufPtr(GPU_vertbuf_create_with_format(normal_format()));
+    /* Dynamic: the CPU-side data is kept so a stroke can re-upload positions
+     * each frame (static usage frees it after the first GPU upload). */
+    cache.pos = gpu::VertBufPtr(
+        GPU_vertbuf_create_with_format_ex(position_format(), GPU_USAGE_DYNAMIC));
+    cache.nor = gpu::VertBufPtr(
+        GPU_vertbuf_create_with_format_ex(normal_format(), GPU_USAGE_DYNAMIC));
     GPU_vertbuf_data_alloc(*cache.pos, node.verts_num);
     GPU_vertbuf_data_alloc(*cache.nor, node.verts_num);
     cache.verts_num = node.verts_num;
@@ -149,6 +153,10 @@ static void node_upload(NodeCache &cache, const ExternalDrawNode &node)
       normals[tri * 3 + 2] = packed;
     }
   }
+
+  /* Re-uploaded into a dynamic buffer: flag both for the next GPU use. */
+  GPU_vertbuf_tag_dirty(cache.pos.get());
+  GPU_vertbuf_tag_dirty(cache.nor.get());
 
   if (realloc) {
     cache.batch = GPU_batch_create(GPU_PRIM_TRIS, nullptr, nullptr);
