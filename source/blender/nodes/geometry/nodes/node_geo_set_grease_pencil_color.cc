@@ -116,6 +116,20 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(geometry_set));
 }
 
+static int rna_SetGPColor_mode_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  bNode *node = (bNode *)ptr->data;
+  const bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
+  return socket->default_value_typed<bNodeSocketValueMenu>()->value;
+}
+
+static void rna_SetGPColor_mode_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
+{
+  bNode *node = (bNode *)ptr->data;
+  bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
+  socket->default_value_typed<bNodeSocketValueMenu>()->value = value;
+}
+
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem mode_items[] = {
@@ -135,6 +149,9 @@ static void node_rna(StructRNA *srna)
   PropertyRNA *prop;
   prop = RNA_def_node_enum(
       srna, "mode", "Mode", "", mode_items, NOD_inline_enum_accessors(custom1));
+
+  RNA_def_property_enum_funcs_runtime(
+      prop, rna_SetGPColor_mode_get, rna_SetGPColor_mode_set, nullptr, nullptr, nullptr);
 }
 
 static void node_register()

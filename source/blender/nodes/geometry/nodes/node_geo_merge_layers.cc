@@ -163,16 +163,32 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(main_geometry));
 }
 
+static int rna_MergeLayers_mode_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  bNode *node = (bNode *)ptr->data;
+  const bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
+  return socket->default_value_typed<bNodeSocketValueMenu>()->value;
+}
+
+static void rna_MergeLayers_mode_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
+{
+  bNode *node = (bNode *)ptr->data;
+  bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
+  socket->default_value_typed<bNodeSocketValueMenu>()->value = value;
+}
+
 static void node_rna(StructRNA *srna)
-{ 
-  RNA_def_node_enum(srna,
-                    "mode",
-                    "Mode",
-                    "Determines how to choose which layers are merged",
-                    mode_items,
-                    NOD_storage_enum_accessors(mode),
-                    int(MergeLayerMode::ByName),
-                    nullptr);
+{
+  PropertyRNA *prop = RNA_def_node_enum(srna,
+                                        "mode",
+                                        "Mode",
+                                        "Determines how to choose which layers are merged",
+                                        mode_items,
+                                        NOD_storage_enum_accessors(mode),
+                                        int(MergeLayerMode::ByName),
+                                        nullptr);
+  RNA_def_property_enum_funcs_runtime(
+      prop, rna_MergeLayers_mode_get, rna_MergeLayers_mode_set, nullptr, nullptr, nullptr);
 }
 
 static void node_register()
