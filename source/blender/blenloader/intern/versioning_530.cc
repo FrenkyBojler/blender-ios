@@ -33,6 +33,40 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
+static void do_version_set_grease_pencil_colors_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode"_ustr)) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_set_grease_pencil_depth_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Depth Order"_ustr)) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Depth Order");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_merge_layers_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (!version_node_ensure_storage_or_invalidate(node)) {
+    return;
+  }
+
+  auto &storage = *reinterpret_cast<NodeGeometryMergeLayers *>(node.storage);
+
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode"_ustr)) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.mode;
+}
+
 static void compositing_node_group_to_effect(Main &main, Scene &scene)
 {
   bNodeTree *node_group = version_get_scene_compositor_node_tree(&main, &scene);
@@ -65,6 +99,11 @@ static void compositing_node_group_forward_compatibility(Main &main)
 void do_versions_after_linking_530(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
+    version_node_socket_index_animdata(
+        bmain, NTREE_GEOMETRY, "GeometryNodeSetGreasePencilColor", 5, 1, 6);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 9)) {
     for (Scene &scene : bmain->scenes) {
       compositing_node_group_to_effect(*bmain, scene);
     }
@@ -193,6 +232,23 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 8)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (STREQ(node.idname, "GeometryNodeSetGreasePencilColor")) {
+          do_version_set_grease_pencil_colors_options_to_inputs(*node_tree, node);
+        }
+        if (STREQ(node.idname, "GeometryNodeSetGreasePencilDepth")) {
+          do_version_set_grease_pencil_depth_options_to_inputs(*node_tree, node);
+        }
+        if (STREQ(node.idname, "GeometryNodeMergeLayers")) {
+          do_version_merge_layers_options_to_inputs(*node_tree, node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 9)) {
     for (bNodeTree &node_group : bmain->nodetrees) {
       if (node_group.type != NTREE_COMPOSIT) {
         continue;
