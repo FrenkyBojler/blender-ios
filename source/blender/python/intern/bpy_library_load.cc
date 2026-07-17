@@ -16,11 +16,11 @@
 #include <Python.h>
 #include <cstddef>
 
-#include "BLI_linklist.h"
+#include "BLI_linklist.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_asset.hh"
 #include "BKE_blender_version.h"
@@ -114,7 +114,7 @@ static PyObject *make_library_info(BLODataBlockInfo &id_info)
 
   BLI_assert(pos == bpy_lib_LibraryType_desc.n_in_sequence);
 
-  if (UNLIKELY(PyErr_Occurred())) {
+  if (PyErr_Occurred()) [[unlikely]] {
     Py_DECREF(library_info);
     return nullptr;
   }
@@ -372,8 +372,8 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
       "O&" /* `link` */
       "O&" /* `pack` */
       "O&" /* `relative` */
-      "O&" /* `recursive` */
       "O&" /* `set_fake` */
+      "O&" /* `recursive` */
       "O&" /* `reuse_local_id` */
       "O&" /* `assets_only` */
       "O&" /* `clear_asset_data` */
@@ -396,9 +396,9 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
                                         PyC_ParseBool,
                                         &flag_vars.is_relative,
                                         PyC_ParseBool,
-                                        &flag_vars.recursive,
-                                        PyC_ParseBool,
                                         &flag_vars.set_fake,
+                                        PyC_ParseBool,
+                                        &flag_vars.recursive,
                                         PyC_ParseBool,
                                         &flag_vars.reuse_local_id,
                                         PyC_ParseBool,
