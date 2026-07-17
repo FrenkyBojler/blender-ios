@@ -44,6 +44,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
+#include "BKE_object_draw_provider.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
@@ -680,6 +681,12 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent, const DRW
   }
 
   if (BKE_sculptsession_use_pbvh_draw(ob, draw_ctx.rv3d)) {
+    return false;
+  }
+
+  /* Custom modes draw per-node through the external draw provider, like sculpt;
+   * keep them off the instanced handle-range fast path. */
+  if (BKE_object_use_external_draw(ob, draw_ctx.rv3d)) {
     return false;
   }
 
