@@ -15,11 +15,18 @@
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.hh"
 
+#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
+#include "BKE_attribute_storage.hh"
+#include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_main.hh"
+#include "BKE_mesh.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
+#include "BKE_pointcloud.hh"
 
 #include "readfile.hh"
 
@@ -182,6 +189,53 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 9)) {
+    for (Mesh &mesh : bmain->meshes) {
+      if (mesh.attributes_active_index == 0) {
+        const AttributeOwner owner = AttributeOwner::from_id(&mesh.id);
+        if (owner.get_storage()->count() == 0 ||
+            !bke::allow_procedural_attribute_access(
+                owner.get_storage()->at_index(mesh.attributes_active_index).name()))
+        {
+          mesh.attributes_active_index = -1;
+        }
+      }
+    }
+    for (Curves &curves : bmain->hair_curves) {
+      if (curves.geometry.attributes_active_index == 0) {
+        const AttributeOwner owner = AttributeOwner::from_id(&curves.id);
+        if (owner.get_storage()->count() == 0 ||
+            !bke::allow_procedural_attribute_access(
+                owner.get_storage()->at_index(curves.geometry.attributes_active_index).name()))
+        {
+          curves.geometry.attributes_active_index = -1;
+        }
+      }
+    }
+    for (GreasePencil &grease_pencil : bmain->grease_pencils) {
+      if (grease_pencil.attributes_active_index == 0) {
+        const AttributeOwner owner = AttributeOwner::from_id(&grease_pencil.id);
+        if (owner.get_storage()->count() == 0 ||
+            !bke::allow_procedural_attribute_access(
+                owner.get_storage()->at_index(grease_pencil.attributes_active_index).name()))
+        {
+          grease_pencil.attributes_active_index = -1;
+        }
+      }
+    }
+    for (PointCloud &pointcloud : bmain->pointclouds) {
+      if (pointcloud.attributes_active_index == 0) {
+        const AttributeOwner owner = AttributeOwner::from_id(&pointcloud.id);
+        if (owner.get_storage()->count() == 0 ||
+            !bke::allow_procedural_attribute_access(
+                owner.get_storage()->at_index(pointcloud.attributes_active_index).name()))
+        {
+          pointcloud.attributes_active_index = -1;
+        }
+      }
+    }
   }
 
   /**
