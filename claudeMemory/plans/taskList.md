@@ -420,14 +420,19 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
 - [x] D2 `draw_external.cc`: per-node GPU cache (pos VBO + packed-normal VBO +
       TRIS batch), dirty-driven realloc/upload. Generic attribute formats +
       aliases still to come (positions + normals only so far).
-- [x] D3 `external_batches_get` (`SculptBatch`-shaped, frustum-culled).
-      `_per_material` variant (EEVEE) still to come.
-- [~] D4 Workbench consume branch done (gate + dispatch + batch source +
-      instanced-path exclusion in `draw_context.cc`) and **visually verified in a
-      GUI build** (the test triangle renders instead of the mesh). EEVEE branch
-      (`external_batches_per_material_get` + `eevee_sync`) pending. Three
-      GUI-only crashes fixed en route: null-PBVH sculpt handle, STATIC-usage VBO
-      use-after-free, and a NodeCache move double-free.
+- [x] D3 `external_batches_get` + `external_batches_per_material_get`
+      (`SculptBatch`-shaped, frustum-culled).
+- [ ] R4 Generic attributes in the fast draw path (mask/face-set/color):
+      engine `attrBufs` → `ExternalDrawNode.attrs`, Blender vertex formats +
+      `DRW_cdlayer_attr_aliases_add`, request → `setTreeRequestedAttrs`. Only
+      positions + normals are drawn so far. See
+      [draw-d6-provider.md](./draw-d6-provider.md) R4.
+- [x] D4 engine consume: **Workbench** (gate + dispatch + batch source +
+      instanced-path exclusion in `draw_context.cc`) and **EEVEE**
+      (`sync_sculpt` external branch + `external_batches_per_material_get`), both
+      GUI-verified (test triangle, then a real sculpted sphere in Solid and
+      EEVEE Material Preview). Three GUI-only crashes fixed en route: null-PBVH
+      sculpt handle, STATIC-usage VBO use-after-free, NodeCache move double-free.
 - [x] D5 Overlay engines gated: Prepass/Facing/Fade/Mode-transfer draw the
       provider geometry (outline follows it, not the mesh); Wireframe skips
       external-draw objects (provider wireframe deferred).
