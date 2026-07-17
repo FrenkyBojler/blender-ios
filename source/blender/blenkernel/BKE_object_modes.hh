@@ -25,6 +25,7 @@ namespace blender {
 
 struct bContext;
 struct Object;
+struct ExternalDrawProvider;
 
 struct ObjectModeType {
   ObjectModeType *next, *prev;
@@ -87,6 +88,14 @@ struct ObjectModeType {
   void (*undo_decode)(
       ObjectModeType *mt, bContext *C, Object *ob, int state_id, int direction, bool is_final);
   void (*undo_free)(ObjectModeType *mt, int state_id);
+
+  /**
+   * External draw provider (see #BKE_object_draw_provider.hh): when set, objects
+   * in this mode draw from provider-described CPU geometry instead of the
+   * evaluated mesh. Borrowed pointer, set via #BKE_object_mode_draw_provider_set;
+   * null when the mode uses the default (flush-to-Mesh) draw path.
+   */
+  const ExternalDrawProvider *draw_provider;
 
   /**
    * The persistent Python instance of the registered class (one per type,

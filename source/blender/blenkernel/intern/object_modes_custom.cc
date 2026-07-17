@@ -14,7 +14,9 @@
 #include "BLI_utildefines.hh"
 
 #include "DNA_object_types.h"
+#include "DNA_view3d_types.h"
 
+#include "BKE_object_draw_provider.hh"
 #include "BKE_object_modes.hh"
 
 namespace blender {
@@ -57,6 +59,36 @@ bool BKE_object_custom_mode_uses_custom_undo(const Object *ob)
   const ObjectModeType *mt = BKE_object_mode_type_find(ob->custom_mode_id);
   return mt != nullptr && (mt->flag & OBJECT_MODE_TYPE_USE_CUSTOM_UNDO) != 0 &&
          mt->undo_decode != nullptr;
+}
+
+bool BKE_object_mode_draw_provider_set(ObjectModeType *mt, const ExternalDrawProvider *provider)
+{
+  if (provider == nullptr || provider->abi_version != BKE_EXTERNAL_DRAW_ABI_VERSION) {
+    return false;
+  }
+  mt->draw_provider = provider;
+  return true;
+}
+
+const ExternalDrawProvider *BKE_object_external_draw_provider_get(const Object *ob)
+{
+  if (ob == nullptr || (ob->mode & OB_MODE_CUSTOM) == 0 || ob->custom_mode_id[0] == '\0') {
+    return nullptr;
+  }
+  const ObjectModeType *mt = BKE_object_mode_type_find(ob->custom_mode_id);
+  return mt != nullptr ? mt->draw_provider : nullptr;
+}
+
+bool BKE_object_use_external_draw(const Object *ob, const RegionView3D *rv3d)
+{
+  if (BKE_object_external_draw_provider_get(ob) == nullptr) {
+    return false;
+  }
+  /* External render engines (e.g. Cycles viewport) render from evaluated
+   * geometry and cannot consume the provider, so fall back to the flushed mesh
+   * — same rule as sculpt's PBVH draw path. */
+  const bool external_engine = rv3d && rv3d->view_render != nullptr;
+  return !external_engine;
 }
 
 const char *BKE_object_custom_mode_default_tool(const Object *ob)

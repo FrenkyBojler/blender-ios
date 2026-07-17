@@ -486,6 +486,7 @@ set(SRC
   BKE_node_tree_zones.hh
   BKE_object.hh
   BKE_object_deform.h
+  BKE_object_draw_provider.hh
   BKE_object_modes.hh
   BKE_object_types.hh
   BKE_ocean.h
