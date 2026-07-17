@@ -54,9 +54,6 @@ void VolumeModule::init()
 
   data_.tile_size = tile_size;
   data_.tile_size_lod = int(log2(tile_size));
-  data_.coord_scale = float2(extent) / float2(tile_size * tex_size);
-  data_.main_view_extent = float2(extent);
-  data_.main_view_extent_inv = 1.0f / float2(extent);
   data_.tex_size = tex_size;
   data_.inv_tex_size = 1.0f / float3(tex_size);
 
@@ -150,7 +147,8 @@ void VolumeModule::end_sync()
     }
   }
 
-  if (inst_.camera.is_perspective()) {
+  if (!inst_.camera.is_orthographic()) {
+    /* Must match GPU's `ViewMatrices::is_perspective()`, true for panoramic subviews too. */
     float sample_distribution = scene_eval->eevee.volumetric_sample_distribution;
     sample_distribution = 4.0f * math::max(1.0f - sample_distribution, 1e-2f);
 
@@ -331,8 +329,12 @@ void VolumeModule::end_sync()
   resolve_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
-void VolumeModule::set_view(View &main_view)
+void VolumeModule::set_view(View &main_view, int2 extent)
 {
+  data_.main_view_extent = float2(extent);
+  data_.main_view_extent_inv = 1.0f / float2(extent);
+  data_.coord_scale = float2(extent) / float2(data_.tile_size * data_.tex_size.xy());
+
   /* Number of frame to consider for blending with exponential (infinite) average. */
   int exponential_frame_count = 16;
   if (inst_.is_image_render) {
@@ -341,6 +343,10 @@ void VolumeModule::set_view(View &main_view)
   }
   else if (!use_reprojection_) {
     /* No re-projection if TAA is disabled. */
+    exponential_frame_count = 0;
+  }
+  else if (inst_.camera.is_panoramic()) {
+    /* Disable reprojection until the volume module supports perview history. */
     exponential_frame_count = 0;
   }
   else if (inst_.is_playback) {
@@ -391,7 +397,7 @@ void VolumeModule::set_view(View &main_view)
    * our froxel volume so that a 2D pixel covers exactly the number of pixel in a tile. */
   float2 render_size = float2(right - left, top - bottom);
   float2 volume_size = render_size * float2(data_.tex_size.xy() * data_.tile_size) /
-                       float2(inst_.film.render_extent_get());
+                       float2(extent);
   /* Change to the padded extends. */
   right = left + volume_size.x;
   top = bottom + volume_size.y;
