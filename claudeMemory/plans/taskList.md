@@ -422,10 +422,16 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
       aliases still to come (positions + normals only so far).
 - [x] D3 `external_batches_get` + `external_batches_per_material_get`
       (`SculptBatch`-shaped, frustum-culled).
-- [ ] R4 Generic attributes in the fast draw path (mask/face-set/color):
-      engine `attrBufs` → `ExternalDrawNode.attrs`, Blender vertex formats +
-      `DRW_cdlayer_attr_aliases_add`, request → `setTreeRequestedAttrs`. Only
-      positions + normals are drawn so far. See
+- [~] R4 Generic attributes in the fast draw path. **Color done**: the provider
+      exposes each GPU node's legacy float4 color stream (the composited
+      vertex-color / face-set display color), and `draw_external` draws it in
+      Workbench vertex-color shading via `init_format_for_attribute` +
+      `DRW_cdlayer_attr_aliases_add` (GUI-verified with a red/blue point color).
+      For a custom mode that single stream covers the visible coloring (the
+      separate mask/face-set overlay attrs are for the `OB_MODE_SCULPT` overlay,
+      which does not run for custom modes). Remaining (same pattern, lower
+      priority): UV for texture shading + EEVEE material attrs via the engine's
+      dynamic-attribute path (`setTreeRequestedAttrs`). See
       [draw-d6-provider.md](./draw-d6-provider.md) R4.
 - [x] D4 engine consume: **Workbench** (gate + dispatch + batch source +
       instanced-path exclusion in `draw_context.cc`) and **EEVEE**
