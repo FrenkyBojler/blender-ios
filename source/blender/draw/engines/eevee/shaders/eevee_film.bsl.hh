@@ -9,6 +9,7 @@
  */
 
 #include "draw_math_geom_lib.glsl"
+#include "eevee_camera_lib.bsl.hh"
 #include "eevee_colorspace_lib.bsl.hh"
 #include "eevee_cryptomatte.bsl.hh"
 #include "eevee_reverse_z_lib.bsl.hh"
@@ -31,124 +32,6 @@ float depth_convert_to_scene(const ViewMatrices view,
     return length(view.point_screen_to_view(float3(uv, depth)));
   }
   return -view.depth_screen_to_view(depth);
-}
-
-float3 panoramic_equirectangular_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.equirect_scale + cam.equirect_bias;
-  float phi = uv.x;
-  float theta = uv.y;
-  float sin_theta = sin(theta);
-  return float3(sin_theta * cos(phi), cos(theta), -sin_theta * sin(phi));
-}
-
-float3 panoramic_equiangular_cubemap_face_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.uv_scale + cam.uv_bias;
-  float u = tan((0.5f - uv.x) * M_PI_2);
-  float v = tan((uv.y - 0.5f) * M_PI_2);
-  return normalize(float3(-u, v, -1.0f));
-}
-
-float3 panoramic_central_cylindrical_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.uv_scale + cam.uv_bias;
-  const float theta = mix(cam.central_cylindrical_range.x, cam.central_cylindrical_range.y, uv.x);
-  const float cylinder_height = mix(
-      cam.central_cylindrical_range.z, cam.central_cylindrical_range.w, uv.y);
-  return normalize(float3(-sin(theta), cylinder_height, -cos(theta)));
-}
-
-float3 panoramic_fisheye_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.uv_scale + cam.uv_bias;
-  uv = (uv - 0.5f) * 2.0f;
-  float r = length(uv);
-  if (r > 1.0f) {
-    return float3(0.0f);
-  }
-  float phi = safe_acos(uv.x * safe_rcp(r));
-  float theta = r * cam.fisheye_fov * 0.5f;
-  if (uv.y < 0.0f) {
-    phi = -phi;
-  }
-  return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), -cos(theta));
-}
-
-float3 panoramic_fisheye_equisolid_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.uv_scale + cam.uv_bias;
-  uv = (uv - 0.5f) * cam.fisheye_sensor;
-
-  float r = length(uv);
-  float rmax = 2.0f * cam.fisheye_lens * sin(cam.fisheye_fov * 0.25f);
-  if (r > rmax) {
-    return float3(0.0f);
-  }
-
-  float theta = 2.0f * asin(r / (2.0f * cam.fisheye_lens));
-  float phi = safe_acos(uv.x * safe_rcp(r));
-  if (uv.y < 0.0f) {
-    phi = -phi;
-  }
-  return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), -cos(theta));
-}
-
-float3 panoramic_fisheye_lens_polynomial_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.uv_scale + cam.uv_bias;
-  uv = (uv - 0.5f) * cam.fisheye_sensor;
-
-  const float r = length(uv);
-  const float r2 = r * r;
-  const float4 rr = float4(r, r2, r2 * r, r2 * r2);
-  const float theta = -(cam.fisheye_polynomial_bias +
-                        dot(cam.fisheye_polynomial_coefficients, rr));
-
-  if (abs(theta) > 0.5f * cam.fisheye_fov) {
-    return float3(0.0f);
-  }
-
-  float phi = safe_acos(uv.x * safe_rcp(r));
-  if (uv.y < 0.0f) {
-    phi = -phi;
-  }
-  return float3(cos(phi) * sin(theta), sin(phi) * sin(theta), -cos(theta));
-}
-
-float3 panoramic_mirror_ball_to_direction(CameraData cam, float2 uv)
-{
-  uv = uv * cam.uv_scale + cam.uv_bias;
-  float3 dir;
-  dir.xy = uv * 2.0f - 1.0f;
-  if (length_squared(dir.xy) > 1.0f) {
-    return float3(0.0f);
-  }
-  dir.z = -safe_sqrt(1.0f - square(dir.x) - square(dir.y));
-  constexpr float3 I = float3(0.0f, 0.0f, 1.0f);
-  return reflect(I, dir);
-}
-
-float3 panoramic_direction_from_uv(CameraData cam, float2 uv)
-{
-  switch (cam.type) {
-    default:
-      return float3(0.0f);
-    case CAMERA_PANO_EQUIRECT:
-      return panoramic_equirectangular_to_direction(cam, uv);
-    case CAMERA_PANO_EQUIANGULAR_CUBEMAP_FACE:
-      return panoramic_equiangular_cubemap_face_to_direction(cam, uv);
-    case CAMERA_PANO_EQUIDISTANT:
-      return panoramic_fisheye_to_direction(cam, uv);
-    case CAMERA_PANO_EQUISOLID:
-      return panoramic_fisheye_equisolid_to_direction(cam, uv);
-    case CAMERA_PANO_FISHEYE_LENS_POLYNOMIAL:
-      return panoramic_fisheye_lens_polynomial_to_direction(cam, uv);
-    case CAMERA_PANO_CENTRAL_CYLINDRICAL:
-      return panoramic_central_cylindrical_to_direction(cam, uv);
-    case CAMERA_PANO_MIRROR:
-      return panoramic_mirror_ball_to_direction(cam, uv);
-  }
 }
 
 int panoramic_face_index(float3 direction)
@@ -333,7 +216,7 @@ struct Film {
 
     const CameraData cam = uni.uniform_buf.camera;
     const float2 film_uv = (float2(texel_film) + 0.5f) * uni.uniform_buf.film.extent_inv;
-    return panoramic_direction_from_uv(cam, film_uv);
+    return eevee::camera::view_from_uv(cam, film_uv);
   }
 
   bool panoramic_texel_has_valid_projection(int2 texel_film)
