@@ -325,10 +325,12 @@ typedef struct ThemeSpace {
   unsigned char wire[4], wire_edit[4], select[4];
   unsigned char lamp[4], speaker[4], empty[4], camera[4];
   unsigned char active[4], transform[4];
-  unsigned char vertex[4], vertex_select[4], vertex_active[4], vertex_unreferenced[4], vertex_mirror_selection[4];
+  unsigned char vertex[4], vertex_select[4], vertex_active[4], vertex_unreferenced[4],
+      vertex_mirror_selection[4];
   unsigned char edge[4], edge_select[4], edge_mode_select[4], edge_mirror_selection[4];
   /** Solid faces. */
-  unsigned char face[4], face_select[4], face_mode_select[4], face_retopology[4], face_mirror_selection[4];
+  unsigned char face[4], face_select[4], face_mode_select[4], face_retopology[4],
+      face_mirror_selection[4];
   unsigned char face_back[4], face_front[4];
   /** Selected color. */
   unsigned char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];

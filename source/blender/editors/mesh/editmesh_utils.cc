@@ -19,6 +19,7 @@
 #include "BLI_listbase.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector_c.hh"
+#include "BLI_set.hh"
 
 #include "BKE_attribute.h"
 #include "BKE_context.hh"
@@ -293,16 +294,14 @@ static int object_shapenr_basis_index_ensured(const Object *ob)
   return ob->shapenr;
 }
 
-void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
+void EDBM_mesh_make(Main *bmain, Object *ob, const int select_mode, const bool add_key_index)
 {
   Mesh *mesh = id_cast<Mesh *>(ob->data);
-  EDBM_mesh_make_from_mesh(ob, mesh, select_mode, add_key_index);
+  EDBM_mesh_make_from_mesh(bmain, ob, mesh, select_mode, add_key_index);
 }
 
-void EDBM_mesh_make_from_mesh(Object *ob,
-                              Mesh *src_mesh,
-                              const int select_mode,
-                              const bool add_key_index)
+void EDBM_mesh_make_from_mesh(
+    Main *bmain, Object *ob, Mesh *src_mesh, const int select_mode, const bool add_key_index)
 {
   Mesh *mesh = id_cast<Mesh *>(ob->data);
   BMeshCreateParams create_params{};
@@ -407,7 +406,9 @@ void EDBM_selectmode_to_scene(bContext *C)
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
 }
 
-static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
+static void EDBM_select_mirrored_tag_update(Main *bmain,
+                                            BMEditMesh *em,
+                                            const bool keep_current = false)
 {
   BMesh *bm = em->bm;
 
@@ -415,6 +416,28 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
   BMVert *v;
   BMEdge *e;
   BMFace *f;
+
+  blender::Set<BMVert *> old_mirrored_verts;
+  blender::Set<BMEdge *> old_mirrored_edges;
+  blender::Set<BMFace *> old_mirrored_faces;
+
+  if (keep_current) {
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_MIRRORED_SELECT)) {
+        old_mirrored_verts.add(v);
+      }
+    }
+    BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(e, BM_ELEM_MIRRORED_SELECT)) {
+        old_mirrored_edges.add(e);
+      }
+    }
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_MIRRORED_SELECT)) {
+        old_mirrored_faces.add(f);
+      }
+    }
+  }
 
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
     BM_elem_flag_disable(v, BM_ELEM_MIRRORED_SELECT);
@@ -481,7 +504,9 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
             if (v_mirr && v_mirr != v && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN) &&
                 !BM_elem_flag_test(v_mirr, BM_ELEM_SELECT))
             {
-              BM_elem_flag_enable(v_mirr, BM_ELEM_MIRRORED_SELECT);
+              if (!keep_current || old_mirrored_verts.contains(v_mirr)) {
+                BM_elem_flag_enable(v_mirr, BM_ELEM_MIRRORED_SELECT);
+              }
             }
           }
         }
@@ -496,7 +521,9 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
             if (e_mirr && e_mirr != e && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN) &&
                 !BM_elem_flag_test(e_mirr, BM_ELEM_SELECT))
             {
-              BM_elem_flag_enable(e_mirr, BM_ELEM_MIRRORED_SELECT);
+              if (!keep_current || old_mirrored_edges.contains(e_mirr)) {
+                BM_elem_flag_enable(e_mirr, BM_ELEM_MIRRORED_SELECT);
+              }
             }
           }
         }
@@ -511,7 +538,9 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
             if (f_mirr && f_mirr != f && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN) &&
                 !BM_elem_flag_test(f_mirr, BM_ELEM_SELECT))
             {
-              BM_elem_flag_enable(f_mirr, BM_ELEM_MIRRORED_SELECT);
+              if (!keep_current || old_mirrored_faces.contains(f_mirr)) {
+                BM_elem_flag_enable(f_mirr, BM_ELEM_MIRRORED_SELECT);
+              }
             }
           }
         }
@@ -522,15 +551,23 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
   }
 }
 
-void EDBM_selectmode_flush_mirrored_ex(Main *bmain, BMEditMesh *em, const short selectmode)
+void EDBM_selectmode_flush_mirrored_ex(Main *bmain,
+                                       BMEditMesh *em,
+                                       const short selectmode,
+                                       const bool keep_current)
 {
   BM_mesh_select_mode_flush_ex(em->bm, selectmode, BMSelectFlushFlag_All);
-  EDBM_select_mirrored_tag_update(bmain, em);
+  EDBM_select_mirrored_tag_update(bmain, em, keep_current);
 }
 
 void EDBM_selectmode_flush_mirrored(Main *bmain, BMEditMesh *em)
 {
-  EDBM_selectmode_flush_mirrored_ex(bmain, em, em->selectmode);
+  EDBM_selectmode_flush_mirrored_ex(bmain, em, em->selectmode, false);
+}
+
+void EDBM_selectmode_flush_mirrored_keep_current(Main *bmain, BMEditMesh *em)
+{
+  EDBM_selectmode_flush_mirrored_ex(bmain, em, em->selectmode, true);
 }
 
 void EDBM_selectmode_flush_ex(BMEditMesh *em, const short selectmode)

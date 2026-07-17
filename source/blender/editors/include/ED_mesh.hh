@@ -111,9 +111,10 @@ void EDBM_mesh_normals_update_ex(BMEditMesh *em, const BMeshNormalsUpdate_Params
 void EDBM_mesh_normals_update(BMEditMesh *em);
 
 void EDBM_selectmode_to_scene(bContext *C);
-void EDBM_mesh_make(Object *ob, int select_mode, bool add_key_index);
+void EDBM_mesh_make(Main *bmain, Object *ob, int select_mode, bool add_key_index);
 /** Replaces the edit-mesh in the object with a new one based on the given mesh. */
-void EDBM_mesh_make_from_mesh(Object *ob, Mesh *src_mesh, int select_mode, bool add_key_index);
+void EDBM_mesh_make_from_mesh(
+    Main *bmain, Object *ob, Mesh *src_mesh, int select_mode, bool add_key_index);
 /**
  * Should only be called on the active edit-mesh, otherwise call #BKE_editmesh_free_data.
  */
@@ -135,8 +136,12 @@ void EDBM_mesh_load(Main *bmain, Object *ob);
 void EDBM_select_more(BMEditMesh *em, bool use_face_step);
 void EDBM_select_less(BMEditMesh *em, bool use_face_step);
 
-void EDBM_selectmode_flush_mirrored_ex(Main *bmain, BMEditMesh *em, short selectmode);
+void EDBM_selectmode_flush_mirrored_ex(Main *bmain,
+                                       BMEditMesh *em,
+                                       short selectmode,
+                                       bool keep_current = false);
 void EDBM_selectmode_flush_mirrored(Main *bmain, BMEditMesh *em);
+void EDBM_selectmode_flush_mirrored_keep_current(Main *bmain, BMEditMesh *em);
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 
