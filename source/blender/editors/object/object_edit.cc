@@ -2391,7 +2391,7 @@ static const float external_draw_test_normals[3][3] = {
 static ExternalDrawNode external_draw_test_node;
 
 static int external_draw_test_nodes_get(void * /*user_data*/,
-                                        Object * /*ob*/,
+                                        unsigned int /*object_key*/,
                                         const ExternalDrawAttrRequest * /*req*/,
                                         ExternalDrawNode **r_nodes)
 {
@@ -2411,7 +2411,7 @@ static int external_draw_test_nodes_get(void * /*user_data*/,
   return 1;
 }
 
-static void external_draw_test_nodes_release(void * /*user_data*/, Object * /*ob*/) {}
+static void external_draw_test_nodes_release(void * /*user_data*/, unsigned int /*object_key*/) {}
 
 static const ExternalDrawProvider external_draw_test_provider = {
     BKE_EXTERNAL_DRAW_ABI_VERSION,

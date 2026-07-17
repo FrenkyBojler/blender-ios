@@ -206,11 +206,12 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
   const ExternalDrawAttrRequest request = {0, nullptr};
 
   const Object *ob_orig = DEG_get_original(ob);
+  const unsigned int object_key = ob_orig->id.session_uid;
   ExternalDrawNode *nodes = nullptr;
   const int nodes_num = provider->nodes_get(
-      provider->user_data, const_cast<Object *>(ob), &request, &nodes);
+      provider->user_data, object_key, &request, &nodes);
   if (nodes_num == 0 || nodes == nullptr) {
-    provider->nodes_release(provider->user_data, const_cast<Object *>(ob));
+    provider->nodes_release(provider->user_data, object_key);
     return {};
   }
 
@@ -258,7 +259,7 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
     result.append(batch);
   }
 
-  provider->nodes_release(provider->user_data, const_cast<Object *>(ob));
+  provider->nodes_release(provider->user_data, object_key);
   return result;
 }
 

@@ -98,17 +98,19 @@ struct ExternalDrawProvider {
   /** Must equal #BKE_EXTERNAL_DRAW_ABI_VERSION. */
   int abi_version;
   /**
-   * Fill the node list for `ob` given the requested attributes. Returns the
-   * node count and sets `*r_nodes` to a provider-owned array valid until
-   * #nodes_release. Return 0 (and leave `*r_nodes` untouched) when there is
-   * nothing to draw.
+   * Fill the node list for the object identified by `object_key` (the original
+   * object's #ID.session_uid — a stable per-session key the provider maps to
+   * its own per-object state; the provider is native and cannot dereference a
+   * Blender #Object). Returns the node count and sets `*r_nodes` to a
+   * provider-owned array valid until #nodes_release. Return 0 (and leave
+   * `*r_nodes` untouched) when there is nothing to draw.
    */
   int (*nodes_get)(void *user_data,
-                   Object *ob,
+                   unsigned int object_key,
                    const ExternalDrawAttrRequest *req,
                    ExternalDrawNode **r_nodes);
   /** Release whatever #nodes_get returned for this sync. */
-  void (*nodes_release)(void *user_data, Object *ob);
+  void (*nodes_release)(void *user_data, unsigned int object_key);
   /** Opaque provider state (e.g. the addon's session registry). */
   void *user_data;
 };
