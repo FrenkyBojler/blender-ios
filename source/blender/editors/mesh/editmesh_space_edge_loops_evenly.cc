@@ -83,7 +83,7 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
     if (bm->totedgesel > 0) {
       has_edges_selected = true;
     }
-    if(bm->totfacesel > 0){
+    if (bm->totfacesel > 0) {
       has_faces_selected = true;
       continue;
     }
@@ -118,8 +118,9 @@ static wmOperatorStatus edbm_space_edge_loops_evenly_exec(bContext *C, wmOperato
   }
 
   if (!changed_multi) {
-    if(has_faces_selected){
-      BKE_report(op->reports, RPT_WARNING, "Operator requires separate edge loops");
+    if (has_faces_selected) {
+      BKE_report(
+          op->reports, RPT_WARNING, "Operator requires separate edge loops, selected faces found");
     }
     else if (!has_edges_selected) {
       BKE_report(op->reports, RPT_WARNING, "No edges selected");
