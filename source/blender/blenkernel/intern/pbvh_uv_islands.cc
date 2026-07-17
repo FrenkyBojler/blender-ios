@@ -12,6 +12,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
 #include "BLI_task.hh"
+#include "BLI_vector_set.hh"
 
 #include "BKE_mesh_mapping.hh"
 
@@ -28,24 +29,25 @@
 
 namespace blender::bke::pbvh::uv_islands {
 
-static void uv_edge_append_to_uv_vertices(UVEdge &uv_edge)
+static void uv_edge_append_to_uv_verts(UVIsland &island, const int uv_edge_i)
 {
-  for (UVVertex *vertex : uv_edge.vertices) {
-    vertex->uv_edges.append_non_duplicates(&uv_edge);
+  for (const int uv_vert_i : island.uv_edges[uv_edge_i].verts) {
+    island.uv_verts[uv_vert_i].uv_edges.append_non_duplicates(uv_edge_i);
   }
 }
 
-static void uv_primitive_append_to_uv_edges(UVPrimitive &uv_primitive)
+static void uv_primitive_append_to_uv_edges(UVIsland &island, UVPrimitive &uv_primitive)
 {
-  for (UVEdge *uv_edge : uv_primitive.edges) {
-    uv_edge->uv_primitive_indices.append_non_duplicates(uv_primitive.primitive_i);
+  for (const int uv_edge_i : uv_primitive.edges) {
+    island.uv_edges[uv_edge_i].uv_primitive_indices.append_non_duplicates(
+        uv_primitive.primitive_i);
   }
 }
 
-static void uv_primitive_append_to_uv_vertices(UVPrimitive &uv_primitive)
+static void uv_primitive_append_to_uv_verts(UVIsland &island, UVPrimitive &uv_primitive)
 {
-  for (UVEdge *uv_edge : uv_primitive.edges) {
-    uv_edge_append_to_uv_vertices(*uv_edge);
+  for (const int uv_edge_i : uv_primitive.edges) {
+    uv_edge_append_to_uv_verts(island, uv_edge_i);
   }
 }
 
@@ -53,16 +55,16 @@ static void uv_primitive_append_to_uv_vertices(UVPrimitive &uv_primitive)
 /** \name Mesh Primitives
  * \{ */
 
-static int primitive_get_other_uv_vertex(const MeshData &mesh_data,
-                                         const int3 &tri,
-                                         const int v1,
-                                         const int v2)
+static int primitive_get_other_uv_vert(const MeshData &mesh_data,
+                                       const int3 &tri,
+                                       const int v1,
+                                       const int v2)
 {
   const Span<int> corner_verts = mesh_data.corner_verts;
   BLI_assert(ELEM(v1, corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]));
   BLI_assert(ELEM(v2, corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]));
-  for (const int loop : {tri[0], tri[1], tri[2]}) {
-    const int vert = corner_verts[loop];
+  for (const int corner : {tri[0], tri[1], tri[2]}) {
+    const int vert = corner_verts[corner];
     if (!ELEM(vert, v1, v2)) {
       return vert;
     }
@@ -75,9 +77,9 @@ static bool primitive_has_shared_uv_edge(const Span<float2> uv_map,
                                          const int3 &tri_other)
 {
   int shared_uv_verts = 0;
-  for (const int loop : {tri[0], tri[1], tri[2]}) {
-    for (const int other_loop : {tri_other[0], tri_other[1], tri_other[2]}) {
-      if (uv_map[loop] == uv_map[other_loop]) {
+  for (const int corner : {tri[0], tri[1], tri[2]}) {
+    for (const int other_corner : {tri_other[0], tri_other[1], tri_other[2]}) {
+      if (uv_map[corner] == uv_map[other_corner]) {
         shared_uv_verts += 1;
       }
     }
@@ -85,11 +87,11 @@ static bool primitive_has_shared_uv_edge(const Span<float2> uv_map,
   return shared_uv_verts >= 2;
 }
 
-static int get_uv_loop(const MeshData &mesh_data, const int3 &tri, const int vert)
+static int get_uv_corner(const MeshData &mesh_data, const int3 &tri, const int vert)
 {
-  for (const int loop : {tri[0], tri[1], tri[2]}) {
-    if (mesh_data.corner_verts[loop] == vert) {
-      return loop;
+  for (const int corner : {tri[0], tri[1], tri[2]}) {
+    if (mesh_data.corner_verts[corner] == vert) {
+      return corner;
     }
   }
   BLI_assert_unreachable();
@@ -127,30 +129,29 @@ static GroupedSpan<int> build_edge_to_primitive_map(const TriangleToEdgeMap &pri
 
 static void mesh_data_init_edges(MeshData &mesh_data)
 {
-  mesh_data.edges.reserve(mesh_data.corner_tris.size() * 2);
-  Map<OrderedEdge, int> eh;
-  eh.reserve(mesh_data.corner_tris.size() * 3);
-  for (int64_t tri_index = 0; tri_index < mesh_data.corner_tris.size(); tri_index++) {
-    const int3 &tri = mesh_data.corner_tris[tri_index];
-    Vector<int, 3> tri_edges;
-    for (int j = 0; j < 3; j++) {
-      int v1 = mesh_data.corner_verts[tri[j]];
-      int v2 = mesh_data.corner_verts[tri[(j + 1) % 3]];
-
-      int64_t edge_index = mesh_data.edges.size();
-      const bool is_new_edge = eh.add({v1, v2}, edge_index);
-      if (is_new_edge) {
-        mesh_data.edges.append({v1, v2});
-      }
-      else {
-        edge_index = eh.lookup({v1, v2});
-      }
-
-      tri_edges.append(edge_index);
-    }
-    mesh_data.primitive_to_edge_map.add(tri_edges, tri_index);
+  const Span<int> corner_verts = mesh_data.corner_verts;
+  const Span<int3> corner_tris = mesh_data.corner_tris;
+  using EdgeMap = VectorSet<OrderedEdge,
+                            32,
+                            DefaultProbingStrategy,
+                            DefaultHash<OrderedEdge>,
+                            DefaultEquality<OrderedEdge>,
+                            SimpleVectorSetSlot<OrderedEdge, int>,
+                            GuardedAllocator>;
+  EdgeMap edges;
+  edges.reserve(mesh_data.corner_tris.size() * 2);
+  for (const int tri_i : corner_tris.index_range()) {
+    const int3 &tri = mesh_data.corner_tris[tri_i];
+    const std::array<int, 3> tri_edges{
+        int(edges.index_of_or_add({corner_verts[tri[0]], corner_verts[tri[1]]})),
+        int(edges.index_of_or_add({corner_verts[tri[1]], corner_verts[tri[2]]})),
+        int(edges.index_of_or_add({corner_verts[tri[2]], corner_verts[tri[0]]})),
+    };
+    mesh_data.primitive_to_edge_map.add(tri_edges, tri_i);
   }
-  mesh_data.vert_to_edge_map = mesh::build_vert_to_edge_map(mesh_data.edges,
+
+  mesh_data.edges = edges.extract_vector();
+  mesh_data.vert_to_edge_map = mesh::build_vert_to_edge_map(mesh_data.edges.as_span().cast<int2>(),
                                                             mesh_data.vert_positions.size(),
                                                             mesh_data.vert_to_edge_offsets,
                                                             mesh_data.vert_to_edge_indices);
@@ -216,24 +217,24 @@ MeshData::MeshData(const OffsetIndices<int> faces,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name UVVertex
+/** \name UVVert
  * \{ */
 
-static void uv_vertex_init_flags(UVVertex &uv_vertex)
+static void uv_vert_init_flags(UVVert &uv_vert)
 {
-  uv_vertex.flags.is_border = false;
-  uv_vertex.flags.is_extended = false;
+  uv_vert.flags.is_border = false;
+  uv_vert.flags.is_extended = false;
 }
 
-UVVertex::UVVertex()
+UVVert::UVVert()
 {
-  uv_vertex_init_flags(*this);
+  uv_vert_init_flags(*this);
 }
 
-UVVertex::UVVertex(const MeshData &mesh_data, const int loop)
-    : vertex(mesh_data.corner_verts[loop]), uv(mesh_data.uv_map[loop])
+UVVert::UVVert(const MeshData &mesh_data, const int corner)
+    : vert(mesh_data.corner_verts[corner]), uv(mesh_data.uv_map[corner])
 {
-  uv_vertex_init_flags(*this);
+  uv_vert_init_flags(*this);
 }
 
 /** \} */
@@ -242,15 +243,15 @@ UVVertex::UVVertex(const MeshData &mesh_data, const int loop)
 /** \name UVEdge
  * \{ */
 
-bool UVEdge::has_same_vertices(const int vert1, const int vert2) const
+bool UVEdge::has_same_verts(const UVIsland &island, const int vert1, const int vert2) const
 {
-  return (vertices[0]->vertex == vert1 && vertices[1]->vertex == vert2) ||
-         (vertices[0]->vertex == vert2 && vertices[1]->vertex == vert1);
+  return (island.uv_verts[verts[0]].vert == vert1 && island.uv_verts[verts[1]].vert == vert2) ||
+         (island.uv_verts[verts[0]].vert == vert2 && island.uv_verts[verts[1]].vert == vert1);
 }
 
-bool UVEdge::has_same_vertices(const int2 &edge) const
+bool UVEdge::has_same_verts(const UVIsland &island, const int2 &edge) const
 {
-  return has_same_vertices(edge[0], edge[1]);
+  return has_same_verts(island, edge[0], edge[1]);
 }
 
 bool UVEdge::is_border_edge() const
@@ -258,12 +259,12 @@ bool UVEdge::is_border_edge() const
   return uv_primitive_indices.size() == 1;
 }
 
-UVVertex *UVEdge::get_other_uv_vertex(const int vertex)
+int UVEdge::get_other_uv_vert(const UVIsland &island, const int vert)
 {
-  if (vertices[0]->vertex == vertex) {
-    return vertices[1];
+  if (island.uv_verts[verts[0]].vert == vert) {
+    return verts[1];
   }
-  return vertices[0];
+  return verts[0];
 }
 
 /** \} */
@@ -271,61 +272,63 @@ UVVertex *UVEdge::get_other_uv_vertex(const int vertex)
 /* -------------------------------------------------------------------- */
 /** \name UVIsland
  * \{ */
-UVVertex *UVIsland::lookup(const UVVertex &vertex)
+int UVIsland::lookup(const UVVert &vert)
 {
-  const int vert_index = vertex.vertex;
-  const Vector<UVVertex *> &vertices = uv_vertex_lookup.lookup_or_add_default(vert_index);
-  for (UVVertex *v : vertices) {
-    if (v->uv == vertex.uv) {
-      return v;
+  const int vert_index = vert.vert;
+  const Vector<int> &verts = uv_vert_lookup.lookup_or_add_default(vert_index);
+  for (const int uv_vert_i : verts) {
+    if (uv_verts[uv_vert_i].uv == vert.uv) {
+      return uv_vert_i;
     }
   }
-  return nullptr;
+  return -1;
 }
 
-UVVertex *UVIsland::lookup_or_create(const UVVertex &vertex)
+int UVIsland::lookup_or_create(const UVVert &vert)
 {
-  UVVertex *found_vertex = lookup(vertex);
-  if (found_vertex != nullptr) {
-    return found_vertex;
+  const int found_vert = lookup(vert);
+  if (found_vert != -1) {
+    return found_vert;
   }
 
-  uv_vertices.append(vertex);
-  UVVertex *result = &uv_vertices.last();
-  result->uv_edges.clear();
+  uv_verts.append(vert);
+  uv_verts.last().uv_edges.clear();
   /* v is already a key. Ensured by UVIsland::lookup in this method. */
-  uv_vertex_lookup.lookup(vertex.vertex).append(result);
-  return result;
+  uv_vert_lookup.lookup(vert.vert).append(uv_verts.size() - 1);
+  return uv_verts.size() - 1;
 }
 
-UVEdge *UVIsland::lookup(const UVEdge &edge)
+int UVIsland::lookup(const UVEdge &edge)
 {
-  UVVertex *found_vertex = lookup(*edge.vertices[0]);
-  if (found_vertex == nullptr) {
-    return nullptr;
+  const UVVert &edge_vert_0 = this->uv_verts[edge.verts[0]];
+  const UVVert &edge_vert_1 = this->uv_verts[edge.verts[1]];
+  const int found_vert_i = lookup(edge_vert_0);
+  if (found_vert_i == -1) {
+    return -1;
   }
-  for (UVEdge *e : found_vertex->uv_edges) {
-    UVVertex *other_vertex = e->get_other_uv_vertex(found_vertex->vertex);
-    if (other_vertex->vertex == edge.vertices[1]->vertex &&
-        other_vertex->uv == edge.vertices[1]->uv)
-    {
-      return e;
+  const UVVert &found_vert = this->uv_verts[found_vert_i];
+  for (const int uv_edge_i : found_vert.uv_edges) {
+    UVEdge *e = &this->uv_edges[uv_edge_i];
+    const int other_vert_i = e->get_other_uv_vert(*this, found_vert.vert);
+    const UVVert &other_vert = this->uv_verts[other_vert_i];
+    if (other_vert.vert == edge_vert_1.vert && other_vert.uv == edge_vert_1.uv) {
+      return uv_edge_i;
     }
   }
-  return nullptr;
+  return -1;
 }
 
-UVEdge *UVIsland::lookup_or_create(const UVEdge &edge)
+int UVIsland::lookup_or_create(const UVEdge &edge)
 {
-  UVEdge *found_edge = lookup(edge);
-  if (found_edge != nullptr) {
+  int found_edge = lookup(edge);
+  if (found_edge != -1) {
     return found_edge;
   }
 
   uv_edges.append(edge);
   UVEdge *result = &uv_edges.last();
   result->uv_primitive_indices.clear();
-  return result;
+  return uv_edges.size() - 1;
 }
 
 static UVPrimitive *add_primitive(const MeshData &mesh_data,
@@ -336,22 +339,25 @@ static UVPrimitive *add_primitive(const MeshData &mesh_data,
   const int3 &tri = mesh_data.corner_tris[primitive_i];
   uv_island.uv_primitives.append(uv_primitive);
   UVPrimitive *uv_primitive_ptr = &uv_island.uv_primitives.last();
-  for (const int edge_i : mesh_data.primitive_to_edge_map[primitive_i]) {
-    const int2 &edge = mesh_data.edges[edge_i];
-    const int loop_1 = get_uv_loop(mesh_data, tri, edge[0]);
-    const int loop_2 = get_uv_loop(mesh_data, tri, edge[1]);
+  const Span<int> tri_edges = mesh_data.primitive_to_edge_map[primitive_i];
+  for (const int i : tri_edges.index_range()) {
+    const int edge_i = tri_edges[i];
+    const int2 edge = mesh_data.edges[edge_i];
+    const int corner_1 = get_uv_corner(mesh_data, tri, edge[0]);
+    const int corner_2 = get_uv_corner(mesh_data, tri, edge[1]);
     UVEdge uv_edge_template;
-    uv_edge_template.vertices[0] = uv_island.lookup_or_create(UVVertex(mesh_data, loop_1));
-    uv_edge_template.vertices[1] = uv_island.lookup_or_create(UVVertex(mesh_data, loop_2));
-    UVEdge *uv_edge = uv_island.lookup_or_create(uv_edge_template);
-    uv_primitive_ptr->edges.append(uv_edge);
-    uv_edge_append_to_uv_vertices(*uv_edge);
-    uv_edge->uv_primitive_indices.append(uv_primitive_ptr->primitive_i);
+    uv_edge_template.verts[0] = uv_island.lookup_or_create(UVVert(mesh_data, corner_1));
+    uv_edge_template.verts[1] = uv_island.lookup_or_create(UVVert(mesh_data, corner_2));
+    const int uv_edge_i = uv_island.lookup_or_create(uv_edge_template);
+    uv_primitive_ptr->edges[i] = uv_edge_i;
+    uv_edge_append_to_uv_verts(uv_island, uv_edge_i);
+    uv_island.uv_edges[uv_edge_i].uv_primitive_indices.append(uv_primitive_ptr->primitive_i);
   }
   return uv_primitive_ptr;
 }
 
-std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edges,
+std::optional<UVBorder> extract_border_from_edges(const UVIsland &island,
+                                                  MutableSpan<UVBorderEdge> edges,
                                                   MutableBoundedBitSpan borders_used);
 
 void UVIsland::extract_borders()
@@ -361,16 +367,17 @@ void UVIsland::extract_borders()
   Vector<UVBorderEdge> edges;
   for (const int uv_prim_i : uv_primitives.index_range()) {
     const UVPrimitive &prim = uv_primitives[uv_prim_i];
-    for (UVEdge *edge : prim.edges) {
-      if (edge->is_border_edge()) {
-        edges.append(UVBorderEdge(edge, uv_prim_i));
+    for (const int uv_edge_i : prim.edges) {
+      const UVEdge &edge = this->uv_edges[uv_edge_i];
+      if (edge.is_border_edge()) {
+        edges.append(UVBorderEdge(uv_edge_i, uv_prim_i));
       }
     }
   }
 
   BitVector<128> borders_used(edges.size(), false);
   while (true) {
-    std::optional<UVBorder> border = extract_border_from_edges(edges, borders_used);
+    std::optional<UVBorder> border = extract_border_from_edges(*this, edges, borders_used);
     if (!border.has_value()) {
       break;
     }
@@ -391,24 +398,24 @@ struct FanSegment {
     bool found : 1;
   } flags;
 
-  FanSegment(const MeshData &mesh_data, const int primitive_index, const int3 tri, int vertex)
+  FanSegment(const MeshData &mesh_data, const int primitive_index, const int3 tri, int vert)
       : primitive_index(primitive_index), tri(tri)
   {
     flags.found = false;
 
-    /* Reorder so the first edge starts with the given vertex. */
-    if (mesh_data.corner_verts[tri[1]] == vertex) {
+    /* Reorder so the first edge starts with the given vert. */
+    if (mesh_data.corner_verts[tri[1]] == vert) {
       vert_order[0] = 1;
       vert_order[1] = 2;
       vert_order[2] = 0;
     }
-    else if (mesh_data.corner_verts[tri[2]] == vertex) {
+    else if (mesh_data.corner_verts[tri[2]] == vert) {
       vert_order[0] = 2;
       vert_order[1] = 0;
       vert_order[2] = 1;
     }
     else {
-      BLI_assert(mesh_data.corner_verts[tri[0]] == vertex);
+      BLI_assert(mesh_data.corner_verts[tri[0]] == vert);
       vert_order[0] = 0;
       vert_order[1] = 1;
       vert_order[2] = 2;
@@ -442,10 +449,10 @@ struct Fan {
 
   } flags;
 
-  Fan(const MeshData &mesh_data, const int vertex)
+  Fan(const MeshData &mesh_data, const int vert)
   {
     flags.is_manifold = true;
-    int current_edge = mesh_data.vert_to_edge_map[vertex].first();
+    int current_edge = mesh_data.vert_to_edge_map[vert].first();
     const int stop_primitive = mesh_data.edge_to_primitive_map[current_edge].first();
     int previous_primitive = stop_primitive;
     while (true) {
@@ -465,11 +472,11 @@ struct Fan {
         const int3 &other_tri = mesh_data.corner_tris[other_primitive_i];
 
         for (const int edge_i : mesh_data.primitive_to_edge_map[other_primitive_i]) {
-          const int2 &edge = mesh_data.edges[edge_i];
-          if (edge_i == current_edge || (edge[0] != vertex && edge[1] != vertex)) {
+          const int2 edge = mesh_data.edges[edge_i];
+          if (edge_i == current_edge || (edge[0] != vert && edge[1] != vert)) {
             continue;
           }
-          segments.append(FanSegment(mesh_data, other_primitive_i, other_tri, vertex));
+          segments.append(FanSegment(mesh_data, other_primitive_i, other_tri, vert));
           current_edge = edge_i;
           previous_primitive = other_primitive_i;
           stop = true;
@@ -497,13 +504,14 @@ struct Fan {
     return result;
   }
 
-  void mark_already_added_segments(const UVVertex &uv_vertex)
+  void mark_already_added_segments(const UVIsland &uv_island, const UVVert &uv_vert)
   {
     /* Go over all fan edges to find if they can be found as primitive around the uv vertex. */
     for (FanSegment &fan_edge : segments) {
       fan_edge.flags.found = false;
-      for (const UVEdge *uv_edge : uv_vertex.uv_edges) {
-        if (uv_edge->uv_primitive_indices.contains(fan_edge.primitive_index)) {
+      for (const int uv_edge_i : uv_vert.uv_edges) {
+        const UVEdge &uv_edge = uv_island.uv_edges[uv_edge_i];
+        if (uv_edge.uv_primitive_indices.contains(fan_edge.primitive_index)) {
           fan_edge.flags.found = true;
           break;
         }
@@ -516,11 +524,11 @@ struct Fan {
    * Check if the given vertex is part of the outside of the fan.
    * Return true if the given vertex is found on the outside of the fan, otherwise returns false.
    */
-  bool contains_vertex_on_outside(const MeshData &mesh_data, const int vertex_index) const
+  bool contains_vert_on_outside(const MeshData &mesh_data, const int vert) const
   {
     for (const FanSegment &segment : segments) {
       int v2 = mesh_data.corner_verts[segment.tri[segment.vert_order[1]]];
-      if (vertex_index == v2) {
+      if (vert == v2) {
         return true;
       }
     }
@@ -531,10 +539,10 @@ struct Fan {
 
   static bool is_path_valid(const Span<FanSegment *> path,
                             const MeshData &mesh_data,
-                            const int from_vertex,
-                            const int to_vertex)
+                            const int from_vert,
+                            const int to_vert)
   {
-    int current_vert = from_vertex;
+    int current_vert = from_vert;
     for (FanSegment *segment : path) {
       int v1 = mesh_data.corner_verts[segment->tri[segment->vert_order[1]]];
       int v2 = mesh_data.corner_verts[segment->tri[segment->vert_order[2]]];
@@ -543,19 +551,19 @@ struct Fan {
       }
       current_vert = v1 == current_vert ? v2 : v1;
     }
-    return current_vert == to_vertex;
+    return current_vert == to_vert;
   }
 
   /**
-   * Find the closest path over the fan between `from_vertex` and `to_vertex`. The result contains
+   * Find the closest path over the fan between `from_vert` and `to_vert`. The result contains
    * exclude the starting and final edge.
    *
    * Algorithm only uses the winding order of the given fan segments.
    */
   static Vector<FanSegment *> path_between(const Span<FanSegment *> edge_order,
                                            const MeshData &mesh_data,
-                                           const int from_vertex,
-                                           const int to_vertex,
+                                           const int from_vert,
+                                           const int to_vert,
                                            const bool reversed)
   {
     const int from_vert_order = 1;
@@ -568,7 +576,7 @@ struct Fan {
     while (true) {
       FanSegment *segment = edge_order[index];
       int v2 = mesh_data.corner_verts[segment->tri[segment->vert_order[from_vert_order]]];
-      if (v2 == from_vertex) {
+      if (v2 == from_vert) {
         break;
       }
       index = (index + index_increment + edge_order.size()) % edge_order.size();
@@ -579,7 +587,7 @@ struct Fan {
       result.append(segment);
 
       int v3 = mesh_data.corner_verts[segment->tri[segment->vert_order[to_vert_order]]];
-      if (v3 == to_vertex) {
+      if (v3 == to_vert) {
         break;
       }
 
@@ -607,14 +615,14 @@ struct Fan {
   }
 
   Vector<FanSegment *> best_path_between(const MeshData &mesh_data,
-                                         const int from_vertex,
-                                         const int to_vertex)
+                                         const int from_vert,
+                                         const int to_vert)
   {
-    BLI_assert_msg(contains_vertex_on_outside(mesh_data, from_vertex),
-                   "Inconsistency detected, `from_vertex` isn't part of the outside of the fan.");
-    BLI_assert_msg(contains_vertex_on_outside(mesh_data, to_vertex),
-                   "Inconsistency detected, `to_vertex` isn't part of the outside of the fan.");
-    if (to_vertex == from_vertex) {
+    BLI_assert_msg(contains_vert_on_outside(mesh_data, from_vert),
+                   "Inconsistency detected, `from_vert` isn't part of the outside of the fan.");
+    BLI_assert_msg(contains_vert_on_outside(mesh_data, to_vert),
+                   "Inconsistency detected, `to_vert` isn't part of the outside of the fan.");
+    if (to_vert == from_vert) {
       return Vector<FanSegment *>();
     }
 
@@ -623,11 +631,11 @@ struct Fan {
       edges[index] = &segments[index];
     }
 
-    Vector<FanSegment *> winding_1 = path_between(edges, mesh_data, from_vertex, to_vertex, false);
-    Vector<FanSegment *> winding_2 = path_between(edges, mesh_data, from_vertex, to_vertex, true);
+    Vector<FanSegment *> winding_1 = path_between(edges, mesh_data, from_vert, to_vert, false);
+    Vector<FanSegment *> winding_2 = path_between(edges, mesh_data, from_vert, to_vert, true);
 
-    bool winding_1_valid = is_path_valid(winding_1, mesh_data, from_vertex, to_vertex);
-    bool winding_2_valid = is_path_valid(winding_2, mesh_data, from_vertex, to_vertex);
+    bool winding_1_valid = is_path_valid(winding_1, mesh_data, from_vert, to_vert);
+    bool winding_2_valid = is_path_valid(winding_2, mesh_data, from_vert, to_vert);
 
     if (winding_1_valid && !winding_2_valid) {
       return winding_1;
@@ -656,65 +664,72 @@ struct Fan {
 
 static void add_uv_primitive_shared_uv_edge(const MeshData &mesh_data,
                                             UVIsland &island,
-                                            UVVertex *connected_vert_1,
-                                            UVVertex *connected_vert_2,
+                                            const UVVert &connected_vert_1,
+                                            const UVVert &connected_vert_2,
                                             float2 uv_unconnected,
                                             const int mesh_primitive_i)
 {
   UVPrimitive prim1(mesh_primitive_i);
   const int3 &tri = mesh_data.corner_tris[mesh_primitive_i];
+  /* Extract data before vector reallocation invalidates existing UVVert references. */
+  const int mesh_vert_1 = connected_vert_1.vert;
+  const int mesh_vert_2 = connected_vert_2.vert;
+  const float2 uv_1 = connected_vert_1.uv;
+  const float2 uv_2 = connected_vert_2.uv;
 
-  const int other_vert_i = primitive_get_other_uv_vertex(
-      mesh_data, tri, connected_vert_1->vertex, connected_vert_2->vertex);
-  UVVertex vert_template;
+  const int other_vert_i = primitive_get_other_uv_vert(mesh_data, tri, mesh_vert_1, mesh_vert_2);
+  UVVert vert_template;
   vert_template.uv = uv_unconnected;
-  vert_template.vertex = other_vert_i;
-  UVVertex *vert_ptr = island.lookup_or_create(vert_template);
+  vert_template.vert = other_vert_i;
+  const int uv_vert_i = island.lookup_or_create(vert_template);
 
-  const int loop_1 = get_uv_loop(mesh_data, tri, connected_vert_1->vertex);
-  vert_template.uv = connected_vert_1->uv;
-  vert_template.vertex = mesh_data.corner_verts[loop_1];
-  UVVertex *vert_1_ptr = island.lookup_or_create(vert_template);
+  const int corner_1 = get_uv_corner(mesh_data, tri, mesh_vert_1);
+  vert_template.uv = uv_1;
+  vert_template.vert = mesh_data.corner_verts[corner_1];
+  const int uv_vert_1_i = island.lookup_or_create(vert_template);
 
-  const int loop_2 = get_uv_loop(mesh_data, tri, connected_vert_2->vertex);
-  vert_template.uv = connected_vert_2->uv;
-  vert_template.vertex = mesh_data.corner_verts[loop_2];
-  UVVertex *vert_2_ptr = island.lookup_or_create(vert_template);
+  const int corner_2 = get_uv_corner(mesh_data, tri, mesh_vert_2);
+  vert_template.uv = uv_2;
+  vert_template.vert = mesh_data.corner_verts[corner_2];
+  const int uv_vert_2_i = island.lookup_or_create(vert_template);
 
   UVEdge edge_template;
-  edge_template.vertices[0] = vert_1_ptr;
-  edge_template.vertices[1] = vert_2_ptr;
-  prim1.edges.append(island.lookup_or_create(edge_template));
-  edge_template.vertices[0] = vert_2_ptr;
-  edge_template.vertices[1] = vert_ptr;
-  prim1.edges.append(island.lookup_or_create(edge_template));
-  edge_template.vertices[0] = vert_ptr;
-  edge_template.vertices[1] = vert_1_ptr;
-  prim1.edges.append(island.lookup_or_create(edge_template));
-  uv_primitive_append_to_uv_edges(prim1);
-  uv_primitive_append_to_uv_vertices(prim1);
+  edge_template.verts[0] = uv_vert_1_i;
+  edge_template.verts[1] = uv_vert_2_i;
+  prim1.edges[0] = island.lookup_or_create(edge_template);
+  edge_template.verts[0] = uv_vert_2_i;
+  edge_template.verts[1] = uv_vert_i;
+  prim1.edges[1] = island.lookup_or_create(edge_template);
+  edge_template.verts[0] = uv_vert_i;
+  edge_template.verts[1] = uv_vert_1_i;
+  prim1.edges[2] = island.lookup_or_create(edge_template);
+  uv_primitive_append_to_uv_edges(island, prim1);
+  uv_primitive_append_to_uv_verts(island, prim1);
   island.uv_primitives.append(prim1);
 }
 /**
  * Find a primitive that can be used to fill give corner.
  * Will return -1 when no primitive can be found.
  */
-static int find_fill_primitive(const MeshData &mesh_data, UVBorderCorner &corner)
+static int find_fill_primitive(const MeshData &mesh_data,
+                               const UVIsland &island,
+                               UVBorderCorner &corner)
 {
-  if (corner.first->get_uv_vertex(1) != corner.second->get_uv_vertex(0)) {
+  if (corner.first->get_uv_vert(island, 1) != corner.second->get_uv_vert(island, 0)) {
     return -1;
   }
-  if (corner.first->get_uv_vertex(0) == corner.second->get_uv_vertex(1)) {
+  if (corner.first->get_uv_vert(island, 0) == corner.second->get_uv_vert(island, 1)) {
     return -1;
   }
-  const UVVertex *shared_vert = corner.second->get_uv_vertex(0);
-  for (const int edge_i : mesh_data.vert_to_edge_map[shared_vert->vertex]) {
-    const int2 &edge = mesh_data.edges[edge_i];
-    if (corner.first->edge->has_same_vertices(edge)) {
+  const int shared_vert_i = corner.second->get_uv_vert(island, 0);
+  const UVVert &shared_vert = island.uv_verts[shared_vert_i];
+  for (const int edge_i : mesh_data.vert_to_edge_map[shared_vert.vert]) {
+    const int2 edge = mesh_data.edges[edge_i];
+    if (island.uv_edges[corner.first->uv_edge_i].has_same_verts(island, edge)) {
       for (const int primitive_i : mesh_data.edge_to_primitive_map[edge_i]) {
         const int3 &tri = mesh_data.corner_tris[primitive_i];
-        const int other_vert = primitive_get_other_uv_vertex(mesh_data, tri, edge[0], edge[1]);
-        if (other_vert == corner.second->get_uv_vertex(1)->vertex) {
+        const int other_vert = primitive_get_other_uv_vert(mesh_data, tri, edge[0], edge[1]);
+        if (other_vert == island.uv_verts[corner.second->get_uv_vert(island, 1)].vert) {
           return primitive_i;
         }
       }
@@ -724,24 +739,24 @@ static int find_fill_primitive(const MeshData &mesh_data, UVBorderCorner &corner
 }
 
 static void add_uv_primitive_fill(UVIsland &island,
-                                  UVVertex &uv_vertex1,
-                                  UVVertex &uv_vertex2,
-                                  UVVertex &uv_vertex3,
+                                  const int uv_vert1_i,
+                                  const int uv_vert2_i,
+                                  const int uv_vert3_i,
                                   const int fill_primitive_i)
 {
   UVPrimitive uv_primitive(fill_primitive_i);
   UVEdge edge_template;
-  edge_template.vertices[0] = &uv_vertex1;
-  edge_template.vertices[1] = &uv_vertex2;
-  uv_primitive.edges.append(island.lookup_or_create(edge_template));
-  edge_template.vertices[0] = &uv_vertex2;
-  edge_template.vertices[1] = &uv_vertex3;
-  uv_primitive.edges.append(island.lookup_or_create(edge_template));
-  edge_template.vertices[0] = &uv_vertex3;
-  edge_template.vertices[1] = &uv_vertex1;
-  uv_primitive.edges.append(island.lookup_or_create(edge_template));
-  uv_primitive_append_to_uv_edges(uv_primitive);
-  uv_primitive_append_to_uv_vertices(uv_primitive);
+  edge_template.verts[0] = uv_vert1_i;
+  edge_template.verts[1] = uv_vert2_i;
+  uv_primitive.edges[0] = island.lookup_or_create(edge_template);
+  edge_template.verts[0] = uv_vert2_i;
+  edge_template.verts[1] = uv_vert3_i;
+  uv_primitive.edges[1] = island.lookup_or_create(edge_template);
+  edge_template.verts[0] = uv_vert3_i;
+  edge_template.verts[1] = uv_vert1_i;
+  uv_primitive.edges[2] = island.lookup_or_create(edge_template);
+  uv_primitive_append_to_uv_edges(island, uv_primitive);
+  uv_primitive_append_to_uv_verts(island, uv_primitive);
   island.uv_primitives.append(uv_primitive);
 }
 
@@ -755,25 +770,28 @@ static void extend_at_vert(const MeshData &mesh_data,
 
   int border_index = corner.first->border_index;
   UVBorder &border = island.borders[border_index];
-  if (!corner.connected_in_mesh()) {
+  if (!corner.connected_in_mesh(island)) {
     return;
   }
 
   UVBorderEdge *after_edge = corner.second->next;
 
-  UVVertex *uv_vertex = corner.second->get_uv_vertex(0);
-  Fan fan(mesh_data, uv_vertex->vertex);
+  const int uv_vert_i = corner.second->get_uv_vert(island, 0);
+  const UVVert uv_vert = island.uv_verts[uv_vert_i];
+  Fan fan(mesh_data, uv_vert.vert);
   if (!fan.flags.is_manifold) {
     return;
   }
-  fan.mark_already_added_segments(*uv_vertex);
+  fan.mark_already_added_segments(island, uv_vert);
   int num_to_add = fan.count_edges_not_added();
 
   /* In 3d space everything can connected, but in uv space it may not.
    * in this case in the space between we should extract the primitives to be added
    * from the fan. */
   Vector<FanSegment *> winding_solution = fan.best_path_between(
-      mesh_data, corner.first->get_uv_vertex(0)->vertex, corner.second->get_uv_vertex(1)->vertex);
+      mesh_data,
+      island.uv_verts[corner.first->get_uv_vert(island, 0)].vert,
+      island.uv_verts[corner.second->get_uv_vert(island, 1)].vert);
 
   /*
    * When all edges are already added and its winding solution contains one segment to be added,
@@ -789,25 +807,25 @@ static void extend_at_vert(const MeshData &mesh_data,
 
     const int fill_primitive_i = winding_solution.size() == 1 ?
                                      winding_solution[0]->primitive_index :
-                                     find_fill_primitive(mesh_data, corner);
+                                     find_fill_primitive(mesh_data, island, corner);
 
     if (fill_primitive_i != -1) {
       fill_primitive_1_i = fill_primitive_i;
       fill_primitive_2_i = fill_primitive_i;
     }
 
-    float2 center_uv = corner.uv(0.5f, min_uv_distance);
+    float2 center_uv = corner.uv(island, 0.5f, min_uv_distance);
     add_uv_primitive_shared_uv_edge(mesh_data,
                                     island,
-                                    corner.first->get_uv_vertex(1),
-                                    corner.first->get_uv_vertex(0),
+                                    island.uv_verts[corner.first->get_uv_vert(island, 1)],
+                                    island.uv_verts[corner.first->get_uv_vert(island, 0)],
                                     center_uv,
                                     fill_primitive_1_i);
     const int new_prim_1_i = island.uv_primitives.size() - 1;
     add_uv_primitive_shared_uv_edge(mesh_data,
                                     island,
-                                    corner.second->get_uv_vertex(0),
-                                    corner.second->get_uv_vertex(1),
+                                    island.uv_verts[corner.second->get_uv_vert(island, 0)],
+                                    island.uv_verts[corner.second->get_uv_vert(island, 1)],
                                     center_uv,
                                     fill_primitive_2_i);
     const int new_prim_2_i = island.uv_primitives.size() - 1;
@@ -816,59 +834,65 @@ static void extend_at_vert(const MeshData &mesh_data,
     {
       UVBorderEdge *border_edge = corner.first;
       border_edge->uv_primitive = new_prim_1_i;
-      border_edge->edge = island.uv_primitives[border_edge->uv_primitive].get_uv_edge(
-          corner.first->get_uv_vertex(0)->uv, center_uv);
-      border_edge->reverse_order = border_edge->edge->vertices[0]->uv == center_uv;
+      border_edge->uv_edge_i = island.uv_primitives[border_edge->uv_primitive].get_uv_edge(
+          island, island.uv_verts[corner.first->get_uv_vert(island, 0)].uv, center_uv);
+      border_edge->reverse_order =
+          island.uv_verts[island.uv_edges[border_edge->uv_edge_i].verts[0]].uv == center_uv;
     }
     {
       UVBorderEdge *border_edge = corner.second;
       border_edge->uv_primitive = new_prim_2_i;
-      border_edge->edge = island.uv_primitives[border_edge->uv_primitive].get_uv_edge(
-          corner.second->get_uv_vertex(1)->uv, center_uv);
-      border_edge->reverse_order = border_edge->edge->vertices[1]->uv == center_uv;
+      border_edge->uv_edge_i = island.uv_primitives[border_edge->uv_primitive].get_uv_edge(
+          island, island.uv_verts[corner.second->get_uv_vert(island, 1)].uv, center_uv);
+      border_edge->reverse_order =
+          island.uv_verts[island.uv_edges[border_edge->uv_edge_i].verts[1]].uv == center_uv;
     }
 
     r_modified.append(corner.first);
     r_modified.append(after_edge);
   }
   else {
-    UVEdge *current_edge = corner.first->edge;
+    int current_edge = corner.first->uv_edge_i;
     Vector<UVBorderEdge> new_border_edges;
 
     num_to_add = winding_solution.size();
     for (int64_t segment_index : winding_solution.index_range()) {
 
-      float2 old_uv = current_edge->get_other_uv_vertex(uv_vertex->vertex)->uv;
-      int shared_edge_vertex = current_edge->get_other_uv_vertex(uv_vertex->vertex)->vertex;
+      float2 old_uv =
+          island.uv_verts[island.uv_edges[current_edge].get_other_uv_vert(island, uv_vert.vert)]
+              .uv;
+      int shared_edge_vert =
+          island.uv_verts[island.uv_edges[current_edge].get_other_uv_vert(island, uv_vert.vert)]
+              .vert;
 
       float factor = (segment_index + 1.0f) / num_to_add;
-      float2 new_uv = corner.uv(factor, min_uv_distance);
+      float2 new_uv = corner.uv(island, factor, min_uv_distance);
 
       FanSegment &segment = *winding_solution[segment_index];
 
       const int fill_primitive_i = segment.primitive_index;
       const int3 &tri_fill = mesh_data.corner_tris[fill_primitive_i];
-      const int other_prim_vertex = primitive_get_other_uv_vertex(
-          mesh_data, tri_fill, uv_vertex->vertex, shared_edge_vertex);
+      const int other_prim_vert = primitive_get_other_uv_vert(
+          mesh_data, tri_fill, uv_vert.vert, shared_edge_vert);
 
-      UVVertex uv_vertex_template;
-      uv_vertex_template.vertex = uv_vertex->vertex;
-      uv_vertex_template.uv = uv_vertex->uv;
-      UVVertex *vertex_1_ptr = island.lookup_or_create(uv_vertex_template);
-      uv_vertex_template.vertex = shared_edge_vertex;
-      uv_vertex_template.uv = old_uv;
-      UVVertex *vertex_2_ptr = island.lookup_or_create(uv_vertex_template);
-      uv_vertex_template.vertex = other_prim_vertex;
-      uv_vertex_template.uv = new_uv;
-      UVVertex *vertex_3_ptr = island.lookup_or_create(uv_vertex_template);
+      UVVert uv_vert_template;
+      uv_vert_template.vert = uv_vert.vert;
+      uv_vert_template.uv = uv_vert.uv;
+      const int vert_1_i = island.lookup_or_create(uv_vert_template);
+      uv_vert_template.vert = shared_edge_vert;
+      uv_vert_template.uv = old_uv;
+      const int vert_2_i = island.lookup_or_create(uv_vert_template);
+      uv_vert_template.vert = other_prim_vert;
+      uv_vert_template.uv = new_uv;
+      const int vert_3_i = island.lookup_or_create(uv_vert_template);
 
-      add_uv_primitive_fill(island, *vertex_1_ptr, *vertex_2_ptr, *vertex_3_ptr, fill_primitive_i);
+      add_uv_primitive_fill(island, vert_1_i, vert_2_i, vert_3_i, fill_primitive_i);
 
       const int new_prim_i = island.uv_primitives.size() - 1;
-      current_edge = island.uv_primitives[new_prim_i].get_uv_edge(uv_vertex->vertex,
-                                                                  other_prim_vertex);
+      current_edge = island.uv_primitives[new_prim_i].get_uv_edge(
+          island, uv_vert.vert, other_prim_vert);
       UVBorderEdge new_border(
-          island.uv_primitives[new_prim_i].get_uv_edge(shared_edge_vertex, other_prim_vertex),
+          island.uv_primitives[new_prim_i].get_uv_edge(island, shared_edge_vert, other_prim_vert),
           new_prim_i);
       new_border_edges.append(new_border);
     }
@@ -897,14 +921,15 @@ static void extend_at_vert(const MeshData &mesh_data,
 /* Marks vertices that can be extended. Only vertices that are part of a border can be extended. */
 static void reset_extendability_flags(UVIsland &island)
 {
-  for (UVVertex &uv_vertex : island.uv_vertices) {
-    uv_vertex.flags.is_border = false;
-    uv_vertex.flags.is_extended = false;
+  for (UVVert &uv_vert : island.uv_verts) {
+    uv_vert.flags.is_border = false;
+    uv_vert.flags.is_extended = false;
   }
   for (const UVBorder &border : island.borders) {
     for (const UVBorderEdge &border_edge : border.edges) {
-      border_edge.edge->vertices[0]->flags.is_border = true;
-      border_edge.edge->vertices[1]->flags.is_border = true;
+      const UVEdge &uv_edge = island.uv_edges[border_edge.uv_edge_i];
+      island.uv_verts[uv_edge.verts[0]].flags.is_border = true;
+      island.uv_verts[uv_edge.verts[1]].flags.is_border = true;
     }
   }
 }
@@ -944,7 +969,7 @@ void UVIsland::extend_border(const MeshData &mesh_data,
   /* Queue initial border edges. */
   for (UVBorder &border : borders) {
     for (UVBorderEdge &border_edge : border.edges) {
-      queue.push({border.outside_angle(border_edge), &border_edge});
+      queue.push({border.outside_angle(*this, border_edge), &border_edge});
     }
   }
 
@@ -954,15 +979,16 @@ void UVIsland::extend_border(const MeshData &mesh_data,
     const HeapEntry entry = queue.top();
     queue.pop();
     UVBorderEdge *border_edge = entry.edge;
-    if (!border_edge->is_extendable()) {
+    if (!border_edge->is_extendable(*this)) {
       continue;
     }
 
-    UVVertex *uv_vertex = border_edge->get_uv_vertex(0);
+    const int uv_vert_i = border_edge->get_uv_vert(*this, 0);
+    float2 uv_vert_uv = uv_verts[uv_vert_i].uv;
     UVBorder &border = borders[border_edge->border_index];
 
     /* If the angle changed, re-queue with new angle. */
-    const float angle = border.outside_angle(*border_edge);
+    const float angle = border.outside_angle(*this, *border_edge);
     if (angle != entry.angle) {
       queue.push({angle, border_edge});
       continue;
@@ -971,8 +997,8 @@ void UVIsland::extend_border(const MeshData &mesh_data,
     UVBorderCorner extension_corner(border_edge->prev, border_edge, angle);
 
     /* Found corner is outside the mask, the corner should not be considered for extension. */
-    const UVIslandsMask::Tile *tile = mask.find_tile(uv_vertex->uv);
-    if (tile && tile->is_masked(island_index, uv_vertex->uv)) {
+    const UVIslandsMask::Tile *tile = mask.find_tile(uv_vert_uv);
+    if (tile && tile->is_masked(island_index, uv_vert_uv)) {
       modified_edges.clear();
       extend_at_vert(mesh_data,
                      *this,
@@ -983,14 +1009,14 @@ void UVIsland::extend_border(const MeshData &mesh_data,
 
       /* Queue modified and newly generated edges. */
       for (UVBorderEdge *modified_edge : modified_edges) {
-        if (modified_edge->is_extendable()) {
+        if (modified_edge->is_extendable(*this)) {
           UVBorder &modified_border = borders[modified_edge->border_index];
-          queue.push({modified_border.outside_angle(*modified_edge), modified_edge});
+          queue.push({modified_border.outside_angle(*this, *modified_edge), modified_edge});
         }
       }
     }
     /* Mark that the vert is extended. */
-    uv_vertex->flags.is_extended = true;
+    this->uv_verts[uv_vert_i].flags.is_extended = true;
   }
 }
 
@@ -1003,9 +1029,9 @@ void UVIsland::print_debug(const MeshData &mesh_data) const
   ss << "import mathutils\n";
 
   ss << "uvisland_vertices = [\n";
-  for (const float3 &vertex_position : mesh_data.vert_positions) {
-    ss << "  mathutils.Vector((" << vertex_position.x << ", " << vertex_position.y << ", "
-       << vertex_position.z << ")),\n";
+  for (const float3 &vert_position : mesh_data.vert_positions) {
+    ss << "  mathutils.Vector((" << vert_position.x << ", " << vert_position.y << ", "
+       << vert_position.z << ")),\n";
   }
   ss << "]\n";
 
@@ -1013,26 +1039,28 @@ void UVIsland::print_debug(const MeshData &mesh_data) const
 
   ss << "uvisland_faces = [\n";
   for (const UVPrimitive &uvprimitive : uv_primitives) {
-    ss << "  [" << uvprimitive.edges[0]->vertices[0]->vertex << ", "
-       << uvprimitive.edges[0]->vertices[1]->vertex << ", "
-       << uvprimitive
-              .get_other_uv_vertex(uvprimitive.edges[0]->vertices[0],
-                                   uvprimitive.edges[0]->vertices[1])
-              ->vertex
+    ss << "  [" << this->uv_verts[this->uv_edges[uvprimitive.edges[0]].verts[0]].vert << ", "
+       << this->uv_verts[this->uv_edges[uvprimitive.edges[0]].verts[1]].vert << ", "
+       << this->uv_verts[uvprimitive.get_other_uv_vert(
+                             *this,
+                             this->uv_edges[uvprimitive.edges[0]].verts[0],
+                             this->uv_edges[uvprimitive.edges[0]].verts[1])]
+              .vert
        << "],\n";
   }
   ss << "]\n";
 
   ss << "uvisland_uvs = [\n";
   for (const UVPrimitive &uvprimitive : uv_primitives) {
-    float2 uv = uvprimitive.edges[0]->vertices[0]->uv;
+    float2 uv = this->uv_verts[this->uv_edges[uvprimitive.edges[0]].verts[0]].uv;
     ss << "  " << uv.x << ", " << uv.y << ",\n";
-    uv = uvprimitive.edges[0]->vertices[1]->uv;
+    uv = this->uv_verts[this->uv_edges[uvprimitive.edges[0]].verts[1]].uv;
     ss << "  " << uv.x << ", " << uv.y << ",\n";
-    uv = uvprimitive
-             .get_other_uv_vertex(uvprimitive.edges[0]->vertices[0],
-                                  uvprimitive.edges[0]->vertices[1])
-             ->uv;
+    uv = this->uv_verts[uvprimitive.get_other_uv_vert(
+                            *this,
+                            this->uv_edges[uvprimitive.edges[0]].verts[0],
+                            this->uv_edges[uvprimitive.edges[0]].verts[1])]
+             .uv;
     ss << "  " << uv.x << ", " << uv.y << ",\n";
   }
   ss << "]\n";
@@ -1053,7 +1081,8 @@ void UVIsland::print_debug(const MeshData &mesh_data) const
 /** \name UVBorder
  * \{ */
 
-std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edges,
+std::optional<UVBorder> extract_border_from_edges(const UVIsland &island,
+                                                  MutableSpan<UVBorderEdge> edges,
                                                   MutableBoundedBitSpan borders_used)
 {
   /* Find a part of the border that haven't been extracted yet. */
@@ -1066,8 +1095,8 @@ std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edge
   border.edges.append(start_edge);
   borders_used[*start_index].set();
 
-  float2 first_uv = start_edge.get_uv_vertex(0)->uv;
-  float2 current_uv = start_edge.get_uv_vertex(1)->uv;
+  float2 first_uv = island.uv_verts[start_edge.get_uv_vert(island, 0)].uv;
+  float2 current_uv = island.uv_verts[start_edge.get_uv_vert(island, 1)].uv;
   while (current_uv != first_uv) {
     bool edge_added = false;
     for (const int edge_i : edges.index_range()) {
@@ -1077,10 +1106,10 @@ std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edge
       UVBorderEdge &border_edge = edges[edge_i];
       int i;
       for (i = 0; i < 2; i++) {
-        if (border_edge.edge->vertices[i]->uv == current_uv) {
+        if (island.uv_verts[island.uv_edges[border_edge.uv_edge_i].verts[i]].uv == current_uv) {
           border_edge.reverse_order = i == 1;
           borders_used[edge_i].set();
-          current_uv = border_edge.get_uv_vertex(1)->uv;
+          current_uv = island.uv_verts[border_edge.get_uv_vert(island, 1)].uv;
           border.edges.append(border_edge);
           edge_added = true;
           break;
@@ -1102,13 +1131,13 @@ std::optional<UVBorder> extract_border_from_edges(MutableSpan<UVBorderEdge> edge
 bool UVBorder::is_ccw(const UVIsland &island) const
 {
   const UVBorderEdge &edge = edges.first();
-  const UVVertex *uv_vertex1 = edge.get_uv_vertex(0);
-  const UVVertex *uv_vertex2 = edge.get_uv_vertex(1);
-  const UVVertex *uv_vertex3 = edge.get_other_uv_vertex(island);
+  const int uv_vert1_i = edge.get_uv_vert(island, 0);
+  const int uv_vert2_i = edge.get_uv_vert(island, 1);
+  const int uv_vert3_i = edge.get_other_uv_vert(island);
   float poly[3][2];
-  copy_v2_v2(poly[0], uv_vertex1->uv);
-  copy_v2_v2(poly[1], uv_vertex2->uv);
-  copy_v2_v2(poly[2], uv_vertex3->uv);
+  copy_v2_v2(poly[0], island.uv_verts[uv_vert1_i].uv);
+  copy_v2_v2(poly[1], island.uv_verts[uv_vert2_i].uv);
+  copy_v2_v2(poly[2], island.uv_verts[uv_vert3_i].uv);
   const bool ccw = cross_poly_v2(poly, 3) > 0.0;
   return ccw;
 }
@@ -1121,11 +1150,13 @@ void UVBorder::flip_order()
   std::reverse(edges.begin(), edges.end());
 }
 
-float UVBorder::outside_angle(const UVBorderEdge &edge) const
+float UVBorder::outside_angle(const UVIsland &island, const UVBorderEdge &edge) const
 {
   const UVBorderEdge &prev = *edge.prev;
-  return M_PI - angle_signed_v2v2(prev.get_uv_vertex(1)->uv - prev.get_uv_vertex(0)->uv,
-                                  edge.get_uv_vertex(1)->uv - edge.get_uv_vertex(0)->uv);
+  return M_PI - angle_signed_v2v2(island.uv_verts[prev.get_uv_vert(island, 1)].uv -
+                                      island.uv_verts[prev.get_uv_vert(island, 0)].uv,
+                                  island.uv_verts[edge.get_uv_vert(island, 1)].uv -
+                                      island.uv_verts[edge.get_uv_vert(island, 0)].uv);
 }
 
 void UVBorder::setup_links(const int64_t border_index)
@@ -1150,40 +1181,41 @@ UVBorderCorner::UVBorderCorner(UVBorderEdge *first, UVBorderEdge *second, float 
 {
 }
 
-float2 UVBorderCorner::uv(float factor, float min_uv_distance)
+float2 UVBorderCorner::uv(const UVIsland &island, float factor, float min_uv_distance)
 {
   using namespace blender::math;
-  float2 origin = first->get_uv_vertex(1)->uv;
+  float2 origin = island.uv_verts[first->get_uv_vert(island, 1)].uv;
   float angle_between = angle * factor;
-  float desired_len = max_ff(second->length() * factor + first->length() * (1.0 - factor),
-                             min_uv_distance);
-  float2 v = normalize(first->get_uv_vertex(0)->uv - origin);
+  float desired_len = max_ff(
+      second->length(island) * factor + first->length(island) * (1.0 - factor), min_uv_distance);
+  float2 v = normalize(island.uv_verts[first->get_uv_vert(island, 0)].uv - origin);
 
   float2x2 rot_mat = from_rotation<float2x2>(AngleRadian(angle_between));
   float2 rotated = rot_mat * v;
-  float2 result = rotated * desired_len + first->get_uv_vertex(1)->uv;
+  float2 result = rotated * desired_len + island.uv_verts[first->get_uv_vert(island, 1)].uv;
   return result;
 }
 
-bool UVBorderCorner::connected_in_mesh() const
+bool UVBorderCorner::connected_in_mesh(const UVIsland &island) const
 {
-  return first->get_uv_vertex(1)->vertex == second->get_uv_vertex(0)->vertex;
+  return island.uv_verts[first->get_uv_vert(island, 1)].vert ==
+         island.uv_verts[second->get_uv_vert(island, 0)].vert;
 }
 
-void UVBorderCorner::print_debug() const
+void UVBorderCorner::print_debug(const UVIsland &island) const
 {
   std::stringstream ss;
   ss << "# ";
-  if (connected_in_mesh()) {
-    ss << first->get_uv_vertex(0)->vertex << "-";
-    ss << first->get_uv_vertex(1)->vertex << "-";
-    ss << second->get_uv_vertex(1)->vertex << "\n";
+  if (connected_in_mesh(island)) {
+    ss << island.uv_verts[first->get_uv_vert(island, 0)].vert << "-";
+    ss << island.uv_verts[first->get_uv_vert(island, 1)].vert << "-";
+    ss << island.uv_verts[second->get_uv_vert(island, 1)].vert << "\n";
   }
   else {
-    ss << first->get_uv_vertex(0)->vertex << "-";
-    ss << first->get_uv_vertex(1)->vertex << ", ";
-    ss << second->get_uv_vertex(0)->vertex << "-";
-    ss << second->get_uv_vertex(1)->vertex << "\n";
+    ss << island.uv_verts[first->get_uv_vert(island, 0)].vert << "-";
+    ss << island.uv_verts[first->get_uv_vert(island, 1)].vert << ", ";
+    ss << island.uv_verts[second->get_uv_vert(island, 0)].vert << "-";
+    ss << island.uv_verts[second->get_uv_vert(island, 1)].vert << "\n";
   }
   std::cout << ss.str();
 }
@@ -1196,73 +1228,76 @@ void UVBorderCorner::print_debug() const
 
 UVPrimitive::UVPrimitive(const int primitive_i) : primitive_i(primitive_i) {}
 
-const UVVertex *UVPrimitive::get_uv_vertex(const MeshData &mesh_data,
-                                           const uint8_t mesh_vert_index) const
+int UVPrimitive::get_uv_vert(const UVIsland &island,
+                             const MeshData &mesh_data,
+                             const uint8_t mesh_vert_index) const
 {
   const int3 &tri = mesh_data.corner_tris[this->primitive_i];
-  const int mesh_vertex = mesh_data.corner_verts[tri[mesh_vert_index]];
-  for (const UVEdge *uv_edge : edges) {
-    for (const UVVertex *uv_vert : uv_edge->vertices) {
-      if (uv_vert->vertex == mesh_vertex) {
-        return uv_vert;
+  const int mesh_vert = mesh_data.corner_verts[tri[mesh_vert_index]];
+  for (const int uv_edge_i : edges) {
+    for (const int uv_vert_i : island.uv_edges[uv_edge_i].verts) {
+      const UVVert &uv_vert = island.uv_verts[uv_vert_i];
+      if (uv_vert.vert == mesh_vert) {
+        return uv_vert_i;
       }
     }
   }
   BLI_assert_unreachable();
-  return nullptr;
+  return -1;
 }
 
-UVEdge *UVPrimitive::get_uv_edge(const float2 uv1, const float2 uv2) const
+int UVPrimitive::get_uv_edge(const UVIsland &island, const float2 uv1, const float2 uv2) const
 {
-  for (UVEdge *uv_edge : edges) {
-    const float2 &e1 = uv_edge->vertices[0]->uv;
-    const float2 &e2 = uv_edge->vertices[1]->uv;
+  for (const int uv_edge_i : edges) {
+    const float2 &e1 = island.uv_verts[island.uv_edges[uv_edge_i].verts[0]].uv;
+    const float2 &e2 = island.uv_verts[island.uv_edges[uv_edge_i].verts[1]].uv;
     if ((e1 == uv1 && e2 == uv2) || (e1 == uv2 && e2 == uv1)) {
-      return uv_edge;
+      return uv_edge_i;
     }
   }
   BLI_assert_unreachable();
-  return nullptr;
+  return -1;
 }
 
-UVEdge *UVPrimitive::get_uv_edge(const int v1, const int v2) const
+int UVPrimitive::get_uv_edge(const UVIsland &island, const int v1, const int v2) const
 {
-  for (UVEdge *uv_edge : edges) {
-    const int e1 = uv_edge->vertices[0]->vertex;
-    const int e2 = uv_edge->vertices[1]->vertex;
+  for (int uv_edge_i : edges) {
+    const int e1 = island.uv_verts[island.uv_edges[uv_edge_i].verts[0]].vert;
+    const int e2 = island.uv_verts[island.uv_edges[uv_edge_i].verts[1]].vert;
     if ((e1 == v1 && e2 == v2) || (e1 == v2 && e2 == v1)) {
-      return uv_edge;
+      return uv_edge_i;
     }
   }
   BLI_assert_unreachable();
-  return nullptr;
+  return -1;
 }
 
-bool UVPrimitive::contains_uv_vertex(const UVVertex *uv_vertex) const
+bool UVPrimitive::contains_uv_vert(const UVIsland &island, const int uv_vert_i) const
 {
-  for (UVEdge *edge : edges) {
-    if (std::find(edge->vertices.begin(), edge->vertices.end(), uv_vertex) != edge->vertices.end())
-    {
+  for (int uv_edge_i : edges) {
+    const UVEdge &edge = island.uv_edges[uv_edge_i];
+    if (std::find(edge.verts.begin(), edge.verts.end(), uv_vert_i) != edge.verts.end()) {
       return true;
     }
   }
   return false;
 }
 
-const UVVertex *UVPrimitive::get_other_uv_vertex(const UVVertex *v1, const UVVertex *v2) const
+int UVPrimitive::get_other_uv_vert(const UVIsland &island, const int v1, const int v2) const
 {
-  BLI_assert(contains_uv_vertex(v1));
-  BLI_assert(contains_uv_vertex(v2));
+  BLI_assert(contains_uv_vert(island, v1));
+  BLI_assert(contains_uv_vert(island, v2));
 
-  for (const UVEdge *edge : edges) {
-    for (const UVVertex *uv_vertex : edge->vertices) {
-      if (!ELEM(uv_vertex, v1, v2)) {
-        return uv_vertex;
+  for (int uv_edge_i : edges) {
+    const UVEdge &edge = island.uv_edges[uv_edge_i];
+    for (const int uv_vert_i : edge.verts) {
+      if (!ELEM(uv_vert_i, v1, v2)) {
+        return uv_vert_i;
       }
     }
   }
   BLI_assert_unreachable();
-  return nullptr;
+  return -1;
 }
 
 /** \} */
@@ -1270,40 +1305,39 @@ const UVVertex *UVPrimitive::get_other_uv_vertex(const UVVertex *v1, const UVVer
 /* -------------------------------------------------------------------- */
 /** \name UVBorderEdge
  * \{ */
-UVBorderEdge::UVBorderEdge(UVEdge *edge, int uv_primitive) : edge(edge), uv_primitive(uv_primitive)
+UVBorderEdge::UVBorderEdge(const int uv_edge_i, int uv_primitive)
+    : uv_edge_i(uv_edge_i), uv_primitive(uv_primitive)
 {
 }
 
-UVVertex *UVBorderEdge::get_uv_vertex(int index)
+int UVBorderEdge::get_uv_vert(const UVIsland &island, int index) const
 {
+  const UVEdge &edge = island.uv_edges[uv_edge_i];
   int actual_index = reverse_order ? 1 - index : index;
-  return edge->vertices[actual_index];
+  return edge.verts[actual_index];
 }
 
-const UVVertex *UVBorderEdge::get_uv_vertex(int index) const
+int UVBorderEdge::get_other_uv_vert(const UVIsland &island) const
 {
-  int actual_index = reverse_order ? 1 - index : index;
-  return edge->vertices[actual_index];
+  const UVEdge &edge = island.uv_edges[uv_edge_i];
+  return island.uv_primitives[uv_primitive].get_other_uv_vert(
+      island, edge.verts[0], edge.verts[1]);
 }
 
-const UVVertex *UVBorderEdge::get_other_uv_vertex(const UVIsland &island) const
-{
-  return island.uv_primitives[uv_primitive].get_other_uv_vertex(edge->vertices[0],
-                                                                edge->vertices[1]);
-}
-
-bool UVBorderEdge::is_extendable() const
+bool UVBorderEdge::is_extendable(const UVIsland &island) const
 {
   if (removed) {
     return false;
   }
-  const UVVertex *uv_vertex = get_uv_vertex(0);
-  return uv_vertex->flags.is_border && !uv_vertex->flags.is_extended;
+  const int uv_vert_i = get_uv_vert(island, 0);
+  const UVVert &uv_vert = island.uv_verts[uv_vert_i];
+  return uv_vert.flags.is_border && !uv_vert.flags.is_extended;
 }
 
-float UVBorderEdge::length() const
+float UVBorderEdge::length(const UVIsland &island) const
 {
-  return len_v2v2(edge->vertices[0]->uv, edge->vertices[1]->uv);
+  const UVEdge &edge = island.uv_edges[uv_edge_i];
+  return len_v2v2(island.uv_verts[edge.verts[0]].uv, island.uv_verts[edge.verts[1]].uv);
 }
 
 /** \} */
