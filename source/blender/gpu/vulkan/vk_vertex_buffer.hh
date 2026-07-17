@@ -12,6 +12,7 @@
 
 #include "vk_buffer.hh"
 #include "vk_common.hh"
+#include "vk_staging_pool.hh"
 
 namespace blender::gpu {
 
@@ -19,7 +20,7 @@ class VKVertexBuffer : public VertBuf {
   VKBuffer buffer_;
   /** When a vertex buffer is used as a UNIFORM_TEXEL_BUFFER the buffer requires a buffer view. */
   VkBufferView vk_buffer_view_ = VK_NULL_HANDLE;
-
+  VKStagingAllocation staging_alloc_ = {};
   bool data_uploaded_ = false;
 
  public:

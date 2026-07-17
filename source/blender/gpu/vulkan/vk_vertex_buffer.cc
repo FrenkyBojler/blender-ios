@@ -16,7 +16,9 @@
 #include "vk_vertex_buffer.hh"
 
 #include "CLG_log.h"
-
+#include <iostream>
+static int g_staging_allocs_per_frame = 0;
+static int g_staging_frees_per_frame = 0;
 namespace blender {
 
 static CLG_LogRef LOG = {"gpu.vulkan"};
@@ -119,13 +121,18 @@ void VKVertexBuffer::acquire_data()
   if (usage_ == GPU_USAGE_DEVICE_ONLY) {
     return;
   }
-
-  /* Discard previous data if any. */
-  if (buffer_.is_allocated()) {
-    buffer_.free();
+  if (!staging_alloc_.is_valid()) {
+    MEM_SAFE_DELETE(data_);
   }
-  allocate();
-  data_ = static_cast<uchar *>(buffer_.mapped_memory_get());
+
+  VKDevice &device = VKBackend::get().device;
+  staging_alloc_ = device.staging_pool_get().sub_allocate(size_alloc_get());
+  if (staging_alloc_.is_valid()) {
+    data_ = static_cast<uchar *>(staging_alloc_.mapped_ptr);
+  }
+  else {
+    data_ = static_cast<uchar *>(MEM_new_array<uchar>(size_alloc_get(), __func__));
+  }
 }
 
 void VKVertexBuffer::resize_data()
@@ -133,9 +140,20 @@ void VKVertexBuffer::resize_data()
   if (usage_ == GPU_USAGE_DEVICE_ONLY) {
     return;
   }
-
-  data_ = static_cast<uchar *>(
-      MEM_realloc_uninitialized(data_, sizeof(uchar) * this->size_alloc_get()));
+  if (staging_alloc_.is_valid()) {
+    VKDevice &device = VKBackend::get().device;
+    staging_alloc_ = device.staging_pool_get().sub_allocate(size_alloc_get());
+    if (staging_alloc_.is_valid()) {
+      data_ = static_cast<uchar *>(staging_alloc_.mapped_ptr);
+    }
+    else {
+      data_ = static_cast<uchar *>(MEM_new_array<uchar>(size_alloc_get(), __func__));
+    }
+  }
+  else {
+    data_ = static_cast<uchar *>(
+        MEM_realloc_uninitialized(data_, sizeof(uchar) * this->size_alloc_get()));
+  }
 }
 
 void VKVertexBuffer::release_data()
@@ -144,8 +162,11 @@ void VKVertexBuffer::release_data()
     VKDiscardPool::discard_pool_get().discard_buffer_view(vk_buffer_view_);
     vk_buffer_view_ = VK_NULL_HANDLE;
   }
-
-  if (buffer_.is_mapped()) {
+  if (staging_alloc_.is_valid()) {
+    staging_alloc_ = {};
+    data_ = nullptr;
+  }
+  else if (buffer_.is_mapped()) {
     data_ = nullptr;
   }
   else {
@@ -192,21 +213,32 @@ void VKVertexBuffer::upload_data()
   }
 
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
-    if (buffer_.is_mapped() && !data_uploaded_) {
+    if (staging_alloc_.is_valid()) {
+      VKContext &context = *VKContext::get();
+      render_graph::VKCopyBufferNode::CreateInfo copy_info = {};
+      copy_info.src_buffer = staging_alloc_.vk_buffer;
+      copy_info.dst_buffer = buffer_.vk_handle();
+      copy_info.region.srcOffset = staging_alloc_.offset;
+      copy_info.region.size = size_used_get();
+      context.render_graph().add_node(copy_info);
+
+      if (usage_ == GPU_USAGE_STATIC) {
+        staging_alloc_ = {};
+        data_ = nullptr;
+      }
+    }
+    else if (buffer_.is_mapped() && !data_uploaded_) {
       upload_data_direct(buffer_);
     }
     else {
       VKContext &context = *VKContext::get();
       upload_data_via_staging_buffer(context);
     }
-    if (usage_ == GPU_USAGE_STATIC) {
-      if (buffer_.is_mapped()) {
-        data_ = nullptr;
-      }
-      else {
-        MEM_SAFE_DELETE(data_);
-      }
+
+    if (usage_ == GPU_USAGE_STATIC && !staging_alloc_.is_valid()) {
+      MEM_SAFE_DELETE(data_);
     }
+
     data_uploaded_ = true;
 
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
@@ -221,17 +253,11 @@ void VKVertexBuffer::allocate()
                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-  bool needs_host_access = (usage_ != GPU_USAGE_DEVICE_ONLY);
-
-  VmaAllocationCreateFlags vk_allocation_flags =
-      needs_host_access ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                              VMA_ALLOCATION_CREATE_MAPPED_BIT :
-                          VmaAllocationCreateFlags(0);
 
   buffer_.create(size_alloc_get(),
                  vk_buffer_usage,
                  VMA_MEMORY_USAGE_AUTO,
-                 vk_allocation_flags,
+                 VmaAllocationCreateFlags(0),
                  0.8f,
                  false,
                  "VertexBuffer");

@@ -192,6 +192,10 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       wait_semaphore,
       signal_semaphore,
       signal_fence);
+  if (bool(flags & RenderGraphFlushFlags::SUBMIT)) {
+    device.staging_pool_get().reclaim(device.submission_finished_timeline_get());
+    device.staging_pool_get().tag_and_rotate(timeline);
+  }
   render_graph_.reset();
   streaming_buffers_.clear();
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {

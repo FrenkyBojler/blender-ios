@@ -86,6 +86,7 @@ void VKDevice::reinit()
 {
   samplers_.free();
   samplers_.init();
+  staging_pool_.init();
 }
 
 void VKDevice::deinit()
@@ -95,7 +96,7 @@ void VKDevice::deinit()
   }
 
   deinit_submission_pool();
-
+  staging_pool_.free();
   dummy_buffer.free();
   samplers_.free();
   GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_sh_);
@@ -170,6 +171,7 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   orphaned_data.timeline_ = 0;
 
   init_submission_pool();
+  staging_pool_.init();
   is_initialized_ = true;
 }
 

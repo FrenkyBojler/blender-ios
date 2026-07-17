@@ -26,6 +26,7 @@
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
+#include "vk_staging_pool.hh"
 #include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
@@ -181,6 +182,7 @@ class VKDevice : public NonCopyable {
   TimelineValue timeline_value_ = 0;
 
   VKSamplers samplers_;
+  VKStagingPool staging_pool_;
   VKDescriptorSetLayouts descriptor_set_layouts_;
 
   /**
@@ -366,7 +368,10 @@ class VKDevice : public NonCopyable {
   {
     return samplers_;
   }
-
+  VKStagingPool &staging_pool_get()
+  {
+    return staging_pool_;
+  }
   void init(GHOST_IContext *ghost_context);
   void reinit();
   void deinit();
