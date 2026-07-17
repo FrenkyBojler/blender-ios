@@ -14,9 +14,12 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_material.hh"
+#include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_object_draw_provider.hh"
 #include "BKE_object_types.hh"
@@ -27,6 +30,8 @@
 #include "GPU_vertex_buffer.hh"
 #include "GPU_vertex_format.hh"
 
+#include "attribute_convert.hh"
+#include "draw_attributes.hh"
 #include "draw_context_private.hh"
 #include "draw_view.hh"
 
@@ -57,6 +62,32 @@ static short4 normal_float_to_short(const float3 &value)
   return short4(result.x, result.y, result.z, 0);
 }
 
+/* When the object's active color attribute is a point float color (what the
+ * engine's provider exposes as its float4 color stream), build a matching
+ * vertex format with the shader aliases so the color binds. Returns false when
+ * there is no such attribute, i.e. no color to draw. */
+static bool color_vertex_format(const Object *ob, GPUVertFormat &r_format)
+{
+  const Mesh *mesh = BKE_object_get_original_mesh(ob);
+  if (mesh == nullptr || mesh->active_color_attribute == nullptr) {
+    return false;
+  }
+  const StringRef name = mesh->active_color_attribute;
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const std::optional<bke::AttributeMetaData> meta = attributes.lookup_meta_data(name);
+  if (!meta || meta->data_type != bke::AttrType::ColorFloat ||
+      meta->domain != bke::AttrDomain::Point)
+  {
+    return false;
+  }
+  r_format = init_format_for_attribute(bke::AttrType::ColorFloat, "data");
+  const bool is_active = true;
+  const bool is_render = mesh->default_color_attribute && name == mesh->default_color_attribute;
+  DRW_cdlayer_attr_aliases_add(
+      &r_format, "c", bke::AttrType::ColorFloat, name, is_render, is_active);
+  return true;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -68,8 +99,10 @@ static short4 normal_float_to_short(const float3 &value)
 struct NodeCache {
   gpu::VertBufPtr pos;
   gpu::VertBufPtr nor;
+  gpu::VertBufPtr col;
   gpu::Batch *batch = nullptr;
   int verts_num = 0;
+  bool has_color = false;
 
   ~NodeCache()
   {
@@ -84,8 +117,10 @@ struct NodeCache {
   NodeCache(NodeCache &&other) noexcept
       : pos(std::move(other.pos)),
         nor(std::move(other.nor)),
+        col(std::move(other.col)),
         batch(other.batch),
-        verts_num(other.verts_num)
+        verts_num(other.verts_num),
+        has_color(other.has_color)
   {
     other.batch = nullptr;
   }
@@ -97,8 +132,10 @@ struct NodeCache {
       }
       pos = std::move(other.pos);
       nor = std::move(other.nor);
+      col = std::move(other.col);
       batch = other.batch;
       verts_num = other.verts_num;
+      has_color = other.has_color;
       other.batch = nullptr;
     }
     return *this;
@@ -126,11 +163,17 @@ static Map<const Object *, ObjectCache> &object_caches()
 /** \name Node Upload
  * \{ */
 
-/* Upload one node's positions + normals into `cache`, (re)allocating the VBOs
- * and batch when the vertex count changed or nothing was cached yet. */
-static void node_upload(NodeCache &cache, const ExternalDrawNode &node)
+/* Upload one node's positions + normals (+ color when requested) into `cache`,
+ * (re)allocating the VBOs and batch when the vertex count or attribute set
+ * changed or nothing was cached yet. */
+static void node_upload(NodeCache &cache,
+                        const ExternalDrawNode &node,
+                        const bool want_color,
+                        const GPUVertFormat *color_format)
 {
+  const bool have_color_src = want_color && node.attrs != nullptr && node.attrs[0] != nullptr;
   const bool realloc = cache.batch == nullptr || cache.verts_num != node.verts_num ||
+                       cache.has_color != have_color_src ||
                        (node.update_flags & EXTERNAL_DRAW_UPDATE_TOPOLOGY) != 0;
   const bool upload = realloc || (node.update_flags & EXTERNAL_DRAW_UPDATE_DATA) != 0;
   if (!upload) {
@@ -150,7 +193,16 @@ static void node_upload(NodeCache &cache, const ExternalDrawNode &node)
         GPU_vertbuf_create_with_format_ex(normal_format(), GPU_USAGE_DYNAMIC));
     GPU_vertbuf_data_alloc(*cache.pos, node.verts_num);
     GPU_vertbuf_data_alloc(*cache.nor, node.verts_num);
+    if (have_color_src) {
+      cache.col = gpu::VertBufPtr(
+          GPU_vertbuf_create_with_format_ex(*color_format, GPU_USAGE_DYNAMIC));
+      GPU_vertbuf_data_alloc(*cache.col, node.verts_num);
+    }
+    else {
+      cache.col.reset();
+    }
     cache.verts_num = node.verts_num;
+    cache.has_color = have_color_src;
   }
 
   MutableSpan<float3> positions = cache.pos->data<float3>();
@@ -177,14 +229,26 @@ static void node_upload(NodeCache &cache, const ExternalDrawNode &node)
     }
   }
 
-  /* Re-uploaded into a dynamic buffer: flag both for the next GPU use. */
+  if (have_color_src) {
+    /* The engine exposes the composited display color as a float4 stream. */
+    MutableSpan<float4> colors = cache.col->data<float4>();
+    colors.copy_from(Span<float4>(static_cast<const float4 *>(node.attrs[0]), node.verts_num));
+  }
+
+  /* Re-uploaded into dynamic buffers: flag them for the next GPU use. */
   GPU_vertbuf_tag_dirty(cache.pos.get());
   GPU_vertbuf_tag_dirty(cache.nor.get());
+  if (cache.col) {
+    GPU_vertbuf_tag_dirty(cache.col.get());
+  }
 
   if (realloc) {
     cache.batch = GPU_batch_create(GPU_PRIM_TRIS, nullptr, nullptr);
     GPU_batch_vertbuf_add(cache.batch, cache.pos.get(), false);
     GPU_batch_vertbuf_add(cache.batch, cache.nor.get(), false);
+    if (cache.col) {
+      GPU_batch_vertbuf_add(cache.batch, cache.col.get(), false);
+    }
   }
 }
 
@@ -194,16 +258,22 @@ static void node_upload(NodeCache &cache, const ExternalDrawNode &node)
 /** \name Public API
  * \{ */
 
-Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*features*/)
+Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature features)
 {
   const ExternalDrawProvider *provider = BKE_object_external_draw_provider_get(ob);
   if (provider == nullptr) {
     return {};
   }
 
-  /* v1 milestone: positions + normals only (Workbench default). Generic
-   * attribute requests (mask/face-set/color) land with the attribute stage. */
-  const ExternalDrawAttrRequest request = {0, nullptr};
+  /* v1: positions + normals, plus the color stream when vertex-color shading is
+   * on and the object has a point float color (mask/face-set/UV still to come).
+   * The provider always exposes its color stream; the request just signals it. */
+  GPUVertFormat color_format = {};
+  const bool want_color = (features & SCULPT_BATCH_VERTEX_COLOR) != 0 &&
+                          color_vertex_format(ob, color_format);
+  const char *color_name = "color";
+  const ExternalDrawAttrRequest request = want_color ? ExternalDrawAttrRequest{1, &color_name} :
+                                                        ExternalDrawAttrRequest{0, nullptr};
 
   const Object *ob_orig = DEG_get_original(ob);
   const unsigned int object_key = ob_orig->id.session_uid;
@@ -231,7 +301,7 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
   Vector<SculptBatch> result;
   for (const int i : IndexRange(nodes_num)) {
     const ExternalDrawNode &node = nodes[i];
-    node_upload(cache.nodes[i], node);
+    node_upload(cache.nodes[i], node, want_color, &color_format);
 
     if (node.verts_num == 0) {
       continue;
