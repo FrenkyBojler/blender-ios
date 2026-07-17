@@ -366,6 +366,7 @@ set(SRC
   BLI_simd.hh
   BLI_smaa_textures.hh
   BLI_sort.hh
+  BLI_sort_radix.hh
   BLI_sort_utils.hh
   BLI_span.hh
   BLI_stack_c.hh

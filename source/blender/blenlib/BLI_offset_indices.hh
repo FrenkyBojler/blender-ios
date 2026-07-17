@@ -208,20 +208,28 @@ void sort_groups(OffsetIndices<int> groups, MutableSpan<int> indices);
  * describes the size of each bucket, this function fills `results` with the indices in each bucket
  * grouped by `offsets`. The results are deterministic, with the indices in each bucket sorted in
  * ascending order.
+ *
+ * By default the element position in `group_indices` is stored in `results`. If `values` is
+ * provided, `values[i]` is stored instead of `i`.
  */
 void reverse_indices_in_groups(Span<int> group_indices,
                                OffsetIndices<int> offsets,
-                               MutableSpan<int> results);
+                               MutableSpan<int> results,
+                               Span<int> values = {});
 
 /**
  * With `indices` divided in a certain number of unique groups, reverse the index mapping so that
  * the indices in each group can be index by the group index. Similar to
  * #reverse_indices_in_groups, but also creates the offsets.
+ *
+ * By default the element position in `group_indices` is stored in `index_data`. If `values` is
+ * provided, `values[i]` is stored instead of `i`.
  */
 GroupedSpan<int> build_groups_from_indices(const Span<int> indices,
                                            const int groups_num,
                                            Array<int> &offset_data,
-                                           Array<int> &index_data);
+                                           Array<int> &index_data,
+                                           Span<int> values = {});
 
 }  // namespace offset_indices
 
