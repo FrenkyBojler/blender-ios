@@ -44,11 +44,14 @@ _MAP = {
     # Grab dabs at a fixed anchor and reads the cumulative cursor delta
     # (grabTo/grabFrom); the stroke operator drives it via the grab-class path.
     'GRAB': ("GRAB", {}),
+    # Elastic deform = a Kelvinlet soft-body grab (same grabFrom/grabTo state,
+    # engine mu/nu defaults ~ soft rubber).
+    'ELASTIC_DEFORM': ("KELVINLET", {}),
 }
 
 # Brush types that dab at the stroke anchor with a cursor-delta (grabTo)
 # instead of at the moving cursor.
-GRAB_CLASS = {'GRAB'}
+GRAB_CLASS = {'GRAB', 'ELASTIC_DEFORM'}
 
 # Brush types that paint face sets — the operator assigns a fresh `activeGroup`
 # id (max existing + 1) at stroke start.

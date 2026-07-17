@@ -460,10 +460,11 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       works via the standard per-dab path; GRAB works via a new grab-class
       path (`apply_grab_dab`: dab at the fixed anchor, `brush.grabTo`/
       `grabFrom` = cursor delta, node filter widened by the drag; operator
-      projects the mouse onto the anchor plane). **12 brushes now sculpt.**
-      Still to fill in: POSE (pose-cage), ELASTIC_DEFORM→KELVINLET
-      (grab-class, shares grabTo), kelvinlet mu/nu, falloff-curve bake +
-      hardness, autosmooth `[main, SMOOTH]` program.
+      projects the mouse onto the anchor plane). ELASTIC_DEFORM→KELVINLET
+      also landed (grab-class, shares grabFrom/grabTo; engine mu/nu defaults).
+      **14 brushes now sculpt** (incl. DRAW_FACE_SETS). Still to fill in:
+      POSE (pose-cage), falloff-curve bake + hardness, autosmooth
+      `[main, SMOOTH]` program.
 - [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
 - [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
 - [ ] M4 Pressure → `pushDeviceInput` + by-name dynamics; autosmooth

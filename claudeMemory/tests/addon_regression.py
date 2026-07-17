@@ -167,21 +167,24 @@ def test_grab_family():
     assert np.abs(positions(ob) - before).sum() > 1e-2, "snake hook did not move"
     exit_mode()
 
-    ob = fresh_sphere("GRB")
-    session = enter("GRB")
-    b = stroke._ensure_brush(session)
-    b.strength, b.radius, b.spacing = 1.0, 0.7, 0.1
-    b.writeProps()
-    center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
-    before = positions(ob).copy()
-    stroke.stroke_begin(session)
-    for i in range(12):
-        stroke.apply_grab_dab(session, kernel("GRAB"), center,
-                              (center[0] + i * 0.05, center[1], center[2]), normal, 0.7)
-    stroke.stroke_end(session)
-    convert.flush(ob)
-    assert np.abs(positions(ob) - before).sum() > 1e-2, "grab did not move"
-    exit_mode()
+    # grab + elastic deform (kelvinlet): both use the anchor / grabTo path.
+    for kname in ("GRAB", "KELVINLET"):
+        ob = fresh_sphere("GRB_" + kname)
+        session = enter("GRB_" + kname)
+        b = stroke._ensure_brush(session)
+        b.strength, b.radius, b.spacing = 1.0, 0.7, 0.1
+        b.mu, b.nu = 1.0, 0.4
+        b.writeProps()
+        center, normal, _ = stroke.raycast(session, (0, 0, 5), (0, 0, -1))
+        before = positions(ob).copy()
+        stroke.stroke_begin(session)
+        for i in range(12):
+            stroke.apply_grab_dab(session, kernel(kname), center,
+                                  (center[0] + i * 0.05, center[1], center[2]), normal, 0.7)
+        stroke.stroke_end(session)
+        convert.flush(ob)
+        assert np.abs(positions(ob) - before).sum() > 1e-2, kname + " did not move"
+        exit_mode()
 
 
 def test_mask_roundtrip():
