@@ -471,7 +471,7 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
 
       EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
 
-      if (em->selectmode & SCE_SELECT_VERTEX) {
+      if (bm->totvertsel > 0) {
         BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
           if (BM_elem_flag_test(v, BM_ELEM_SELECT) &&
               !BM_elem_flag_test(v, BM_ELEM_MIRROR_DISABLED) &&
@@ -484,7 +484,7 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
           }
         }
       }
-      if (em->selectmode & SCE_SELECT_EDGE) {
+      if (bm->totedgesel > 0) {
         BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
           if (BM_elem_flag_test(e, BM_ELEM_SELECT) &&
               !BM_elem_flag_test(e, BM_ELEM_MIRROR_DISABLED) &&
@@ -497,7 +497,7 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
           }
         }
       }
-      if (em->selectmode & SCE_SELECT_FACE) {
+      if (bm->totfacesel > 0) {
         BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
           if (BM_elem_flag_test(f, BM_ELEM_SELECT) &&
               !BM_elem_flag_test(f, BM_ELEM_MIRROR_DISABLED) &&
