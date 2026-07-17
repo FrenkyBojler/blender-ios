@@ -165,14 +165,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static int rna_MergeLayers_mode_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   const bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
   return socket->default_value_typed<bNodeSocketValueMenu>()->value;
 }
 
 static void rna_MergeLayers_mode_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
   socket->default_value_typed<bNodeSocketValueMenu>()->value = value;
 }
