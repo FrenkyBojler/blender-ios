@@ -23,3 +23,9 @@ set(SRC
 )
 
 blender_add_test_performance_executable(BLI_map_performance "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+set(SRC
+  BLI_sort_radix.cc
+)
+
+blender_add_test_performance_executable(BLI_sort_radix_performance "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
