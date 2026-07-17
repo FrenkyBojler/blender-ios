@@ -78,8 +78,31 @@ struct NodeCache {
     }
   }
   NodeCache() = default;
-  NodeCache(NodeCache &&) = default;
-  NodeCache &operator=(NodeCache &&) = default;
+  /* `batch` is a raw owning pointer, so a move must transfer it and null the
+   * source — otherwise the moved-from destructor discards a batch the moved-to
+   * copy (and its cached VBOs) still references (use-after-free at draw). */
+  NodeCache(NodeCache &&other) noexcept
+      : pos(std::move(other.pos)),
+        nor(std::move(other.nor)),
+        batch(other.batch),
+        verts_num(other.verts_num)
+  {
+    other.batch = nullptr;
+  }
+  NodeCache &operator=(NodeCache &&other) noexcept
+  {
+    if (this != &other) {
+      if (batch) {
+        GPU_batch_discard(batch);
+      }
+      pos = std::move(other.pos);
+      nor = std::move(other.nor);
+      batch = other.batch;
+      verts_num = other.verts_num;
+      other.batch = nullptr;
+    }
+    return *this;
+  }
   NodeCache(const NodeCache &) = delete;
   NodeCache &operator=(const NodeCache &) = delete;
 };
