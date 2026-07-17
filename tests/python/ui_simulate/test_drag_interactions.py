@@ -12,8 +12,6 @@ OS drag-and-drop.
 import modules.ui_test_utils as ui
 
 
-# Helpers
-
 def _window_area(window, area_type):
     area = ui.largest_area(window.screen)
     area.type = area_type
@@ -142,7 +140,6 @@ def _get_fcurve(obj, data_path, index=0):
     return action, channelbag.fcurves.find(data_path, index=index)
 
 
-# View 3D
 def view3d_object_drag():
     import bpy
     e, t, window = ui.test_window()
@@ -195,7 +192,6 @@ def viewport_navigation_drags():
     t.assertNotEqual(rv3d.view_distance, before_distance, "Zoom drag should change the view distance")
 
 
-# Node Editor
 def node_single_drag():
     """
     Translate a single node in the compositor node editor.
@@ -267,7 +263,6 @@ def node_multiple_drag():
         )
 
 
-# Dopesheet
 def dopesheet_keyframe_drag():
     """
     Drag a selected keyframe in the Dope Sheet.
@@ -303,7 +298,6 @@ def dopesheet_keyframe_drag():
     )
 
 
-# Graph Editor
 def graph_editor_drag():
     """
     Drag a selected Graph Editor keyframe.
@@ -340,7 +334,6 @@ def graph_editor_drag():
     )
 
 
-# UV Editor
 def uv_editor_drag():
     """
     Drag a UV vertex in the UV editor.
@@ -396,18 +389,14 @@ def uv_editor_drag():
     t.assertEqual(tuple(loop[uv_layer].uv), before, "Undo should restore the exact UV coordinates")
 
 
-# Image Editor
 def image_editor_pan():
     """
     Pan the image editor with the middle mouse button.
     """
-    import bpy
     e, t, window = ui.test_window()
     area, space = _setup_image_editor(window)
     region = next(region for region in area.regions if region.type == "WINDOW")
 
-    image = bpy.data.images.new("DragPanImage", width=1024, height=1024)
-    space.image = image
     space.zoom_percentage = 400.0
     yield
 
