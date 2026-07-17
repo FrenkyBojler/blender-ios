@@ -178,13 +178,6 @@ static CLG_LogRef LOG_UNDO = {"undo"};
 /** \name Internal Write Wrapper's (Abstracts Compression)
  * \{ */
 
-struct ZstdFrame {
-  ZstdFrame *next, *prev;
-
-  uint32_t compressed_size;
-  uint32_t uncompressed_size;
-};
-
 class WriteWrap {
  public:
   virtual bool open(const char *filepath) = 0;
@@ -228,20 +221,27 @@ bool RawWriteWrap::write(const void *buf, size_t buf_len)
 }
 
 class ZstdWriteWrap : public WriteWrap {
-  struct ZstdWriteBlockTask;
+  struct ZstdFrame {
+    ZstdWriteWrap *ww = nullptr;
+
+    void *uncompressed_data = nullptr;
+    uint32_t uncompressed_size = 0;
+
+    std::atomic<uint32_t> compressed_size = 0;
+    void *compressed_data = nullptr;
+  };
 
   WriteWrap &base_wrap;
 
   TaskPool *pool = nullptr;
 
   std::mutex mutex;
-  std::condition_variable condition;
   int next_frame = 0;
   int num_frames = 0;
 
-  ListBaseT<ZstdFrame> frames = {};
+  Vector<std::unique_ptr<ZstdFrame>> frames = {};
 
-  bool write_error = false;
+  std::atomic<bool> write_error = false;
 
  public:
   ZstdWriteWrap(WriteWrap &base_wrap) : base_wrap(base_wrap) {}
@@ -251,47 +251,56 @@ class ZstdWriteWrap : public WriteWrap {
   bool write(const void *buf, size_t buf_len) override;
 
  private:
+  /* Multiple async tasks, compress each frame's data. */
   static void compress_task_run(TaskPool *pool, void *taskdata);
+  /* Write the compressed data of available frames into the blendfile. */
+  void write_compressed_frames();
   void write_u32_le(uint32_t val);
   void write_seekable_frames();
 };
 
-struct ZstdWriteWrap::ZstdWriteBlockTask {
-  ZstdWriteWrap *ww;
-  void *data;
-  size_t size;
-  int frame_number;
-};
-
 void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
 {
-  ZstdWriteBlockTask *task = static_cast<ZstdWriteBlockTask *>(taskdata);
-  ZstdWriteWrap *ww = task->ww;
+  ZstdFrame *frame = static_cast<ZstdFrame *>(taskdata);
+  ZstdWriteWrap *ww = frame->ww;
 
-  size_t out_buf_len = ZSTD_compressBound(task->size);
+  size_t out_buf_len = ZSTD_compressBound(frame->uncompressed_size);
   void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
-  size_t out_size = ZSTD_compress(
-      out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
-  MEM_delete_void(task->data);
+  size_t out_size = ZSTD_compress(out_buf,
+                                  out_buf_len,
+                                  frame->uncompressed_data,
+                                  frame->uncompressed_size,
+                                  ZSTD_COMPRESSION_LEVEL);
+  MEM_delete_void(frame->uncompressed_data);
+  frame->uncompressed_data = nullptr;
 
-  std::unique_lock lock{ww->mutex};
-  ww->condition.wait(lock, [&] { return ww->next_frame == task->frame_number; });
   if (ZSTD_isError(out_size)) {
     ww->write_error = true;
   }
-  else if (ww->base_wrap.write(out_buf, out_size)) {
-    ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
-    frameinfo->uncompressed_size = task->size;
-    frameinfo->compressed_size = out_size;
-    BLI_addtail(&ww->frames, frameinfo);
-  }
   else {
-    ww->write_error = true;
+    frame->compressed_data = out_buf;
+    frame->compressed_size = uint32_t(out_size);
   }
-  ww->next_frame++;
-  MEM_delete(task);
-  MEM_delete_void(out_buf);
-  ww->condition.notify_all();
+}
+
+void ZstdWriteWrap::write_compressed_frames()
+{
+  /* Loop over all pending frames in the correct ascendant order, and write them on disk until we
+   * reach one which has not yet available compressed data. */
+  for (const std::unique_ptr<ZstdFrame> &frame : frames.as_span().drop_front(next_frame)) {
+    if (frame->compressed_size == 0) {
+      /* This frame has not yet been compressed, cannot write further data. */
+      break;
+    }
+    if (!write_error) {
+      if (!base_wrap.write(frame->compressed_data, frame->compressed_size)) {
+        write_error = true;
+      }
+    }
+    next_frame++;
+    BLI_assert(frame->uncompressed_data == nullptr);
+    MEM_delete_void(frame->compressed_data);
+  }
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -327,16 +336,16 @@ void ZstdWriteWrap::write_seekable_frames()
   write_u32_le(0x184D2A5E);
 
   /* The actual frame number might not match num_frames if there was a write error. */
-  const uint32_t num_frames = frames.count();
+  const uint32_t num_frames = uint32_t(frames.size());
   /* Each frame consists of two u32, so 8 bytes each.
    * After the frames, a footer containing two u32 and one byte (9 bytes total) is written. */
   const uint32_t frame_size = num_frames * 8 + 9;
   write_u32_le(frame_size);
 
   /* Write seek table entries. */
-  for (ZstdFrame &frame : frames) {
-    write_u32_le(frame.compressed_size);
-    write_u32_le(frame.uncompressed_size);
+  for (const std::unique_ptr<ZstdFrame> &frame : frames) {
+    write_u32_le(frame->compressed_size);
+    write_u32_le(frame->uncompressed_size);
   }
 
   /* Write seek table footer (number of frames, option flags and second magic number). */
@@ -352,8 +361,11 @@ bool ZstdWriteWrap::close()
   BLI_task_pool_free(pool);
   pool = nullptr;
 
+  write_compressed_frames();
+  BLI_assert(next_frame == num_frames);
+
   write_seekable_frames();
-  frames.free_no_destruct();
+  frames.clear();
 
   return base_wrap.close() && !write_error;
 }
@@ -364,14 +376,20 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
     return false;
   }
 
-  ZstdWriteBlockTask *task = MEM_new_uninitialized<ZstdWriteBlockTask>(__func__);
-  task->ww = this;
-  task->data = MEM_new_uninitialized(buf_len, __func__);
-  memcpy(task->data, buf, buf_len);
-  task->size = buf_len;
-  task->frame_number = num_frames++;
+  void *uncompressed_data = MEM_new_uninitialized(buf_len, __func__);
+  memcpy(uncompressed_data, buf, buf_len);
 
-  BLI_task_pool_push(pool, compress_task_run, task, false, nullptr);
+  auto task = std::make_unique<ZstdFrame>();
+  task->ww = this;
+  task->uncompressed_data = uncompressed_data;
+  task->uncompressed_size = uint32_t(buf_len);
+  ZstdFrame *frame_p = task.get();
+
+  frames.append(std::move(task));
+  num_frames++;
+  BLI_task_pool_push(pool, compress_task_run, frame_p, false, nullptr);
+
+  write_compressed_frames();
   return true;
 }
 
