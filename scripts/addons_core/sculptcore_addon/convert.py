@@ -103,16 +103,19 @@ def enter(ob):
     _load_mask(ob.data, mesh_ptr, verts_num)
     _load_face_sets(ob.data, mesh_ptr)
     _load_color(ob.data, mesh_ptr, verts_num)
+    _load_uv(ob.data, mesh_ptr)
 
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
 
     # Register the tree for external-provider viewport draw, keyed by the
-    # object's session_uid (the key Blender's draw path passes). Fill the
-    # GPU-node buffers once so the initial geometry draws.
+    # object's session_uid (the key Blender's draw path passes). Switch it to the
+    # dynamic per-attribute layout (color@0, uv@1) so the provider exposes them,
+    # then fill the GPU-node buffers once so the initial geometry draws.
     session.draw_key = int(ob.session_uid)
     lib = engine.capi().lib
     lib.sc_external_draw_register(session.draw_key, tree_ptr)
+    lib.sc_external_draw_enable_dynamic(tree_ptr)
     lib.sc_external_draw_update(session.draw_key)
 
     return session
@@ -185,6 +188,19 @@ def _flush_color(mesh, mesh_ptr, verts_num):
         attr = mesh.color_attributes.new(_DEFAULT_COLOR_NAME, 'FLOAT_COLOR', 'POINT')
         mesh.color_attributes.active_color = attr
     attr.data.foreach_set("color", values)
+
+
+def _load_uv(mesh, mesh_ptr):
+    """Seed the engine `uv` corner attribute from the active UV map (per-loop
+    float2, loop order = the engine's corner order). No-op with no UV map."""
+    import numpy as np
+
+    uv_layer = mesh.uv_layers.active
+    if uv_layer is None:
+        return
+    values = np.empty(len(mesh.loops) * 2, dtype=np.float32)
+    uv_layer.data.foreach_get("uv", values)
+    engine.capi().lib.Mesh_writeCornerFloat2Attr(mesh_ptr, b"uv", values)
 
 
 def _load_mask(mesh, mesh_ptr, verts_num):

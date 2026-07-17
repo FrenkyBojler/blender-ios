@@ -99,6 +99,8 @@ class _CApi:
         lib.Mesh_readVertFloat4Attr.restype = ctypes.c_int
         lib.Mesh_writeVertFloat4Attr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, f32p]
         lib.Mesh_writeVertFloat4Attr.restype = ctypes.c_int
+        lib.Mesh_writeCornerFloat2Attr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, f32p]
+        lib.Mesh_writeCornerFloat2Attr.restype = ctypes.c_int
         lib.freeMesh.argtypes = [ctypes.c_void_p]
         lib.freeMesh.restype = None
         lib.Mesh_buildSpatialTree.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 3
@@ -115,6 +117,8 @@ class _CApi:
         lib.sc_external_draw_unregister.restype = None
         lib.sc_external_draw_update.argtypes = [ctypes.c_uint]
         lib.sc_external_draw_update.restype = None
+        lib.sc_external_draw_enable_dynamic.argtypes = [ctypes.c_void_p]
+        lib.sc_external_draw_enable_dynamic.restype = None
         lib.sc_external_draw_provider.argtypes = []
         lib.sc_external_draw_provider.restype = ctypes.c_void_p
 

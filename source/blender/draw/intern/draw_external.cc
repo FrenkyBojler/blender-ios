@@ -88,6 +88,25 @@ static bool color_vertex_format(const Object *ob, GPUVertFormat &r_format)
   return true;
 }
 
+/* Build a Float2 UV vertex format aliased to the object's active UV map, so
+ * texture shading binds it. Returns false when there is no UV map. */
+static bool uv_vertex_format(const Object *ob, GPUVertFormat &r_format)
+{
+  const Mesh *mesh = BKE_object_get_original_mesh(ob);
+  if (mesh == nullptr) {
+    return false;
+  }
+  const StringRef name = mesh->active_uv_map_name();
+  if (name.is_empty()) {
+    return false;
+  }
+  r_format = init_format_for_attribute(bke::AttrType::Float2, "data");
+  const bool is_active = true;
+  const bool is_render = name == mesh->default_uv_map_name();
+  DRW_cdlayer_attr_aliases_add(&r_format, "u", bke::AttrType::Float2, name, is_render, is_active);
+  return true;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -100,9 +119,11 @@ struct NodeCache {
   gpu::VertBufPtr pos;
   gpu::VertBufPtr nor;
   gpu::VertBufPtr col;
+  gpu::VertBufPtr uv;
   gpu::Batch *batch = nullptr;
   int verts_num = 0;
   bool has_color = false;
+  bool has_uv = false;
 
   ~NodeCache()
   {
@@ -118,9 +139,11 @@ struct NodeCache {
       : pos(std::move(other.pos)),
         nor(std::move(other.nor)),
         col(std::move(other.col)),
+        uv(std::move(other.uv)),
         batch(other.batch),
         verts_num(other.verts_num),
-        has_color(other.has_color)
+        has_color(other.has_color),
+        has_uv(other.has_uv)
   {
     other.batch = nullptr;
   }
@@ -133,9 +156,11 @@ struct NodeCache {
       pos = std::move(other.pos);
       nor = std::move(other.nor);
       col = std::move(other.col);
+      uv = std::move(other.uv);
       batch = other.batch;
       verts_num = other.verts_num;
       has_color = other.has_color;
+      has_uv = other.has_uv;
       other.batch = nullptr;
     }
     return *this;
@@ -169,11 +194,15 @@ static Map<const Object *, ObjectCache> &object_caches()
 static void node_upload(NodeCache &cache,
                         const ExternalDrawNode &node,
                         const bool want_color,
-                        const GPUVertFormat *color_format)
+                        const GPUVertFormat *color_format,
+                        const bool want_uv,
+                        const GPUVertFormat *uv_format)
 {
+  /* The provider exposes attrs in a fixed slot order: color@0, uv@1. */
   const bool have_color_src = want_color && node.attrs != nullptr && node.attrs[0] != nullptr;
+  const bool have_uv_src = want_uv && node.attrs != nullptr && node.attrs[1] != nullptr;
   const bool realloc = cache.batch == nullptr || cache.verts_num != node.verts_num ||
-                       cache.has_color != have_color_src ||
+                       cache.has_color != have_color_src || cache.has_uv != have_uv_src ||
                        (node.update_flags & EXTERNAL_DRAW_UPDATE_TOPOLOGY) != 0;
   const bool upload = realloc || (node.update_flags & EXTERNAL_DRAW_UPDATE_DATA) != 0;
   if (!upload) {
@@ -201,8 +230,17 @@ static void node_upload(NodeCache &cache,
     else {
       cache.col.reset();
     }
+    if (have_uv_src) {
+      cache.uv = gpu::VertBufPtr(
+          GPU_vertbuf_create_with_format_ex(*uv_format, GPU_USAGE_DYNAMIC));
+      GPU_vertbuf_data_alloc(*cache.uv, node.verts_num);
+    }
+    else {
+      cache.uv.reset();
+    }
     cache.verts_num = node.verts_num;
     cache.has_color = have_color_src;
+    cache.has_uv = have_uv_src;
   }
 
   MutableSpan<float3> positions = cache.pos->data<float3>();
@@ -230,9 +268,14 @@ static void node_upload(NodeCache &cache,
   }
 
   if (have_color_src) {
-    /* The engine exposes the composited display color as a float4 stream. */
+    /* Engine color stream (float4, slot 0). */
     MutableSpan<float4> colors = cache.col->data<float4>();
     colors.copy_from(Span<float4>(static_cast<const float4 *>(node.attrs[0]), node.verts_num));
+  }
+  if (have_uv_src) {
+    /* Engine UV stream (float2, slot 1). */
+    MutableSpan<float2> uvs = cache.uv->data<float2>();
+    uvs.copy_from(Span<float2>(static_cast<const float2 *>(node.attrs[1]), node.verts_num));
   }
 
   /* Re-uploaded into dynamic buffers: flag them for the next GPU use. */
@@ -241,6 +284,9 @@ static void node_upload(NodeCache &cache,
   if (cache.col) {
     GPU_vertbuf_tag_dirty(cache.col.get());
   }
+  if (cache.uv) {
+    GPU_vertbuf_tag_dirty(cache.uv.get());
+  }
 
   if (realloc) {
     cache.batch = GPU_batch_create(GPU_PRIM_TRIS, nullptr, nullptr);
@@ -248,6 +294,9 @@ static void node_upload(NodeCache &cache,
     GPU_batch_vertbuf_add(cache.batch, cache.nor.get(), false);
     if (cache.col) {
       GPU_batch_vertbuf_add(cache.batch, cache.col.get(), false);
+    }
+    if (cache.uv) {
+      GPU_batch_vertbuf_add(cache.batch, cache.uv.get(), false);
     }
   }
 }
@@ -258,22 +307,28 @@ static void node_upload(NodeCache &cache,
 /** \name Public API
  * \{ */
 
-Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature features)
+Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*features*/)
 {
   const ExternalDrawProvider *provider = BKE_object_external_draw_provider_get(ob);
   if (provider == nullptr) {
     return {};
   }
 
-  /* v1: positions + normals, plus the color stream when vertex-color shading is
-   * on and the object has a point float color (mask/face-set/UV still to come).
-   * The provider always exposes its color stream; the request just signals it. */
+  /* Positions + normals, plus color and/or UV from the provider's fixed
+   * color@0 / uv@1 attribute slots. The attribute set is derived from what the
+   * object *has*, never from the caller's `features`: several passes (workbench,
+   * overlay outline, EEVEE per-material) request this object in the same frame
+   * with different feature flags, and each returned batch shares one per-node
+   * cache. Rebuilding the cache for a narrower feature set would free vertex
+   * buffers an already-returned batch still references (a use-after-free). A
+   * pass that does not need a stream simply leaves it unbound. */
   GPUVertFormat color_format = {};
-  const bool want_color = (features & SCULPT_BATCH_VERTEX_COLOR) != 0 &&
-                          color_vertex_format(ob, color_format);
-  const char *color_name = "color";
-  const ExternalDrawAttrRequest request = want_color ? ExternalDrawAttrRequest{1, &color_name} :
-                                                        ExternalDrawAttrRequest{0, nullptr};
+  GPUVertFormat uv_format = {};
+  const bool want_color = color_vertex_format(ob, color_format);
+  const bool want_uv = uv_vertex_format(ob, uv_format);
+  const char *attr_names[2] = {"color", "uv"};
+  const int attrs_num = want_uv ? 2 : (want_color ? 1 : 0);
+  const ExternalDrawAttrRequest request = {attrs_num, attrs_num ? attr_names : nullptr};
 
   const Object *ob_orig = DEG_get_original(ob);
   const unsigned int object_key = ob_orig->id.session_uid;
@@ -301,7 +356,7 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature fe
   Vector<SculptBatch> result;
   for (const int i : IndexRange(nodes_num)) {
     const ExternalDrawNode &node = nodes[i];
-    node_upload(cache.nodes[i], node, want_color, &color_format);
+    node_upload(cache.nodes[i], node, want_color, &color_format, want_uv, &uv_format);
 
     if (node.verts_num == 0) {
       continue;
