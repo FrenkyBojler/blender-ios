@@ -27,6 +27,7 @@
 
 #include "DNA_object_enums.h"
 #include "DNA_object_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -147,9 +148,25 @@ void ED_custom_mode_undo_push(bContext *C, const char *name, const int state_id,
   if (ustack == nullptr) {
     return;
   }
+  /* Apply the step-count limit before the push (like #ED_undo_push), but only
+   * when at the stack tip so a mid-history push does not truncate the future. */
+  if (U.undosteps > 0 && ustack->step_active != nullptr &&
+      ustack->step_active->next == nullptr)
+  {
+    BKE_undosys_stack_limit_steps_and_memory(ustack, U.undosteps - 1, 0);
+  }
+
   g_pending_state_id = state_id;
   g_pending_size = size;
   BKE_undosys_step_push_with_type(ustack, C, name, BKE_UNDOSYS_TYPE_CUSTOM_MODE);
+
+  /* Apply the memory limit after the push so the truthful per-step size drives
+   * eviction (evicted CUSTOM_MODE steps free their meshlog entry via
+   * `step_free` -> `undo_free`). */
+  if (U.undomemory != 0) {
+    BKE_undosys_stack_limit_steps_and_memory(
+        ustack, -1, size_t(U.undomemory) * 1024 * 1024);
+  }
 }
 
 }  // namespace blender::ed
