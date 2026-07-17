@@ -459,7 +459,7 @@ class Meshes : Overlay {
  private:
   uint4 data_mask_get(const int flag)
   {
-    uint4 mask = {0xFF, 0xFF, 0x00, 0x00};
+    uint4 mask = {0xFFFF, 0xFFFF, 0x0000, 0x0000};
     SET_FLAG_FROM_TEST(mask[0], flag & V3D_OVERLAY_EDIT_FACES, VFLAG_FACE_SELECTED);
     SET_FLAG_FROM_TEST(mask[0], flag & V3D_OVERLAY_EDIT_FREESTYLE_FACE, VFLAG_FACE_FREESTYLE);
     SET_FLAG_FROM_TEST(mask[1], flag & V3D_OVERLAY_EDIT_FREESTYLE_EDGE, VFLAG_EDGE_FREESTYLE);

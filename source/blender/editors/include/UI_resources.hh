@@ -106,6 +106,9 @@ enum ThemeColorID {
   TH_EDGE,
   TH_EDGE_SELECT, /* Stands for edge selection, not edge select mode. */
   TH_EDGE_MODE_SELECT,
+  TH_VERTEX_MIRROR_SELECTION,
+  TH_EDGE_MIRROR_SELECTION,
+  TH_FACE_MIRROR_SELECTION,
   TH_FACE,
   TH_FACE_SELECT, /* Stands for face selection, not face select mode. */
   TH_FACE_MODE_SELECT,

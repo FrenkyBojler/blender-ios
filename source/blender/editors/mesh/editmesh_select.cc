@@ -2711,6 +2711,64 @@ void MESH_OT_select_interior_faces(wmOperatorType *ot)
  * Gets called via generic mouse select operator.
  * \{ */
 
+static void edbm_select_pick_mirror_disable_face(BMEditMesh *em, const Mesh *mesh, BMFace *efa)
+{
+  if (mesh && mesh->symmetry != 0) {
+    for (int axis = 0; axis < 3; axis++) {
+      if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+        bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+        EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
+        BMFace *f_mirr = EDBM_verts_mirror_get_face(em, efa);
+        if (f_mirr && f_mirr != efa && BM_elem_flag_test(f_mirr, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f_mirr, BM_ELEM_MIRROR_DISABLED);
+          BMLoop *l_iter = f_mirr->l_first;
+          do {
+            BM_elem_flag_enable(l_iter->e, BM_ELEM_MIRROR_DISABLED);
+            BM_elem_flag_enable(l_iter->v, BM_ELEM_MIRROR_DISABLED);
+          } while ((l_iter = l_iter->next) != f_mirr->l_first);
+        }
+        EDBM_verts_mirror_cache_end(em);
+      }
+    }
+  }
+}
+
+static void edbm_select_pick_mirror_disable_edge(BMEditMesh *em, const Mesh *mesh, BMEdge *eed)
+{
+  if (mesh && mesh->symmetry != 0) {
+    for (int axis = 0; axis < 3; axis++) {
+      if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+        bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+        EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
+        BMEdge *e_mirr = EDBM_verts_mirror_get_edge(em, eed);
+        if (e_mirr && e_mirr != eed && BM_elem_flag_test(e_mirr, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e_mirr, BM_ELEM_MIRROR_DISABLED);
+          BM_elem_flag_enable(e_mirr->v1, BM_ELEM_MIRROR_DISABLED);
+          BM_elem_flag_enable(e_mirr->v2, BM_ELEM_MIRROR_DISABLED);
+        }
+        EDBM_verts_mirror_cache_end(em);
+      }
+    }
+  }
+}
+
+static void edbm_select_pick_mirror_disable_vert(BMEditMesh *em, const Mesh *mesh, BMVert *eve)
+{
+  if (mesh && mesh->symmetry != 0) {
+    for (int axis = 0; axis < 3; axis++) {
+      if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+        bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+        EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
+        BMVert *v_mirr = EDBM_verts_mirror_get(em, eve);
+        if (v_mirr && v_mirr != eve && BM_elem_flag_test(v_mirr, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(v_mirr, BM_ELEM_MIRROR_DISABLED);
+        }
+        EDBM_verts_mirror_cache_end(em);
+      }
+    }
+  }
+}
+
 bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
 {
   int base_index_active = -1;
@@ -2781,11 +2839,18 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
         case SEL_OP_SUB: {
           BM_select_history_remove(bm, efa);
           BM_face_select_set(bm, efa, false);
+          bool is_selected = BM_elem_flag_test(efa, BM_ELEM_SELECT);
+          bool is_mirrored_selected = BM_elem_flag_test(efa, BM_ELEM_MIRRORED_SELECT);
+          if (!is_selected && is_mirrored_selected) {
+            edbm_select_pick_mirror_disable_face(em, id_cast<const Mesh *>(obedit->data), efa);
+          }
           break;
         }
         case SEL_OP_XOR: {
           BM_mesh_active_face_set(bm, efa);
-          if (!BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
+          bool is_selected = BM_elem_flag_test(efa, BM_ELEM_SELECT);
+          bool is_mirrored_selected = BM_elem_flag_test(efa, BM_ELEM_MIRRORED_SELECT);
+          if (!is_selected && !is_mirrored_selected) {
             BM_select_history_store(bm, efa);
             BM_face_select_set(bm, efa, true);
             if (bm->uv_select_sync_valid) {
@@ -2795,8 +2860,12 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           else {
             BM_select_history_remove(bm, efa);
             BM_face_select_set(bm, efa, false);
+            BM_elem_flag_disable(efa, BM_ELEM_MIRRORED_SELECT);
             if (bm->uv_select_sync_valid) {
               BM_face_uvselect_set_pick(bm, efa, false, uv_pick_params);
+            }
+            if (!is_selected && is_mirrored_selected) {
+              edbm_select_pick_mirror_disable_face(em, id_cast<const Mesh *>(obedit->data), efa);
             }
           }
           break;
@@ -2837,10 +2906,17 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           if (bm->uv_select_sync_valid) {
             BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
           }
+          bool is_selected = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+          bool is_mirrored_selected = BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
+          if (!is_selected && is_mirrored_selected) {
+            edbm_select_pick_mirror_disable_edge(em, id_cast<const Mesh *>(obedit->data), eed);
+          }
           break;
         }
         case SEL_OP_XOR: {
-          if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+          bool is_selected = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+          bool is_mirrored_selected = BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
+          if (!is_selected && !is_mirrored_selected) {
             BM_select_history_store(bm, eed);
             BM_edge_select_set(bm, eed, true);
             if (bm->uv_select_sync_valid) {
@@ -2850,8 +2926,12 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           else {
             BM_select_history_remove(bm, eed);
             BM_edge_select_set(bm, eed, false);
+            BM_elem_flag_disable(eed, BM_ELEM_MIRRORED_SELECT);
             if (bm->uv_select_sync_valid) {
               BM_edge_uvselect_set_pick(bm, eed, false, uv_pick_params);
+            }
+            if (!is_selected && is_mirrored_selected) {
+              edbm_select_pick_mirror_disable_edge(em, id_cast<const Mesh *>(obedit->data), eed);
             }
           }
           break;
@@ -2889,10 +2969,17 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           if (bm->uv_select_sync_valid) {
             BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
           }
+          bool is_selected = BM_elem_flag_test(eve, BM_ELEM_SELECT);
+          bool is_mirrored_selected = BM_elem_flag_test(eve, BM_ELEM_MIRRORED_SELECT);
+          if (!is_selected && is_mirrored_selected) {
+            edbm_select_pick_mirror_disable_vert(em, id_cast<const Mesh *>(obedit->data), eve);
+          }
           break;
         }
         case SEL_OP_XOR: {
-          if (!BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+          bool is_selected = BM_elem_flag_test(eve, BM_ELEM_SELECT);
+          bool is_mirrored_selected = BM_elem_flag_test(eve, BM_ELEM_MIRRORED_SELECT);
+          if (!is_selected && !is_mirrored_selected) {
             BM_select_history_store(bm, eve);
             BM_vert_select_set(bm, eve, true);
             if (bm->uv_select_sync_valid) {
@@ -2902,8 +2989,12 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
           else {
             BM_select_history_remove(bm, eve);
             BM_vert_select_set(bm, eve, false);
+            BM_elem_flag_disable(eve, BM_ELEM_MIRRORED_SELECT);
             if (bm->uv_select_sync_valid) {
               BM_vert_uvselect_set_pick(bm, eve, false, uv_pick_params);
+            }
+            if (!is_selected && is_mirrored_selected) {
+              edbm_select_pick_mirror_disable_vert(em, id_cast<const Mesh *>(obedit->data), eve);
             }
           }
           break;

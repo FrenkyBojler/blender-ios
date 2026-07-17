@@ -478,7 +478,9 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
               !BM_elem_flag_test(v, BM_ELEM_HIDDEN))
           {
             BMVert *v_mirr = EDBM_verts_mirror_get(em, v);
-            if (v_mirr && v_mirr != v && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+            if (v_mirr && v_mirr != v && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN) &&
+                !BM_elem_flag_test(v_mirr, BM_ELEM_SELECT))
+            {
               BM_elem_flag_enable(v_mirr, BM_ELEM_MIRRORED_SELECT);
             }
           }
@@ -491,7 +493,9 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
               !BM_elem_flag_test(e, BM_ELEM_HIDDEN))
           {
             BMEdge *e_mirr = EDBM_verts_mirror_get_edge(em, e);
-            if (e_mirr && e_mirr != e && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
+            if (e_mirr && e_mirr != e && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN) &&
+                !BM_elem_flag_test(e_mirr, BM_ELEM_SELECT))
+            {
               BM_elem_flag_enable(e_mirr, BM_ELEM_MIRRORED_SELECT);
             }
           }
@@ -504,7 +508,9 @@ static void EDBM_select_mirrored_tag_update(Main *bmain, BMEditMesh *em)
               !BM_elem_flag_test(f, BM_ELEM_HIDDEN))
           {
             BMFace *f_mirr = EDBM_verts_mirror_get_face(em, f);
-            if (f_mirr && f_mirr != f && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN)) {
+            if (f_mirr && f_mirr != f && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN) &&
+                !BM_elem_flag_test(f_mirr, BM_ELEM_SELECT))
+            {
               BM_elem_flag_enable(f_mirr, BM_ELEM_MIRRORED_SELECT);
             }
           }

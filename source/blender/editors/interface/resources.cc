@@ -438,6 +438,28 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDGE_MODE_SELECT:
           cp = ts->edge_mode_select;
           break;
+        case TH_VERTEX_MIRROR_SELECTION:
+          cp = ts->vertex_mirror_selection;
+          if (cp[0] == 0 && cp[1] == 0 && cp[2] == 0 && cp[3] == 0) {
+            static const uchar fallback[4] = {0xff, 0xe2, 0x6d, 0xff};
+            cp = fallback;
+          }
+          break;
+        case TH_EDGE_MIRROR_SELECTION:
+          cp = ts->edge_mirror_selection;
+          if (cp[0] == 0 && cp[1] == 0 && cp[2] == 0 && cp[3] == 0) {
+            static const uchar fallback[4] = {0xff, 0xe2, 0x6d, 0xff};
+            cp = fallback;
+          }
+          break;
+        case TH_FACE_MIRROR_SELECTION: {
+          cp = ts->face_mirror_selection;
+          if (cp[0] == 0 && cp[1] == 0 && cp[2] == 0 && cp[3] == 0) {
+            static const uchar fallback[4] = {0xff, 0xe2, 0x6d, 0x33};
+            cp = fallback;
+          }
+          break;
+        }
         case TH_EDITMESH_ACTIVE:
           cp = ts->editmesh_active;
           break;

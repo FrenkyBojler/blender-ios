@@ -266,7 +266,8 @@ static bool edbm_backbuf_check_and_select_verts(EditSelectBuf_Cache *esel,
   index -= 1;
   BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
     if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-      const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT);
+      const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT) ||
+                             BM_elem_flag_test(eve, BM_ELEM_MIRRORED_SELECT);
       const bool is_inside = BLI_BITMAP_TEST_BOOL(select_bitmap, index);
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
@@ -303,7 +304,8 @@ static bool edbm_backbuf_check_and_select_edges(EditSelectBuf_Cache *esel,
   index -= 1;
   BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
     if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-      const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+      const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+                             BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
       const bool is_inside = BLI_BITMAP_TEST_BOOL(select_bitmap, index);
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
@@ -340,7 +342,8 @@ static bool edbm_backbuf_check_and_select_faces(EditSelectBuf_Cache *esel,
   index -= 1;
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
-      const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT);
+      const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT) ||
+                             BM_elem_flag_test(efa, BM_ELEM_MIRRORED_SELECT);
       const bool is_inside = BLI_BITMAP_TEST_BOOL(select_bitmap, index);
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
@@ -721,7 +724,8 @@ static void do_lasso_select_mesh__doSelectVert(void *user_data,
                                                int /*index*/)
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
-  const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(eve, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = (BLI_rctf_isect_pt_v(data->rect_fl, screen_co) &&
                           BLI_lasso_is_point_inside(
                               data->mcoords, screen_co[0], screen_co[1], IS_CLIPPED));
@@ -755,7 +759,8 @@ static void do_lasso_select_mesh__doSelectEdge_pass0(void *user_data,
     is_visible = BLI_BITMAP_TEST_BOOL(data_for_edge->esel->select_bitmap, bitmap_inedx);
   }
 
-  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside =
       (is_visible && edge_fully_inside_rect(data->rect_fl, screen_co_a, screen_co_b) &&
        BLI_lasso_is_point_inside(data->mcoords, UNPACK2(screen_co_a), IS_CLIPPED) &&
@@ -786,7 +791,8 @@ static void do_lasso_select_mesh__doSelectEdge_pass1(void *user_data,
     is_visible = BLI_BITMAP_TEST_BOOL(data_for_edge->esel->select_bitmap, bitmap_inedx);
   }
 
-  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = (is_visible && BLI_lasso_is_edge_inside(data->mcoords,
                                                                  UNPACK2(screen_co_a),
                                                                  UNPACK2(screen_co_b),
@@ -808,7 +814,8 @@ static void do_lasso_select_mesh__doSelectFace(void *user_data,
                                                int /*index*/)
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
-  const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(efa, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = (BLI_rctf_isect_pt_v(data->rect_fl, screen_co) &&
                           BLI_lasso_is_point_inside(
                               data->mcoords, screen_co[0], screen_co[1], IS_CLIPPED));
@@ -818,7 +825,6 @@ static void do_lasso_select_mesh__doSelectFace(void *user_data,
     if (data->uv_selctx) {
       data->uv_selctx->face_select_set(efa, sel_op_result);
     }
-
     data->is_changed = true;
   }
 }
@@ -3964,7 +3970,8 @@ static void do_mesh_box_select__doSelectVert(void *user_data,
                                              int /*index*/)
 {
   BoxSelectUserData *data = static_cast<BoxSelectUserData *>(user_data);
-  const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(eve, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = BLI_rctf_isect_pt_v(data->rect_fl, screen_co);
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
@@ -3999,7 +4006,8 @@ static void do_mesh_box_select__doSelectEdge_pass0(void *user_data,
     is_visible = BLI_BITMAP_TEST_BOOL(data_for_edge->esel->select_bitmap, bitmap_inedx);
   }
 
-  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = (is_visible &&
                           edge_fully_inside_rect(data->rect_fl, screen_co_a, screen_co_b));
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
@@ -4031,7 +4039,8 @@ static void do_mesh_box_select__doSelectEdge_pass1(void *user_data,
     is_visible = BLI_BITMAP_TEST_BOOL(data_for_edge->esel->select_bitmap, bitmap_inedx);
   }
 
-  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(eed, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = (is_visible && edge_inside_rect(data->rect_fl, screen_co_a, screen_co_b));
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
@@ -4049,7 +4058,8 @@ static void do_mesh_box_select__doSelectFace(void *user_data,
                                              int /*index*/)
 {
   BoxSelectUserData *data = static_cast<BoxSelectUserData *>(user_data);
-  const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT);
+  const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT) ||
+                         BM_elem_flag_test(efa, BM_ELEM_MIRRORED_SELECT);
   const bool is_inside = BLI_rctf_isect_pt_v(data->rect_fl, screen_co);
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {

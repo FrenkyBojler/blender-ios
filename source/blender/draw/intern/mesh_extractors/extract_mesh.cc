@@ -69,6 +69,9 @@ void mesh_render_data_loop_flag(const MeshRenderData &mr,
   if (uvedit_uv_select_test_ex(mr.toolsettings, mr.bm, l, offsets)) {
     eattr.v_flag |= VFLAG_VERT_UV_SELECT;
   }
+  if (uvedit_uv_mirrored_select_test_ex(mr.toolsettings, mr.bm, l, offsets)) {
+    eattr.e_flag |= VFLAG_VERT_UV_MIRRORED_SELECT;
+  }
 }
 
 void mesh_render_data_loop_edge_flag(const MeshRenderData &mr,
@@ -82,6 +85,9 @@ void mesh_render_data_loop_edge_flag(const MeshRenderData &mr,
   if (uvedit_edge_select_test_ex(mr.toolsettings, mr.bm, l, offsets)) {
     eattr.v_flag |= VFLAG_EDGE_UV_SELECT;
     eattr.v_flag |= VFLAG_VERT_UV_SELECT;
+  }
+  if (uvedit_edge_mirrored_select_test_ex(mr.toolsettings, mr.bm, l, offsets)) {
+    eattr.v_flag |= VFLAG_EDGE_MIRRORED_SELECT;
   }
 }
 

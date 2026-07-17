@@ -14,9 +14,13 @@ void main()
   /* TODO: Theme? */
   constexpr float4 pinned_col = float4(1.0f, 0.0f, 0.0f, 1.0f);
 
-  bool is_selected = (flag & (VERT_UV_SELECT | FACE_UV_SELECT)) != 0u;
-  bool is_pinned = (flag & VERT_UV_PINNED) != 0u;
+  bool is_selected = (flag.x & (VERT_UV_SELECT | FACE_UV_SELECT)) != 0u;
+  bool is_pinned = (flag.x & VERT_UV_PINNED) != 0u;
+  bool is_mirrored = (flag.y & VERT_UV_MIRRORED_SELECT) != 0u;
   float4 deselect_col = (is_pinned) ? pinned_col : float4(color.rgb, 1.0f);
+  if (is_mirrored && !is_selected) {
+    deselect_col = theme.colors.vertex_mirror_selection;
+  }
   fill_color = (is_selected) ? theme.colors.vert_select : deselect_col;
   outline_color = (is_pinned) ? pinned_col : float4(fill_color.rgb, 0.0f);
 
@@ -24,7 +28,7 @@ void main()
   /* Move selected vertices to the top
    * Vertices are between 0.0 and 0.2, Edges between 0.2 and 0.4
    * actual pixels are at 0.75, 1.0 is used for the background. */
-  float depth = is_selected ? (is_pinned ? 0.05f : 0.10f) : 0.15f;
+  float depth = (is_selected || is_mirrored) ? (is_pinned ? 0.05f : 0.10f) : 0.15f;
   gl_Position = float4(drw_point_world_to_homogenous(world_pos).xy, depth, 1.0f);
   gl_PointSize = dot_size;
 

@@ -37,7 +37,7 @@ VertIn input_assembly(uint in_vertex_id)
     vert_in.lN.y = uintBitsToFloat(vnor[gpu_attr_load_index(v_i, gpu_attr_1) + 1]);
     vert_in.lN.z = uintBitsToFloat(vnor[gpu_attr_load_index(v_i, gpu_attr_1) + 2]);
   }
-  vert_in.e_data = gpu_attr_load_uchar4(data, gpu_attr_2, v_i);
+  vert_in.e_data = gpu_attr_load_ushort4(data, gpu_attr_2, v_i);
   return vert_in;
 }
 

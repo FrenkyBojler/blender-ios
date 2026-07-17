@@ -14,7 +14,12 @@ void main()
   float3 world_pos = float3(au, 0.0f);
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  final_color = ((flag & FACE_UV_SELECT) != 0u) ? theme.colors.facedot :
-                                                  float4(theme.colors.wire.rgb, 1.0f);
+  bool is_selected = (flag & FACE_UV_SELECT) != 0u;
+  bool is_mirrored = (flag & FACE_MIRRORED_SELECT) != 0u;
+
+  final_color = (is_selected) ? theme.colors.facedot : float4(theme.colors.wire.rgb, 1.0f);
+  if (!is_selected && is_mirrored) {
+    final_color = theme.colors.face_mirror_selection;
+  }
   gl_PointSize = dot_size;
 }

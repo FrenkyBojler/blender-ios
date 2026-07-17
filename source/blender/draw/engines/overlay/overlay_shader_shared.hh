@@ -94,27 +94,28 @@ ENUM_OPERATORS(StickBoneFlag)
 /* TODO(fclem): Convert into enum. */
 /* See: 'draw_cache_impl.hh' for matching includes. */
 #define VERT_GPENCIL_BEZT_HANDLE (1u << 30)
-/* data[0] (1st byte flags) */
+/* data[0] (1st 16-bit flags) */
 #define FACE_ACTIVE (1u << 0)
 #define FACE_SELECTED (1u << 1)
 #define FACE_FREESTYLE (1u << 2)
 #define VERT_UV_SELECT (1u << 3)
-#define FACE_MIRRORED_SELECT (1u << 3)
-#define VERT_UV_PINNED (1u << 4)
-#define EDGE_UV_SELECT (1u << 5)
-#define EDGE_MIRRORED_SELECT (1u << 5)
-#define FACE_UV_ACTIVE (1u << 6)
-#define FACE_UV_SELECT (1u << 7)
-/* data[1] (2nd byte flags) */
+#define FACE_MIRRORED_SELECT (1u << 4)
+#define VERT_UV_PINNED (1u << 5)
+#define EDGE_UV_SELECT (1u << 6)
+#define EDGE_MIRRORED_SELECT (1u << 7)
+#define FACE_UV_ACTIVE (1u << 8)
+#define FACE_UV_SELECT (1u << 9)
+/* data[1] (2nd 16-bit flags) */
 #define VERT_ACTIVE (1u << 0)
 #define VERT_SELECTED (1u << 1)
 #define VERT_SELECTED_BEZT_HANDLE (1u << 2)
-#define VERT_MIRRORED_SELECT (1u << 2)
-#define EDGE_ACTIVE (1u << 3)
-#define EDGE_SELECTED (1u << 4)
-#define EDGE_SEAM (1u << 5)
-#define EDGE_SHARP (1u << 6)
-#define EDGE_FREESTYLE (1u << 7)
+#define VERT_MIRRORED_SELECT (1u << 3)
+#define VERT_UV_MIRRORED_SELECT (1u << 4)
+#define EDGE_ACTIVE (1u << 5)
+#define EDGE_SELECTED (1u << 6)
+#define EDGE_SEAM (1u << 7)
+#define EDGE_SHARP (1u << 8)
+#define EDGE_FREESTYLE (1u << 9)
 
 static inline uint outline_id_pack(uint outline_id, uint object_id)
 {
@@ -212,6 +213,9 @@ struct [[host_shared]] ThemeColors {
   float4 edit_mesh_active;
   float4 edge_select;      /* Stands for edge selection, not edge select mode. */
   float4 edge_mode_select; /* Stands for edge mode selection. */
+  float4 vertex_mirror_selection;
+  float4 edge_mirror_selection;
+  float4 face_mirror_selection;
   float4 edge_seam;
   float4 edge_sharp;
   float4 edge_crease;

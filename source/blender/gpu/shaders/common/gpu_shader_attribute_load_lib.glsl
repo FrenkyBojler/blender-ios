@@ -47,6 +47,11 @@ uint4 gpu_attr_decode_uchar4_to_uint4(uint in_data)
   return (uint4(in_data) >> uint4(0, 8, 16, 24)) & uint4(0xFF);
 }
 
+uint4 gpu_attr_decode_ushort4_to_uint4(uint data0, uint data1)
+{
+  return uint4(data0 & 0xFFFFu, data0 >> 16u, data1 & 0xFFFFu, data1 >> 16u);
+}
+
 /* TODO(fclem): Once the stride and offset are made obsolete, we can think of wrapping vec3 into
  * structs of floats as they do not have the 16byte alignment restriction. */
 
@@ -88,6 +93,10 @@ uint4 gpu_attr_decode_uchar4_to_uint4(uint in_data)
 /* Assumes _data is declared as an array of uint. */
 #define gpu_attr_load_uchar4(_data, _stride_and_offset, _i) \
   gpu_attr_decode_uchar4_to_uint4(_data[gpu_attr_load_index(_i, _stride_and_offset)])
+/* Assumes _data is declared as an array of uint. */
+#define gpu_attr_load_ushort4(_data, _stride_and_offset, _i) \
+  gpu_attr_decode_ushort4_to_uint4(_data[gpu_attr_load_index(_i, _stride_and_offset) + 0], \
+                                   _data[gpu_attr_load_index(_i, _stride_and_offset) + 1])
 /* Assumes _data is declared as an array of uint. */
 #define gpu_attr_load_uchar(_data, _i) \
   gpu_attr_decode_uchar4_to_uint4( \

@@ -26,7 +26,7 @@ float4 EDIT_MESH_edge_color_inner(uint edge_flag, uint face_flag)
                                              theme.colors.edge_select;
   color = ((edge_flag & EDGE_SELECTED) != 0u) ? selected_edge_col : color;
   if (((edge_flag & EDGE_SELECTED) == 0u) && ((face_flag & EDGE_MIRRORED_SELECT) != 0u)) {
-    color = float4(0.2f, 0.6f, 1.0f, 1.0f);
+    color = theme.colors.edge_mirror_selection;
   }
   color = ((edge_flag & EDGE_ACTIVE) != 0u) ? theme.colors.edit_mesh_active : color;
   color.a = 1.0f;
@@ -41,7 +41,7 @@ float4 EDIT_MESH_edge_vertex_color(uint vertex_flag, uint face_flag)
   bool edge_selected = (vertex_flag & (VERT_ACTIVE | VERT_SELECTED)) != 0u;
   float4 color = (edge_selected) ? selected_edge_col : theme.colors.wire_edit;
   if (!edge_selected && ((face_flag & EDGE_MIRRORED_SELECT) != 0u)) {
-    color = float4(0.2f, 0.6f, 1.0f, 1.0f);
+    color = theme.colors.edge_mirror_selection;
   }
   color.a = 1.0f;
   return color;
@@ -56,7 +56,7 @@ float4 EDIT_MESH_vertex_color(uint vertex_flag, float vertex_crease)
     return theme.colors.vert_select;
   }
   if ((vertex_flag & VERT_MIRRORED_SELECT) != 0u) {
-    return float4(0.2f, 0.6f, 1.0f, 1.0f);
+    return theme.colors.vertex_mirror_selection;
   }
   /* Full crease color if not selected nor active. */
   if (vertex_crease > 0.0f) {
@@ -79,7 +79,7 @@ float4 EDIT_MESH_face_color(uint face_flag)
   color = face_freestyle ? theme.colors.face_freestyle : color;
   color = face_selected ? selected_face_col : color;
   if (!face_selected && face_mirrored_selected) {
-    color = float4(0.2f, 0.6f, 1.0f, selected_face_col.a);
+    color = theme.colors.face_mirror_selection;
   }
   if (select_face && face_active) {
     color = mix(selected_face_col, theme.colors.edit_mesh_active, 0.5f);

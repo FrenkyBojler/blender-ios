@@ -214,12 +214,12 @@ const SortedFaceData &mesh_render_data_faces_sorted_ensure(const MeshRenderData 
 /* draw_cache_extract_mesh_extractors.c */
 
 struct EditLoopData {
-  uchar v_flag;
-  uchar e_flag;
+  uint16_t v_flag;
+  uint16_t e_flag;
   /* This is used for both vertex and edge creases. The edge crease value is stored in the bottom 4
    * bits, while the vertex crease is stored in the upper 4 bits. */
-  uchar crease;
-  uchar bweight;
+  uint16_t crease;
+  uint16_t bweight;
 };
 
 void mesh_render_data_face_flag(const MeshRenderData &mr,

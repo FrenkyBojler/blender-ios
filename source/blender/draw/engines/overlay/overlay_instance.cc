@@ -269,6 +269,9 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   ui::theme::get_color_4fv(TH_EDITMESH_ACTIVE, gb.colors.edit_mesh_active);
   ui::theme::get_color_4fv(TH_EDGE_SELECT, gb.colors.edge_select);
   ui::theme::get_color_4fv(TH_EDGE_MODE_SELECT, gb.colors.edge_mode_select);
+  ui::theme::get_color_4fv(TH_VERTEX_MIRROR_SELECTION, gb.colors.vertex_mirror_selection);
+  ui::theme::get_color_4fv(TH_EDGE_MIRROR_SELECTION, gb.colors.edge_mirror_selection);
+  ui::theme::get_color_4fv(TH_FACE_MIRROR_SELECTION, gb.colors.face_mirror_selection);
   ui::theme::get_color_4fv(TH_GP_WIRE_EDIT, gb.colors.gpencil_wire_edit);
   ui::theme::get_color_4fv(TH_GP_VERTEX, gb.colors.gpencil_vertex);
   ui::theme::get_color_4fv(TH_GP_VERTEX_SELECT, gb.colors.gpencil_vertex_select);

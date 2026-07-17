@@ -671,6 +671,32 @@ bool uvedit_edge_select_test(const Scene *scene,
   return uvedit_edge_select_test_ex(scene->toolsettings, bm, l, offsets);
 }
 
+bool uvedit_edge_mirrored_select_test_ex(const ToolSettings *ts,
+                                         const BMesh *bm,
+                                         const BMLoop *l,
+                                         const BMUVOffsets & /*offsets*/)
+{
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+    if (ts->selectmode & SCE_SELECT_FACE) {
+      return BM_elem_flag_test_bool(l->f, BM_ELEM_MIRRORED_SELECT);
+    }
+    if (ts->selectmode & SCE_SELECT_EDGE) {
+      return BM_elem_flag_test_bool(l->e, BM_ELEM_MIRRORED_SELECT);
+    }
+    return BM_elem_flag_test_bool(l->v, BM_ELEM_MIRRORED_SELECT) &&
+           BM_elem_flag_test_bool(l->next->v, BM_ELEM_MIRRORED_SELECT);
+  }
+  return false;
+}
+
+bool uvedit_edge_mirrored_select_test(const Scene *scene,
+                                      const BMesh *bm,
+                                      const BMLoop *l,
+                                      const BMUVOffsets &offsets)
+{
+  return uvedit_edge_mirrored_select_test_ex(scene->toolsettings, bm, l, offsets);
+}
+
 void uvedit_edge_select_set_with_sticky(const Scene *scene,
                                         BMesh *bm,
                                         BMLoop *l,
@@ -975,6 +1001,28 @@ bool uvedit_uv_select_test(const Scene *scene,
                            const BMUVOffsets &offsets)
 {
   return uvedit_uv_select_test_ex(scene->toolsettings, bm, l, offsets);
+}
+
+bool uvedit_uv_mirrored_select_test_ex(const ToolSettings *ts,
+                                       const BMesh *bm,
+                                       const BMLoop *l,
+                                       const BMUVOffsets & /*offsets*/)
+{
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+    if (ts->selectmode & SCE_SELECT_FACE) {
+      return BM_elem_flag_test_bool(l->f, BM_ELEM_MIRRORED_SELECT);
+    }
+    return BM_elem_flag_test_bool(l->v, BM_ELEM_MIRRORED_SELECT);
+  }
+  return false;
+}
+
+bool uvedit_uv_mirrored_select_test(const Scene *scene,
+                                    const BMesh *bm,
+                                    const BMLoop *l,
+                                    const BMUVOffsets &offsets)
+{
+  return uvedit_uv_mirrored_select_test_ex(scene->toolsettings, bm, l, offsets);
 }
 
 void uvedit_uv_select_set_with_sticky(
@@ -4584,6 +4632,12 @@ static void uv_select_tag_update_for_object(Depsgraph *depsgraph,
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
     WM_main_add_notifier(NC_GEOM | ND_SELECT, obedit->data);
+
+    Main *bmain = DEG_get_bmain(depsgraph);
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (bmain && em) {
+      EDBM_selectmode_flush_mirrored(bmain, em);
+    }
   }
   else {
     Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);

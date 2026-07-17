@@ -114,7 +114,7 @@ static const GPUVertFormat &get_edit_data_format()
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
     /* WARNING: Adjust #EditLoopData struct accordingly. */
-    GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_8_8_8_8);
+    GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_16_16_16_16);
     GPU_vertformat_alias_add(&format, "flag");
     return format;
   }();

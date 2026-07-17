@@ -16,7 +16,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_edit_uv_edges)
 
 struct VertIn {
   float2 uv;
-  uint flag;
+  uint2 flag;
 };
 
 VertIn input_assembly(uint in_vertex_id)
@@ -26,9 +26,9 @@ VertIn input_assembly(uint in_vertex_id)
   VertIn vert_in;
   vert_in.uv = gpu_attr_load_float2(au, gpu_attr_0, v_i);
 #ifdef WIREFRAME
-  vert_in.flag = 0u;
+  vert_in.flag = uint2(0u);
 #else
-  vert_in.flag = gpu_attr_load_uchar4(data, gpu_attr_1, v_i).x;
+  vert_in.flag = gpu_attr_load_ushort4(data, gpu_attr_1, v_i).xy;
 #endif
   return vert_in;
 }
@@ -38,6 +38,7 @@ struct VertOut {
   float2 stipple_start;
   float2 stipple_pos;
   bool selected;
+  bool mirrored;
 };
 
 VertOut vertex_main(VertIn v_in)
@@ -53,14 +54,19 @@ VertOut vertex_main(VertIn v_in)
                      half_pixel_offset;
 
   const uint selection_flag = use_edge_select ? uint(EDGE_UV_SELECT) : uint(VERT_UV_SELECT);
-  vert_out.selected = flag_test(v_in.flag, selection_flag);
+  vert_out.selected = flag_test(v_in.flag.x, selection_flag);
+
+  const uint mirrored_flag = use_edge_select ? uint(EDGE_MIRRORED_SELECT) :
+                                               uint(VERT_UV_MIRRORED_SELECT);
+  vert_out.mirrored = use_edge_select ? flag_test(v_in.flag.x, mirrored_flag) :
+                                        flag_test(v_in.flag.y, mirrored_flag);
 
   /* Move selected edges to the top so that they occlude unselected edges.
    * - Vertices are between 0.0 and 0.2 depth.
    * - Edges between 0.2 and 0.4 depth.
    * - Image pixels are at 0.75 depth.
    * - 1.0 is used for the background. */
-  vert_out.hs_P.z = vert_out.selected ? 0.25f : 0.35f;
+  vert_out.hs_P.z = (vert_out.selected || vert_out.mirrored) ? 0.25f : 0.35f;
 
   /* Avoid precision loss. */
   vert_out.stipple_pos = 500.0f + 500.0f * (vert_out.hs_P.xy / vert_out.hs_P.w);
@@ -75,11 +81,12 @@ struct GeomOut {
   float2 stipple_pos;
   float edge_coord;
   bool selected;
+  bool mirrored;
 };
 
 void export_vertex(GeomOut geom_out)
 {
-  selection_fac = float(geom_out.selected);
+  selection_fac = geom_out.selected ? 1.0f : (geom_out.mirrored ? 2.0f : 0.0f);
   stipple_start = geom_out.stipple_start;
   stipple_pos = geom_out.stipple_pos;
   edge_coord = geom_out.edge_coord;
@@ -130,12 +137,16 @@ void geometry_main(VertOut geom_in[2],
   /* No blending with edge selection. */
   bool select_1 = use_edge_select ? geom_in[0].selected : geom_in[1].selected;
 
+  bool mirrored_0 = geom_in[0].mirrored;
+  bool mirrored_1 = use_edge_select ? geom_in[0].mirrored : geom_in[1].mirrored;
+
   GeomOut geom_out;
   geom_out.stipple_start = geom_in[0].stipple_start;
   geom_out.stipple_pos = geom_in[0].stipple_pos;
   geom_out.gpu_position = geom_in[0].hs_P + float4(edge_ofs, 0.0f, 0.0f);
   geom_out.edge_coord = half_size;
   geom_out.selected = select_0;
+  geom_out.mirrored = mirrored_0;
   strip_EmitVertex(0, out_vertex_id, out_primitive_id, geom_out);
 
   geom_out.gpu_position = geom_in[0].hs_P - float4(edge_ofs, 0.0f, 0.0f);
@@ -147,6 +158,7 @@ void geometry_main(VertOut geom_in[2],
   geom_out.gpu_position = geom_in[1].hs_P + float4(edge_ofs, 0.0f, 0.0f);
   geom_out.edge_coord = half_size;
   geom_out.selected = select_1;
+  geom_out.mirrored = mirrored_1;
   strip_EmitVertex(2, out_vertex_id, out_primitive_id, geom_out);
 
   geom_out.gpu_position = geom_in[1].hs_P - float4(edge_ofs, 0.0f, 0.0f);

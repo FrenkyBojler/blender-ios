@@ -446,7 +446,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   if (!USER_VERSION_ATLEAST(503, 5)) {
     FROM_DEFAULT_V4_UCHAR(tui.wcol_list_item.item);
   }
-
+  if (!USER_VERSION_ATLEAST(503, 9)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.vertex_mirror_selection);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.edge_mirror_selection);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.face_mirror_selection);
+    FROM_DEFAULT_V4_UCHAR(space_image.vertex_mirror_selection);
+    FROM_DEFAULT_V4_UCHAR(space_image.edge_mirror_selection);
+    FROM_DEFAULT_V4_UCHAR(space_image.face_mirror_selection);
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
