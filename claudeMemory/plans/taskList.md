@@ -422,16 +422,23 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
       aliases still to come (positions + normals only so far).
 - [x] D3 `external_batches_get` + `external_batches_per_material_get`
       (`SculptBatch`-shaped, frustum-culled).
-- [~] R4 Generic attributes in the fast draw path. **Color done**: the provider
-      exposes each GPU node's legacy float4 color stream (the composited
-      vertex-color / face-set display color), and `draw_external` draws it in
-      Workbench vertex-color shading via `init_format_for_attribute` +
-      `DRW_cdlayer_attr_aliases_add` (GUI-verified with a red/blue point color).
-      For a custom mode that single stream covers the visible coloring (the
-      separate mask/face-set overlay attrs are for the `OB_MODE_SCULPT` overlay,
-      which does not run for custom modes). Remaining (same pattern, lower
-      priority): UV for texture shading + EEVEE material attrs via the engine's
-      dynamic-attribute path (`setTreeRequestedAttrs`). See
+- [~] R4 Generic attributes in the fast draw path. **Color + UV done**: the
+      provider exposes each GPU node's per-attribute buffers, and `draw_external`
+      draws color in Workbench vertex-color shading and UV in texture shading via
+      `init_format_for_attribute` + `DRW_cdlayer_attr_aliases_add` (GUI-verified:
+      a red/blue point color, and a COLOR_GRID checker sampled through the active
+      UV map on a sculptcore-mode sphere). UV routes through the engine's dynamic
+      per-attribute layout (`sc_external_draw_enable_dynamic` → `setRequestedAttrs`
+      color@0 + uv@1, plus a linked stub draw shader); the addon seeds the engine
+      `uv` corner attribute on enter (`Mesh_writeCornerFloat2Attr`).
+      **Cross-pass batch fix**: the built attribute set is derived from what the
+      object *has*, not the caller's `SculptBatchFeature`, so passes that request
+      the same object in one frame with different flags (workbench / overlay
+      outline / EEVEE per-material) share one stable per-node batch instead of
+      reallocating it in place and freeing vertex buffers a returned batch still
+      referenced (a use-after-free that surfaced as a null vtable call in
+      `VKBatch::ensure_data_uploaded`). Remaining (lower priority): EEVEE material
+      attrs beyond UV via the same dynamic path. See
       [draw-d6-provider.md](./draw-d6-provider.md) R4.
 - [x] D4 engine consume: **Workbench** (gate + dispatch + batch source +
       instanced-path exclusion in `draw_context.cc`) and **EEVEE**
