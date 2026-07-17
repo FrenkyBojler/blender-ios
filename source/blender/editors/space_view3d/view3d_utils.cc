@@ -591,9 +591,10 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 2.0f;
   float x = event_ofs[0] / (region->winx * zoomfac);
   float y = event_ofs[1] / (region->winy * zoomfac);
-  float aspect = float(region->winx) / float(region->winy);
 
   if (rv3d->camroll != 0.0f) {
+    float aspect = float(region->winx) / float(region->winy);
+
     x *= aspect;
 
     const float c = cosf(rv3d->camroll);
@@ -642,15 +643,17 @@ void ED_view3d_camera_lock_init_ex(const Depsgraph *depsgraph,
     }
     ED_view3d_from_object(ob_camera_eval, rv3d->ofs, rv3d->viewquat, &rv3d->dist, nullptr);
 
-    float quat_mul[4];
-    float z_vec[3];
-    z_vec[0] = 0.0f;
-    z_vec[1] = 0.0f;
-    z_vec[2] = 1.0f;
+    if (rv3d->camroll != 0.0f) {
+      float quat_mul[4];
+      float z_vec[3];
+      z_vec[0] = 0.0f;
+      z_vec[1] = 0.0f;
+      z_vec[2] = 1.0f;
 
-    axis_angle_normalized_to_quat(quat_mul, z_vec, rv3d->camroll);
+      axis_angle_normalized_to_quat(quat_mul, z_vec, rv3d->camroll);
 
-    mul_qt_qtqt(rv3d->viewquat, quat_mul, rv3d->viewquat);
+      mul_qt_qtqt(rv3d->viewquat, quat_mul, rv3d->viewquat);
+    }
   }
 }
 
@@ -1696,7 +1699,9 @@ void ED_view3d_to_object(const Depsgraph *depsgraph,
   float mat[4][4];
   ED_view3d_to_m4(mat, ofs, quat, dist);
 
-  rotate_m4(mat, 'Z', camroll);
+  if (camroll != 0.0f) {
+    rotate_m4(mat, 'Z', camroll);
+  }
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   BKE_object_apply_mat4_ex(ob, mat, ob_eval->parent, ob_eval->parentinv, true);
