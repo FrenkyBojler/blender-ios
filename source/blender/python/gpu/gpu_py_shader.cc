@@ -11,7 +11,7 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "GPU_context.hh"
 #include "GPU_shader.hh"
@@ -211,6 +211,7 @@ static bool pygpu_shader_uniform_vector_impl(PyObject *args,
   if (r_pybuffer->len < (*r_length * *r_count * elem_size)) {
     PyErr_SetString(PyExc_OverflowError,
                     "GPUShader.uniform_vector_*: buffer size smaller than required.");
+    PyBuffer_Release(r_pybuffer);
     return false;
   }
 

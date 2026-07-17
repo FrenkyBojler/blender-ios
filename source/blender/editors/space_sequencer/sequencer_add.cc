@@ -16,12 +16,12 @@
 #include "DNA_sound_types.h"
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -1230,7 +1230,7 @@ static void sequencer_add_movie_sync_strip(Scene *scene,
   /* Expand missing sound data in the underlying container to fill the movie strip's length. To the
    * user, this missing data is the same as complete silence, so we pretend like it is. */
   if (strip->type == STRIP_TYPE_SOUND) {
-    strip->len = std::max(anchor->len, strip->len);
+    strip->content_length_set(std::max(anchor->content_length(), strip->content_length()));
   }
 
   /* Match the strip length to the anchor to have all streams align on the timeline. */

@@ -14,7 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_string_utils.hh"
 
 #include "DNA_anim_types.h"
@@ -25,7 +25,7 @@
 #include "ANIM_keyframing.hh"
 
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
@@ -510,7 +510,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
   if (pyrna_struct_keyframe_parse(&self->ptr.value(),
                                   args,
                                   kw,
-                                  "s|$iO&sOs!:bpy_struct.keyframe_delete()",
+                                  "s|$iO&sO!s:bpy_struct.keyframe_delete()",
                                   "bpy_struct.keyframe_delete()",
                                   &path_full,
                                   &index,

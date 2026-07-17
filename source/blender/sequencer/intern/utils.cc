@@ -17,15 +17,15 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_image.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -384,7 +384,7 @@ Strip *strip_from_strip_elem(ListBaseT<Strip> *seqbase, StripElem *se)
   for (istrip = static_cast<Strip *>(seqbase->first); istrip; istrip = istrip->next) {
     Strip *strip_found;
     if ((istrip->data && istrip->data->stripdata) &&
-        ARRAY_HAS_ITEM(se, istrip->data->stripdata, istrip->len))
+        ARRAY_HAS_ITEM(se, istrip->data->stripdata, istrip->content_length()))
     {
       break;
     }

@@ -16,15 +16,16 @@
 
 #include "AS_asset_representation.hh"
 
-#include "BLI_fileops.h"
+#include "BLI_fileops.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
+#include "BKE_main.hh"
 #include "BKE_screen.hh"
 
 #include "ED_asset.hh"
@@ -400,7 +401,7 @@ static bUserMenuItem *but_user_menu_find(bContext *C, Button *but, bUserMenu *um
     /* NOTE(@ideasman42): It's highly unlikely this ever occurs since the path must be resolved
      * for this to be added in the first place, there might be some cases where manually
      * constructed RNA paths don't resolve and in this case a crash should be avoided. */
-    if (UNLIKELY(!member_id_data_path.has_value())) {
+    if (!member_id_data_path.has_value()) [[unlikely]] {
       /* Assert because this should never happen for typical usage. */
       BLI_assert_unreachable();
       return nullptr;
@@ -526,6 +527,17 @@ static bool but_menu_add_path_operators(Layout &layout, PointerRNA *ptr, Propert
   UNUSED_VARS_NDEBUG(subtype);
 
   RNA_property_string_get(ptr, prop, filepath);
+
+  if (BLI_path_is_rel(filepath)) {
+    if (ptr->owner_id == nullptr) {
+      return false;
+    }
+    const char *base_path = ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id);
+    if (base_path[0] == '\0') {
+      return false;
+    }
+    BLI_path_abs(filepath, base_path);
+  }
 
   if (!BLI_exists(filepath)) {
     return false;

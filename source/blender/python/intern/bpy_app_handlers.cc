@@ -10,7 +10,7 @@
  * functions into (called via blenders generic BLI_cb API)
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 #include <Python.h>
 
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
@@ -324,7 +324,7 @@ static PyObject *make_app_cb_info()
   }
 
   /* custom function */
-  PyStructSequence_SET_ITEM(app_cb_info, pos++, (PyObject *)&BPyPersistent_Type);
+  PyStructSequence_SET_ITEM(app_cb_info, pos++, Py_NewRef((PyObject *)&BPyPersistent_Type));
 
   return app_cb_info;
 }

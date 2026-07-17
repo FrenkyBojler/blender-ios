@@ -246,6 +246,9 @@ static eSpace_Type rna_Space_refine_reverse(StructRNA *srna)
   if (srna == RNA_SpaceSpreadsheet) {
     return SPACE_SPREADSHEET;
   }
+  if (srna == RNA_SpaceProject) {
+    return SPACE_PROJECT;
+  }
   return SPACE_EMPTY;
 }
 
@@ -357,6 +360,8 @@ PyObject *pyrna_callback_classmethod_add(PyObject * /*self*/, PyObject *args)
   Py_INCREF(args);
 
   PyObject *ret = PyCapsule_New(handle, rna_capsule_id, nullptr);
+  /* Failure to create `ret` means the system is likely out of memory. */
+  BLI_assert(ret != nullptr);
 
   /* Store 'args' in context as well for simple access. */
   PyCapsule_SetDestructor(ret, cb_rna_capsule_destructor);

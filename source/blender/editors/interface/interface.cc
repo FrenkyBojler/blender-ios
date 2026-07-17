@@ -24,16 +24,16 @@
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_vector.hh"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_report.hh"
@@ -945,7 +945,7 @@ static void but_update_old_active_from_new(Button *oldbut, Button *but)
   BLI_assert(oldbut->active || oldbut->semi_modal_state);
 
   /* flags from the buttons we want to refresh, may want to add more here... */
-  const int flag_copy = BUT_REDALERT | BUT_DISABLED | UI_HAS_ICON | UI_SELECT_DRAW;
+  const int64_t flag_copy = BUT_REDALERT | BUT_DISABLED | UI_HAS_ICON | UI_SELECT_DRAW;
   const int drawflag_copy = BUT_HAS_QUICK_TOOLTIP | BUT_NO_TOOLTIP;
 
   /* still stuff needs to be copied */
@@ -1095,10 +1095,10 @@ static bool but_update_from_old_block(Block *block,
 
   /* As long as old and new buttons are aligned, avoid loop-in-loop (calling #but_find_old). */
   std::unique_ptr<Button> *oldbut_uptr;
-  if (LIKELY(but_old_idx->has_value() &&
-             /* Ignore previously matched buttons. */
-             !matched_old_buttons.contains(oldblock->buttons_ptrs[**but_old_idx].get()) &&
-             but_equals_old(but, oldblock->buttons_ptrs[**but_old_idx].get())))
+  if (but_old_idx->has_value() &&
+      /* Ignore previously matched buttons. */
+      !matched_old_buttons.contains(oldblock->buttons_ptrs[**but_old_idx].get()) &&
+      but_equals_old(but, oldblock->buttons_ptrs[**but_old_idx].get())) [[likely]]
   {
     oldbut_uptr = &oldblock->buttons_ptrs[**but_old_idx];
   }
@@ -1156,7 +1156,7 @@ static bool but_update_from_old_block(Block *block,
   }
   else {
     matched_old_buttons.add(oldbut);
-    int flag_copy = BUT_DRAG_MULTI;
+    int64_t flag_copy = BUT_DRAG_MULTI;
 
     /* Stupid special case: The active button may be inside (as in, overlapped on top) a row
      * button which we also want to keep highlighted then. */
@@ -1269,7 +1269,8 @@ static bool but_is_rna_undo(const Button *but)
     return false;
   }
 
-  return ID_CHECK_UNDO(but->rnapoin.owner_id) && RNA_struct_undo_check(but->rnapoin.type);
+  return ID_CHECK_UNDO(but->rnapoin.owner_id) &&
+         RNA_property_undo_check(but->rnaprop, but->rnapoin.type);
 }
 
 /* assigns automatic keybindings to menu items for fast access
@@ -2037,7 +2038,7 @@ bool button_context_poll_operator_ex(bContext *C,
                                      const wmOperatorCallParams *optype_params)
 {
   bool result;
-  int old_but_flag = 0;
+  int64_t old_but_flag = 0;
 
   const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
@@ -3290,7 +3291,7 @@ char *button_string_get_dynamic(Button *but, int *r_str_size)
     BLI_assert(0);
   }
 
-  if (UNLIKELY(str == nullptr)) {
+  if (str == nullptr) [[unlikely]] {
     /* should never happen, paranoid check */
     *r_str_size = 1;
     str = BLI_strdup("");
@@ -4537,7 +4538,7 @@ static Button *def_but(Block *block,
   return but;
 }
 
-void def_but_icon(Button *but, const int icon, const int flag)
+void def_but_icon(Button *but, const int icon, const int64_t flag)
 {
   if (icon) {
     icon_ensure_deferred(
@@ -5124,7 +5125,6 @@ static Button *def_but_operator_ptr(Block *block,
   }
 
   Button *but = def_but(block, type, str, x, y, width, height, nullptr, 0, 0, tip);
-  button_retval_set(but, -1);
   button_operator_set(but, ot, opcontext);
 
   /* Enable quick tooltip label if this is a tool button without a label. */
@@ -5639,22 +5639,17 @@ void block_flag_disable(Block *block, int flag)
   block->flag &= ~flag;
 }
 
-void button_flag_enable(Button *but, int flag)
+void button_flag_enable(Button *but, int64_t flag)
 {
   but->flag |= flag;
 }
 
-void button_flag2_enable(Button *but, int flag)
-{
-  but->flag2 |= flag;
-}
-
-void button_flag_disable(Button *but, int flag)
+void button_flag_disable(Button *but, int64_t flag)
 {
   but->flag &= ~flag;
 }
 
-bool button_flag_is_set(Button *but, int flag)
+bool button_flag_is_set(Button *but, int64_t flag)
 {
   return (but->flag & flag) != 0;
 }
