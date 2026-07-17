@@ -431,12 +431,14 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
 - [x] D5 Overlay engines gated: Prepass/Facing/Fade/Mode-transfer draw the
       provider geometry (outline follows it, not the mesh); Wireframe skips
       external-draw objects (provider wireframe deferred).
-- [~] D6 Native provider over `SpatialTree` — foundation done, engine+addon
-      side remaining. Critical unknown **de-risked** (headless `GPUManager`
-      fills the CPU-resident GPU-node buffers, no backend needed); ABI now keys
-      objects by `ID.session_uid` so the native provider can map them. Full
-      turnkey plan (RNA seam R1, engine c-api R2, addon wiring R3, attrs/EEVEE
-      R4) in **[draw-d6-provider.md](./draw-d6-provider.md)**.
+- [x] D6 Native provider over `SpatialTree` — **done and GUI-verified** (a
+      sculpted sphere renders per-node through the engine, not flush-to-Mesh).
+      Engine c-api (`spatial/c-api/external_draw.{h,cc}`: key→tree registry +
+      provider walking `gpu_nodes()` + headless `GPUManager` fill), RNA
+      `bl_draw_provider` seam (64-bit address as a string), addon wiring
+      (register/update/unregister by `ID.session_uid`). Design +
+      de-risking in **[draw-d6-provider.md](./draw-d6-provider.md)**. Generic
+      attributes (mask/face-set/color) in the draw + EEVEE are R4 (P5 (b)).
 - [x] Test provider: `OBJECT_OT_external_draw_test_toggle` (dev-only, hardcoded
       triangle) validates D1–D4. Verified headless to the draw-call boundary
       (`p5_verify` toggles the mode + satisfies the gate); the pixel render needs
