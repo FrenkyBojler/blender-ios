@@ -709,8 +709,8 @@ template<class T> inline PassBase<T> &PassBase<T>::sub(const char *name)
 template<class T>
 void PassBase<T>::warm_shader_specialization(command::RecordingState &state) const
 {
-  GPU_debug_group("warm_shader_specialization");
-  GPU_debug_group(this->debug_name);
+  GPU_debug_group_scope("warm_shader_specialization");
+  GPU_debug_group_scope(this->debug_name);
 
   for (const command::Header &header : headers_) {
     switch (header.type) {
@@ -764,7 +764,7 @@ template<class T> void PassBase<T>::submit(command::RecordingState &state) const
     return;
   }
 
-  GPU_debug_group(debug_name);
+  GPU_debug_group_scope(debug_name);
 
   for (const command::Header &header : headers_) {
     switch (header.type) {

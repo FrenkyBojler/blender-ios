@@ -90,7 +90,7 @@ void ShadingView::render()
   inst_.raytracing.thickness_parameters_setup(render_view_.winmat(), extent_);
   inst_.uniform_data.raytrace.push_update();
 
-  GPU_debug_group(name_);
+  GPU_debug_group_scope(name_);
 
   /* Needs to be before anything else because it query its own gbuffer. */
   inst_.planar_probes.set_view(render_view_, extent_);
@@ -297,7 +297,7 @@ void CaptureView::render_world()
   }
 
   View view = {"Capture.View"};
-  GPU_debug_group("World.Capture");
+  GPU_debug_group_scope("World.Capture");
 
   if (update_info->do_render) {
     auto render_cubemap = [&](RayPipelineType ray_type) {
@@ -358,7 +358,7 @@ void CaptureView::render_probes()
   int prev_extent = 0;
 
   while (const auto update_info = inst_.sphere_probes.probe_update_info_pop()) {
-    GPU_debug_group("Probe.Capture");
+    GPU_debug_group_scope("Probe.Capture");
 
     if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
       inst_.uniform_data.pipeline.push_update();
@@ -440,7 +440,7 @@ void LookdevView::render()
   if (!inst_.lookdev.use_reference_spheres_) {
     return;
   }
-  GPU_debug_group("Lookdev");
+  GPU_debug_group_scope("Lookdev");
 
   const float radius = inst_.lookdev.sphere_radius_;
   const float clip = inst_.camera.data_get().clip_near;

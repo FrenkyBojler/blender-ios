@@ -1645,8 +1645,8 @@ GLShader::GLProgram &GLShader::program_get(const shader::SpecializationConstants
     return program;
   }
 
-  GPU_debug_group(GPU_DEBUG_SHADER_SPECIALIZATION_GROUP);
-  GPU_debug_group(this->name);
+  GPU_debug_group_scope(GPU_DEBUG_SHADER_SPECIALIZATION_GROUP);
+  GPU_debug_group_scope(this->name);
 
   program.program_link(name);
 
@@ -1813,7 +1813,7 @@ bool GLCompilerWorker::load_program_binary(GLint program)
   state_ = COMPILATION_FINISHED;
 
   if (binary->size > 0) {
-    GPU_debug_group("Load Binary");
+    GPU_debug_group_scope("Load Binary");
     glProgramBinary(program, binary->format, binary->data, binary->size);
     return true;
   }
@@ -1884,7 +1884,7 @@ Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInf
   worker->compile(sources);
 
   {
-    GPU_debug_group("Subprocess Compilation");
+    GPU_debug_group_scope("Subprocess Compilation");
 
     /* This path is always called for the default shader compilation. Not for specialization.
      * Use the default constant template. */
@@ -1954,7 +1954,7 @@ void GLSubprocessShaderCompiler::specialize_shader(const ShaderSpecialization &s
   }
 
   {
-    GPU_debug_group("Subprocess Specialization");
+    GPU_debug_group_scope("Subprocess Specialization");
 
     GLCompilerWorker *worker = get_compiler_worker();
     worker->compile(sources);

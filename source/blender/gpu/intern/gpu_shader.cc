@@ -802,8 +802,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   TimePoint start_time;
 
-  GPU_debug_group(GPU_DEBUG_SHADER_COMPILATION_GROUP);
-  GPU_debug_group(orig_info.name_.c_str());
+  GPU_debug_group_scope(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+  GPU_debug_group_scope(orig_info.name_.c_str());
   if (!Context::get() && G.profile_gpu) {
     /* Context can be null in Vulkan compilation threads. */
     start_time = Clock::now();

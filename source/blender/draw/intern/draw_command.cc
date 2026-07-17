@@ -803,7 +803,7 @@ void DrawMultiBuf::generate_commands(Vector<Header, 0> & /*headers*/,
                                      int view_len,
                                      bool use_custom_ids)
 {
-  GPU_debug_group("DrawMultiBuf.bind");
+  GPU_debug_group_scope("DrawMultiBuf.bind");
 
   resource_id_count_ = 0u;
   for (DrawGroup &group : MutableSpan<DrawGroup>(group_buf_.data(), group_count_)) {

@@ -242,7 +242,7 @@ void View::compute_procedural_bounds()
   /* Add 2 to always have a non-null number even in case of overflow. */
   sync_counter_ = (global_sync_counter_ += 2);
 
-  GPU_debug_group("View.compute_procedural_bounds");
+  GPU_debug_group_scope("View.compute_procedural_bounds");
 
   gpu::Shader *shader = DRW_shader_draw_view_finalize_get();
   GPU_shader_bind(shader);
@@ -269,7 +269,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
   }
   frozen_ = debug_freeze;
 
-  GPU_debug_group("View.compute_visibility");
+  GPU_debug_group_scope("View.compute_visibility");
 
   /* TODO(fclem): Early out if visibility hasn't changed. */
 

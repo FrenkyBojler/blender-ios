@@ -238,7 +238,7 @@ class Outline : Overlay {
       return;
     }
 
-    GPU_debug_group("Outline");
+    GPU_debug_group_scope("Outline");
 
     int2 render_size = int2(res.depth_tx.size());
 

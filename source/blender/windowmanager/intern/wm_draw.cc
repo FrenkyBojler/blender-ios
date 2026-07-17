@@ -974,7 +974,7 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
   Main *bmain = CTX_data_main(C);
 
   CTX_wm_area_set(C, area);
-  GPU_debug_group(wm_area_name(area));
+  GPU_debug_group_scope(wm_area_name(area));
 
   /* Compute UI layouts for dynamically size regions. */
   for (ARegion &region : area->regionbase) {
@@ -1016,7 +1016,7 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
     CTX_wm_region_set(C, &region);
     bool use_viewport = WM_region_use_viewport(area, &region);
 
-    GPU_debug_group(use_viewport ? "Viewport" : "ARegion");
+    GPU_debug_group_scope(use_viewport ? "Viewport" : "ARegion");
 
     if (stereo && wm_draw_region_stereo_set(bmain, area, &region, STEREO_LEFT_ID)) {
       Scene *scene = WM_window_get_active_scene(win);
@@ -1082,7 +1082,7 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
     if (!region.runtime->visible) {
       continue;
     }
-    GPU_debug_group("Menu");
+    GPU_debug_group_scope("Menu");
 
     CTX_wm_region_popup_set(C, &region);
 
@@ -1120,7 +1120,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
     CTX_wm_region_set(C, restore_region);
   });
 
-  GPU_debug_group("Window Redraw");
+  GPU_debug_group_scope("Window Redraw");
 
   /* Draw into the window frame-buffer, in full window coordinates. */
   wmWindowViewport(win);

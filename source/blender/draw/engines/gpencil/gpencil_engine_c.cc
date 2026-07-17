@@ -768,7 +768,7 @@ void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
    * the masks already rendered in the buffer, and drawing only the layers not already drawn. */
   bool cleared = false;
 
-  GPU_debug_group("GPencil Mask");
+  GPU_debug_group_scope("GPencil Mask");
 
   GPU_framebuffer_bind(this->mask_fb);
 
@@ -811,7 +811,7 @@ void Instance::draw_object(View &view, tObject *ob)
 
   const std::array<double4, 2> clear_cols = {double4{0, 0, 0, 0}, double4{1, 1, 1, 1}};
 
-  GPU_debug_group("GPencil Object");
+  GPU_debug_group_scope("GPencil Object");
 
   gpu::FrameBuffer *fb_object = (ob->vfx.first) ? this->object_fb : this->gpencil_fb;
 

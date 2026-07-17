@@ -638,7 +638,7 @@ void ForwardPipeline::render(View &view,
     return;
   }
 
-  GPU_debug_group("Forward.Opaque");
+  GPU_debug_group_scope("Forward.Opaque");
 
   inst_.hiz_buffer.swap_layer();
 
@@ -1267,7 +1267,7 @@ void DeferredPipeline::render(View & /*main_view*/,
   gpu::Texture *feedback_tx = nullptr;
 
   {
-    GPU_debug_group("Deferred.Opaque");
+    GPU_debug_group_scope("Deferred.Opaque");
     feedback_tx = opaque_layer_.render(render_view,
                                        prepass_fb,
                                        combined_fb,
@@ -1278,7 +1278,7 @@ void DeferredPipeline::render(View & /*main_view*/,
   }
 
   {
-    GPU_debug_group("Deferred.Refract");
+    GPU_debug_group_scope("Deferred.Refract");
     feedback_tx = refraction_layer_.render(render_view,
                                            prepass_fb,
                                            combined_fb,
@@ -1575,7 +1575,7 @@ void DeferredProbePipeline::render(View &view,
                                    Framebuffer &gbuffer_fb,
                                    int2 extent)
 {
-  GPU_debug_group("Probe.Render");
+  GPU_debug_group_scope("Probe.Render");
 
   opaque_layer_.radiance_behind_tx_ = dummy_black;
 
@@ -1674,7 +1674,7 @@ void PlanarProbePipeline::render(View &view,
                                  Framebuffer &combined_fb,
                                  int2 extent)
 {
-  GPU_debug_group("Planar.Capture");
+  GPU_debug_group_scope("Planar.Capture");
 
   radiance_behind_tx_ = dummy_black_;
 

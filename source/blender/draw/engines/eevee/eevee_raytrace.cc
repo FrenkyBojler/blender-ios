@@ -561,7 +561,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   RayTraceResult result;
 
-  GPU_debug_group("Raytracing");
+  GPU_debug_group_scope("Raytracing");
 
   const bool has_active_closure = active_closures != CLOSURE_NONE;
 
@@ -577,7 +577,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   if (has_active_closure) {
     if (use_fast_gi_scan) {
-      GPU_debug_group("Fast GI");
+      GPU_debug_group_scope("Fast GI");
 
       downsampled_in_radiance_tx_.ensure_2d(
           gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, tracing_res_fast_gi, usage_rw, nullptr, 4);
@@ -662,7 +662,7 @@ RayTraceResultTexture RayTraceModule::trace(int closure_index,
 
   eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
 
-  GPU_debug_group("Raytracing");
+  GPU_debug_group_scope("Raytracing");
 
   data_.thickness = options.screen_trace_thickness;
   data_.quality = 1.0f - 0.95f * options.screen_trace_quality;

@@ -1064,7 +1064,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   virtual_offset_tx_.clear(float4(0.0f));
 
   {
-    GPU_debug_group("IrradianceBake.SceneBounds");
+    GPU_debug_group_scope("IrradianceBake.SceneBounds");
 
     {
       draw::Manager &manager = *inst_.manager;
@@ -1130,7 +1130,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   inst_.lights.end_sync();
 
   {
-    GPU_debug_group("IrradianceBake.SurfelsCount");
+    GPU_debug_group_scope("IrradianceBake.SurfelsCount");
 
     /* Raster the scene to query the number of surfel needed. */
     capture_info_buf_.do_surfel_count = true;
@@ -1212,7 +1212,7 @@ void IrradianceBake::surfels_create(const Object &probe_object)
   dispatch_per_surfel_.x = divide_ceil_u(surfels_buf_.size(), SURFEL_GROUP_SIZE);
 
   {
-    GPU_debug_group("IrradianceBake.SurfelsCreate");
+    GPU_debug_group_scope("IrradianceBake.SurfelsCreate");
 
     /* Raster the scene to generate the surfels. */
     capture_info_buf_.do_surfel_count = true;

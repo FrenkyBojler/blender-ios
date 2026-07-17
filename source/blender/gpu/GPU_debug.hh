@@ -20,7 +20,7 @@
  *
  * void render_function()
  * {
- *   GPU_debug_capture();
+ *   GPU_debug_capture_scope();
  *   // Draw call submissions go here.
  * }
  * \endcode
@@ -39,11 +39,11 @@
  *
  * void render_function()
  * {
- *   GPU_debug_capture("A");
+ *   GPU_debug_capture_scope("A");
  *   // Draw call submissions go here.
  *
  *   {
- *      GPU_debug_capture("B");
+ *      GPU_debug_capture_scope("B");
  *      // More draw call submissions go here.
  *   }
  * }
@@ -51,9 +51,10 @@
  *
  * ### Object variants ###
  *
- * `GPU_debug_group` and `GPU_debug_capture` are wrappers that only have lifetime in the current
- * scope. For more complex control flow, you can use the `gpu::DebugGroup` and `gpu::DebugCapture`
- * structs to retain capture across function calls. Note that `gpu::DebugCapture` must be static.
+ * `GPU_debug_group_scope` and `GPU_debug_capture_scope` are wrappers that only have lifetime in
+ * the current scope. For more complex control flow, you can use the `gpu::DebugGroup` and
+ * `gpu::DebugCapture` structs to retain capture across function calls. Note that
+ * `gpu::DebugCapture` must be static.
  *
  * \code
  * #include "GPU_debug.hh"
@@ -85,10 +86,14 @@ namespace blender {
 #define GPU_DEBUG_SHADER_COMPILATION_GROUP "Shader Compilation"
 #define GPU_DEBUG_SHADER_SPECIALIZATION_GROUP "Shader Specialization"
 
+/* Internal helpers. */
+#define _GPU_DEBUG_CONCAT_EXPAND(prefix, suffix) prefix##suffix
+#define _GPU_DEBUG_CONCAT(prefix, suffix) _GPU_DEBUG_CONCAT_EXPAND(prefix, suffix)
+
 namespace gpu {
 
 namespace detail {
-/* Internal helper to create scope guards for gpu::DebugGroup and gpu::DebugCapture. */
+/* Scope guard type, encapsulates gpu::DebugGroup and gpu::DebugCapture. */
 template<typename T> struct Scope {
   T &debug_object_;
 
@@ -111,7 +116,8 @@ template<typename T> struct Scope {
  * Allows annotated grouping of a region of GPU API calls under a given name, for display in
  * a GPU frame capture tool or profiling tool.
  *
- * \note As shorthand to group API calls under the current scope, use `GPU_debug_group(name);`.
+ * \note As shorthand to group API calls under the current scope, use
+ * `GPU_debug_group_scope(name);`.
  */
 class DebugGroup {
   const char *name_ = nullptr;
@@ -141,7 +147,7 @@ class DebugGroup {
    *
    * \param location: Defaulted information about the caller source location.
    * \return A scope guard encapsulating this DebugGroup.
-   * \note As shorthand, use `GPU_debug_group(name)`.
+   * \note As shorthand, use `GPU_debug_group_scope(name)`.
    */
   detail::Scope<DebugGroup> scope_guard(
       const std::source_location location = std::source_location::current())
@@ -159,8 +165,8 @@ class DebugGroup {
  * request only with the launch argument `--debug-gpu-scope-capture name`.
  *
  * \note A *named* debug capture object should be created a single time and made static.
- * \note As shorthand to capture API calls under the current scope, use `GPU_debug_capture();`
- *       or `GPU_debug_capture_scope(name)`.
+ * \note As shorthand to capture API calls under the current scope, use
+ * `GPU_debug_capture_scope();` or `GPU_debug_optional_capture_scope(name)`.
  */
 class DebugCapture {
   void *capture_p_ = nullptr;
@@ -191,7 +197,8 @@ class DebugCapture {
    *
    * \param location: Defaulted information about the caller source location.
    * \return A scope guard encapsulating this DebugCapture.
-   * \note As shorthand, use `GPU_debug_capture()` or `GPU_debug_capture_scope(name)`.
+   * \note As shorthand, use `GPU_debug_capture_scope()` or
+   * `GPU_debug_optional_capture_scope(name)`.
    */
   detail::Scope<DebugCapture> scope_guard(
       const std::source_location location = std::source_location::current())
@@ -200,20 +207,6 @@ class DebugCapture {
   }
 };
 }  // namespace gpu
-
-/* Internal helpers: construct unique named gpu::Debug* objects with line numbering. */
-#define _GPU_debug_group(name, line) \
-  gpu::DebugGroup gpu_debug_group_##line(name); \
-  const auto gpu_debug_group_##line##_scope_guard = gpu_debug_group_##line.scope_guard();
-#define _GPU_debug_capture(line) \
-  static gpu::DebugCapture gpu_debug_capture_##line; \
-  const auto gpu_debug_capture_##line##_scope_guard = gpu_debug_capture_##line.scope_guard();
-#define _GPU_debug_capture_scope(name, line) \
-  static gpu::DebugCapture gpu_debug_capture_##line(name); \
-  const auto gpu_debug_capture_##line##_scope_guard = gpu_debug_capture_##line.scope_guard();
-#define _GPU_debug_group_unique(name, line) _GPU_debug_group(name, line)
-#define _GPU_debug_capture_unique(line) _GPU_debug_capture(line)
-#define _GPU_debug_capture_scope_unique(name, line) _GPU_debug_capture_scope(name, line)
 
 /**
  * Perform grouping of GPU API calls under the current scope by the given name, for display in a
@@ -225,10 +218,14 @@ class DebugCapture {
  *   const auto scope_guard = group.scope_guard();
  * ```
  */
-#define GPU_debug_group(name) _GPU_debug_group_unique(name, __LINE__)
+#define GPU_debug_group_scope(name) \
+  static gpu::DebugGroup _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__)(name); \
+  const auto _GPU_DEBUG_CONCAT( \
+      gpu_debug_group_scope_guard_, \
+      __LINE__) = _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__).scope_guard();
 
 /**
- * Perform immediate capture of GPU API calls under the current scope within an external GPU frame
+ * Perform deferrred capture of GPU API calls under the current scope within an external GPU frame
  * capture tool.
  *
  * \note This is equivalent to: ```
@@ -236,11 +233,15 @@ class DebugCapture {
  *   const auto scope_guard = capture.scope_guard();
  * ```
  */
-#define GPU_debug_capture() _GPU_debug_capture_unique(__LINE__)
+#define GPU_debug_capture_scope() \
+  static gpu::DebugCapture _GPU_DEBUG_CONCAT(gpu_debug_capture_, __LINE__)(); \
+  const auto _GPU_DEBUG_CONCAT( \
+      gpu_debug_capture_scope_guard_, \
+      __LINE__) = _GPU_DEBUG_CONCAT(gpu_debug_capture_, __LINE__).scope_guard();
 
 /**
  * Perform deferred capture of GPU API calls under the current scope within an external GPU frame
- * capture tool. The capture is named, and will trigger upon only request with the launch argument
+ * capture tool. The capture is named, and triggrs only upon request with the launch argument
  * `--debug-gpu-scope-capture name`.
  *
  * \param name: Unique name used to identify the capture scope.
@@ -249,7 +250,11 @@ class DebugCapture {
  *   const auto scope_guard = capture.scope_guard();
  * ```
  */
-#define GPU_debug_capture_scope(name) _GPU_debug_capture_scope_unique(name, __LINE__)
+#define GPU_debug_optional_capture_scope(name) \
+  static gpu::DebugCapture _GPU_DEBUG_CONCAT(gpu_debug_capture_, __LINE__)(name); \
+  const auto _GPU_DEBUG_CONCAT( \
+      gpu_debug_capture_scope_guard_, \
+      __LINE__) = _GPU_DEBUG_CONCAT(gpu_debug_capture_, __LINE__).scope_guard();
 
 /**
  * Create a formatted string displaying the current grouping hierarchy in the format
@@ -273,4 +278,5 @@ std::string GPU_debug_get_groups_names(IndexRange levels = IndexRange(0, 9999));
  * Return true if inside a debug group with the given name.
  */
 bool GPU_debug_group_match(const char *ref);
+
 }  // namespace blender

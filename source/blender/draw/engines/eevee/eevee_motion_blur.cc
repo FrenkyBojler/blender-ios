@@ -239,7 +239,7 @@ void MotionBlurModule::render(View &view, gpu::Texture **input_tx, gpu::Texture 
   dispatch_dilate_size_ = int3(math::divide_ceil(tiles_extent, int2(MOTION_BLUR_GROUP_SIZE)), 1);
   dispatch_gather_size_ = int3(math::divide_ceil(extent, int2(MOTION_BLUR_GROUP_SIZE)), 1);
 
-  GPU_debug_group("Motion Blur");
+  GPU_debug_group_scope("Motion Blur");
 
   tiles_tx_.acquire_2d(tiles_extent, gpu::TextureFormat::SFLOAT_16_16_16_16);
 

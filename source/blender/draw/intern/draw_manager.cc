@@ -124,7 +124,7 @@ void Manager::load_deferred_textures()
     return;
   }
 
-  GPU_debug_group("Texture Loading");
+  GPU_debug_group_scope("Texture Loading");
 
   /* Load files from disk in a multithreaded manner. Allow better parallelism. */
   threading::parallel_for(deferred_textures_.index_range(), 1, [&](const IndexRange range) {
@@ -156,7 +156,7 @@ void Manager::load_deferred_textures()
 
 void Manager::end_sync()
 {
-  GPU_debug_group("Manager.end_sync");
+  GPU_debug_group_scope("Manager.end_sync");
 
   load_deferred_textures();
 
