@@ -1706,20 +1706,18 @@ static void update_distances(int index,
 
   /* Planar initialization: Find nearest cells around mesh. */
   if (use_plane_init) {
-    BVHTreeNearest nearest = {0};
-    nearest.index = -1;
     /* Distance between two opposing vertices in a unit cube.
      * I.e. the unit cube diagonal or `sqrt(3)`.
      * This value is our nearest neighbor search distance. */
-    const float surface_distance = 1.732;
+    float surface_distance = 1.732;
     /* find_nearest uses squared distance. */
-    nearest.dist_sq = surface_distance * surface_distance;
 
     /* Subtract optional surface thickness value and virtually increase the object size. */
     if (surface_thickness) {
-      nearest.dist_sq += surface_thickness;
+      surface_distance += std::sqrt(surface_thickness);
     }
-    if (const std::optional<bke::bvh::ClosestPointResult> nearest = tree.closest_point(ray_start))
+    if (const std::optional<bke::bvh::ClosestPointResult> nearest = tree.closest_point(
+            ray_start, surface_distance))
     {
       float ray[3] = {0};
       sub_v3_v3v3(ray, ray_start, nearest->position);
