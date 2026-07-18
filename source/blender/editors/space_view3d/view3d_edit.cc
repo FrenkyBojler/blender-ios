@@ -16,6 +16,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector_c.hh"
@@ -293,24 +294,19 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   border.ymax = (float(rect.ymax) - vb.ymin);
 
   if (rv3d->persp == RV3D_CAMOB && rv3d->camroll != 0.0f) {
-    border.xmin -= BLI_rctf_size_x(&vb) / 2.0f;
-    border.ymin -= BLI_rctf_size_y(&vb) / 2.0f;
-    border.xmax -= BLI_rctf_size_x(&vb) / 2.0f;
-    border.ymax -= BLI_rctf_size_y(&vb) / 2.0f;
+    const float2 cam_cent(BLI_rctf_size_x(&vb) / 2.0f, BLI_rctf_size_y(&vb) / 2.0f);
+    BLI_rctf_translate(&border, -cam_cent.x, -cam_cent.y);
 
-    float c = cosf(rv3d->camroll);
-    float s = sinf(rv3d->camroll);
-    float xmin1 = border.xmin;
-    float xmax1 = border.xmax;
-    border.xmin = xmin1 * c + border.ymin * s;
-    border.ymin = -xmin1 * s + border.ymin * c;
-    border.xmax = xmax1 * c + border.ymax * s;
-    border.ymax = -xmax1 * s + border.ymax * c;
+    const float2 cent(BLI_rctf_cent_x(&border), BLI_rctf_cent_y(&border));
+    BLI_rctf_translate(&border, -cent.x, -cent.y);
 
-    border.xmin += BLI_rctf_size_x(&vb) / 2.0f;
-    border.ymin += BLI_rctf_size_y(&vb) / 2.0f;
-    border.xmax += BLI_rctf_size_x(&vb) / 2.0f;
-    border.ymax += BLI_rctf_size_y(&vb) / 2.0f;
+    const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(-rv3d->camroll));
+    const float2 d = rot * cent;
+
+    BLI_rctf_rotate_expand(&border, &border, rv3d->camroll);
+
+    BLI_rctf_translate(&border, d.x, d.y);
+    BLI_rctf_translate(&border, cam_cent.x, cam_cent.y);
   }
 
   border.xmin = border.xmin / BLI_rctf_size_x(&vb);
