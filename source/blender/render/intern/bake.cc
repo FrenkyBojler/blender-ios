@@ -565,7 +565,7 @@ bool RE_bake_pixels_populate_from_objects(Mesh *me_low,
 
   /* Assume all high-poly tessfaces are triangles. */
   me_highpoly = MEM_new_array_uninitialized<Mesh *>(highpoly_num, "Highpoly Derived Meshes");
-  Array<const bke::bvh::Tree *> treeData(highpoly_num);
+  Array<const bke::bvh::Tree *> treeData(highpoly_num, nullptr);
 
   if (!is_cage) {
     me_eval_low = BKE_mesh_copy_for_eval(*me_low);
