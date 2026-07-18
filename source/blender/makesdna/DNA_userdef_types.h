@@ -9,7 +9,7 @@
 #pragma once
 
 #include "BLI_enum_flags.hh"
-#include "BLI_math_constants.h"
+#include "BLI_math_constants.hh"
 
 #include "DNA_ID.h"
 #include "DNA_anim_enums.h"
@@ -210,8 +210,10 @@ enum eUserPref_GPUBackendType : short {
   USER_GPU_BACKEND_VULKAN = 1 << 3,
 #ifdef __APPLE__
   USER_GPU_BACKEND_DEFAULT = USER_GPU_BACKEND_METAL,
-#else
+#elif defined(WIN32) && (defined(_M_ARM64) || defined(__aarch64__))
   USER_GPU_BACKEND_DEFAULT = USER_GPU_BACKEND_OPENGL,
+#else
+  USER_GPU_BACKEND_DEFAULT = USER_GPU_BACKEND_VULKAN,
 #endif
 };
 

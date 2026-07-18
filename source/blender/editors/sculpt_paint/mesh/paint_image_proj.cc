@@ -13,27 +13,28 @@
 #include <cmath>
 #include <cstring>
 
+#include "IMB_imbuf_types.hh"
 #include "MEM_guardedalloc.h"
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_math_base_safe.h"
-#include "BLI_math_bits.h"
-#include "BLI_math_color.h"
-#include "BLI_math_color_blend.h"
-#include "BLI_math_geom.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_bits.hh"
+#include "BLI_math_color_blend.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_memarena.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
+#include "BLI_memarena.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
+#include "BLI_utildefines.hh"
 
 #include "atomic_ops.h"
 
@@ -41,6 +42,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_interp.hh"
+#include "IMB_partial_update.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_customdata_types.h"
@@ -66,6 +68,7 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -1752,7 +1755,7 @@ static float project_paint_uvpixel_mask(const ProjPaintState *ps,
       normalize_v3(no);
     }
 
-    if (UNLIKELY(ps->is_flip_object)) {
+    if (ps->is_flip_object) [[unlikely]] {
       negate_v3(no);
     }
 
@@ -1773,7 +1776,7 @@ static float project_paint_uvpixel_mask(const ProjPaintState *ps,
       viewDirPersp[1] = (ps->viewPos[1] - (w[0] * co1[1] + w[1] * co2[1] + w[2] * co3[1]));
       viewDirPersp[2] = (ps->viewPos[2] - (w[0] * co1[2] + w[1] * co2[2] + w[2] * co3[2]));
       normalize_v3(viewDirPersp);
-      if (UNLIKELY(ps->is_flip_object)) {
+      if (ps->is_flip_object) [[unlikely]] {
         negate_v3(viewDirPersp);
       }
 
@@ -1816,11 +1819,11 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
   bool generate_tile = false;
 
   /* double check lock to avoid locking */
-  if (UNLIKELY(!pjIma->undoRect[tile_index])) {
+  if (!pjIma->undoRect[tile_index]) [[unlikely]] {
     if (tinf->lock) {
       BLI_spin_lock(tinf->lock);
     }
-    if (LIKELY(!pjIma->undoRect[tile_index])) {
+    if (!pjIma->undoRect[tile_index]) [[likely]] {
       pjIma->undoRect[tile_index] = TILE_PENDING;
       generate_tile = true;
     }
@@ -1840,9 +1843,7 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
                                                        tx,
                                                        ty,
                                                        &pjIma->maskRect[tile_index],
-                                                       &pjIma->valid[tile_index],
-                                                       true,
-                                                       false))
+                                                       &pjIma->valid[tile_index]))
       {
         if (ibuf->float_data()) {
           undorect = ibuf->float_data();
@@ -1860,9 +1861,7 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
                                                        tx,
                                                        ty,
                                                        nullptr,
-                                                       &pjIma->valid[tile_index],
-                                                       true,
-                                                       false))
+                                                       &pjIma->valid[tile_index]))
       {
         if (ibuf->float_data()) {
           undorect = ibuf->float_data();
@@ -1873,7 +1872,7 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
       }
     }
 
-    BKE_image_mark_dirty(pjIma->ima, pjIma->ibuf);
+    IMB_mark_dirty(pjIma->ibuf);
     /* tile ready, publish */
     if (tinf->lock) {
       BLI_spin_lock(tinf->lock);
@@ -3832,7 +3831,7 @@ static void proj_paint_state_viewport_init(ProjPaintState *ps, const char symmet
   mul_m3_v3(mat, ps->viewDir);
   normalize_v3(ps->viewDir);
 
-  if (UNLIKELY(ps->is_flip_object)) {
+  if (ps->is_flip_object) [[unlikely]] {
     negate_v3(ps->viewDir);
   }
 
@@ -3994,8 +3993,6 @@ static void proj_paint_state_thread_init(ProjPaintState *ps, const bool reset_th
       ps->tile_lock = MEM_new_uninitialized<SpinLock>("projpaint_tile_lock");
       BLI_spin_init(ps->tile_lock);
     }
-
-    ED_image_paint_tile_lock_init();
   }
 
   for (int a = 0; a < ps->thread_tot; a++) {
@@ -4014,7 +4011,7 @@ static void proj_paint_state_vert_flags_init(ProjPaintState *ps)
 
     for (a = 0; a < ps->totvert_eval; a++) {
       copy_v3_v3(no, ps->vert_normals[a]);
-      if (UNLIKELY(ps->is_flip_object)) {
+      if (ps->is_flip_object) [[unlikely]] {
         negate_v3(no);
       }
 
@@ -4027,7 +4024,7 @@ static void proj_paint_state_vert_flags_init(ProjPaintState *ps)
       else {
         sub_v3_v3v3(viewDirPersp, ps->viewPos, ps->vert_positions_eval[a]);
         normalize_v3(viewDirPersp);
-        if (UNLIKELY(ps->is_flip_object)) {
+        if (ps->is_flip_object) [[unlikely]] {
           negate_v3(viewDirPersp);
         }
         if (dot_v3v3(viewDirPersp, no) <= ps->normal_angle__cos) {
@@ -4772,8 +4769,6 @@ static void project_paint_end(ProjPaintState *ps)
       MEM_delete_void((void *)ps->tile_lock);
     }
 
-    ED_image_paint_tile_lock_end();
-
 #ifndef PROJ_DEBUG_NOSEAMBLEED
     if (ps->seam_bleed_px > 0.0f) {
       MEM_delete(ps->vertFaces);
@@ -4853,7 +4848,7 @@ static bool project_image_refresh_tagged(ProjPaintState *ps)
         pr = &(projIma->partRedrawRect[i]);
         if (BLI_rcti_is_valid(&pr->dirty_region)) {
           set_imapaintpartial(pr);
-          imapaint_image_update(nullptr, projIma->ima, projIma->ibuf, &projIma->iuser, true);
+          imapaint_image_update(projIma->ibuf);
           redraw = true;
         }
 
@@ -5081,7 +5076,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps,
     }
   }
 
-  if (LIKELY(accum_tot != 0)) {
+  if (accum_tot != 0) [[likely]] {
     mul_v4_fl(rgba, 1.0f / accum_tot);
 
     if (ps->mode == BrushStrokeMode::Invert) {
@@ -5142,7 +5137,7 @@ static void do_projectpaint_soften(ProjPaintState *ps,
     }
   }
 
-  if (LIKELY(accum_tot != 0)) {
+  if (accum_tot != 0) [[likely]] {
     uchar *rgba_ub = projPixel->newColor.ch;
 
     mul_v4_fl(rgba, 1.0f / accum_tot);
@@ -6372,7 +6367,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   project_image_refresh_tagged(&ps);
 
   for (a = 0; a < ps.image_tot; a++) {
-    BKE_image_free_gputextures(ps.projImages[a].ima);
+    IMB_partial_update_mark_full(ps.projImages[a].ibuf);
     WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ps.projImages[a].ima);
   }
 
@@ -6756,9 +6751,11 @@ static std::optional<std::string> proj_paint_color_attribute_create(wmOperator *
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  bke::GSpanAttributeWriter attr = attributes.lookup_or_add_for_write_span(
-      unique_name, domain, *bke::custom_data_type_to_attr_type(type));
-  if (!attr) {
+  if (!attributes.add(unique_name,
+                      domain,
+                      *bke::custom_data_type_to_attr_type(type),
+                      bke::AttributeInitDefaultValue()))
+  {
     return std::nullopt;
   }
 
