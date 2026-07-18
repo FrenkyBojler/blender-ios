@@ -9,6 +9,9 @@ see the cleanup checklist in [../CLAUDE.md](../CLAUDE.md) (delete
 `claudeMemory/`, restore the original `claudeDocs/` + `AGENTS.md`) before the
 final upstream PR.
 
+**Resuming?** Start at **[RESUME.md](./RESUME.md)** — current focus, the exact
+next task, environment gotchas, and the validation harnesses.
+
 For coding standards, commit conventions, `.blend` compatibility rules, and
 the project strategy/working conventions, see [../CLAUDE.md](../CLAUDE.md).
 
