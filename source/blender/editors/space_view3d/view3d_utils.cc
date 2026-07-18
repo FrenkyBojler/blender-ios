@@ -30,6 +30,7 @@
 #include "BLI_listbase.hh"
 #include "BLI_math_color_c.hh"
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector_c.hh"
@@ -589,26 +590,20 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   const float camdxy_init[2] = {rv3d->camdx, rv3d->camdy};
   const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 2.0f;
-  float x = event_ofs[0] / (region->winx * zoomfac);
-  float y = event_ofs[1] / (region->winy * zoomfac);
+  float2 xy(event_ofs[0] / (region->winx * zoomfac), event_ofs[1] / (region->winy * zoomfac));
 
   if (rv3d->camroll != 0.0f) {
-    float aspect = float(region->winx) / float(region->winy);
+    const float aspect = float(region->winx) / float(region->winy);
+    xy.x *= aspect;
 
-    x *= aspect;
+    const float2x2 rot_invert = math::from_rotation<float2x2>(math::AngleRadian(-rv3d->camroll));
+    xy = rot_invert * xy;
 
-    const float c = cosf(rv3d->camroll);
-    const float s = sinf(rv3d->camroll);
-
-    float x2 = x;
-    x = x * c + y * s;
-    y = -x2 * s + y * c;
-
-    x /= aspect;
+    xy.x /= aspect;
   }
 
-  rv3d->camdx += x;
-  rv3d->camdy += y;
+  rv3d->camdx += xy.x;
+  rv3d->camdy += xy.y;
 
   CLAMP(rv3d->camdx, -1.0f, 1.0f);
   CLAMP(rv3d->camdy, -1.0f, 1.0f);
@@ -644,12 +639,9 @@ void ED_view3d_camera_lock_init_ex(const Depsgraph *depsgraph,
     ED_view3d_from_object(ob_camera_eval, rv3d->ofs, rv3d->viewquat, &rv3d->dist, nullptr);
 
     if (rv3d->camroll != 0.0f) {
-      float quat_mul[4];
-      float z_vec[3];
-      z_vec[0] = 0.0f;
-      z_vec[1] = 0.0f;
-      z_vec[2] = 1.0f;
+      const float z_vec[3] = {0.0f, 0.0f, 1.0f};
 
+      float quat_mul[4];
       axis_angle_normalized_to_quat(quat_mul, z_vec, rv3d->camroll);
 
       mul_qt_qtqt(rv3d->viewquat, quat_mul, rv3d->viewquat);

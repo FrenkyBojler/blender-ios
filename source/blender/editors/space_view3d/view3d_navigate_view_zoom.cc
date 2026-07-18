@@ -6,6 +6,7 @@
  * \ingroup spview3d
  */
 
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_time.hh"
@@ -77,29 +78,21 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
     rctf camera_frame_old;
     rctf camera_frame_new;
 
-    const float pt_src[2] = {float(zoom_xy[0] - region->winrct.xmin),
-                             float(zoom_xy[1] - region->winrct.ymin)};
-    float pt_dst[2];
-    float delta_px[2];
+    const float2 pt_src(zoom_xy[0] - region->winrct.xmin, zoom_xy[1] - region->winrct.ymin);
+    float2 pt_dst;
+    float2 delta_px;
 
     if (rv3d->camroll != 0.0f) {
-      const float c = cosf(rv3d->camroll);
-      const float s = sinf(rv3d->camroll);
+      const float2 center(region->winx / 2, region->winy / 2);
 
-      const int center_x = region->winx / 2;
-      const int center_y = region->winy / 2;
+      float2 pt_src_2 = pt_src;
 
-      float pt_src_2[2] = {pt_src[0], pt_src[1]};
+      const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(rv3d->camroll));
+      const float2x2 rot_invert = math::transpose(rot);
 
-      pt_src_2[0] -= center_x;
-      pt_src_2[1] -= center_y;
-
-      float x2 = pt_src_2[0];
-      pt_src_2[0] = pt_src_2[0] * c + pt_src_2[1] * s;
-      pt_src_2[1] = -x2 * s + pt_src_2[1] * c;
-
-      pt_src_2[0] += center_x;
-      pt_src_2[1] += center_y;
+      pt_src_2 -= center;
+      pt_src_2 = rot_invert * pt_src_2;
+      pt_src_2 += center;
 
       ED_view3d_calc_camera_border(
           scene, depsgraph, region, v3d, rv3d, false, true, &camera_frame_old);
@@ -112,21 +105,12 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
 
       BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src_2);
 
-      pt_dst[0] -= center_x;
-      pt_dst[1] -= center_y;
+      pt_dst -= center;
+      pt_dst = rot * pt_dst;
+      pt_dst += center;
 
-      x2 = pt_dst[0];
-      pt_dst[0] = pt_dst[0] * c - pt_dst[1] * s;
-      pt_dst[1] = x2 * s + pt_dst[1] * c;
-
-      pt_dst[0] += center_x;
-      pt_dst[1] += center_y;
-
-      sub_v2_v2v2(delta_px, pt_dst, pt_src);
-
-      x2 = delta_px[0];
-      delta_px[0] = delta_px[0] * c + delta_px[1] * s;
-      delta_px[1] = -x2 * s + delta_px[1] * c;
+      delta_px = pt_dst - pt_src;
+      delta_px = rot_invert * delta_px;
     }
     else {
       ED_view3d_calc_camera_border(
@@ -140,15 +124,15 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
 
       BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src);
 
-      sub_v2_v2v2(delta_px, pt_dst, pt_src);
+      delta_px = pt_dst - pt_src;
     }
 
     /* translate the camera offset using pixel space delta
      * mapped back to the camera (same logic as panning in camera view) */
     zoomfac_px = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 2.0f;
 
-    rv3d->camdx += delta_px[0] / (region->winx * zoomfac_px);
-    rv3d->camdy += delta_px[1] / (region->winy * zoomfac_px);
+    rv3d->camdx += delta_px.x / (region->winx * zoomfac_px);
+    rv3d->camdy += delta_px.y / (region->winy * zoomfac_px);
     CLAMP(rv3d->camdx, -1.0f, 1.0f);
     CLAMP(rv3d->camdy, -1.0f, 1.0f);
   }

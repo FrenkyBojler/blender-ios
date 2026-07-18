@@ -22,6 +22,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
@@ -507,17 +508,14 @@ void BKE_camera_params_compute_viewplane(
   dy = params->shifty * viewfac + winy * params->offsety;
 
   if (params->roll != 0.0f) {
-    float c = cosf(params->roll);
-    float s = sinf(params->roll);
-    float dx2 = dx;
-    dx = dx2 * c - dy * s;
-    dy = dx2 * s + dy * c;
-  }
+    const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(params->roll));
+    const float2 dxy = rot * float2(dx, dy);
 
-  viewplane.xmin += dx;
-  viewplane.ymin += dy;
-  viewplane.xmax += dx;
-  viewplane.ymax += dy;
+    BLI_rctf_translate(&viewplane, dxy.x, dxy.y);
+  }
+  else {
+    BLI_rctf_translate(&viewplane, dx, dy);
+  }
 
   /* the window matrix is used for clipping, and not changed during OSA steps */
   /* using an offset of +0.5 here would give clip errors on edges */
