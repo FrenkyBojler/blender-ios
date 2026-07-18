@@ -613,9 +613,16 @@ multires modifier at runtime; convert via **absolute top-level positions**
 (never frame-to-frame): MDISPS + limit surface → level positions → SculptCore
 writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
 
-- [ ] P0 Grid-correspondence investigation → `../research/grid-correspondence.md`
-      + mapping helper (zero-displacement CC agreement test; crease-rule
-      divergence quantified).
+- [~] P0 Grid-correspondence investigation → **written**,
+      `../research/grid-correspondence.md`. Both layouts pinned from source: one
+      grid per face corner (quad→4, n-gon→n), same face/corner enumeration,
+      **no level offset** (both `2^(L-1)+1` samples/edge, same numbering), grid
+      `(0,0)` = corner vertex and far diagonal = face center in *both*. Bijection
+      = grid-index identity + per-sample **identity-or-transpose**, over an
+      absolute-position CCG-shaped interchange buffer (`abs[grid][y*side+x]`).
+      Two convention flags (intra-grid transpose, corner rotational parity) plus
+      crease divergence remain to be **pinned numerically** by the
+      zero-displacement cube test — that closes P0 and produces the A3 constants.
 - [ ] A1 `Multires_fromLevelPositions`; A2 `Multires_levelPositionsOut`.
 - [ ] A3 Bijection C entry (Blender grid samples ⇄ level-mesh verts).
 - [ ] A4 Grid paint-mask channel in/out.
