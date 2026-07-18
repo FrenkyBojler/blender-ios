@@ -660,7 +660,7 @@ static void rna_Object_ray_cast(Object *ob,
       distmin <= distance)
   {
     const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tris();
-    const bke::bvh::Ray ray(origin, direction, distance);
+    const bke::bvh::Ray ray(origin, direction_unit, distance);
     if (const std::optional<bke::bvh::RayHit> hit = bvh_tree.ray_intersect(ray)) {
       if (hit->distance <= distance) {
         *r_success = success = true;
