@@ -53,9 +53,12 @@ slider. Gate: `scripts/p8_level.py`.
 
 ## 3. The exact next tasks
 
-- **C4** — undo payload via `Multires_serializeStore`/`_restoreStore` External
-  chunks (with P6); today multires strokes ride the per-level meshlog only,
-  and a level switch orphans prior steps (generation bump — they no-op).
+- **C4** — level-crossing undo + store-rewriting ops. **In-level stroke
+  undo/redo is already exact** (P6 meshlog + flush bake, `p8_mundo.py` —
+  undo 2e-7 / redo bit-exact, no extra code). What remains: a level switch
+  resets the meshlog + bumps the generation (prior steps decode as no-ops),
+  and down-refit/subdivide/delete rewrite the store — both want
+  `Multires_serializeStore`/`_restoreStore` External-chunk payloads.
 - P8 verification tail: production-asset render comparison; corpus (n-gon,
   creased, boundary-heavy cages; levels 1–6+); A4 grid paint-mask channel.
 
@@ -96,3 +99,7 @@ Launch any with `blender --factory-startup --python <script>`; read
 - `p8_level.py` — **C2 sculpt-level switching** (handler follows
   `sculpt_levels`, view rebind, sculpt at a coarse level, flush restore,
   cascade into the bake).
+- `p8_mundo.py` — **in-level stroke undo/redo on a multires session**
+  (CUSTOM_MODE step → meshlog seek → re-bake; undo 2e-7, redo bit-exact).
+  Timer-run ops push no undo steps — the harness pushes a "setup" step so
+  the stroke has a real boundary below it.

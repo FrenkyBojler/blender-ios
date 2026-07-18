@@ -690,8 +690,13 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       rebind 386→98 verts, sculpt at L2, flush restore, cascade into the
       bake) and GUI (live provider redraw on switch L3→L1→L3, coarse edit
       rides the cascade). Subdivide/delete deferred.
-- [ ] C4 Undo payload via `Multires_serializeStore`/`_restoreStore`
-      External chunks (with P6).
+- [~] C4 Undo — **in-level stroke undo/redo already exact** via the P6
+      meshlog path composed with the flush bake (undo 2e-7, redo bit-exact;
+      `scripts/p8_mundo.py`), no extra code needed. Remaining C4 scope:
+      level-crossing undo (a level switch resets the meshlog + bumps the
+      generation, orphaning prior steps → they decode as no-ops) and
+      store-rewriting ops (down-refit, subdivide/delete) via
+      `Multires_serializeStore`/`_restoreStore` External chunks.
 
 ### Verification (per plan §5)
 - [~] Zero-displacement and no-stroke identity round trips — no-stroke
