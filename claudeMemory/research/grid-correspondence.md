@@ -157,6 +157,60 @@ with empty displacement the subdivided *positions* must match.
 Deliverable of this step: the numbers + the chosen convention, appended here,
 and the constants baked into the A3 helper.
 
+### 5a. Numeric results (2026-07-17, `claudeMemory/scripts/p8_validate.py`)
+
+Ran the cross-engine geometric comparison on a cube: SculptCore multires level-L
+grid samples (via **A2** `Multires_levelPositionsOut`) vs Blender's Catmull-Clark
+Subdivision-Surface eval at the same level, nearest-neighbour both directions.
+**A2 verified** — sample counts exact: L1=96, L2=216, L3=600, L4=1944
+(`6·4·(2^(L-1)+1)²`).
+
+**Finding — the two base surfaces do NOT coincide at finite level.** They differ
+by ~4× less each level (L1 0.199 → L2 0.0476 → L3 0.0118 → L4 0.0029), i.e.
+O(4⁻ᴸ). A self-nesting discriminator (do a level's points lie on a finer level's
+surface?) resolves why:
+
+| | L2 points → L6 surface | verdict |
+|---|---|---|
+| SculptCore | 4.74e-2 | **discrete CC refinement** (control points sit off the finer surface) |
+| Blender subsurf / multires | 0.000 | **CC limit surface** (limit points are level-independent) |
+
+So **SculptCore's zero-displacement base is the discrete refined cage; Blender's
+multires base is the CC limit surface** (matching plan §1: MDISPS is tangent to
+the *limit*). They are not the same surface at any finite level.
+
+**They converge to the SAME limit (no rule divergence on the cube).**
+`SC-L2 → Blender-near-limit` (4.760e-2) ≈ `SC-L2 → SC-near-limit` (4.742e-2),
+equal to 1.8e-4 — SculptCore's discrete surface and Blender's limit share one
+limit surface; the discrete↔limit gap is the *only* difference. (The direct
+`SC-L6 → Blender-L6` = 4.1e-3 is vertex-sampling offset at L6 density, not
+divergence.)
+
+**Impact — benign for the round-trip, by design.** Because §3 exchanges
+*absolute* positions and each engine re-derives its own displacement against its
+own base, the discrete-vs-limit gap is absorbed into the displacement channel on
+each side; nothing needs to convert bases. The zero-displacement identity
+round-trip still holds: Blender limit → import → SculptCore stores
+`limit − discrete` as its top-level disp → export → SculptCore materializes
+`discrete + (limit − discrete) = limit` → Blender bakes `limit − limit = 0`.
+
+**Revises plan §5's premise** that "base-surface samples must agree to float
+tolerance." They agree only in the limit. The robustness comes from the
+absolute-position exchange (§3), not from base coincidence — so a base mismatch
+is *expected*, not a convention error. The convention error the test *can* still
+catch (crease-rule divergence, §4.3) would show as the two limits differing;
+here they don't (cube has no creases — a creased-cage case is still owed).
+
+**§4.1/§4.2 (transpose + corner parity) remain unpinned.** The geometric
+point-cloud test is index-free and cannot pin them, and Blender exposes no
+per-grid MDISPS/CCG positions to Python (confirmed — only the modifier settings
+in `rna_modifier.cc`). Pin them at **Workstream B** via the round-trip oracle:
+bake SculptCore's absolute top-level positions into MDISPS through
+`multires_reshape_from_positions` under each of the 4 candidate conventions and
+keep the one whose re-evaluated multires surface reproduces SculptCore's surface
+(equivalently, whose baked MDISPS matches the intended displacement). B stands
+up the reshape context anyway, so this adds no separate scaffolding.
+
 ---
 
 ## 6. API implied for Workstream A
