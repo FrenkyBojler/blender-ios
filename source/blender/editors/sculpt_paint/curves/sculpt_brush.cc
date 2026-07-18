@@ -281,7 +281,7 @@ std::optional<CurvesBrush3D> sample_curves_surface_3d_brush(
 
   const float3 brush_ray_direction_su = brush_ray_end_su - brush_ray_start_su;
 
-  const bke::bvh::Ray brush_ray(brush_ray_end_su, brush_ray_direction_su);
+  const bke::bvh::Ray brush_ray(brush_ray_start_su, brush_ray_direction_su);
   const std::optional<bke::bvh::RayHit> ray_hit = surface_bvh.ray_intersect(brush_ray);
   if (!ray_hit) {
     return std::nullopt;

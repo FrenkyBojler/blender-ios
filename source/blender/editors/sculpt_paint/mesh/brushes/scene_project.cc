@@ -134,7 +134,9 @@ static void object_raycast(const ProjectBrushTarget &project_target,
         }
 
         raycast(ray_origins[i], ray_direction, *project_target.tree_data, hit);
-        best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit->distance);
+        if (hit) {
+          best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit->distance);
+        }
       }
 
       if (bidirectional) {
@@ -144,7 +146,9 @@ static void object_raycast(const ProjectBrushTarget &project_target,
           }
 
           raycast(ray_origins[i], -ray_direction, *project_target.tree_data, hit);
-          best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit->distance);
+          if (hit) {
+            best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit->distance);
+          }
         }
       }
     });
