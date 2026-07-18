@@ -542,9 +542,14 @@ class NodesEvalLog {
   /** Container for all thread-local data. */
   threading::EnumerableThreadSpecific<LocalData> data_per_thread_;
   /**
-   * A #NodeTreeLog for every compute context. Those are created lazily when requested by UI code.
+   * A #NodeTreeLog for every compute context. Those are created lazily when requested by UI
+   * code.
    */
   Map<ComputeContextHash, std::unique_ptr<NodeTreeLog>> tree_logs_;
+  /* Finalized candidates are immutable once this evaluation log is published. Candidate log
+   * pointers share this evaluation log's lifetime. */
+  CacheMutex debug_view_candidates_cache_mutex_;
+  Vector<debug_view::Candidate> debug_view_candidates_cache_;
 
  public:
   NodesEvalLog();
@@ -569,7 +574,7 @@ class NodesEvalLog {
 
   static ContextualNodeTreeLogs get_contextual_tree_logs(const SpaceNode &snode);
   static const ViewerNodeLog *find_viewer_node_log_for_path(const ViewerPath &viewer_path);
-  Vector<debug_view::Candidate> debug_view_candidates();
+  Span<debug_view::Candidate> debug_view_candidates();
 };
 
 }  // namespace nodes::eval_log

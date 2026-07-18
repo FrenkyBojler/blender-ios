@@ -869,7 +869,7 @@ static void draw_manage_panel(const bContext *C,
   }
 }
 
-static void draw_debug_view_selector(const bContext &C,
+static void draw_debug_view_selector(const bContext & /*C*/,
                                      ui::Layout &layout,
                                      Object &object,
                                      NodesModifierData &nmd)
@@ -884,10 +884,10 @@ static void draw_debug_view_selector(const bContext &C,
 
   /* Keep the log alive while candidate pointers are used to build the UI. */
   const std::shared_ptr<eval_log::NodesEvalLog> eval_log = nmd.runtime->eval_log;
-  Vector<debug_view::Candidate> candidates = eval_log->debug_view_candidates();
-  const int active_index = debug_view::resolve_candidate_index(candidates.as_span(),
-                                                               nmd.runtime->active_debug_view);
-  if (active_index == -1) {
+  const Span<debug_view::Candidate> candidates = eval_log->debug_view_candidates();
+  const int selected_index = debug_view::find_candidate_index(candidates,
+                                                              nmd.runtime->selected_debug_view);
+  if (selected_index == -1) {
     return;
   }
 
@@ -905,12 +905,9 @@ static void draw_debug_view_selector(const bContext &C,
   PointerRNA props = controls.op("OBJECT_OT_geometry_nodes_debug_view_cycle", "", ICON_TRIA_LEFT);
   RNA_boolean_set(&props, "reverse", true);
 
-  props = controls.op_menu_enum(&C,
-                                "OBJECT_OT_geometry_nodes_debug_view_select",
-                                "view",
-                                candidates[active_index].display_name,
-                                ICON_DOWNARROW_HLT);
-  RNA_enum_set(&props, "view", active_index);
+  controls.menu("OBJECT_MT_geometry_nodes_debug_views",
+                candidates[selected_index].display_name,
+                ICON_DOWNARROW_HLT);
 
   props = controls.op("OBJECT_OT_geometry_nodes_debug_view_cycle", "", ICON_TRIA_RIGHT);
   RNA_boolean_set(&props, "reverse", false);

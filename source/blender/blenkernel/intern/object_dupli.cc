@@ -1886,9 +1886,9 @@ bool object_duplilist_debug_view(Depsgraph *depsgraph, Object *ob_eval, DupliLis
       continue;
     }
     std::shared_ptr<nodes::eval_log::NodesEvalLog> eval_log = nmd_orig.runtime->eval_log;
-    Vector<nodes::debug_view::Candidate> candidates = eval_log->debug_view_candidates();
+    const Span<nodes::debug_view::Candidate> candidates = eval_log->debug_view_candidates();
     const int candidate_index = nodes::debug_view::resolve_candidate_index(
-        candidates.as_span(), nmd_orig.runtime->active_debug_view);
+        candidates, nmd_orig.runtime->selected_debug_view);
     if (candidate_index != -1) {
       viewer_log = candidates[candidate_index].viewer_log;
       selected_eval_log = std::move(eval_log);

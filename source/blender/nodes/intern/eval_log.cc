@@ -1146,75 +1146,77 @@ const ViewerNodeLog *NodesEvalLog::find_viewer_node_log_for_path(const ViewerPat
   return viewer_log;
 }
 
-Vector<debug_view::Candidate> NodesEvalLog::debug_view_candidates()
+Span<debug_view::Candidate> NodesEvalLog::debug_view_candidates()
 {
-  Vector<debug_view::Candidate> candidates;
+  debug_view_candidates_cache_mutex_.ensure([&]() {
+    Vector<debug_view::Candidate> &candidates = debug_view_candidates_cache_;
 
-  /* Parent and nested contexts may have been evaluated on different threads. Context metadata is
-   * identical for duplicate loggers with the same hash, so any one of them can describe the path.
-   */
-  Map<ComputeContextHash, const NodeTreeLogger *> tree_logger_by_context;
-  for (const LocalData &local_data : data_per_thread_) {
-    for (const auto item : local_data.tree_logger_by_context.items()) {
-      tree_logger_by_context.add_overwrite(item.key, item.value.get());
+    /* Parent and nested contexts may have been evaluated on different threads. Any logger for a
+     * context hash can describe the path because duplicate loggers have identical metadata. */
+    Map<ComputeContextHash, const NodeTreeLogger *> tree_logger_by_context;
+    for (const LocalData &local_data : data_per_thread_) {
+      for (const auto item : local_data.tree_logger_by_context.items()) {
+        tree_logger_by_context.add_overwrite(item.key, item.value.get());
+      }
     }
-  }
 
-  for (LocalData &local_data : data_per_thread_) {
-    for (const auto item : local_data.tree_logger_by_context.items()) {
-      const ComputeContextHash &context_hash = item.key;
-      const NodeTreeLogger &tree_logger = *item.value;
+    for (const LocalData &local_data : data_per_thread_) {
+      for (const auto item : local_data.tree_logger_by_context.items()) {
+        const ComputeContextHash &context_hash = item.key;
+        const NodeTreeLogger &tree_logger = *item.value;
 
-      Vector<int> reversed_sort_order;
-      Vector<std::string> reversed_context_names;
-      bool supported_context = true;
-      const NodeTreeLogger *context_logger = &tree_logger;
-      while (context_logger) {
-        if (context_logger->context_type == NodeTreeLogger::ContextType::Zone) {
-          supported_context = false;
-          break;
+        Vector<int> reversed_sort_order;
+        Vector<std::string> reversed_context_names;
+        bool supported_context = true;
+        const NodeTreeLogger *context_logger = &tree_logger;
+        while (context_logger) {
+          if (context_logger->context_type == NodeTreeLogger::ContextType::Zone) {
+            supported_context = false;
+            break;
+          }
+          if (context_logger->context_type == NodeTreeLogger::ContextType::Group) {
+            reversed_sort_order.append(context_logger->context_order);
+            reversed_context_names.append(context_logger->context_name);
+          }
+          if (!context_logger->parent_hash) {
+            break;
+          }
+          const NodeTreeLogger *const *parent_logger = tree_logger_by_context.lookup_ptr(
+              *context_logger->parent_hash);
+          if (!parent_logger) {
+            supported_context = false;
+            break;
+          }
+          context_logger = *parent_logger;
         }
-        if (context_logger->context_type == NodeTreeLogger::ContextType::Group) {
-          reversed_sort_order.append(context_logger->context_order);
-          reversed_context_names.append(context_logger->context_name);
-        }
-        if (!context_logger->parent_hash) {
-          break;
-        }
-        const NodeTreeLogger *const *parent_logger = tree_logger_by_context.lookup_ptr(
-            *context_logger->parent_hash);
-        if (!parent_logger) {
-          supported_context = false;
-          break;
-        }
-        context_logger = *parent_logger;
-      }
-      if (!supported_context) {
-        continue;
-      }
-      std::ranges::reverse(reversed_sort_order);
-      std::ranges::reverse(reversed_context_names);
-
-      for (const NodeTreeLogger::ViewerNodeLogWithNode &viewer_log : tree_logger.viewer_node_logs)
-      {
-        if (!viewer_log.viewer_log->is_geometry_debug_view_candidate()) {
+        if (!supported_context) {
           continue;
         }
-        candidates.append({});
-        debug_view::Candidate &candidate = candidates.last();
-        candidate.identifier = {context_hash, viewer_log.node_id};
-        candidate.viewer_log = viewer_log.viewer_log.get();
-        candidate.sort_order = reversed_sort_order;
-        candidate.sort_order.append(viewer_log.viewer_log->node_order);
-        candidate.context_names = reversed_context_names;
-        candidate.viewer_name = viewer_log.viewer_log->debug_view_name.empty() ?
-                                    IFACE_("Viewer") :
-                                    viewer_log.viewer_log->debug_view_name;
+        std::ranges::reverse(reversed_sort_order);
+        std::ranges::reverse(reversed_context_names);
+
+        for (const NodeTreeLogger::ViewerNodeLogWithNode &viewer_log :
+             tree_logger.viewer_node_logs)
+        {
+          if (!viewer_log.viewer_log->is_geometry_debug_view_candidate()) {
+            continue;
+          }
+          candidates.append({});
+          debug_view::Candidate &candidate = candidates.last();
+          candidate.identifier = {context_hash, viewer_log.node_id};
+          candidate.viewer_log = viewer_log.viewer_log.get();
+          candidate.sort_order = reversed_sort_order;
+          candidate.sort_order.append(viewer_log.viewer_log->node_order);
+          candidate.context_names = reversed_context_names;
+          candidate.viewer_name = viewer_log.viewer_log->debug_view_name.empty() ?
+                                      IFACE_("Viewer") :
+                                      viewer_log.viewer_log->debug_view_name;
+        }
       }
     }
-  }
-  debug_view::finalize_candidates(candidates);
-  return candidates;
+    debug_view::finalize_candidates(candidates);
+  });
+  return debug_view_candidates_cache_;
 }
 
 ContextualNodeTreeLogs::ContextualNodeTreeLogs(

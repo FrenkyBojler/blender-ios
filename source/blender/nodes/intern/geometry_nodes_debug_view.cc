@@ -118,10 +118,10 @@ void finalize_candidates(Vector<Candidate> &candidates)
   }
 }
 
-int resolve_candidate_index(const Span<Candidate> candidates, std::optional<Identifier> &selection)
+int find_candidate_index(const Span<Candidate> candidates,
+                         const std::optional<Identifier> &selection)
 {
   if (candidates.is_empty()) {
-    selection.reset();
     return -1;
   }
   if (selection) {
@@ -131,19 +131,31 @@ int resolve_candidate_index(const Span<Candidate> candidates, std::optional<Iden
       }
     }
   }
-  selection = candidates.first().identifier;
   return 0;
 }
 
-int select_candidate_index(const Span<Candidate> candidates,
-                           const int index,
-                           std::optional<Identifier> &selection)
+int resolve_candidate_index(const Span<Candidate> candidates, std::optional<Identifier> &selection)
 {
-  if (!candidates.index_range().contains(index)) {
+  const int index = find_candidate_index(candidates, selection);
+  if (index == -1) {
+    selection.reset();
     return -1;
   }
   selection = candidates[index].identifier;
   return index;
+}
+
+int select_candidate(const Span<Candidate> candidates,
+                     const Identifier &identifier,
+                     std::optional<Identifier> &selection)
+{
+  for (const int i : candidates.index_range()) {
+    if (candidates[i].identifier == identifier) {
+      selection = identifier;
+      return i;
+    }
+  }
+  return -1;
 }
 
 int cycle_candidate_index(const Span<Candidate> candidates,

@@ -239,6 +239,7 @@ void OBJECT_OT_surfacedeform_bind(wmOperatorType *ot);
 void OBJECT_OT_geometry_nodes_input_attribute_toggle(wmOperatorType *ot);
 void OBJECT_OT_geometry_nodes_debug_view_select(wmOperatorType *ot);
 void OBJECT_OT_geometry_nodes_debug_view_cycle(wmOperatorType *ot);
+void geometry_nodes_debug_view_menu_register();
 void OBJECT_OT_geometry_node_tree_copy_assign(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_dash_modifier_segment_add(wmOperatorType *ot);
 void OBJECT_OT_grease_pencil_dash_modifier_segment_remove(wmOperatorType *ot);

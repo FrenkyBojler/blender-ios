@@ -60,13 +60,18 @@ struct Candidate {
  */
 void finalize_candidates(Vector<Candidate> &candidates);
 
+/**
+ * Find the current selection or the first candidate as fallback without changing the selection.
+ */
+int find_candidate_index(Span<Candidate> candidates, const std::optional<Identifier> &selection);
+
 /** Keep a valid selection or choose the first candidate as deterministic fallback. */
 int resolve_candidate_index(Span<Candidate> candidates, std::optional<Identifier> &selection);
 
-/** Select an exact candidate index when it is valid. */
-int select_candidate_index(Span<Candidate> candidates,
-                           int index,
-                           std::optional<Identifier> &selection);
+/** Select the candidate with the exact stable identity when it is available. */
+int select_candidate(Span<Candidate> candidates,
+                     const Identifier &identifier,
+                     std::optional<Identifier> &selection);
 
 /** Cycle relative to the resolved selection, wrapping at both ends. */
 int cycle_candidate_index(Span<Candidate> candidates,

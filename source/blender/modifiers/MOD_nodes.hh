@@ -59,7 +59,7 @@ struct NodesModifierRuntime {
    * Runtime-only Debug View selection. Compute-context hashes are stable across ordinary
    * reevaluation, but are intentionally not stored in blend files.
    */
-  std::optional<nodes::debug_view::Identifier> active_debug_view;
+  std::optional<nodes::debug_view::Identifier> selected_debug_view;
   /**
    * Simulation cache that is shared between original and evaluated modifiers. This allows the
    * original modifier to be removed, without also removing the simulation state which may still be
