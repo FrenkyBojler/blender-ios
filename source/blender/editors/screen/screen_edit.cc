@@ -1282,7 +1282,8 @@ static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 
   /* Use content rect to account for CSD, converted to inclusive bounds for area geometry.
    * Note: size_px is used for `rect` (pixel-space coordinates), while `size` (un-scaled units)
-   * is passed to #screen_global_area_refresh for comparison with #ScrGlobalAreaData.cur_fixed_height. */
+   * is passed to #screen_global_area_refresh for comparison with
+   * #ScrGlobalAreaData.cur_fixed_height. */
   WM_window_rect_calc(win, &rect);
   rect.xmax -= 1;
   rect.ymin = (rect.ymax - 1) - size_px;
