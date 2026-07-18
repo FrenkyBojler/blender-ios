@@ -715,15 +715,14 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
           positions[corner_verts[corner_tris[nearest->index][2]]]);
       copy_v3_v3(r_normal, normal);
       *r_index = mesh_corner_tri_to_face_index(mesh_eval, nearest->index);
-    }
-    else {
-      *r_success = false;
-
-      zero_v3(r_location);
-      zero_v3(r_normal);
-      *r_index = -1;
+      return;
     }
   }
+  *r_success = false;
+
+  zero_v3(r_location);
+  zero_v3(r_normal);
+  *r_index = -1;
 }
 
 static bool rna_Object_is_modified(Object *ob, Scene *scene, int settings)
