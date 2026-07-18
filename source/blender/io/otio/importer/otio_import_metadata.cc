@@ -12,7 +12,10 @@
 
 #include "BLI_string.hh"
 
+#include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
+
+#include "SEQ_modifier.hh"
 
 #include <opentimelineio/anyDictionary.h>
 #include <opentimelineio/anyVector.h>
@@ -41,7 +44,9 @@ static bool any_cast_set(std::any any_value, T &destination, size_t size_max = 6
     else if constexpr (std::is_same_v<T, std::string>) {
       destination = std::any_cast<std::string &>(any_value);
     }
-    else if constexpr (std::is_same_v<T, char *>) {
+    else if constexpr (std::is_same_v<T, char *> ||
+                       (std::is_array_v<T> && std::is_same_v<std::remove_extent_t<T>, char>))
+    {
       std::string &value = std::any_cast<std::string &>(any_value);
       BLI_strncpy(destination, value.c_str(), size_max);
     }
@@ -71,6 +76,26 @@ static bool any_cast_set(AnyDictionary &any_dict,
     return false;
   }
   return any_cast_set(any_dict[key], destination, size_max);
+}
+
+template<typename T>
+static void any_cast_set_array(AnyDictionary &any_dict,
+                               const char *key,
+                               T *destination,
+                               size_t size_max)
+{
+  if (!any_dict.has_key(key)) {
+    return;
+  }
+
+  AnyVector vec;
+  if (!any_cast_set(any_dict, key, vec)) {
+    return;
+  }
+
+  for (size_t i = 0; i < std::min(vec.size(), size_max); ++i) {
+    any_cast_set(vec[i], destination[i]);
+  }
 }
 
 template<typename T>
@@ -210,6 +235,125 @@ static void set_strip_metadata_color(AnyDictionary &metadata, Strip *strip)
   any_cast_set_flag(color_metadata, "convert_to_float", strip->flag, SEQ_MAKE_FLOAT);
 }
 
+static void set_modifier_metadata_brightness_contrast(AnyDictionary &data, StripModifierData *smd)
+{
+  BrightContrastModifierData *bcmd = reinterpret_cast<BrightContrastModifierData *>(smd);
+  any_cast_set(data, "bright", bcmd->bright);
+  any_cast_set(data, "contrast", bcmd->contrast);
+}
+
+static void set_modifier_metadata_color_balance(AnyDictionary &data, StripModifierData *smd)
+{
+  ColorBalanceModifierData *cbmd = reinterpret_cast<ColorBalanceModifierData *>(smd);
+  StripColorBalance &cb = cbmd->color_balance;
+
+  any_cast_set(data, "color_multiply", cbmd->color_multiply);
+  any_cast_set(data, "method", cb.method);
+  any_cast_set(data, "flag", cb.flag);
+  any_cast_set_array(data, "lift", cb.lift, std::size(cb.lift));
+  any_cast_set_array(data, "gamma", cb.gamma, std::size(cb.gamma));
+  any_cast_set_array(data, "gain", cb.gain, std::size(cb.gain));
+  any_cast_set_array(data, "slope", cb.slope, std::size(cb.slope));
+  any_cast_set_array(data, "offset", cb.offset, std::size(cb.offset));
+  any_cast_set_array(data, "power", cb.power, std::size(cb.power));
+}
+
+static void set_modifier_metadata_tonemap(AnyDictionary &data, StripModifierData *smd)
+{
+  SequencerTonemapModifierData *tmd = reinterpret_cast<SequencerTonemapModifierData *>(smd);
+
+  any_cast_set(data, "key", tmd->key);
+  any_cast_set(data, "offset", tmd->offset);
+  any_cast_set(data, "gamma", tmd->gamma);
+  any_cast_set(data, "intensity", tmd->intensity);
+  any_cast_set(data, "contrast", tmd->contrast);
+  any_cast_set(data, "adaptation", tmd->adaptation);
+  any_cast_set(data, "correction", tmd->correction);
+  any_cast_set(data, "type", tmd->type);
+}
+
+static void set_modifier_metadata_pitch(AnyDictionary &data, StripModifierData *smd)
+{
+  PitchModifierData *pmd = reinterpret_cast<PitchModifierData *>(smd);
+
+  any_cast_set(data, "mode", pmd->mode);
+  any_cast_set(data, "semitones", pmd->semitones);
+  any_cast_set(data, "cents", pmd->cents);
+  any_cast_set(data, "quality", pmd->quality);
+  any_cast_set(data, "ratio", pmd->ratio);
+  any_cast_set(data, "preserve_formant", pmd->preserve_formant);
+}
+
+static void set_modifier_metadata_echo(AnyDictionary &data, StripModifierData *smd)
+{
+  EchoModifierData *emd = reinterpret_cast<EchoModifierData *>(smd);
+
+  any_cast_set(data, "delay", emd->delay);
+  any_cast_set(data, "feedback", emd->feedback);
+  any_cast_set(data, "mix", emd->mix);
+}
+
+static void set_modifier_metadata_white_balance(AnyDictionary &data, StripModifierData *smd)
+{
+  WhiteBalanceModifierData *wbmd = reinterpret_cast<WhiteBalanceModifierData *>(smd);
+  any_cast_set_array(data, "white_value", wbmd->white_value, std::size(wbmd->white_value));
+}
+
+static void set_strip_metadata_modifiers(AnyDictionary &metadata, Strip *strip)
+{
+  AnyVector modifiers;
+  if (!any_cast_set(metadata, "modifiers", modifiers)) {
+    return;
+  }
+
+  for (size_t i = 0; i < modifiers.size(); ++i) {
+    AnyDictionary parent;
+    any_cast_set(modifiers[i], parent);
+
+    char name[64];
+    eStripModifierType type = eSeqModifierType_None;
+    AnyDictionary data;
+
+    any_cast_set(parent, "name", name, sizeof(name));
+    any_cast_set(parent, "type", type);
+
+    if (any_cast_set(parent, "data", data)) {
+
+      StripModifierData *smd = seq::modifier_new(strip, name, type);
+      any_cast_set_flag(parent, "mute", smd->flag, STRIP_MODIFIER_FLAG_MUTE);
+
+      switch (type) {
+        case eSeqModifierType_BrightContrast:
+          set_modifier_metadata_brightness_contrast(data, smd);
+          break;
+
+        case eSeqModifierType_ColorBalance:
+          set_modifier_metadata_color_balance(data, smd);
+          break;
+
+        case eSeqModifierType_Tonemap:
+          set_modifier_metadata_tonemap(data, smd);
+          break;
+
+        case eSeqModifierType_WhiteBalance:
+          set_modifier_metadata_white_balance(data, smd);
+          break;
+
+        case eSeqModifierType_Pitch:
+          set_modifier_metadata_pitch(data, smd);
+          break;
+
+        case eSeqModifierType_Echo:
+          set_modifier_metadata_echo(data, smd);
+          break;
+
+        default:
+          break;
+      }
+    }
+  }
+}
+
 void set_strip_metadata(Item *item, Strip *strip)
 {
   AnyDictionary metadata;
@@ -226,5 +370,6 @@ void set_strip_metadata(Item *item, Strip *strip)
   set_strip_metadata_crop(metadata, strip);
   set_strip_metadata_compositing(metadata, strip);
   set_strip_metadata_color(metadata, strip);
+  set_strip_metadata_modifiers(metadata, strip);
 }
 }  // namespace blender::io::otio
