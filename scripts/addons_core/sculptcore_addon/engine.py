@@ -108,6 +108,31 @@ class _CApi:
         lib.SpatialTree_free.argtypes = [ctypes.c_void_p]
         lib.SpatialTree_free.restype = None
 
+        # Multires (P8): stack over a cage, per-level materialization, and the
+        # position seed/dump that round-trips a level's surface through MDISPS.
+        c_int_p4 = [ctypes.POINTER(ctypes.c_int)] * 4
+        lib.Mesh_arraySizes.argtypes = [ctypes.c_void_p] + c_int_p4
+        lib.Mesh_arraySizes.restype = None
+        lib.Mesh_toArrays.argtypes = [ctypes.c_void_p, f32p, i32p, i32p, i32p]
+        lib.Mesh_toArrays.restype = ctypes.c_int
+        lib.Multires_new.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 4
+        lib.Multires_new.restype = ctypes.c_void_p
+        lib.Multires_free.argtypes = [ctypes.c_void_p]
+        lib.Multires_free.restype = None
+        lib.Multires_setActiveLevel.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        lib.Multires_setActiveLevel.restype = ctypes.c_int
+        lib.Multires_activeMesh.argtypes = [ctypes.c_void_p]
+        lib.Multires_activeMesh.restype = ctypes.c_void_p
+        lib.Multires_activeTree.argtypes = [ctypes.c_void_p]
+        lib.Multires_activeTree.restype = ctypes.c_void_p
+        lib.Multires_levelSampleCount.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        lib.Multires_levelSampleCount.restype = ctypes.c_int
+        lib.Multires_levelPositionsOut.argtypes = [ctypes.c_void_p, ctypes.c_int, f32p]
+        lib.Multires_levelPositionsOut.restype = ctypes.c_int
+        lib.Multires_fromLevelPositions.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, f32p, ctypes.c_int]
+        lib.Multires_fromLevelPositions.restype = ctypes.c_int
+
         # External draw provider (P5 D6): register a tree under the object's
         # session_uid, refresh its GPU-node CPU buffers, and hand Blender the
         # native provider address.

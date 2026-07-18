@@ -656,9 +656,17 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       production bake seam; the per-grid variant stays as a lower-level utility.
       Remaining: the SculptCore-vertex ↔ Blender-subdiv-vertex map (A3) — NN by
       base position, or a subdiv-vertex→grid dump; decide at C1.
-- [ ] C1 Enter: MDISPS → engine multires; suppress modifier viewport display.
+- [~] C1/C3 **core done** — `sculptcore_addon/multires.py`: `modifier()` detect,
+      `build_engine()` (cage → `Multires_new`), `build_map()` (engine grid samples
+      ⇄ Blender subdiv verts by NN on a throwaway zero-disp base reference),
+      `import_displacement()` (Blender top positions → A1) and `export_bake()`
+      (engine top → dedup vertcos → B2). Full import→export round-trip on a
+      *displaced* multires cube is **import-exact / export ~1e-7, tear-free**
+      (L2–3, `scripts/p8_addon.py`) + engine decls in `engine.py`. **Remaining:**
+      session wiring — branch `convert.enter/flush/exit_` to hold the `Multires`,
+      draw via `Multires_activeTree`, bake on flush/exit, suppress the modifier
+      viewport display (restore on exit); cache the map in the session.
 - [ ] C2 Level UI (`sculptlvl` ⇄ `setActiveLevel`); subdivide/delete deferred.
-- [ ] C3 Flush/exit: bake back to MDISPS.
 - [ ] C4 Undo payload via `Multires_serializeStore`/`_restoreStore`
       External chunks (with P6).
 
