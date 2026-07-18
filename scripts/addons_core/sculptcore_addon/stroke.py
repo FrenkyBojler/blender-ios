@@ -267,6 +267,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
     # authoritative through the mode's flush for save/render.
     bl_options = set()
 
+    # SKIP_SAVE (like vanilla paint_stroke_operator_properties): without it a
+    # plain-LMB stroke reuses the last-used value, so one Ctrl/Shift stroke
+    # would latch INVERT/SMOOTH permanently.
     mode: bpy.props.EnumProperty(
         name="Stroke Mode",
         items=(
@@ -275,6 +278,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             ('SMOOTH', "Smooth", "Switch brush to smooth mode for duration of stroke"),
         ),
         default='NORMAL',
+        options={'SKIP_SAVE'},
     )
 
     @classmethod

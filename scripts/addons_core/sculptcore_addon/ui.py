@@ -51,10 +51,20 @@ class SCULPTCORE_PT_brush(bpy.types.Panel):
             box = layout.box()
             box.label(text="Brush type not yet mapped", icon='ERROR')
 
+        # Size/strength route to the unified settings when those own the
+        # value (what the stroke and cursor read); the lock toggles switch
+        # ownership like vanilla paint panels.
+        unified = context.tool_settings.sculpt.unified_paint_settings
         col = layout.column()
         col.active = supported
-        col.prop(brush, "size", text="Radius")
-        col.prop(brush, "strength")
+        row = col.row(align=True)
+        row.prop(unified if unified.use_unified_size else brush,
+                 "size", text="Radius", slider=True)
+        row.prop(unified, "use_unified_size", text="", icon='WORLD')
+        row = col.row(align=True)
+        row.prop(unified if unified.use_unified_strength else brush,
+                 "strength")
+        row.prop(unified, "use_unified_strength", text="", icon='WORLD')
         col.prop(brush, "spacing")
         col.prop(brush, "direction", expand=True)
 

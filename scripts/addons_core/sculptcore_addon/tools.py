@@ -31,11 +31,19 @@ class SculptCoreBrushTool(bpy.types.WorkSpaceTool):
     bl_keymap = None
 
     def draw_settings(context, layout, _tool):
-        brush = context.tool_settings.sculpt.brush
-        if brush is not None:
-            layout.prop(brush, "sculpt_brush_type", text="")
-            layout.prop(brush, "size", text="Size")
-            layout.prop(brush, "strength", text="Strength")
+        sculpt = context.tool_settings.sculpt
+        brush = sculpt.brush
+        if brush is None:
+            return
+        # Route size/strength to the unified settings when they own the value
+        # (what the stroke and cursor read) — a slider bound to the brush's
+        # own field would be inert then.
+        unified = sculpt.unified_paint_settings
+        layout.prop(brush, "sculpt_brush_type", text="")
+        layout.prop(unified if unified.use_unified_size else brush,
+                    "size", text="Size", slider=True)
+        layout.prop(unified if unified.use_unified_strength else brush,
+                    "strength", text="Strength")
 
 
 def register():
