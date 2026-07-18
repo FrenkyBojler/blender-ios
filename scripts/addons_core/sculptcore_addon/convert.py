@@ -188,12 +188,18 @@ def _enter_multires(ob, md):
     session.cage_ptr = cage
     session.multires_map = mr_map
     session.multires_level = level
+    session.multires_active_level = level
     session.multires_show_viewport = prev_show
     engine.sessions[ob.name] = session
 
     session.draw_key = int(ob.session_uid)
     lib.sc_external_draw_register(session.draw_key, tree_ptr)
     lib.sc_external_draw_update(session.draw_key)
+
+    # Honor the modifier's sculpt level (C2); the import left the top active.
+    sculpt_level = min(max(md.sculpt_levels, 1), level)
+    if sculpt_level != level:
+        set_multires_level(ob, sculpt_level)
     return session
 
 
@@ -371,16 +377,66 @@ def _mesh_vert_num(mesh_ptr):
     return nv.value
 
 
+def _rebind_multires_views(session, active_level):
+    """Point the session at the stack's current active mesh/tree. When the
+    slot pointers changed (level switch, or an eviction rematerialized the
+    slot), every cached wrapper bound to the old slot is reset, the meshlog
+    history is dropped (the generation bump makes its undo steps decode as
+    no-ops, like a refresh), and the draw provider moves to the new tree."""
+    lib = engine.capi().lib
+    mesh_ptr = lib.Multires_activeMesh(session.multires_ptr)
+    tree_ptr = lib.Multires_activeTree(session.multires_ptr)
+    session.multires_active_level = active_level
+    if mesh_ptr == session.mesh_ptr and tree_ptr == session.tree_ptr:
+        return
+    session.mesh_ptr = mesh_ptr
+    session.tree_ptr = tree_ptr
+    session.verts_num = _mesh_vert_num(mesh_ptr)
+    session.topo_stamp = lib.Mesh_topoStamp(mesh_ptr)
+    session.generation += 1
+    # The executor points at the meshlog; dispose it first (as in free()).
+    for obj in (session.executor, session.meshlog):
+        if obj is not None and not getattr(obj, "_disposed", False):
+            obj.dispose()
+    session.executor = None
+    session.meshlog = None
+    session.meshlog_cursor = 0
+    session.mesh_obj = None
+    if session.draw_key:
+        lib.sc_external_draw_unregister(session.draw_key)
+        lib.sc_external_draw_register(session.draw_key, tree_ptr)
+        lib.sc_external_draw_update(session.draw_key)
+
+
+def set_multires_level(ob, level):
+    """Switch a multires session's active engine level (C2). The engine
+    writes the outgoing level's edits back into the store; finer detail rides
+    on top of coarser edits through the displacement cascade."""
+    session = engine.sessions.get(ob.name)
+    if session is None or not session.multires_ptr:
+        return
+    lib = engine.capi().lib
+    level = min(max(int(level), 1), session.multires_level)
+    actual = lib.Multires_setActiveLevel(session.multires_ptr, level)
+    _rebind_multires_views(session, actual)
+
+
 def _flush_multires(ob, session):
     """Multires write-back: bake the engine stack's top-level surface into the
     object's CD_MDISPS. The bake builds its own subdivision from the base mesh,
-    so the suppressed modifier viewport state does not affect it."""
+    so the suppressed modifier viewport state does not affect it. Dumping the
+    top level moves the engine's active level there; restore the sculpt level
+    afterwards (a no-op rebind while the slots stay resident)."""
     import bpy
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
     multires.export_bake(ob, depsgraph, session.multires_ptr, session.multires_map)
+    lib = engine.capi().lib
+    if session.multires_active_level != session.multires_level:
+        lib.Multires_setActiveLevel(session.multires_ptr, session.multires_active_level)
+        _rebind_multires_views(session, session.multires_active_level)
     if session.draw_key:
-        engine.capi().lib.sc_external_draw_update(session.draw_key)
+        lib.sc_external_draw_update(session.draw_key)
 
 
 def flush(ob):

@@ -3,14 +3,16 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-N-panel UI for the mode (Brush + Dyntopo). Panels poll on the mode being
-active so they never fight vanilla sculpt panels; they read the shared
-``tool_settings.sculpt`` brush (brush-mapping decision 1).
+N-panel UI for the mode (Brush + Dyntopo + Multires). Panels poll on the mode
+being active so they never fight vanilla sculpt panels; they read the shared
+``tool_settings.sculpt`` brush (brush-mapping decision 1). The Multires panel
+exposes the modifier's ``sculpt_levels``, which the depsgraph handler mirrors
+into the engine's active level (P8 C2).
 """
 
 import bpy
 
-from . import mapping
+from . import engine, mapping, multires
 
 _CATEGORY = "SculptCore"
 
@@ -78,9 +80,37 @@ class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
         col.prop(scene, "sculptcore_detail")
 
 
+class SCULPTCORE_PT_multires(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = _CATEGORY
+    bl_label = "Multires"
+
+    @classmethod
+    def poll(cls, context):
+        if not _in_mode(context):
+            return False
+        session = engine.sessions.get(context.active_object.name)
+        return session is not None and session.multires_ptr is not None
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        ob = context.active_object
+        md = multires.modifier(ob)
+        if md is None:
+            return
+        # The handler follows this property and switches the engine level.
+        layout.prop(md, "sculpt_levels", text="Sculpt Level")
+        session = engine.sessions.get(ob.name)
+        if session is not None and md.sculpt_levels < 1:
+            layout.label(text="Level 0 sculpts at level 1", icon='INFO')
+
+
 _classes = (
     SCULPTCORE_PT_brush,
     SCULPTCORE_PT_dyntopo,
+    SCULPTCORE_PT_multires,
 )
 
 

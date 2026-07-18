@@ -677,7 +677,19 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       sculpt lands in MDISPS, modifier restore, no leaks) **and GUI**
       (provider draws the imported surface, dabs update live, after exit
       vanilla multires shows the baked edit at view levels 1–3).
-- [ ] C2 Level UI (`sculptlvl` ⇄ `setActiveLevel`); subdivide/delete deferred.
+- [x] C2 Level UI **done** — the modifier's `sculpt_levels` drives the engine
+      level: a `depsgraph_update_post` handler (handlers.py) compares it to
+      `session.multires_active_level` and calls `convert.set_multires_level`
+      (engine `Multires_setActiveLevel` writes the outgoing level back to the
+      store); `_rebind_multires_views` re-fetches the slot mesh/tree, resets
+      the cached wrappers + meshlog (generation bump orphans old undo steps,
+      like a refresh) and re-registers the draw provider tree. Enter honors
+      `sculpt_levels`; `_flush_multires` restores the sculpt level after the
+      top-level export dump moves it. N-panel "Multires" exposes the slider.
+      Verified headless (`scripts/p8_level.py`, ALL PASS: handler switch,
+      rebind 386→98 verts, sculpt at L2, flush restore, cascade into the
+      bake) and GUI (live provider redraw on switch L3→L1→L3, coarse edit
+      rides the cascade). Subdivide/delete deferred.
 - [ ] C4 Undo payload via `Multires_serializeStore`/`_restoreStore`
       External chunks (with P6).
 

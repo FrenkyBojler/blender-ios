@@ -3,8 +3,8 @@
 Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
-Last updated: 2026-07-17. Current focus: **P8 multires — session wiring done;
-next C2 (level UI) / C4 (undo payload)**.
+Last updated: 2026-07-17. Current focus: **P8 multires — session wiring + C2
+level UI done; next C4 (undo payload)**.
 
 ---
 
@@ -44,13 +44,18 @@ Engine seam fix: `Multires_fromLevelPositions` rematerializes the seeded slot
 imported surface, dabs update live, vanilla multires shows the baked edit at
 view levels 1–3 after exit).
 
+C2 is done too: the modifier's `sculpt_levels` drives the engine level via a
+`depsgraph_update_post` handler → `convert.set_multires_level` →
+`_rebind_multires_views` (slot views re-fetched, wrappers + meshlog reset with
+a generation bump, draw tree re-registered); enter honors it and
+`_flush_multires` restores it after the top-level dump. N-panel "Multires"
+slider. Gate: `scripts/p8_level.py`.
+
 ## 3. The exact next tasks
 
-- **C2** — level UI: `sculptlvl` ⇄ `Multires_setActiveLevel` (slot pointers
-  change on switch — re-fetch `session.mesh_ptr`/`tree_ptr`, re-register the
-  draw tree, reset the cached executor/meshlog wrappers).
 - **C4** — undo payload via `Multires_serializeStore`/`_restoreStore` External
-  chunks (with P6); today multires strokes ride the per-level meshlog only.
+  chunks (with P6); today multires strokes ride the per-level meshlog only,
+  and a level switch orphans prior steps (generation bump — they no-op).
 - P8 verification tail: production-asset render comparison; corpus (n-gon,
   creased, boundary-heavy cages; levels 1–6+); A4 grid paint-mask channel.
 
@@ -88,3 +93,6 @@ Launch any with `blender --factory-startup --python <script>`; read
   identity round-trip/sculpt/exit/modifier restore); the session-wiring gate.
   (Headless `--background` skips app timers — run these GUI-style, or via a
   driver that quits when the output file appears.)
+- `p8_level.py` — **C2 sculpt-level switching** (handler follows
+  `sculpt_levels`, view rebind, sculpt at a coarse level, flush restore,
+  cascade into the bake).

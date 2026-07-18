@@ -49,12 +49,14 @@ class Session:
         # Multires sessions (P8): the engine Multires stack + the cage mesh it
         # was built over (both owned; mesh_ptr/tree_ptr are then non-owning
         # views of the stack's active level), the cached sample<->vertex map,
-        # the stack's top level, and the modifier's show_viewport state to
-        # restore on exit. multires_ptr is None for plain-Mesh sessions.
+        # the stack's top level, the currently active (sculpt) level, and the
+        # modifier's show_viewport state to restore on exit. multires_ptr is
+        # None for plain-Mesh sessions.
         "multires_ptr",
         "cage_ptr",
         "multires_map",
         "multires_level",
+        "multires_active_level",
         "multires_show_viewport",
         "_freed",
     )
@@ -80,6 +82,7 @@ class Session:
         self.cage_ptr = None
         self.multires_map = None
         self.multires_level = 0
+        self.multires_active_level = 0
         self.multires_show_viewport = True
         self._freed = False
 

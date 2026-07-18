@@ -15,12 +15,50 @@ were built from the previous file's data, now replaced).
 
 The full custom undo type (undo-integration plan) makes stroke undo exact;
 this keeps Tier-1 leak-free and consistent in the meantime.
+
+``depsgraph_update_post`` additionally follows the multires modifier's
+``sculpt_levels`` so a change in the modifier UI switches the session's
+active engine level (P8 C2).
 """
 
 import bpy
 from bpy.app.handlers import persistent
 
-from . import engine
+from . import engine, multires
+
+
+def _tag_view3d_redraw():
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+
+
+def _sync_multires_levels():
+    """Follow the multires modifier's sculpt level (C2): when the user moves
+    ``sculpt_levels`` in the modifier UI, switch the session's active engine
+    level. Cheap when nothing changed (a dict scan and an int compare)."""
+    from . import convert
+
+    for name in list(engine.sessions):
+        session = engine.sessions[name]
+        if not session.multires_ptr:
+            continue
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            continue
+        md = multires.modifier(ob)
+        if md is None:
+            continue
+        want = min(max(md.sculpt_levels, 1), session.multires_level)
+        if want != session.multires_active_level:
+            convert.set_multires_level(ob, want)
+            _tag_view3d_redraw()
+
+
+@persistent
+def _on_depsgraph_update(scene, depsgraph=None):
+    _sync_multires_levels()
 
 
 def _reconcile():
@@ -51,6 +89,7 @@ def register():
     bpy.app.handlers.undo_post.append(_on_undo_redo)
     bpy.app.handlers.redo_post.append(_on_undo_redo)
     bpy.app.handlers.load_post.append(_on_load)
+    bpy.app.handlers.depsgraph_update_post.append(_on_depsgraph_update)
 
 
 def unregister():
@@ -58,6 +97,7 @@ def unregister():
         (bpy.app.handlers.undo_post, _on_undo_redo),
         (bpy.app.handlers.redo_post, _on_undo_redo),
         (bpy.app.handlers.load_post, _on_load),
+        (bpy.app.handlers.depsgraph_update_post, _on_depsgraph_update),
     ):
         if fn in handler_list:
             handler_list.remove(fn)
