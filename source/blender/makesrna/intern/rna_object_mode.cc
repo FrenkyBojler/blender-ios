@@ -36,7 +36,6 @@
 #  include "RNA_access.hh"
 
 #  include "ED_object.hh"
-#  include "ED_screen.hh"
 
 #  include "GPU_matrix.hh"
 
@@ -208,12 +207,15 @@ static void object_mode_paint_cursor_draw(bContext *C,
   if (region == nullptr || region->regiontype != RGN_TYPE_WINDOW) {
     return;
   }
-  GPU_matrix_push_projection();
+  /* Paint cursors draw into the window framebuffer with the window's pixel
+   * projection active (vanilla cursors use raw window coords, see
+   * #paint_cursor_context_init). Re-orthoing to the region would fight the
+   * window-sized viewport (a stretched, offset cursor); instead translate the
+   * model-view so the callback's region-local pixels land correctly. */
   GPU_matrix_push();
-  ED_region_pixelspace(region);
+  GPU_matrix_translate_2f(float(region->winrct.xmin), float(region->winrct.ymin));
   mt->draw_cursor(mt, C, xy.x - region->winrct.xmin, xy.y - region->winrct.ymin);
   GPU_matrix_pop();
-  GPU_matrix_pop_projection();
 }
 
 /** \} */

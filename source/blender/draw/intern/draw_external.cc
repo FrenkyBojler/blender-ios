@@ -278,14 +278,21 @@ static void node_upload(NodeCache &cache,
     uvs.copy_from(Span<float2>(static_cast<const float2 *>(node.attrs[1]), node.verts_num));
   }
 
-  /* Re-uploaded into dynamic buffers: flag them for the next GPU use. */
+  /* Flag the refilled buffers and force the upload now (like #draw_pbvh's
+   * node updates): the GL backend only processes the dirty flag on a bind,
+   * and a batch's cached VAO never rebinds its vertbufs — without the
+   * explicit use the viewport keeps drawing the stale upload. */
   GPU_vertbuf_tag_dirty(cache.pos.get());
+  GPU_vertbuf_use(cache.pos.get());
   GPU_vertbuf_tag_dirty(cache.nor.get());
+  GPU_vertbuf_use(cache.nor.get());
   if (cache.col) {
     GPU_vertbuf_tag_dirty(cache.col.get());
+    GPU_vertbuf_use(cache.col.get());
   }
   if (cache.uv) {
     GPU_vertbuf_tag_dirty(cache.uv.get());
+    GPU_vertbuf_use(cache.uv.get());
   }
 
   if (realloc) {

@@ -514,11 +514,14 @@ def flush(ob):
 
 
 def draw_refresh(ob):
-    """Refresh the external-draw GPU buffers only — the mid-stroke viewport
-    update for sessions whose Mesh write-back is expensive (multires bake)."""
+    """Refresh the external-draw GPU buffers and re-sync the object in the
+    draw manager (a display-only SHADING tag, vanilla sculpt's per-step tag —
+    without it the cached object sync never re-queries the provider). This is
+    the per-dab viewport update; the Mesh itself stays untouched."""
     session = engine.sessions.get(ob.name)
     if session is not None and session.draw_key:
         engine.capi().lib.sc_external_draw_update(session.draw_key)
+        ob.update_tag(refresh={'SHADING'})
 
 
 def exit_(ob):

@@ -93,9 +93,10 @@ struct ObjectModeType {
    * Draw the mode's cursor overlay (brush circle etc.) in the 3D viewport.
    * Dispatched through the WM paint-cursor mechanism, so the region redraws
    * on every mouse move while an object is in the mode. `x`/`y` are
-   * region-local pixel coordinates and the GPU matrices are set to region
-   * pixel space around the call. Null when the registered class does not
-   * define it.
+   * region-local pixel coordinates; the window's pixel projection is active
+   * with the model-view translated to the region origin, so drawing at
+   * region-local pixel coordinates is correct. Null when the registered
+   * class does not define it.
    */
   void (*draw_cursor)(ObjectModeType *mt, bContext *C, int x, int y);
   /** The #wmPaintCursor activation owning `draw_cursor` dispatch; managed by
