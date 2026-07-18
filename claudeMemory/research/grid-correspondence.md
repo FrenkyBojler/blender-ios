@@ -201,6 +201,18 @@ is *expected*, not a convention error. The convention error the test *can* still
 catch (crease-rule divergence, §4.3) would show as the two limits differing;
 here they don't (cube has no creases — a creased-cage case is still owed).
 
+### 5b. A1 seed/writeback losslessness (2026-07-17, `claudeMemory/scripts/p8_roundtrip.py`)
+
+Seed a fresh cube multires from a **displaced** position set (every level-L grid
+sample pushed onto the unit sphere — a pure function of position, so seam
+replicas stay consistent) via **A1** `Multires_fromLevelPositions`, then dump
+(A2) and compare to the input. **Bit-exact at every level** (L1–L4,
+`max_err = 0.0`), confirming the seed→writeback→materialize path reproduces an
+arbitrary imported surface losslessly (the S3 gate). `changed`-vert counts are
+sensible (at L1, 6 of 26 verts already sit on the sphere and are skipped). This
+is the engine half of the import path (C1 consumes it); all detail lands at the
+seeded level (a down-refit redistribution pass is a later refinement).
+
 **§4.1/§4.2 (transpose + corner parity) remain unpinned.** The geometric
 point-cloud test is index-free and cannot pin them, and Blender exposes no
 per-grid MDISPS/CCG positions to Python (confirmed — only the modifier settings

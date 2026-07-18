@@ -628,10 +628,12 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       Still open: intra-grid transpose + corner parity — Blender exposes no
       per-grid positions to Python, so pin them at **Workstream B** via the
       bake round-trip oracle (no extra scaffolding). Crease-cage case still owed.
-- [~] A1 `Multires_fromLevelPositions` (pending) — A2
-      `Multires_levelPositionsOut` + `Multires_levelSampleCount` **done**
-      (`subdiv_c_api.cc`; dumps level grid samples grid-major row-major,
-      count-verified by the §5a cube test).
+- [x] A1 `Multires_fromLevelPositions` + A2 `Multires_levelPositionsOut` /
+      `Multires_levelSampleCount` **done** (`subdiv_c_api.cc`). A2 dumps level
+      grid samples grid-major row-major; A1 seeds a level from that layout and
+      writes back. Bit-exact seed→writeback→re-dump round-trip on a
+      sphere-displaced cube, L1–L4 (§5b, `scripts/p8_roundtrip.py`). Detail lands
+      at the seeded level; down-refit redistribution deferred.
 - [ ] A3 Bijection C entry (Blender grid samples ⇄ level-mesh verts).
 - [ ] A4 Grid paint-mask channel in/out.
 - [ ] B Blender bake seam: `multires_reshape_from_positions` utility
