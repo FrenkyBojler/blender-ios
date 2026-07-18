@@ -213,7 +213,45 @@ sensible (at L1, 6 of 26 verts already sit on the sphere and are skipped). This
 is the engine half of the import path (C1 consumes it); all detail lands at the
 seeded level (a down-refit redistribution pass is a later refinement).
 
-**§4.1/§4.2 (transpose + corner parity) remain unpinned.** The geometric
+### 5c. Convention pinning via the bake oracle (2026-07-17, `claudeMemory/scripts/p8_pin.py`)
+
+Built Workstream **B** (`multiresModifier_reshapeFromPositions` +
+`Object.multires_reshape_from_positions` RNA) and used it as the round-trip
+oracle: feed SculptCore's known-order cube grid samples into Blender's bake under
+each candidate convention, evaluate, measure the eval mesh's max edge (tears at
+grid seams inflate it). B **works** — the bake takes effect (surface changes;
+`ob.data.update_tag()` needed after the raw `CD_MDISPS` write).
+
+**Corner-anchor convention pinned** (two independent methods agree): grid
+`g ↔ loop g` (same face/corner enumeration — SculptCore's cage is built from
+Blender's loops in order) and an intra-grid **transpose** `(x,y) = (v,u)`. The
+geometric read: SculptCore grid 0 sits at cube corner `[-1,-1,-1]` with
+`+u → +Y` (toward Blender loop-corner 3) and `+v → +Z` (toward loop-corner 1),
+matching Blender loop 0's grid edges — so SculptCore `+u` = Blender `+y`,
+`+v` = Blender `+x`. The 16-candidate brute force (per-face corner permutation ×
+transpose) independently minimizes at `off=0, transpose=1`.
+
+**Open — the naive per-grid feed tears at seams.** Even the winning convention
+gives a *constant* ~0.68 eval max edge (vs a 0.17 baseline / 0.17 intended
+within-grid), independent of displacement magnitude. A uniform per-grid u↔v
+transpose reverses the boundary-sample order along shared grid edges, so adjacent
+grids' seams don't align. The corner anchor is right; a seam-consistent map is
+not a single per-grid transform. Two ways forward for A3/C:
+
+1. **Seam-aware per-grid map** — use SculptCore's `GridLink`/`seamMates`
+   (`grids.cc`) to order each grid's boundary to match its neighbour, i.e. the
+   transpose must be composed with the correct per-edge orientation.
+2. **Dedup subdiv-vertex feed (preferred)** — switch B to
+   `assign_final_coords_from_vertcos` (Blender's subdiv-vertex order, each shared
+   vertex once → no seam replicas → no ordering hazard) and map SculptCore
+   level-mesh vertices ↔ Blender subdiv vertices. Both sides are already dedup;
+   the map avoids grid-seam replication entirely.
+
+The `Object.multires_reshape_from_positions` C/RNA seam and the pinned corner
+anchor stand regardless of which feed path A3 adopts.
+
+**§4.1/§4.2 (transpose + corner parity) — corner anchor pinned (§5c); seam
+ordering open.** The geometric
 point-cloud test is index-free and cannot pin them, and Blender exposes no
 per-grid MDISPS/CCG positions to Python (confirmed — only the modifier settings
 in `rna_modifier.cc`). Pin them at **Workstream B** via the round-trip oracle:

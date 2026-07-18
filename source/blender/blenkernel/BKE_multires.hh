@@ -175,6 +175,19 @@ bool multiresModifier_reshapeFromDeformModifier(Depsgraph *depsgraph,
                                                 MultiresModifierData *mmd,
                                                 ModifierData *deform_md);
 bool multiresModifier_reshapeFromCCG(int tot_level, Mesh *coarse_mesh, SubdivCCG *subdiv_ccg);
+/**
+ * Reshape `object`'s multires to a top-level surface given as absolute
+ * object-space positions in per-grid, row-major order:
+ * `grid_positions[grid * grid_area + y * grid_size + x]`, `grid_size` at
+ * `mmd->totlvl` and `grid_area = grid_size * grid_size`, grids in loop order
+ * (matching `CD_MDISPS`). Boundary/seam samples are replicated per grid and
+ * must carry equal values. Bakes into `CD_MDISPS` as tangent displacement.
+ * Returns false on a grid-sample-count mismatch.
+ */
+bool multiresModifier_reshapeFromPositions(Depsgraph *depsgraph,
+                                           MultiresModifierData *mmd,
+                                           Object *object,
+                                           Span<float3> grid_positions);
 
 /* Subdivide multi-res displacement once. */
 

@@ -636,8 +636,16 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       at the seeded level; down-refit redistribution deferred.
 - [ ] A3 Bijection C entry (Blender grid samples ⇄ level-mesh verts).
 - [ ] A4 Grid paint-mask channel in/out.
-- [ ] B Blender bake seam: `multires_reshape_from_positions` utility
-      (preferred) or temp-object reshape path.
+- [~] B Blender bake seam **implemented**: `multiresModifier_reshapeFromPositions`
+      (`multires_reshape.cc`, per-grid-array assign mirroring the CCG path) +
+      `Object.multires_reshape_from_positions` RNA (`rna_object_api.cc`). Works
+      (bake takes effect). Used as the convention oracle (§5c,
+      `scripts/p8_pin.py`): corner-anchor convention pinned — grid `g↔loop g`,
+      intra-grid transpose `(x,y)=(v,u)` (geometry + 16-candidate brute force
+      agree). **Open:** the naive per-grid feed tears at grid seams (transpose
+      reverses boundary order); resolve via a seam-aware map or, preferred, the
+      dedup subdiv-vertex (`assign_final_coords_from_vertcos`) feed. A3 depends
+      on this choice.
 - [ ] C1 Enter: MDISPS → engine multires; suppress modifier viewport display.
 - [ ] C2 Level UI (`sculptlvl` ⇄ `setActiveLevel`); subdivide/delete deferred.
 - [ ] C3 Flush/exit: bake back to MDISPS.
