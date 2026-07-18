@@ -1424,7 +1424,7 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
     max_length = FLT_MAX;
   }
 
-  const bke::bvh::Ray ray(co, no, radius);
+  const bke::bvh::Ray ray(new_co, no, max_length);
   const std::optional<bke::bvh::RayHit> rayhit = treedata.ray_intersect(ray);
   if (!rayhit) {
     return false;
