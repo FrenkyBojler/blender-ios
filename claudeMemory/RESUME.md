@@ -4,9 +4,10 @@ Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
 Last updated: 2026-07-18. Current focus: **usability pass — cursor overlay
-done (ObjectModeType.draw_cursor seam + cursor.py); next Shift-smooth +
-radial radius/strength keymap, then pressure (M4)**. P8 C-track complete;
-A4 (grid paint mask) and the verification tail remain.
+(ObjectModeType.draw_cursor seam + cursor.py) and the keymap pass
+(Shift-smooth, Ctrl-invert via stroke `mode` enum, F / Shift-F radials on
+the shared sculpt Paint) both done; next pressure (M4)**. P8 C-track
+complete; A4 (grid paint mask) and the verification tail remain.
 
 ---
 

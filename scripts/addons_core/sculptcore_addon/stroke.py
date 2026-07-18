@@ -267,6 +267,16 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
     # authoritative through the mode's flush for save/render.
     bl_options = set()
 
+    mode: bpy.props.EnumProperty(
+        name="Stroke Mode",
+        items=(
+            ('NORMAL', "Regular", "Apply brush normally"),
+            ('INVERT', "Invert", "Invert action of brush for duration of stroke"),
+            ('SMOOTH', "Smooth", "Switch brush to smooth mode for duration of stroke"),
+        ),
+        default='NORMAL',
+    )
+
     @classmethod
     def poll(cls, context):
         ob = context.active_object
@@ -286,36 +296,43 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self.session = engine.sessions[ob.name]
         self.brush = context.tool_settings.sculpt.brush
         mgr = engine.manager()
-        self.kernel = mapping.kernel_enum(mgr, self.brush) if self.brush else None
+        if self.mode == 'SMOOTH':
+            # Shift-stroke: smooth with the active brush's radius/strength.
+            self.kernel = (int(mgr.get("sculptcore::brush::SculptBrushes").items["SMOOTH"])
+                           if self.brush else None)
+        else:
+            self.kernel = mapping.kernel_enum(mgr, self.brush) if self.brush else None
         if self.kernel is None:
             self.report({'WARNING'}, "SculptCore: brush type has no kernel")
             return {'CANCELLED'}
 
         self._last_flush = 0.0
         self._dab_count = 0
-        self._grab_class = mapping.is_grab_class(self.brush)
+        smoothing = self.mode == 'SMOOTH'
+        self._grab_class = not smoothing and mapping.is_grab_class(self.brush)
         self._anchor = None
         self._anchor_normal = None
         # Dab spacing along the stroke path (engine StrokeSpacer semantics:
         # interval = world radius x spacing fraction). Grab-class ignores it.
         self._spacer = StrokeSpacer()
         # Face-set brushes paint a fresh group id per stroke.
-        if self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
+        if not smoothing and self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
             brush = _ensure_brush(self.session)
             brush.activeGroup = int(self.session.mesh().maxFaceGroup()) + 1
         # Dyntopo (scene toggle) and autosmooth both run through a program;
-        # neither applies to grab-class. Autosmooth also skips the smooth
-        # brush itself.
+        # neither applies to grab-class nor to a Shift-smooth stroke.
+        # Autosmooth also skips the smooth brush itself.
         scene = context.scene
         smooth_factor = 0.0
-        if (not self._grab_class
+        if (not self._grab_class and not smoothing
                 and self.brush.sculpt_brush_type != 'SMOOTH'
                 and self.brush.auto_smooth_factor > 0.0):
             smooth_factor = self.brush.auto_smooth_factor
 
         self._dyntopo = None
         self._program = None
-        if not self._grab_class and getattr(scene, "sculptcore_dyntopo", False):
+        if (not self._grab_class and not smoothing
+                and getattr(scene, "sculptcore_dyntopo", False)):
             detail = scene.sculptcore_detail
             self._program = build_program(self.session, self.kernel, smooth_factor)
             self._dyntopo = build_dyntopo_params(self.session, detail, detail * 0.5)
@@ -330,7 +347,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
 
     def _dab_at(self, context, event):
         unified = context.tool_settings.sculpt.unified_paint_settings
-        invert = event.ctrl
+        # The keymap sets INVERT for Ctrl-LMB; live Ctrl also inverts so the
+        # direction can be toggled mid-stroke.
+        invert = event.ctrl or self.mode == 'INVERT'
 
         if self._grab_class:
             hit = _ray_from_event(context, event, self.session)

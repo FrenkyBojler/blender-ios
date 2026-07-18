@@ -407,9 +407,17 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       (unified) pixel-radius circle in the brush's cursor color; a failing
       draw reports once and disables itself. GUI-verified via event
       simulation: circle at the mouse, tracks moves, strokes run with it
-      active, gone outside the mode. Remaining:
-      full keymap (smooth on Shift, radius/strength radials), invert
-      already via Ctrl, pressure (M4).
+      active, gone outside the mode.
+      **Keymap pass done**: the stroke operator gained a `mode` enum
+      (NORMAL/INVERT/SMOOTH, vanilla-style); Ctrl-LMB → INVERT (live Ctrl
+      still toggles mid-stroke), Shift-LMB → SMOOTH (engine SMOOTH kernel at
+      the active brush's radius/strength; no grab/dyntopo/autosmooth in a
+      smooth stroke). F / Shift-F bind the standard `wm.radial_control` to
+      the shared sculpt Paint's size/strength with the vanilla unified-aware
+      property paths. GUI-verified via event simulation: a DRAW bump (0.39
+      radial deviation) smoothed to 0.04 by three Shift-strokes; F radial
+      shows the standard overlay and landed 100→380 in the unified size.
+      Remaining: pressure (M4).
       The former `builtin.select_box not found` warning is fixed: a custom
       mode now declares `bl_default_tool` (new `ObjectModeType.default_tool`
       field + RNA prop), and `toolsystem_reinit_ensure_toolref` resolves it
