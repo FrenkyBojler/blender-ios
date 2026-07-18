@@ -259,6 +259,7 @@ class NODE_MT_gn_geometry_read_base(node_add_menu.NodeMenu):
             self.node_operator(layout, "GeometryNodeToolSelection")
         layout.separator()
         self.node_operator(layout, "GeometryNodeGetGeometryBundle")
+        self.node_operator(layout, "GeometryNodeGetGeometryName")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
