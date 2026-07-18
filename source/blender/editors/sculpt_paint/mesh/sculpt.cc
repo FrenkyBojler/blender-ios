@@ -3429,9 +3429,7 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
 
     float4x4 brush_local_mat;
     float4x4 brush_local_mat_inv;
-
-    const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-    calc_brush_local_mat(mask_tex->rot,
+    calc_brush_local_mat(0,
                          ob,
                          eBrushFalloffShape(brush.falloff_shape),
                          sculpt_normal,
