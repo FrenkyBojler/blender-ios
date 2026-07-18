@@ -379,7 +379,7 @@ static bool buttons_context_path_material(ButsContextPath *path)
   return false;
 }
 
-static void reset_bone_pin_context(SpaceProperties *sbuts)
+static void pinned_bone_missing_clear(SpaceProperties *sbuts)
 {
   sbuts->pinid = nullptr;
   sbuts->pin_bone_name[0] = '\0';
@@ -388,52 +388,54 @@ static void reset_bone_pin_context(SpaceProperties *sbuts)
 
 static bool buttons_context_path_bone(ButsContextPath *path, SpaceProperties *sbuts)
 {
-  /* if we have an armature, get the active bone */
-  if (buttons_context_path_data(path, OB_ARMATURE)) {
-    bArmature *arm = static_cast<bArmature *>(path->ptr[path->len - 1].data);
-    const char *pin_bone_name = (sbuts->flag & SB_PIN_CONTEXT) ? sbuts->pin_bone_name : nullptr;
-
-    if (arm->edbo) {
-      EditBone *edbo = nullptr;
-      if (pin_bone_name && pin_bone_name[0]) {
-        edbo = ED_armature_ebone_find_name(arm->edbo, pin_bone_name);
-        if (!edbo) {
-          /* No available pinned bone when deleted or undo rename. */
-          reset_bone_pin_context(sbuts);
-        }
-      }
-      else if (arm->act_edbone) {
-        edbo = arm->act_edbone;
-      }
-
-      if (edbo) {
-        path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_EditBone, edbo);
-        path->len++;
-        return true;
-      }
-    }
-    else {
-      Bone *bone = nullptr;
-      if (pin_bone_name && pin_bone_name[0]) {
-        bone = BKE_armature_find_bone_name(arm, pin_bone_name);
-        if (!bone) {
-          reset_bone_pin_context(sbuts);
-        }
-      }
-      else if (arm->act_bone) {
-        bone = arm->act_bone;
-      }
-
-      if (bone) {
-        path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_Bone, bone);
-        path->len++;
-        return true;
-      }
-    }
+  if (!buttons_context_path_data(path, OB_ARMATURE)) {
+    return false;
   }
 
-  /* no path to a bone possible */
-  return false;
+  bArmature *arm = static_cast<bArmature *>(path->ptr[path->len - 1].data);
+  const char *pin_bone_name = (sbuts->flag & SB_PIN_CONTEXT) && sbuts->pin_bone_name[0] ?
+                                  sbuts->pin_bone_name :
+                                  nullptr;
+
+  if (arm->edbo) {
+    EditBone *edbo = nullptr;
+    if (pin_bone_name) {
+      edbo = ED_armature_ebone_find_name(arm->edbo, pin_bone_name);
+      if (!edbo) {
+        /* No available pinned bone when deleted or undo rename, etc. */
+        pinned_bone_missing_clear(sbuts);
+      }
+    }
+    if (!edbo) {
+      edbo = arm->act_edbone;
+    }
+    if (!edbo) {
+      /* no path to a bone possible */
+      return false;
+    }
+
+    path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_EditBone, edbo);
+    path->len++;
+    return true;
+  }
+
+  Bone *bone = nullptr;
+  if (pin_bone_name) {
+    bone = BKE_armature_find_bone_name(arm, pin_bone_name);
+    if (!bone) {
+      pinned_bone_missing_clear(sbuts);
+    }
+  }
+  if (!bone) {
+    bone = arm->act_bone;
+  }
+  if (!bone) {
+    return false;
+  }
+
+  path->ptr[path->len] = RNA_pointer_create_discrete(&arm->id, RNA_Bone, bone);
+  path->len++;
+  return true;
 }
 
 static bool buttons_context_path_pose_bone(ButsContextPath *path, SpaceProperties *sbuts)
@@ -445,40 +447,41 @@ static bool buttons_context_path_pose_bone(ButsContextPath *path, SpacePropertie
     return true;
   }
 
-  /* if we have an armature, get the active bone */
-  if (buttons_context_path_object(path)) {
-    const char *pin_bone_name = (sbuts->flag & SB_PIN_CONTEXT) ? sbuts->pin_bone_name : nullptr;
-
-    Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
-    if (ob->type != OB_ARMATURE) {
-      return false;
-    }
-
-    bArmature *arm = id_cast<bArmature *>(ob->data); /* path->ptr[path->len-1].data - works too */
-    if (arm->edbo) {
-      return false;
-    }
-
-    bPoseChannel *pchan = nullptr;
-    if (pin_bone_name && pin_bone_name[0]) {
-      pchan = BKE_pose_channel_find_name(ob->pose, pin_bone_name);
-      if (!pchan) {
-        reset_bone_pin_context(sbuts);
-      }
-    }
-    else if (arm->act_bone) {
-      pchan = BKE_pose_channel_find_name(ob->pose, arm->act_bone->name);
-    }
-
-    if (pchan) {
-      path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, RNA_PoseBone, pchan);
-      path->len++;
-      return true;
-    }
+  if (!buttons_context_path_object(path)) {
+    return false;
   }
 
-  /* no path to a bone possible */
-  return false;
+  const char *pin_bone_name = (sbuts->flag & SB_PIN_CONTEXT) && sbuts->pin_bone_name[0] ?
+                                  sbuts->pin_bone_name :
+                                  nullptr;
+  Object *ob = static_cast<Object *>(path->ptr[path->len - 1].data);
+  if (ob->type != OB_ARMATURE) {
+    return false;
+  }
+
+  bArmature *arm = id_cast<bArmature *>(ob->data); /* path->ptr[path->len-1].data - works too */
+  if (arm->edbo) {
+    return false;
+  }
+
+  bPoseChannel *pchan = nullptr;
+  if (pin_bone_name) {
+    pchan = BKE_pose_channel_find_name(ob->pose, pin_bone_name);
+    if (!pchan) {
+      pinned_bone_missing_clear(sbuts);
+    }
+  }
+  if (!pchan && arm->act_bone) {
+    pchan = BKE_pose_channel_find_name(ob->pose, arm->act_bone->name);
+  }
+  if (!pchan) {
+    /* no path to a bone possible */
+    return false;
+  }
+
+  path->ptr[path->len] = RNA_pointer_create_discrete(&ob->id, RNA_PoseBone, pchan);
+  path->len++;
+  return true;
 }
 
 static bool buttons_context_path_particle(ButsContextPath *path)
@@ -1439,7 +1442,7 @@ ID *buttons_context_id_path(const bContext *C)
     /* For Bone tab, pin it with the Object instead of the Armature data-block.
      * The path for the Bone tab is:
      * Object → Armature → Bone (Object Mode and Pose Mode) / EditBone (Edit Mode)
-     * However the owner_id of the PoseBone is just the id of the Object, return it later.
+     * However the owner_id of the PoseBone is just the id of the Object.
      * The path for the Bone Constraints tab is: Object → PoseBone (Pose Mode) */
     if (sbuts->mainb == BCONTEXT_BONE && sbuts->flag & SB_PIN_CONTEXT) {
       if (ELEM(ptr->type, RNA_Bone, RNA_EditBone, RNA_Armature) && ptr->data) {

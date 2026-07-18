@@ -162,11 +162,25 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static std::string toggle_pin_get_description(bContext *C,
+                                              wmOperatorType * /*ot*/,
+                                              PointerRNA * /*ptr*/)
+{
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+
+  if (ELEM(sbuts->mainb, BCONTEXT_BONE, BCONTEXT_BONE_CONSTRAINT)) {
+    return TIP_("Keep the current bone displayed");
+  }
+
+  return TIP_("Keep the current data-block displayed");
+}
+
 void BUTTONS_OT_toggle_pin(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Toggle Pin";
-  ot->description = "Keep the current data-block or bone displayed";
+  ot->description = "Keep the current data-block displayed";
+  ot->get_description = toggle_pin_get_description;
   ot->idname = "BUTTONS_OT_toggle_pin";
 
   /* Callbacks. */
