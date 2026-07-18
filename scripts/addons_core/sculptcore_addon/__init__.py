@@ -23,7 +23,7 @@ bl_info = {
 
 import bpy
 
-from . import convert, engine, handlers, keymap, props, stroke, tools, ui, undo
+from . import convert, cursor, engine, handlers, keymap, props, stroke, tools, ui, undo
 
 
 class SculptCoreMode(bpy.types.ObjectModeType):
@@ -55,6 +55,9 @@ class SculptCoreMode(bpy.types.ObjectModeType):
 
     def undo_free(self, state_id):
         undo.free(state_id)
+
+    def draw_cursor(self, context, x, y):
+        cursor.draw(context, x, y)
 
 
 def register():

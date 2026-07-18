@@ -90,6 +90,19 @@ struct ObjectModeType {
   void (*undo_free)(ObjectModeType *mt, int state_id);
 
   /**
+   * Draw the mode's cursor overlay (brush circle etc.) in the 3D viewport.
+   * Dispatched through the WM paint-cursor mechanism, so the region redraws
+   * on every mouse move while an object is in the mode. `x`/`y` are
+   * region-local pixel coordinates and the GPU matrices are set to region
+   * pixel space around the call. Null when the registered class does not
+   * define it.
+   */
+  void (*draw_cursor)(ObjectModeType *mt, bContext *C, int x, int y);
+  /** The #wmPaintCursor activation owning `draw_cursor` dispatch; managed by
+   * the RNA register/unregister layer. */
+  void *paint_cursor_handle;
+
+  /**
    * External draw provider (see #BKE_object_draw_provider.hh): when set, objects
    * in this mode draw from provider-described CPU geometry instead of the
    * evaluated mesh. Borrowed pointer, set via #BKE_object_mode_draw_provider_set;

@@ -30,13 +30,20 @@
 #  include "BLI_string.hh"
 #  include "BLI_string_utils.hh"
 
+#  include "BKE_main.hh"
 #  include "BKE_report.hh"
 
 #  include "RNA_access.hh"
 
 #  include "ED_object.hh"
+#  include "ED_screen.hh"
+
+#  include "GPU_matrix.hh"
 
 #  include "UI_interface_c.hh"
+
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.hh"
@@ -146,6 +153,69 @@ static void object_mode_undo_free(ObjectModeType *mt, int state_id)
   RNA_parameter_list_free(&list);
 }
 
+static void object_mode_draw_cursor(ObjectModeType *mt, bContext *C, int x, int y)
+{
+  extern FunctionRNA *rna_ObjectModeType_draw_cursor_func;
+  ParameterList list;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, mt->rna_ext.srna, mt);
+  FunctionRNA *func = rna_ObjectModeType_draw_cursor_func;
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "context", &C);
+  RNA_parameter_set_lookup(&list, "x", &x);
+  RNA_parameter_set_lookup(&list, "y", &y);
+  mt->rna_ext.call(C, &ptr, func, &list);
+
+  RNA_parameter_list_free(&list);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Paint Cursor Dispatch
+ *
+ * Custom modes draw their viewport cursor through the WM paint-cursor
+ * mechanism (the only path that redraws the region on bare mouse moves).
+ * One activation per registered type that defines `draw_cursor`; the poll
+ * accepts any object in a cursor-drawing custom mode and the draw callback
+ * filters on its own type, so multiple registered modes coexist.
+ * \{ */
+
+static bool object_mode_paint_cursor_poll(bContext *C)
+{
+  const Object *ob = CTX_data_active_object(C);
+  if (ob == nullptr || (ob->mode & OB_MODE_CUSTOM) == 0) {
+    return false;
+  }
+  const ObjectModeType *mt = BKE_object_mode_type_find(ob->custom_mode_id);
+  return mt != nullptr && mt->draw_cursor != nullptr;
+}
+
+static void object_mode_paint_cursor_draw(bContext *C,
+                                          const int2 &xy,
+                                          const float2 & /*tilt*/,
+                                          void *customdata)
+{
+  ObjectModeType *mt = static_cast<ObjectModeType *>(customdata);
+  const Object *ob = CTX_data_active_object(C);
+  if (ob == nullptr || (ob->mode & OB_MODE_CUSTOM) == 0 ||
+      !STREQ(ob->custom_mode_id, mt->idname))
+  {
+    return;
+  }
+  ARegion *region = CTX_wm_region(C);
+  if (region == nullptr || region->regiontype != RGN_TYPE_WINDOW) {
+    return;
+  }
+  GPU_matrix_push_projection();
+  GPU_matrix_push();
+  ED_region_pixelspace(region);
+  mt->draw_cursor(mt, C, xy.x - region->winrct.xmin, xy.y - region->winrct.ymin);
+  GPU_matrix_pop();
+  GPU_matrix_pop_projection();
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -203,6 +273,11 @@ static bool rna_ObjectModeType_unregister(Main *bmain, StructRNA *type)
 
   ui::refresh_for_srna_unregister(bmain, type);
 
+  if (mt->paint_cursor_handle) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(mt->paint_cursor_handle));
+    mt->paint_cursor_handle = nullptr;
+  }
+
 #  ifdef WITH_PYTHON
   if (mt->py_instance) {
     BPY_DECREF_RNA_INVALIDATE(mt->py_instance);
@@ -226,7 +301,7 @@ static StructRNA *rna_ObjectModeType_register(Main *bmain,
 {
   const char *error_prefix = "Registering object mode class:";
   ObjectModeType dummy_mt = {nullptr};
-  bool have_function[6];
+  bool have_function[7];
 
   PointerRNA dummy_mt_ptr = RNA_pointer_create_discrete(nullptr, RNA_ObjectModeType, &dummy_mt);
 
@@ -283,6 +358,7 @@ static StructRNA *rna_ObjectModeType_register(Main *bmain,
   mt->refresh = have_function[3] ? object_mode_refresh : nullptr;
   mt->undo_decode = have_function[4] ? object_mode_undo_decode : nullptr;
   mt->undo_free = have_function[5] ? object_mode_undo_free : nullptr;
+  mt->draw_cursor = have_function[6] ? object_mode_draw_cursor : nullptr;
 
   if (!BKE_object_mode_type_add(mt)) {
     BKE_reportf(
@@ -291,6 +367,17 @@ static StructRNA *rna_ObjectModeType_register(Main *bmain,
     RNA_struct_free(&RNA_blender_rna_get(), mt->rna_ext.srna);
     MEM_delete(mt);
     return nullptr;
+  }
+
+  /* One paint-cursor activation per cursor-drawing type (freed at
+   * unregister). Registration can run before a window manager exists
+   * (background / early startup) — skip then, no cursor to draw. */
+  if (mt->draw_cursor != nullptr && bmain != nullptr && bmain->wm.first != nullptr) {
+    mt->paint_cursor_handle = WM_paint_cursor_activate(SPACE_VIEW3D,
+                                                       RGN_TYPE_WINDOW,
+                                                       object_mode_paint_cursor_poll,
+                                                       object_mode_paint_cursor_draw,
+                                                       mt);
   }
 
   return mt->rna_ext.srna;
@@ -413,6 +500,22 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
   RNA_def_function_ui_description(func, "Drop the addon-owned state for an evicted undo step");
   RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
   parm = RNA_def_int(func, "state_id", 0, INT_MIN, INT_MAX, "State ID", "", INT_MIN, INT_MAX);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  /* have_function index 6. */
+  func = RNA_def_function(srna, "draw_cursor", nullptr);
+  RNA_def_function_ui_description(
+      func,
+      "Draw the mode's cursor overlay in the 3D viewport at the mouse position "
+      "(region pixel space, redrawn on every mouse move while the mode is active)");
+  RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+  parm = RNA_def_pointer(func, "context", "Context", "", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(
+      func, "x", 0, INT_MIN, INT_MAX, "X", "Region-local cursor X in pixels", INT_MIN, INT_MAX);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(
+      func, "y", 0, INT_MIN, INT_MAX, "Y", "Region-local cursor Y in pixels", INT_MIN, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* Registration. */

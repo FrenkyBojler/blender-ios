@@ -396,9 +396,20 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       double-fire. `ui.py` adds N-panel Brush + Dyntopo panels polled on the
       mode, reading the shared `tool_settings.sculpt`. Verified headless:
       tool lands in the CUSTOM slot, panels poll correctly (False in Object
-      mode, True in mode), addon disable/re-enable is clean. Remaining:
+      mode, True in mode), addon disable/re-enable is clean.
+      **Cursor overlay done**: `ObjectModeType` gained an optional
+      `draw_cursor(context, x, y)` callback dispatched through the WM
+      paint-cursor mechanism (the only path that redraws the region on bare
+      mouse moves) — one activation per registered type in
+      `rna_object_mode.cc` (guarded for no-wm registration, freed at
+      unregister); the trampoline passes region-local pixel coords with
+      pixel-space GPU matrices pushed around the call. `cursor.py` draws the
+      (unified) pixel-radius circle in the brush's cursor color; a failing
+      draw reports once and disables itself. GUI-verified via event
+      simulation: circle at the mouse, tracks moves, strokes run with it
+      active, gone outside the mode. Remaining:
       full keymap (smooth on Shift, radius/strength radials), invert
-      already via Ctrl, pressure (M4), cursor overlay (GPU — GUI only).
+      already via Ctrl, pressure (M4).
       The former `builtin.select_box not found` warning is fixed: a custom
       mode now declares `bl_default_tool` (new `ObjectModeType.default_tool`
       field + RNA prop), and `toolsystem_reinit_ensure_toolref` resolves it

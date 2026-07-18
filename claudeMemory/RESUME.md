@@ -3,9 +3,10 @@
 Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
-Last updated: 2026-07-17. Current focus: **P8 multires — session wiring, C2
-level UI and C4 undo all done; next A4 (grid paint mask) or the verification
-tail (production asset, cage corpus)**.
+Last updated: 2026-07-18. Current focus: **usability pass — cursor overlay
+done (ObjectModeType.draw_cursor seam + cursor.py); next Shift-smooth +
+radial radius/strength keymap, then pressure (M4)**. P8 C-track complete;
+A4 (grid paint mask) and the verification tail remain.
 
 ---
 
