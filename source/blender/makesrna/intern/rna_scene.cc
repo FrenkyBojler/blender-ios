@@ -7809,14 +7809,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "at the cost of increased memory usage");
   RNA_def_property_update(prop, 0, "rna_Scene_use_persistent_data_update");
 
-  prop = RNA_def_property(srna, "use_auto_pause_viewport", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_auto_pause_viewport", 1);
-  RNA_def_property_ui_text(prop,
-                          "Auto-Pause Viewport",
-                          "Automatically pause viewport rendering when initiating a final render "
-                          "starts, and resume it when finished");
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
   /* Freestyle line thickness options */
   prop = RNA_def_property(srna, "line_thickness_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "line_thickness_mode");
