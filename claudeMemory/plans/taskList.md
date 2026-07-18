@@ -457,6 +457,14 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
       (register/update/unregister by `ID.session_uid`). Design +
       de-risking in **[draw-d6-provider.md](./draw-d6-provider.md)**. Generic
       attributes (mask/face-set/color) in the draw + EEVEE are R4 (P5 (b)).
+- [x] D6 teardown fix — the per-object GPU cache (`object_caches()`, a
+      function-local static Map in `draw_external.cc`) was only ever freed by its
+      C-runtime atexit destructor, which runs *after* the GPU backend is gone in
+      `WM_exit`; freeing a cached vertex buffer then locked a destroyed Vulkan
+      resource pool (a null-mutex crash on exit, in `VKDiscardPool::discard_buffer`,
+      once any sculptcore object had been drawn). Now released from
+      `DRW_module_exit()` (runs in `RE_engines_exit()` with a live GPU context,
+      before `GPU_exit()`). Verified under cdb: crash gone.
 - [x] Test provider: `OBJECT_OT_external_draw_test_toggle` (dev-only, hardcoded
       triangle) validates D1–D4. Verified headless to the draw-call boundary
       (`p5_verify` toggles the mode + satisfies the gate); the pixel render needs
