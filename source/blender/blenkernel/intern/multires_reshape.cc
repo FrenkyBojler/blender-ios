@@ -196,6 +196,24 @@ bool multiresModifier_reshapeFromPositions(Depsgraph *depsgraph,
   return true;
 }
 
+bool multiresModifier_reshapeFromVertPositions(Depsgraph *depsgraph,
+                                               MultiresModifierData *mmd,
+                                               Object *object,
+                                               const Span<float3> positions)
+{
+  /* Reshape the whole stack: force the reshape level to the top so `positions`
+   * is consumed at `totlvl` subdivided-mesh resolution ((2^totlvl)+1 per base
+   * edge, subdiv-vertex order — the layout src_mesh_eval->vert_positions() and
+   * BKE_multires_create_mesh produce). Each shared vertex appears once; the
+   * reshape scatters it to every grid replica, so there is no seam-ordering
+   * hazard (unlike a per-grid feed). */
+  MultiresModifierData highest_mmd = dna::shallow_copy(*mmd);
+  highest_mmd.sculptlvl = highest_mmd.totlvl;
+  highest_mmd.lvl = highest_mmd.totlvl;
+  highest_mmd.renderlvl = highest_mmd.totlvl;
+  return multiresModifier_reshapeFromVertcos(depsgraph, object, &highest_mmd, positions);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -188,6 +188,19 @@ bool multiresModifier_reshapeFromPositions(Depsgraph *depsgraph,
                                            MultiresModifierData *mmd,
                                            Object *object,
                                            Span<float3> grid_positions);
+/**
+ * Reshape `object`'s multires to a top-level surface given as absolute
+ * object-space positions in subdivided-mesh vertex order (the layout of the
+ * evaluated multires mesh at `mmd->totlvl`, `BKE_multires_create_mesh` /
+ * `Mesh::vert_positions()`): one position per subdivided vertex, shared
+ * boundary vertices present once. Bakes into `CD_MDISPS`. Returns false on a
+ * vertex-count mismatch. Prefer this over the per-grid variant — it carries no
+ * seam-replica ordering hazard.
+ */
+bool multiresModifier_reshapeFromVertPositions(Depsgraph *depsgraph,
+                                               MultiresModifierData *mmd,
+                                               Object *object,
+                                               Span<float3> positions);
 
 /* Subdivide multi-res displacement once. */
 

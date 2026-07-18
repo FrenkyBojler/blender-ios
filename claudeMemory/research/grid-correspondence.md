@@ -250,8 +250,29 @@ not a single per-grid transform. Two ways forward for A3/C:
 The `Object.multires_reshape_from_positions` C/RNA seam and the pinned corner
 anchor stand regardless of which feed path A3 adopts.
 
-**§4.1/§4.2 (transpose + corner parity) — corner anchor pinned (§5c); seam
-ordering open.** The geometric
+### 5d. Dedup subdiv-vertex feed is seam-clean (2026-07-17, `claudeMemory/scripts/p8_vertcos.py`)
+
+Added **B2** `multiresModifier_reshapeFromVertPositions` +
+`Object.multires_reshape_from_vert_positions` RNA — wraps the existing
+`assign_final_coords_from_vertcos` path (positions in subdivided-mesh vertex
+order, each shared vertex once, no grid replicas). Fed Blender's own base
+subdiv-vertex positions displaced by a function and re-evaluated: **exact
+reproduction** (`reproduce_err ~1e-7`, `got_edge == intended_edge`) at levels
+2–4, vs the per-grid feed's ~0.68 seam tear. So the dedup feed is the bake seam
+for C1/C3; the per-grid `multires_reshape_from_positions` stays as the
+lower-level utility.
+
+**Remaining for the full round-trip:** the SculptCore-level-vertex ↔
+Blender-subdiv-vertex correspondence (both dedup sets of the same subdivided
+cage). Pragmatic: nearest-neighbour by base position (SculptCore discrete base
+vs Blender base; gap O(4⁻ᴸ) ≪ vertex spacing at usable levels). Robust
+alternative: a Blender subdiv-vertex→grid-coord dump (mirrors the reshape's
+internal `foreach_subdiv_geometry`) matched against SculptCore's
+`levelVertGridCoordsOut`. Decide at C1.
+
+**§4.1/§4.2 (transpose + corner parity) — corner anchor pinned (§5c); the
+production bake uses the dedup feed (§5d), which sidesteps the per-grid seam
+ordering entirely.** The geometric
 point-cloud test is index-free and cannot pin them, and Blender exposes no
 per-grid MDISPS/CCG positions to Python (confirmed — only the modifier settings
 in `rna_modifier.cc`). Pin them at **Workstream B** via the round-trip oracle:

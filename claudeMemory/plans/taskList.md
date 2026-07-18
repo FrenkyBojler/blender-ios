@@ -643,9 +643,13 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       `scripts/p8_pin.py`): corner-anchor convention pinned — grid `g↔loop g`,
       intra-grid transpose `(x,y)=(v,u)` (geometry + 16-candidate brute force
       agree). **Open:** the naive per-grid feed tears at grid seams (transpose
-      reverses boundary order); resolve via a seam-aware map or, preferred, the
-      dedup subdiv-vertex (`assign_final_coords_from_vertcos`) feed. A3 depends
-      on this choice.
+      reverses boundary order). **Resolved (§5d):** added B2
+      `multiresModifier_reshapeFromVertPositions` +
+      `Object.multires_reshape_from_vert_positions` (dedup subdiv-vertex feed) —
+      **exact reproduction, seam-clean** (`scripts/p8_vertcos.py`). This is the
+      production bake seam; the per-grid variant stays as a lower-level utility.
+      Remaining: the SculptCore-vertex ↔ Blender-subdiv-vertex map (A3) — NN by
+      base position, or a subdiv-vertex→grid dump; decide at C1.
 - [ ] C1 Enter: MDISPS → engine multires; suppress modifier viewport display.
 - [ ] C2 Level UI (`sculptlvl` ⇄ `setActiveLevel`); subdivide/delete deferred.
 - [ ] C3 Flush/exit: bake back to MDISPS.
