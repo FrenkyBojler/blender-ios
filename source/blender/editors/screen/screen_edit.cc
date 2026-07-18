@@ -33,6 +33,7 @@
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
 #include "BKE_workspace.hh"
+#include "BLI_math_base_c.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1276,12 +1277,15 @@ static int screen_global_header_size()
 static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 {
   const short size = screen_global_header_size();
+  const short size_px = round_fl_to_int(size * UI_SCALE_FAC) - 1;
   rcti rect;
 
-  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry.
+   * Note: size_px is used for `rect` (pixel-space coordinates), while `size` (un-scaled units)
+   * is passed to #screen_global_area_refresh for comparison with #ScrGlobalAreaData.cur_fixed_height. */
   WM_window_rect_calc(win, &rect);
   rect.xmax -= 1;
-  rect.ymin = (rect.ymax - 1) - size;
+  rect.ymin = (rect.ymax - 1) - size_px;
   rect.ymax -= 1;
 
   screen_global_area_refresh(
@@ -1291,14 +1295,19 @@ static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 static void screen_global_statusbar_area_refresh(wmWindow *win, bScreen *screen)
 {
   const short size_min = 1;
+  const short size_min_px = round_fl_to_int(size_min * UI_SCALE_FAC) - 1;
   const short size_max = 0.85f * screen_global_header_size();
+  const short size_max_px = round_fl_to_int(size_max * UI_SCALE_FAC) - 1;
   const short size = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min : size_max;
+  const short size_px = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min_px : size_max_px;
   rcti rect;
 
-  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry.
+   * Note: size_px is used for `rect` (pixel-space coordinates), while `size` (un-scaled units)
+   * is passed to #screen_global_area_refresh for comparison with #ScrGlobalAreaData.cur_fixed_height. */
   WM_window_rect_calc(win, &rect);
   rect.xmax -= 1;
-  rect.ymax = rect.ymin + size_max;
+  rect.ymax = rect.ymin + size_px;
 
   screen_global_area_refresh(
       win, screen, SPACE_STATUSBAR, GLOBAL_AREA_ALIGN_BOTTOM, &rect, size, size_min, size_max);
