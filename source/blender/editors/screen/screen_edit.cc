@@ -1295,16 +1295,12 @@ static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 static void screen_global_statusbar_area_refresh(wmWindow *win, bScreen *screen)
 {
   const short size_min = 1;
-  const short size_min_px = round_fl_to_int(size_min * UI_SCALE_FAC) - 1;
   const short size_max = 0.85f * screen_global_header_size();
-  const short size_max_px = round_fl_to_int(size_max * UI_SCALE_FAC) - 1;
   const short size = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min : size_max;
-  const short size_px = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min_px : size_max_px;
+  const short size_px = round_fl_to_int(size * UI_SCALE_FAC) - 1;
   rcti rect;
 
-  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry.
-   * Note: size_px is used for `rect` (pixel-space coordinates), while `size` (un-scaled units)
-   * is passed to #screen_global_area_refresh for comparison with #ScrGlobalAreaData.cur_fixed_height. */
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
   WM_window_rect_calc(win, &rect);
   rect.xmax -= 1;
   rect.ymax = rect.ymin + size_px;
