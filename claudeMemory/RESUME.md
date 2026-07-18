@@ -72,6 +72,15 @@ full P6 suite (`claudeMemory/tests/`, run via `run_sync.py`).
 - Store-rewriting ops (down-refit, subdivide/delete) land with their
   features; their undo payload seam (`serializeStore` blobs) already exists.
 
+Stroke-quality pass (after C4): dab spacing (2D screen-space StrokeSpacer,
+projected per point — never space along the 3D hit polyline, it couples
+density to the deforming surface) and deferred Mesh write-back (dabs/stroke
+release only refresh the provider; the mode flush callback syncs on demand;
+divergence guard keys off `session.blender_verts_num`). Gates:
+`tests/deferred_flush_test.py`; interactive strokes can be driven with
+`--enable-event-simulate` + `win.event_simulate` (dismiss the splash first —
+it eats the first simulated click).
+
 ## 4. Environment gotchas (learned the hard way)
 
 - **The addon runs from the build dir, not the source tree.** After editing any

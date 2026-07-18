@@ -18,6 +18,11 @@ class Session:
         "mesh_ptr",
         "tree_ptr",
         "verts_num",
+        # Blender-side vertex count at the last enter/flush. The engine may
+        # run ahead of the Mesh (write-back is deferred to the mode flush), so
+        # foreign-change detection compares the Mesh against this, never
+        # against the live engine count.
+        "blender_verts_num",
         "topo_stamp",
         "generation",
         # Monotonic per-stroke generation for setStrokeGen (grab-class kernels
@@ -69,6 +74,7 @@ class Session:
         self.mesh_ptr = mesh_ptr
         self.tree_ptr = tree_ptr
         self.verts_num = verts_num
+        self.blender_verts_num = verts_num
         self.topo_stamp = engine.capi().lib.Mesh_topoStamp(mesh_ptr)
         self.generation = 0
         self.stroke_gen = 0

@@ -184,6 +184,7 @@ def _enter_multires(ob, md):
     tree_ptr = lib.Multires_activeTree(mr)
 
     session = Session(ob.name, mesh_ptr, tree_ptr, _mesh_vert_num(mesh_ptr))
+    session.blender_verts_num = len(ob.data.vertices)
     session.multires_ptr = mr
     session.cage_ptr = cage
     session.multires_map = mr_map
@@ -504,6 +505,7 @@ def flush(ob):
     _flush_face_sets(mesh, session.mesh_ptr)
     _flush_color(mesh, session.mesh_ptr, session.verts_num)
     mesh.update()
+    session.blender_verts_num = len(mesh.vertices)
 
     # Refresh the external-provider GPU-node buffers so the viewport (which
     # draws from the provider, not this Mesh) reflects the stroke.
@@ -569,10 +571,18 @@ def resync_if_diverged(ob):
     session = engine.sessions.get(ob.name)
     if session is None or not session.mesh_ptr:
         return False
-    # For multires the Blender mesh is the cage; compare against the engine's
-    # cage copy (the level meshes are derived and never match ob.data).
-    engine_ptr = session.cage_ptr if session.multires_ptr else session.mesh_ptr
-    if _mesh_vert_num(engine_ptr) != len(ob.data.vertices):
+    if session.multires_ptr:
+        # The Blender mesh is the cage; compare against the engine's cage
+        # copy (the level meshes are derived and never match ob.data).
+        if _mesh_vert_num(session.cage_ptr) != len(ob.data.vertices):
+            refresh(ob)
+            return True
+        return False
+    # Compare against the Blender count at the last sync, not the live engine
+    # count: with deferred write-back the engine legitimately runs ahead of
+    # the Mesh (e.g. an unflushed dyntopo stroke), and only a Mesh that
+    # changed under us signals a foreign edit.
+    if len(ob.data.vertices) != session.blender_verts_num:
         refresh(ob)
         return True
     return False

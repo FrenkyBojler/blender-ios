@@ -373,6 +373,22 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       **Known P6 item:** memfile undo that crosses the mode-enter boundary
       lands back in Object mode leaving a stale `engine.sessions` entry (the
       exit-boundary hard case in undo-integration §4).
+      **Amended (stroke-quality pass):** (1) dab **spacing** implemented —
+      StrokeSpacer port (engine `brush/stroke_spacing.h` semantics) driven in
+      **2D screen space** (interval = pixel radius × spacing fraction), each
+      spaced point projected onto the surface; 3D-hit-polyline spacing was
+      tried first and rejected (dab density coupled to the surface deforming
+      under the stroke — 78 % A/B divergence between event rates, vs ~one-dab
+      jitter with 2D spacing). (2) **Deferred write-back** — dabs and stroke
+      release only refresh the draw provider; the Mesh ID syncs on demand via
+      the mode flush callback (memfile encode / save / render / exit). The
+      divergence guard now compares `session.blender_verts_num` (Blender count
+      at last sync), not the live engine count, so an unflushed dyntopo stroke
+      does not trip a session rebuild. Gates:
+      `claudeMemory/tests/deferred_flush_test.py` (deferred contract incl.
+      save/exit sync + guard) and a GUI pass driven via
+      `--enable-event-simulate` (real LMB stroke through keymap → operator;
+      40-move vs 8-move strokes near-identical). Full P6 + P8 suites green.
 - [~] S3 Usability (partial): `tools.py` registers a `WorkSpaceTool`
       ("Brush") under the shared `'CUSTOM'` tool slot (both the C tool
       storage `CTX_MODE_CUSTOM` and the Python toolbar key off it); stroke

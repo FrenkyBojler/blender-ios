@@ -6,12 +6,16 @@
 The interactive stroke: a modal operator plus the reusable dab core the
 operator and headless tests both drive.
 
-v0 (S2): DRAW brush via ``CommandExecutor.execBrush`` per dab, positions
-flushed to the Mesh on a throttle so the viewport updates. The operator
-finishes with ``bl_options={'UNDO'}`` so a memfile push (and thus the mode's
-flush) brackets each stroke — Tier-1 undo for free. The dab core is
-engine-only (no ``bpy`` state), so ``enter -> N synthetic dabs -> exit`` is
-scriptable end-to-end.
+Dabs are spaced along the 2D mouse path (StrokeSpacer, interval = pixel
+radius x spacing fraction, residual carried across segments) and each spaced
+point is projected onto the surface, so stroke density is independent of
+both the mouse event rate and the surface deforming under the stroke.
+The viewport updates through the external draw provider; the Mesh ID is
+written back lazily by the mode's flush callback (memfile encode / save /
+render), keeping dabs and stroke release free of the full Mesh write. The
+throttled Mesh flush remains only as the no-provider fallback. The dab core
+is engine-only (no ``bpy`` state), so ``enter -> N synthetic dabs -> exit``
+is scriptable end-to-end.
 """
 
 import bpy
@@ -25,6 +29,45 @@ def _float3(mgr, x, y, z):
     v.vec[1] = y
     v.vec[2] = z
     return v
+
+
+class StrokeSpacer:
+    """Port of the engine's ``brush/stroke_spacing.h`` StrokeSpacer: walks a
+    stroke polyline and emits dab points at constant intervals, carrying a
+    residual across segments so dabs stay evenly spaced regardless of the
+    mouse event rate. The operator drives it in 2D screen space (interval =
+    pixel radius x spacing fraction) and projects each emitted point onto the
+    surface — spacing along the 3D hit polyline would couple dab density to
+    the surface deforming under the stroke. A non-positive interval emits
+    every input point (no spacing)."""
+
+    def __init__(self):
+        self.last_pos = None
+        self.residual = 0.0
+
+    def advance(self, p, spacing):
+        """Dab points for the segment from the previous input point to `p`
+        (the first call emits `p` itself). `p` is a mathutils.Vector (any
+        dimension)."""
+        if self.last_pos is None:
+            self.last_pos = p.copy()
+            return [p.copy()]
+        if spacing <= 0.0:
+            self.last_pos = p.copy()
+            return [p.copy()]
+        delta = p - self.last_pos
+        length = delta.length
+        if length < 1e-7:
+            return []
+        direction = delta / length
+        emitted = []
+        walked = spacing - self.residual
+        while walked <= length:
+            emitted.append(self.last_pos + direction * walked)
+            walked += spacing
+        self.residual = length - (walked - spacing)
+        self.last_pos = p.copy()
+        return emitted
 
 
 def _ensure_brush(session):
@@ -253,6 +296,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self._grab_class = mapping.is_grab_class(self.brush)
         self._anchor = None
         self._anchor_normal = None
+        # Dab spacing along the stroke path (engine StrokeSpacer semantics:
+        # interval = world radius x spacing fraction). Grab-class ignores it.
+        self._spacer = StrokeSpacer()
         # Face-set brushes paint a fresh group id per stroke.
         if self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
             brush = _ensure_brush(self.session)
@@ -283,18 +329,18 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def _dab_at(self, context, event):
-        hit = _ray_from_event(context, event, self.session)
-        if hit is None:
-            return
-        position, normal, _face = hit
-        world_radius = _world_radius(context, self.brush, position)
-        invert = event.ctrl
         unified = context.tool_settings.sculpt.unified_paint_settings
-        mapping.apply_brush(
-            self.brush, unified, self.session.brush_obj,
-            world_radius=world_radius, invert=invert)
+        invert = event.ctrl
 
         if self._grab_class:
+            hit = _ray_from_event(context, event, self.session)
+            if hit is None:
+                return
+            position, normal, _face = hit
+            world_radius = _world_radius(context, self.brush, position)
+            mapping.apply_brush(
+                self.brush, unified, self.session.brush_obj,
+                world_radius=world_radius, invert=invert)
             if self._anchor is None:
                 # Anchor the region at the stroke-start surface point.
                 self._anchor = position
@@ -305,22 +351,38 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             cursor = _cursor_on_anchor_plane(context, event, self._anchor)
             apply_grab_dab(self.session, self.kernel, self._anchor, cursor,
                            self._anchor_normal, self._anchor_radius)
-        elif self._dyntopo is not None:
-            apply_dyntopo_dab(self.session, self._program, position, normal,
-                              world_radius, self._dyntopo, self._dab_count + 1)
-        elif self._program is not None:
-            apply_dab_program(self.session, self._program, position, normal, world_radius)
         else:
-            apply_dab(self.session, self.kernel, position, normal, world_radius)
-        self._dab_count += 1
+            import mathutils
+            pixel_size = unified.size if unified.use_unified_size else self.brush.size
+            step = max(self.brush.spacing, 1) / 100.0 * pixel_size
+            coord = mathutils.Vector((event.mouse_region_x, event.mouse_region_y))
+            for point in self._spacer.advance(coord, step):
+                hit = _ray_from_coord(context, (point.x, point.y), self.session)
+                if hit is None:
+                    continue
+                position, normal, _face = hit
+                world_radius = _world_radius(context, self.brush, position)
+                mapping.apply_brush(
+                    self.brush, unified, self.session.brush_obj,
+                    world_radius=world_radius, invert=invert)
+                if self._dyntopo is not None:
+                    apply_dyntopo_dab(self.session, self._program, position, normal,
+                                      world_radius, self._dyntopo, self._dab_count + 1)
+                elif self._program is not None:
+                    apply_dab_program(self.session, self._program, position, normal,
+                                      world_radius)
+                else:
+                    apply_dab(self.session, self.kernel, position, normal, world_radius)
+                self._dab_count += 1
 
-        # Phase-0 draw: throttled positions flush + redraw tag. Multires
-        # sessions only refresh the draw provider mid-stroke — their Mesh
-        # write-back is a full MDISPS bake, too heavy per frame.
+        # Mid-stroke draw: the provider needs only its GPU buffers refreshed;
+        # the Mesh write-back is deferred to the mode's flush callback. The
+        # throttled full flush remains only for the no-provider fallback,
+        # where the viewport draws the Mesh itself.
         import time
         now = time.monotonic()
         if now - self._last_flush > 1.0 / 30.0:
-            if self.session.multires_ptr:
+            if self.session.draw_key:
                 convert.draw_refresh(context.active_object)
             else:
                 convert.flush(context.active_object)
@@ -330,7 +392,14 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
     def _finish(self, context, status):
         ob = context.active_object
         stroke_end(self.session)
-        convert.flush(ob)
+        # Deferred write-back: with the draw provider active the viewport only
+        # needs its GPU buffers; the Mesh ID syncs on demand through the
+        # mode's flush callback (memfile encode / save / render). This keeps
+        # stroke release free of the full Mesh (or MDISPS bake) write.
+        if self.session.draw_key:
+            convert.draw_refresh(ob)
+        else:
+            convert.flush(ob)
         # The stroke mutated geometry (dabs applied before release/cancel), so
         # push its delta-undo step regardless of finish vs cancel.
         undo.push(context, ob, self.session)
@@ -348,15 +417,14 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
 
-def _ray_from_event(context, event, session):
-    """Unproject the mouse event to an object-space ray and cast it against
-    the engine tree."""
+def _ray_from_coord(context, coord, session):
+    """Unproject a 2D region coordinate to an object-space ray and cast it
+    against the engine tree."""
     from bpy_extras import view3d_utils
 
     region = context.region
     rv3d = context.region_data
     ob = context.active_object
-    coord = (event.mouse_region_x, event.mouse_region_y)
 
     origin_world = view3d_utils.region_2d_to_origin_3d(region, rv3d, coord)
     direction_world = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
@@ -365,6 +433,13 @@ def _ray_from_event(context, event, session):
     origin = matrix_inv @ origin_world
     direction = (matrix_inv.to_3x3() @ direction_world).normalized()
     return raycast(session, tuple(origin), tuple(direction))
+
+
+def _ray_from_event(context, event, session):
+    """Unproject the mouse event to an object-space ray and cast it against
+    the engine tree."""
+    return _ray_from_coord(
+        context, (event.mouse_region_x, event.mouse_region_y), session)
 
 
 def _cursor_on_anchor_plane(context, event, anchor_obj):
