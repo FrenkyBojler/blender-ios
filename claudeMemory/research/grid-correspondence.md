@@ -270,9 +270,30 @@ alternative: a Blender subdiv-vertex→grid-coord dump (mirrors the reshape's
 internal `foreach_subdiv_geometry`) matched against SculptCore's
 `levelVertGridCoordsOut`. Decide at C1.
 
-**§4.1/§4.2 (transpose + corner parity) — corner anchor pinned (§5c); the
-production bake uses the dedup feed (§5d), which sidesteps the per-grid seam
-ordering entirely.** The geometric
+### 5e. Full export round-trip: SculptCore surface -> MDISPS (2026-07-17, `claudeMemory/scripts/p8_export.py`)
+
+**A3 chosen: nearest-neighbour by base position.** SculptCore's level-mesh
+vertices (dumped dedup via `Mesh_toArrays` on the active level) and Blender's
+subdivided-mesh vertices are equal-count dedup sets of the same cage; matching
+each Blender subdiv-vertex to its nearest SculptCore vertex by *undisplaced*
+position gives a **perfect bijection**. Validated end-to-end at levels 2–4:
+displace SculptCore's base, transfer its positions into Blender subdiv-vertex
+order via the map, bake through B2, re-evaluate — **bijective, tear-free**
+(`baked_edge == intended_edge`). The match gap is exactly the discrete↔limit
+base offset (4.8e-2 → 1.2e-2 → 2.9e-3, O(4⁻ᴸ)), always ≪ vertex spacing, so NN
+gets *more* robust at finer levels.
+
+The export path is therefore: SculptCore materialize top level → `Mesh_toArrays`
+→ NN map to Blender subdiv-vertex order → `multires_reshape_from_vert_positions`.
+Import is the mirror: Blender top-level positions (eval mesh) → inverse map →
+**A1** `Multires_fromLevelPositions` (already bit-exact, §5b). The NN map is
+mesh-topology-dependent — compute once on enter and cache in the session; assert
+bijectivity (the bijective flag is the guard against a mis-pair on high-valence
+meshes, where the robust fallback is a subdiv-vertex→grid dump).
+
+**§4.1/§4.2 — corner anchor pinned (§5c); the production path uses the dedup
+vertcos feed (§5d) + NN vertex map (§5e), which sidesteps grid-seam ordering
+entirely and round-trips a SculptCore surface into MDISPS tear-free.** The geometric
 point-cloud test is index-free and cannot pin them, and Blender exposes no
 per-grid MDISPS/CCG positions to Python (confirmed — only the modifier settings
 in `rna_modifier.cc`). Pin them at **Workstream B** via the round-trip oracle:

@@ -634,7 +634,13 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       writes back. Bit-exact seed→writeback→re-dump round-trip on a
       sphere-displaced cube, L1–L4 (§5b, `scripts/p8_roundtrip.py`). Detail lands
       at the seeded level; down-refit redistribution deferred.
-- [ ] A3 Bijection C entry (Blender grid samples ⇄ level-mesh verts).
+- [x] A3 Vertex correspondence — **done as nearest-neighbour by base position**
+      (SculptCore `Mesh_toArrays` level verts ⇄ Blender subdiv verts; equal-count
+      dedup sets → perfect bijection, gap = discrete↔limit offset ≪ spacing).
+      Full **export round-trip validated** L2–4 (§5e, `scripts/p8_export.py`):
+      SculptCore surface → NN map → B2 bake → tear-free MDISPS. Import is the
+      mirror (inverse map → A1). Cache the map per session; assert bijectivity.
+      (Grid-sample C entry not needed — the dedup vertex path replaced it.)
 - [ ] A4 Grid paint-mask channel in/out.
 - [~] B Blender bake seam **implemented**: `multiresModifier_reshapeFromPositions`
       (`multires_reshape.cc`, per-grid-array assign mirroring the CCG path) +
