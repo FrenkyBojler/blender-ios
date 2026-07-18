@@ -20,6 +20,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_kdopbvh.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector_c.hh"
@@ -364,6 +365,19 @@ static void drawWalkPixel(const bContext * /*C*/, ARegion *region, void *arg)
         walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, false, true, &viewborder);
     xoff = viewborder.xmin + BLI_rctf_size_x(&viewborder) * 0.5f;
     yoff = viewborder.ymin + BLI_rctf_size_y(&viewborder) * 0.5f;
+
+    if (walk->rv3d->camroll != 0.0f) {
+      const float2 view_center(walk->region->winx / 2.0f, walk->region->winy / 2.0f);
+      const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(walk->rv3d->camroll));
+      float2 xyoff(xoff, yoff);
+
+      xyoff -= view_center;
+      xyoff = rot * xyoff;
+      xyoff += view_center;
+
+      xoff = xyoff.x;
+      yoff = xyoff.y;
+    }
   }
   else {
     xoff = float(walk->region->winx) / 2.0f;
