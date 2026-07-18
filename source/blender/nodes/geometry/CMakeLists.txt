@@ -125,6 +125,7 @@ set(SRC
   nodes/node_geo_grid_to_points.cc
   nodes/node_geo_grid_voxelize.cc
   nodes/node_geo_image.cc
+  nodes/node_geo_id_info.cc
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
   nodes/node_geo_import_csv.cc
