@@ -656,22 +656,35 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       production bake seam; the per-grid variant stays as a lower-level utility.
       Remaining: the SculptCore-vertex ↔ Blender-subdiv-vertex map (A3) — NN by
       base position, or a subdiv-vertex→grid dump; decide at C1.
-- [~] C1/C3 **core done** — `sculptcore_addon/multires.py`: `modifier()` detect,
+- [x] C1/C3 **done** — `sculptcore_addon/multires.py`: `modifier()` detect,
       `build_engine()` (cage → `Multires_new`), `build_map()` (engine grid samples
       ⇄ Blender subdiv verts by NN on a throwaway zero-disp base reference),
       `import_displacement()` (Blender top positions → A1) and `export_bake()`
       (engine top → dedup vertcos → B2). Full import→export round-trip on a
-      *displaced* multires cube is **import-exact / export ~1e-7, tear-free**
-      (L2–3, `scripts/p8_addon.py`) + engine decls in `engine.py`. **Remaining:**
-      session wiring — branch `convert.enter/flush/exit_` to hold the `Multires`,
-      draw via `Multires_activeTree`, bake on flush/exit, suppress the modifier
-      viewport display (restore on exit); cache the map in the session.
+      *displaced* multires cube is tear-free at ~1e-7 both ways (L2–3,
+      `scripts/p8_addon.py`) + engine decls in `engine.py`. **Session wiring
+      done**: `convert.enter` branches to `_enter_multires` (top-level eval →
+      stack import → modifier `show_viewport` suppressed, restored on exit),
+      `flush` → `export_bake` into `CD_MDISPS`, `Session` owns the
+      `Multires` + cage (active mesh/tree are non-owning views), map cached;
+      mid-stroke throttle only refreshes the draw provider (`draw_refresh`) —
+      the full bake runs on flush/exit/undo. `resync_if_diverged` compares the
+      cage. Engine fix en route: `Multires_fromLevelPositions` now
+      rematerializes the seeded slot (its tree/normals were built from
+      pre-seed positions — raycast/filterNodes would miss; import goes
+      bit-exact → ~2e-7 through the store, by design). Verified headless
+      (`scripts/p8_session.py`: lifecycle, identity round-trip 2e-7, 30-dab
+      sculpt lands in MDISPS, modifier restore, no leaks) **and GUI**
+      (provider draws the imported surface, dabs update live, after exit
+      vanilla multires shows the baked edit at view levels 1–3).
 - [ ] C2 Level UI (`sculptlvl` ⇄ `setActiveLevel`); subdivide/delete deferred.
 - [ ] C4 Undo payload via `Multires_serializeStore`/`_restoreStore`
       External chunks (with P6).
 
 ### Verification (per plan §5)
-- [ ] Zero-displacement and no-stroke identity round trips (incl. render
-      comparison on a production multires asset).
-- [ ] Edit round trip visible/correct in vanilla Blender at all view levels.
+- [~] Zero-displacement and no-stroke identity round trips — no-stroke
+      identity through the full mode lifecycle at ~2e-7 (`p8_session.py`);
+      render comparison on a production multires asset still owed.
+- [x] Edit round trip visible/correct in vanilla Blender at view levels
+      1–3 (GUI, displaced multires cube; deeper levels with the corpus pass).
 - [ ] Corpus: n-gon, creased, boundary-heavy cages; levels 1–6+.

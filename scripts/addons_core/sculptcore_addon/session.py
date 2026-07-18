@@ -46,6 +46,16 @@ class Session:
         # endDynTopoStroke) and the reusable DynTopoParams.
         "dyntopo_active",
         "dtparams",
+        # Multires sessions (P8): the engine Multires stack + the cage mesh it
+        # was built over (both owned; mesh_ptr/tree_ptr are then non-owning
+        # views of the stack's active level), the cached sample<->vertex map,
+        # the stack's top level, and the modifier's show_viewport state to
+        # restore on exit. multires_ptr is None for plain-Mesh sessions.
+        "multires_ptr",
+        "cage_ptr",
+        "multires_map",
+        "multires_level",
+        "multires_show_viewport",
         "_freed",
     )
 
@@ -66,6 +76,11 @@ class Session:
         self.program = None
         self.dyntopo_active = False
         self.dtparams = None
+        self.multires_ptr = None
+        self.cage_ptr = None
+        self.multires_map = None
+        self.multires_level = 0
+        self.multires_show_viewport = True
         self._freed = False
 
     def mesh(self):
@@ -107,6 +122,18 @@ class Session:
         self.brush_obj = None
         self.mesh_obj = None
         lib = engine.capi().lib
+        if self.multires_ptr:
+            # mesh_ptr/tree_ptr are the stack's active-level views (stack-owned);
+            # the cage outlives the stack (Multires_new does not own it).
+            self.tree_ptr = None
+            self.mesh_ptr = None
+            lib.Multires_free(self.multires_ptr)
+            self.multires_ptr = None
+            if self.cage_ptr:
+                lib.freeMesh(self.cage_ptr)
+                self.cage_ptr = None
+            self.multires_map = None
+            return
         if self.tree_ptr:
             lib.SpatialTree_free(self.tree_ptr)
             self.tree_ptr = None

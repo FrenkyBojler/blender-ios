@@ -17,7 +17,7 @@ color/UV copy stage; until then non-position data is untouched in the Mesh
 and stays valid because topology ops are not yet reachable.
 """
 
-from . import engine
+from . import engine, multires
 from .session import Session
 
 # Blender mask attribute (float, point domain) <-> the engine's mask column.
@@ -61,16 +61,19 @@ def _gather_arrays(mesh):
     return positions, corner_verts, face_offsets
 
 
-def validate(ob):
+def validate(ob, ignore_multires=False):
     """v1 entry rules (sculpt-modifier-coupling research): refuse shape
-    keys; warn-and-proceed on enabled modifiers and loose edges."""
+    keys; warn-and-proceed on enabled modifiers and loose edges. Multires
+    sessions pass ``ignore_multires`` — their modifier is supported (converted,
+    not ignored), so it is excluded from the enabled-modifier warning."""
     mesh = ob.data
     if mesh.shape_keys is not None:
         raise ConvertError(
             "SculptCore: cannot enter on {!r} — shape keys are not supported".format(ob.name))
 
     warnings = []
-    if any(md.show_viewport for md in ob.modifiers):
+    if any(md.show_viewport for md in ob.modifiers
+           if not (ignore_multires and md.type == 'MULTIRES')):
         warnings.append("enabled modifiers are ignored while sculpting")
     if any(edge.is_loose for edge in mesh.edges):
         warnings.append("loose edges will not survive topology-changing sculpting")
@@ -80,7 +83,11 @@ def validate(ob):
 
 def enter(ob):
     """Build the engine mesh + spatial tree from the Mesh ID and register
-    the session."""
+    the session. Objects with a multires modifier take the P8 stack path;
+    everything else converts the plain Mesh."""
+    md = multires.modifier(ob)
+    if md is not None and md.total_levels >= 1:
+        return _enter_multires(ob, md)
     validate(ob)
     capi = engine.capi()
 
@@ -118,6 +125,75 @@ def enter(ob):
     lib.sc_external_draw_enable_dynamic(tree_ptr)
     lib.sc_external_draw_update(session.draw_key)
 
+    return session
+
+
+def _enter_multires(ob, md):
+    """Multires enter (P8): build an engine Multires stack over the base cage,
+    import the object's displaced top-level surface (CD_MDISPS via the
+    evaluated modifier), and register the stack's top-level tree for draw. The
+    modifier's viewport display is suppressed while the mode is active — the
+    provider draws the engine surface — and restored on exit. The v1 attribute
+    layers (mask/face-set/color/UV) stay untouched (grid channels are A4)."""
+    import ctypes
+
+    import bpy
+    import numpy as np
+
+    validate(ob, ignore_multires=True)
+    lib = engine.capi().lib
+    context = bpy.context
+    level = md.total_levels
+
+    base_arrays = _gather_arrays(ob.data)
+
+    # The displaced top-level surface in subdiv-vertex order: evaluate the
+    # modifier at its top level, then suppress it for the mode's lifetime.
+    prev_show = md.show_viewport
+    prev_levels = md.levels
+    md.show_viewport = True
+    md.levels = level
+    depsgraph = context.evaluated_depsgraph_get()
+    depsgraph.update()
+    eval_mesh = ob.evaluated_get(depsgraph).data
+    top = np.empty(len(eval_mesh.vertices) * 3, dtype=np.float64)
+    eval_mesh.vertices.foreach_get("co", top)
+    top = top.reshape(-1, 3)
+    md.levels = prev_levels
+    md.show_viewport = False
+
+    mr = cage = None
+    try:
+        mr, cage = multires.build_engine(base_arrays, level)
+        mr_map = multires.build_map(context, base_arrays, mr, level)
+        if len(top) != len(mr_map.blender_to_engine_sample):
+            raise ConvertError(
+                "SculptCore: multires subdiv vertex count mismatch on {!r}".format(ob.name))
+        multires.import_displacement(mr, mr_map, top)
+    except Exception:
+        if mr:
+            lib.Multires_free(mr)
+        if cage:
+            lib.freeMesh(cage)
+        md.show_viewport = prev_show
+        raise
+
+    # The import rematerialized the seeded level; fetch the current views.
+    lib.Multires_setActiveLevel(mr, level)
+    mesh_ptr = lib.Multires_activeMesh(mr)
+    tree_ptr = lib.Multires_activeTree(mr)
+
+    session = Session(ob.name, mesh_ptr, tree_ptr, _mesh_vert_num(mesh_ptr))
+    session.multires_ptr = mr
+    session.cage_ptr = cage
+    session.multires_map = mr_map
+    session.multires_level = level
+    session.multires_show_viewport = prev_show
+    engine.sessions[ob.name] = session
+
+    session.draw_key = int(ob.session_uid)
+    lib.sc_external_draw_register(session.draw_key, tree_ptr)
+    lib.sc_external_draw_update(session.draw_key)
     return session
 
 
@@ -284,30 +360,46 @@ def _flush_topology_rebuild(session, mesh):
     session.topo_stamp = lib.Mesh_topoStamp(session.mesh_ptr)
 
 
-def _engine_vert_num(session):
-    """Live vertex count of the engine mesh (may differ from the session's
+def _mesh_vert_num(mesh_ptr):
+    """Live vertex count of an engine mesh (may differ from the session's
     cached size after a topology change, e.g. an undo that reverted dyntopo)."""
     import ctypes
 
     nv, nc, nf, cap = (ctypes.c_int(0) for _ in range(4))
-    engine.capi().lib.Mesh_arraySizes(session.mesh_ptr, ctypes.byref(nv), ctypes.byref(nc),
+    engine.capi().lib.Mesh_arraySizes(mesh_ptr, ctypes.byref(nv), ctypes.byref(nc),
                                       ctypes.byref(nf), ctypes.byref(cap))
     return nv.value
+
+
+def _flush_multires(ob, session):
+    """Multires write-back: bake the engine stack's top-level surface into the
+    object's CD_MDISPS. The bake builds its own subdivision from the base mesh,
+    so the suppressed modifier viewport state does not affect it."""
+    import bpy
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    multires.export_bake(ob, depsgraph, session.multires_ptr, session.multires_map)
+    if session.draw_key:
+        engine.capi().lib.sc_external_draw_update(session.draw_key)
 
 
 def flush(ob):
     """Write engine state back into the Mesh ID. Fast path (positions only)
     while the topology is unchanged; slow path (full geometry rebuild) after
-    dyntopo/remesh. Either way the v1 attribute layers are re-flushed."""
+    dyntopo/remesh. Either way the v1 attribute layers are re-flushed.
+    Multires sessions instead bake the engine surface into CD_MDISPS."""
     session = engine.sessions.get(ob.name)
     if session is None or not session.mesh_ptr:
+        return
+    if session.multires_ptr:
+        _flush_multires(ob, session)
         return
 
     mesh = ob.data
     # The topo stamp catches forward topology edits, but a meshlog undo reverts
     # the topology without rolling the stamp back; a live-vs-Blender vertex-count
     # mismatch catches that case so undo/redo also take the rebuild path.
-    if session.topology_changed() or _engine_vert_num(session) != len(mesh.vertices):
+    if session.topology_changed() or _mesh_vert_num(session.mesh_ptr) != len(mesh.vertices):
         _flush_topology_rebuild(session, mesh)
     else:
         _flush_positions_fast(session, mesh)
@@ -323,8 +415,17 @@ def flush(ob):
         engine.capi().lib.sc_external_draw_update(session.draw_key)
 
 
+def draw_refresh(ob):
+    """Refresh the external-draw GPU buffers only — the mid-stroke viewport
+    update for sessions whose Mesh write-back is expensive (multires bake)."""
+    session = engine.sessions.get(ob.name)
+    if session is not None and session.draw_key:
+        engine.capi().lib.sc_external_draw_update(session.draw_key)
+
+
 def exit_(ob):
-    """Flush and free the session (re-entrant: forced exits may repeat)."""
+    """Flush and free the session (re-entrant: forced exits may repeat).
+    Multires sessions also restore the modifier's viewport display."""
     session = engine.sessions.get(ob.name)
     if session is None:
         return
@@ -333,6 +434,10 @@ def exit_(ob):
     finally:
         if session.draw_key:
             engine.capi().lib.sc_external_draw_unregister(session.draw_key)
+        if session.multires_ptr:
+            md = multires.modifier(ob)
+            if md is not None:
+                md.show_viewport = session.multires_show_viewport
         engine.sessions.pop(ob.name, None)
         session.free()
 
@@ -344,9 +449,16 @@ def refresh(ob):
     if session is None:
         return
     generation = session.generation + 1
+    was_multires = session.multires_ptr is not None
+    prev_show = session.multires_show_viewport
     session.free()
     new_session = enter(ob)
     new_session.generation = generation
+    if was_multires and new_session.multires_ptr:
+        # Mid-mode the modifier is already suppressed, so the re-enter recorded
+        # False as the restore state; keep the original pre-enter state (an
+        # undo that restored the DNA to visible re-records it correctly).
+        new_session.multires_show_viewport = prev_show
 
 
 def resync_if_diverged(ob):
@@ -361,7 +473,10 @@ def resync_if_diverged(ob):
     session = engine.sessions.get(ob.name)
     if session is None or not session.mesh_ptr:
         return False
-    if _engine_vert_num(session) != len(ob.data.vertices):
+    # For multires the Blender mesh is the cage; compare against the engine's
+    # cage copy (the level meshes are derived and never match ob.data).
+    engine_ptr = session.cage_ptr if session.multires_ptr else session.mesh_ptr
+    if _mesh_vert_num(engine_ptr) != len(ob.data.vertices):
         refresh(ob)
         return True
     return False

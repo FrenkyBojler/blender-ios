@@ -3,7 +3,8 @@
 Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
-Last updated: 2026-07-17. Current focus: **P8 multires — session wiring**.
+Last updated: 2026-07-17. Current focus: **P8 multires — session wiring done;
+next C2 (level UI) / C4 (undo payload)**.
 
 ---
 
@@ -27,32 +28,31 @@ The whole multires conversion **mechanism is validated end-to-end**:
 | A1/A2 engine dumps (`Multires_fromLevelPositions` / `_levelPositionsOut`) | bit-exact |
 | B / B2 Blender bake seams (`Object.multires_reshape_from_positions` / `_from_vert_positions`) | B2 seam-clean |
 | A3 engine-sample ⇄ Blender-subdiv-vertex map (NN on zero-disp base) | bijective |
-| **C1/C3 core — `sculptcore_addon/multires.py`** | import-exact, export ~1e-7, tear-free |
+| C1/C3 core — `sculptcore_addon/multires.py` | ~1e-7 both ways, tear-free |
+| **C1/C3 session wiring — `convert.py` branches** | headless + GUI verified |
 
-`multires.py` already does the full conversion (`modifier`, `build_engine`,
-`build_map`, `import_displacement`, `export_bake`). Proven on a displaced
-multires cube via `claudeMemory/scripts/p8_addon.py`.
+`multires.py` does the full conversion (`modifier`, `build_engine`,
+`build_map`, `import_displacement`, `export_bake`); `convert.enter/flush/exit_`
+branch to it when a multires modifier is present (`_enter_multires` /
+`_flush_multires`): stack import at `total_levels`, modifier `show_viewport`
+suppressed in-mode and restored on exit, `Session` owns the `Multires` + cage
+(active mesh/tree are stack-owned views), flush bakes into `CD_MDISPS`, and the
+mid-stroke throttle only refreshes the draw provider (`convert.draw_refresh`).
+Engine seam fix: `Multires_fromLevelPositions` rematerializes the seeded slot
+(tree/normals were stale → raycast/brushes would miss). Verified by
+`scripts/p8_session.py` (headless, ALL PASS) and a GUI pass (provider draws the
+imported surface, dabs update live, vanilla multires shows the baked edit at
+view levels 1–3 after exit).
 
-## 3. The exact next task — session wiring (the last P8 piece)
+## 3. The exact next tasks
 
-Branch the addon session lifecycle in `sculptcore_addon/convert.py` to use
-`multires.py` when `multires.modifier(ob)` is set:
-
-- **`enter`**: `build_engine` + `build_map` + `import_displacement`; register
-  `Multires_activeTree` (not the plain tree) for the external draw provider;
-  set the multires modifier `show_viewport = False` (record prior state).
-- **`flush` / `exit_`**: `export_bake` (engine top → `CD_MDISPS`) instead of the
-  position-writeback path; restore `show_viewport` on exit.
-- **`Session`**: hold the `Multires` handle + cage + cached `MultiresMap`; free
-  both on exit.
-- Keep the **plain-Mesh path untouched** — this branches, does not replace.
-
-Then **GUI-test**: enter a real multires object, sculpt, exit, confirm vanilla
-Blender shows the edit at various view levels. This touches the working sculpt
-path, so do it with room to test.
-
-Lower priority after: C2 (level UI `sculptlvl` ⇄ `setActiveLevel`), C4 (undo
-payload via `Multires_serializeStore`/`_restoreStore`).
+- **C2** — level UI: `sculptlvl` ⇄ `Multires_setActiveLevel` (slot pointers
+  change on switch — re-fetch `session.mesh_ptr`/`tree_ptr`, re-register the
+  draw tree, reset the cached executor/meshlog wrappers).
+- **C4** — undo payload via `Multires_serializeStore`/`_restoreStore` External
+  chunks (with P6); today multires strokes ride the per-level meshlog only.
+- P8 verification tail: production-asset render comparison; corpus (n-gon,
+  creased, boundary-heavy cages; levels 1–6+); A4 grid paint-mask channel.
 
 ## 4. Environment gotchas (learned the hard way)
 
@@ -84,3 +84,7 @@ Launch any with `blender --factory-startup --python <script>`; read
 - `p8_export.py` — A3 map + export round-trip (§5e).
 - `p8_addon.py` — **the full `multires.py` import→export round-trip**; run after
   any addon change to confirm no regression.
+- `p8_session.py` — **multires through the real mode lifecycle** (enter/
+  identity round-trip/sculpt/exit/modifier restore); the session-wiring gate.
+  (Headless `--background` skips app timers — run these GUI-style, or via a
+  driver that quits when the output file appears.)

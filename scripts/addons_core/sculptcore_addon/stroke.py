@@ -314,11 +314,16 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             apply_dab(self.session, self.kernel, position, normal, world_radius)
         self._dab_count += 1
 
-        # Phase-0 draw: throttled positions flush + redraw tag.
+        # Phase-0 draw: throttled positions flush + redraw tag. Multires
+        # sessions only refresh the draw provider mid-stroke — their Mesh
+        # write-back is a full MDISPS bake, too heavy per frame.
         import time
         now = time.monotonic()
         if now - self._last_flush > 1.0 / 30.0:
-            convert.flush(context.active_object)
+            if self.session.multires_ptr:
+                convert.draw_refresh(context.active_object)
+            else:
+                convert.flush(context.active_object)
             self._last_flush = now
         context.area.tag_redraw()
 
