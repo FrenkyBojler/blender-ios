@@ -417,7 +417,7 @@ keymap/tool/UI v0 — Tier-1 only (flush-to-Mesh draw, memfile undo).
       property paths. GUI-verified via event simulation: a DRAW bump (0.39
       radial deviation) smoothed to 0.04 by three Shift-strokes; F radial
       shows the standard overlay and landed 100→380 in the unified size.
-      Remaining: pressure (M4).
+      Pressure landed with M4 (see P7). S3 complete.
       The former `builtin.select_box not found` warning is fixed: a custom
       mode now declares `bl_default_tool` (new `ObjectModeType.default_tool`
       field + RNA prop), and `toolsystem_reinit_ensure_toolref` resolves it
@@ -632,8 +632,27 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       `[main, SMOOTH]` program, PROJECTED falloff shape.
 - [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
 - [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
-- [ ] M4 Pressure → `pushDeviceInput` + by-name dynamics; autosmooth
-      `[main, SMOOTH]` program; pixel-radius unprojection.
+- [x] M4 **done** — Pressure: the stroke operator configures the engine's
+      per-stroke device dynamics through the int-keyed ids (the string API
+      can't marshal `util::string`; constants in `mapping.py`) —
+      `use_pressure_strength`/`use_pressure_size` → identity-curve MULTIPLY
+      layers on strength/radius — and refills the device samples with
+      `event.pressure` per dab. Grab-class strokes get no dynamics (they
+      push no samples; a configured layer would apply stale device state).
+      Engine fix en route (submodule): `execBrush` never resolved common
+      props through the dynamics stack (only `execProgram` did), so pushed
+      samples were inert on plain dabs; it now runs `loadCommonProps(ctx)`
+      before exec (bit-identical no-op without configured devices; kernel
+      uniforms keep raw-field semantics — no `loadUniformProps` there, our
+      mapping sets them as fields). Verified:
+      `claudeMemory/tests/pressure_dynamics_test.py` (single-dab strength
+      ratio exactly 0.30 at pressure 0.3; radius footprint 29→9 verts at
+      0.5; samples inert without dynamics) + GUI operator path at mouse
+      pressure 1.0 (configured no-op). Engine ctest: 6 local failures are
+      pre-existing (A/B-verified against the reverted change — missing WGSL
+      backend config + two stale tests). Real-pen feel test still owed
+      (simulated events cannot carry pressure). Autosmooth program and
+      pixel-radius unprojection landed earlier (P3 A3 / P4 S2).
 - [~] M5 Per-brush-type parity harness (headless) — dabs each supported
       brush on a sphere and asserts the expected effect (DRAW/SHARP/INFLATE
       net-outward; CLAY/PLANE/SCRAPE/PINCH/SMOOTH move verts; MASK leaves

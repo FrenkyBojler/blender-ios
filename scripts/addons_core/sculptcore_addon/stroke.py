@@ -310,6 +310,26 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self._dab_count = 0
         smoothing = self.mode == 'SMOOTH'
         self._grab_class = not smoothing and mapping.is_grab_class(self.brush)
+        # Tablet pressure (M4): configure the engine's per-stroke device
+        # dynamics (identity response curve + multiply = linear, the vanilla
+        # semantics); each dab refills the device samples with the event
+        # pressure. Mouse events report pressure 1.0, so the stack is then a
+        # no-op. Grab-class strokes never push samples, so they get no
+        # dynamics (a configured layer with no sample would apply stale
+        # device state); the clears always run to drop the previous stroke's.
+        sc_brush = _ensure_brush(self.session)
+        sc_brush.clearPropDynamics(mapping.PROP_STRENGTH)
+        sc_brush.clearPropDynamics(mapping.PROP_RADIUS)
+        self._use_pressure = False
+        if not self._grab_class:
+            if self.brush.use_pressure_strength:
+                sc_brush.addPropDynamic(
+                    mapping.PROP_STRENGTH, mapping.DEVICE_PRESSURE, mapping.MIX_MULTIPLY, 1.0)
+                self._use_pressure = True
+            if self.brush.use_pressure_size:
+                sc_brush.addPropDynamic(
+                    mapping.PROP_RADIUS, mapping.DEVICE_PRESSURE, mapping.MIX_MULTIPLY, 1.0)
+                self._use_pressure = True
         self._anchor = None
         self._anchor_normal = None
         # Dab spacing along the stroke path (engine StrokeSpacer semantics:
@@ -384,6 +404,12 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                 mapping.apply_brush(
                     self.brush, unified, self.session.brush_obj,
                     world_radius=world_radius, invert=invert)
+                if self._use_pressure:
+                    # The executor consumes the device samples in loadProps;
+                    # refill per dab (engine bridge convention).
+                    sc = self.session.brush_obj
+                    sc.clearDeviceInputs()
+                    sc.pushDeviceInput(mapping.DEVICE_PRESSURE, event.pressure)
                 if self._dyntopo is not None:
                     apply_dyntopo_dab(self.session, self._program, position, normal,
                                       world_radius, self._dyntopo, self._dab_count + 1)

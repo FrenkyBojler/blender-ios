@@ -3,11 +3,15 @@
 Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
-Last updated: 2026-07-18. Current focus: **usability pass — cursor overlay
-(ObjectModeType.draw_cursor seam + cursor.py) and the keymap pass
-(Shift-smooth, Ctrl-invert via stroke `mode` enum, F / Shift-F radials on
-the shared sculpt Paint) both done; next pressure (M4)**. P8 C-track
-complete; A4 (grid paint mask) and the verification tail remain.
+Last updated: 2026-07-18. Current focus: **usability pass COMPLETE** —
+cursor overlay (ObjectModeType.draw_cursor seam + cursor.py), keymap pass
+(Shift-smooth / Ctrl-invert via stroke `mode` enum, F / Shift-F radials),
+and pressure (M4: per-stroke device dynamics via int-keyed ids + per-dab
+`event.pressure`; engine fix — `execBrush` now applies `loadCommonProps`
+with the device ctx). A real-pen feel test is still owed (simulation can't
+carry pressure). Next: P8 A4 (grid paint mask), the P8 verification tail
+(production asset, cage corpus), or P7 M2/M3 (engine-prop PropertyGroups +
+brush panel).
 
 ---
 

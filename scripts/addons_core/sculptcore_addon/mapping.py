@@ -17,6 +17,15 @@ persistent sculpt-layer attribute + brush texture. ``kernel_enum`` returns
 None for those so the stroke operator refuses cleanly rather than crashing.
 """
 
+# Engine constants for the device-dynamics seam (brush.h BrushProp ids,
+# prop_dynamics.h DeviceType, litestl mix.h BasicMix). The string-keyed
+# dynamics API is unreachable from Python (util::string args), so the stroke
+# operator configures pressure through these int-keyed ids.
+PROP_STRENGTH = 0
+PROP_RADIUS = 1
+DEVICE_PRESSURE = 0
+MIX_MULTIPLY = 1
+
 # Blender sculpt_brush_type -> (SculptCore SculptBrushes name, extra fields).
 # `extra` is a dict of SculptCore Brush field -> value/callable(bl_brush).
 # Verified per-dab via the parity harness (test_brush_parity).
