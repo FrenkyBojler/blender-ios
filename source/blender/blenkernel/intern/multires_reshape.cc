@@ -14,6 +14,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
+#include "BKE_paint.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -194,6 +195,61 @@ bool multiresModifier_reshapeFromPositions(Depsgraph *depsgraph,
   multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
   multires_reshape_context_free(&reshape_context);
   return true;
+}
+
+bool multiresModifier_maskFromVertValues(Depsgraph *depsgraph,
+                                         Main *bmain,
+                                         MultiresModifierData *mmd,
+                                         Object *object,
+                                         const Span<float> values)
+{
+  /* Consume the values at `totlvl` resolution, like the vertcos reshape. The
+   * mask layer is created at the top level when missing; masks are absolute
+   * scalars, so the assignment is the whole transfer (no smooth/bake pass). */
+  MultiresModifierData highest_mmd = dna::shallow_copy(*mmd);
+  highest_mmd.sculptlvl = highest_mmd.totlvl;
+  highest_mmd.lvl = highest_mmd.totlvl;
+  highest_mmd.renderlvl = highest_mmd.totlvl;
+
+  BKE_sculpt_mask_layers_ensure(depsgraph, bmain, object, &highest_mmd);
+
+  MultiresReshapeContext reshape_context;
+  if (!multires_reshape_context_create_from_object(
+          &reshape_context, depsgraph, object, &highest_mmd))
+  {
+    return false;
+  }
+  /* An existing layer may hold coarser grids; resize them to the top level
+   * (they are fully overwritten by the assignment below). */
+  multires_reshape_ensure_grids(id_cast<Mesh *>(object->data), reshape_context.top.level);
+  const bool ok = multires_reshape_assign_mask_from_vert_values(&reshape_context, values);
+  multires_reshape_context_free(&reshape_context);
+  return ok;
+}
+
+float *multiresModifier_maskToVertValues(Depsgraph *depsgraph,
+                                         MultiresModifierData *mmd,
+                                         Object *object,
+                                         int *r_values_num,
+                                         bool *r_has_mask)
+{
+  MultiresModifierData highest_mmd = dna::shallow_copy(*mmd);
+  highest_mmd.sculptlvl = highest_mmd.totlvl;
+  highest_mmd.lvl = highest_mmd.totlvl;
+  highest_mmd.renderlvl = highest_mmd.totlvl;
+
+  *r_values_num = 0;
+  MultiresReshapeContext reshape_context;
+  if (!multires_reshape_context_create_from_object(
+          &reshape_context, depsgraph, object, &highest_mmd))
+  {
+    *r_has_mask = false;
+    return nullptr;
+  }
+  *r_has_mask = reshape_context.grid_paint_masks != nullptr;
+  float *values = multires_reshape_read_mask_to_vert_values(&reshape_context, r_values_num);
+  multires_reshape_context_free(&reshape_context);
+  return values;
 }
 
 bool multiresModifier_reshapeFromVertPositions(Depsgraph *depsgraph,

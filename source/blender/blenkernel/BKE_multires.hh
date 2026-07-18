@@ -15,6 +15,7 @@
 namespace blender {
 
 struct Depsgraph;
+struct Main;
 struct MDisps;
 struct Mesh;
 struct ModifierData;
@@ -201,6 +202,32 @@ bool multiresModifier_reshapeFromVertPositions(Depsgraph *depsgraph,
                                                MultiresModifierData *mmd,
                                                Object *object,
                                                Span<float3> positions);
+
+/**
+ * Write `object`'s multires paint mask (#CD_GRID_PAINT_MASK, created when
+ * missing) from top-level values in subdivided-mesh vertex order (the same
+ * layout as #multiresModifier_reshapeFromVertPositions). Masks are absolute
+ * scalars â€” a direct assignment, no displacement smoothing. Returns false on
+ * a vertex-count mismatch.
+ */
+bool multiresModifier_maskFromVertValues(Depsgraph *depsgraph,
+                                         Main *bmain,
+                                         MultiresModifierData *mmd,
+                                         Object *object,
+                                         Span<float> values);
+
+/**
+ * Read `object`'s multires paint mask into top-level per-subdivided-vertex
+ * values (the read twin of #multiresModifier_maskFromVertValues; grids are
+ * sampled at their own stored level). Returns a MEM-allocated array of
+ * `*r_values_num` floats (all zero when no mask layer exists — reported via
+ * `r_has_mask`); null on failure. Caller frees.
+ */
+float *multiresModifier_maskToVertValues(Depsgraph *depsgraph,
+                                         MultiresModifierData *mmd,
+                                         Object *object,
+                                         int *r_values_num,
+                                         bool *r_has_mask);
 
 /* Subdivide multi-res displacement once. */
 

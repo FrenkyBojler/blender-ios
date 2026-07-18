@@ -75,12 +75,19 @@ levels + production scale (`p8_scale.py` — L6 exact; 289k verts at 6e-7,
 ~12 s enter, `_nearest` now `mathutils.kdtree`), and the render comparison
 (`p8_render.py` — full session round trip renders identically).
 
+A4 is done — **P8 is complete** (all feature items + verification).
+Blender seam: `Object.multires_mask_from/to_vert_values` (mask twin of the
+vertcos reshape walk; write ensures/resizes grids, read bilinear-samples at
+each grid's own level). Addon: `MultiresMap.engine_vert_to_blender` (from
+`levelGridVertsOut`; reflected primitive name is `int32`) routes
+`.spatial.v.mask` ⇄ `CD_GRID_PAINT_MASK`, exchanged at the top level (enter/
+flush/level-switch persist). Gate: `scripts/p8_mask.py`.
+
 ## 3. The exact next tasks
 
-- **A4** — grid paint-mask channel in/out (engine grid channel I/O + the
-  `.sculpt_mask`-equivalent on grids). Needs a small Blender C seam
-  (CD_GRID_PAINT_MASK read/write) → blender.exe rebuild.
 - P7 M2/M3 — manifest-generated engine-prop PropertyGroups + brush panel.
+- Hardening gates still open: live GUI object/workspace switch matrix (P2),
+  ASAN + `WITH_UNITY_BUILD=OFF` clean build (P2/P3).
 - Store-rewriting ops (down-refit, subdivide/delete) land with their
   features; their undo payload seam (`serializeStore` blobs) already exists.
 

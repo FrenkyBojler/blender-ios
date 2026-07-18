@@ -183,6 +183,11 @@ def _enter_multires(ob, md):
     mesh_ptr = lib.Multires_activeMesh(mr)
     tree_ptr = lib.Multires_activeTree(mr)
 
+    # Mask (A4): seed the top-level engine mask from the grid paint mask.
+    # Exchange happens at the top level only — see _flush_multires.
+    depsgraph = context.evaluated_depsgraph_get()
+    multires.import_mask(ob, depsgraph, mesh_ptr, mr_map)
+
     session = Session(ob.name, mesh_ptr, tree_ptr, _mesh_vert_num(mesh_ptr))
     session.blender_verts_num = len(ob.data.vertices)
     session.multires_ptr = mr
@@ -452,14 +457,26 @@ def multires_restore_blob(ob, session, blob, level):
 def set_multires_level(ob, level):
     """Switch a multires session's active engine level (C2). The engine
     writes the outgoing level's edits back into the store; finer detail rides
-    on top of coarser edits through the displacement cascade."""
+    on top of coarser edits through the displacement cascade. The paint mask
+    lives on the level mesh (dropped with the evicted slot), so leaving the
+    top level persists it to the grid paint mask and returning re-seeds it."""
+    import bpy
+
     session = engine.sessions.get(ob.name)
     if session is None or not session.multires_ptr:
         return
     lib = engine.capi().lib
     level = min(max(int(level), 1), session.multires_level)
+    top = session.multires_level
+    was = session.multires_active_level
+    if was == top and level != top:
+        multires.export_mask(ob, bpy.context.evaluated_depsgraph_get(),
+                             session.mesh_ptr, session.multires_map)
     actual = lib.Multires_setActiveLevel(session.multires_ptr, level)
     _rebind_multires_views(session, actual)
+    if actual == top and was != top:
+        multires.import_mask(ob, bpy.context.evaluated_depsgraph_get(),
+                             session.mesh_ptr, session.multires_map)
 
 
 def _flush_multires(ob, session):
@@ -467,11 +484,15 @@ def _flush_multires(ob, session):
     object's CD_MDISPS. The bake builds its own subdivision from the base mesh,
     so the suppressed modifier viewport state does not affect it. Dumping the
     top level moves the engine's active level there; restore the sculpt level
-    afterwards (a no-op rebind while the slots stay resident)."""
+    afterwards (a no-op rebind while the slots stay resident). The paint mask
+    is exchanged at the top level only (the mask attribute lives on the level
+    mesh; a level switch persists it — see set_multires_level)."""
     import bpy
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
     multires.export_bake(ob, depsgraph, session.multires_ptr, session.multires_map)
+    if session.multires_active_level == session.multires_level:
+        multires.export_mask(ob, depsgraph, session.mesh_ptr, session.multires_map)
     lib = engine.capi().lib
     if session.multires_active_level != session.multires_level:
         lib.Multires_setActiveLevel(session.multires_ptr, session.multires_active_level)

@@ -701,7 +701,23 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       SculptCore surface → NN map → B2 bake → tear-free MDISPS. Import is the
       mirror (inverse map → A1). Cache the map per session; assert bijectivity.
       (Grid-sample C entry not needed — the dedup vertex path replaced it.)
-- [ ] A4 Grid paint-mask channel in/out.
+- [x] A4 Grid paint-mask channel in/out **done** — Blender seam:
+      `multiresModifier_maskFromVertValues` / `_maskToVertValues` (mask twin
+      of the dedup-vertcos reshape walk in `multires_reshape_vertcos.cc`;
+      masks are absolute so it is a direct top-level assignment — writes
+      ensure/resize the `CD_GRID_PAINT_MASK` grids, reads bilinear-sample
+      each grid at its own stored level) + RNA
+      `Object.multires_mask_from/to_vert_values` (the identifier `values` is
+      Python-reserved in RNA — `mask_values`). Addon: `MultiresMap` gains
+      `engine_vert_to_blender` derived from `levelGridVertsOut` (no extra
+      KD pass; note the reflected primitive is `int32`, not `int`);
+      `multires.import_mask`/`export_mask` route `.spatial.v.mask` ⇄ grid
+      mask through it. Exchange at the top level only: enter seeds, flush
+      exports when active==top, and a level switch persists/re-seeds around
+      the slot eviction. Verified (`scripts/p8_mask.py`, ALL PASS):
+      vanilla-authored mask imports exactly, MASK brush paints, exit/
+      re-enter round-trips through the grids, fully-masked verts resist a
+      DRAW stroke at zero movement, level round trip preserves the mask.
 - [~] B Blender bake seam **implemented**: `multiresModifier_reshapeFromPositions`
       (`multires_reshape.cc`, per-grid-array assign mirroring the CCG path) +
       `Object.multires_reshape_from_positions` RNA (`rna_object_api.cc`). Works

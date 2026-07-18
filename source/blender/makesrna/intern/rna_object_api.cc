@@ -461,6 +461,47 @@ static void rna_Object_multires_reshape_from_vert_positions(Object *object,
   }
 }
 
+static void rna_Object_multires_mask_from_vert_values(Object *object,
+                                                      Main *bmain,
+                                                      ReportList *reports,
+                                                      Depsgraph *depsgraph,
+                                                      const float *values,
+                                                      int values_num)
+{
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(
+      BKE_modifiers_findby_type(object, eModifierType_Multires));
+  if (mmd == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Object has no multires modifier");
+    return;
+  }
+  const Span<float> vert_values(values, values_num);
+  if (!multiresModifier_maskFromVertValues(depsgraph, bmain, mmd, object, vert_values)) {
+    BKE_report(reports, RPT_ERROR, "Multires mask write failed (vertex count mismatch)");
+  }
+}
+
+static void rna_Object_multires_mask_to_vert_values(Object *object,
+                                                    ReportList *reports,
+                                                    Depsgraph *depsgraph,
+                                                    float **r_values,
+                                                    int *r_values_num,
+                                                    bool *r_has_mask)
+{
+  *r_values = nullptr;
+  *r_values_num = 0;
+  *r_has_mask = false;
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(
+      BKE_modifiers_findby_type(object, eModifierType_Multires));
+  if (mmd == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Object has no multires modifier");
+    return;
+  }
+  *r_values = multiresModifier_maskToVertValues(depsgraph, mmd, object, r_values_num, r_has_mask);
+  if (*r_values == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Multires mask read failed");
+  }
+}
+
 /* copied from Mesh_getFromObject and adapted to RNA interface */
 static Mesh *rna_Object_to_mesh(Object *object,
                                 ReportList *reports,
@@ -1115,6 +1156,54 @@ void RNA_api_object(StructRNA *srna)
                              -FLT_MAX,
                              FLT_MAX);
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL | PROP_DYNAMIC, PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "multires_mask_from_vert_values",
+                          "rna_Object_multires_mask_from_vert_values");
+  RNA_def_function_ui_description(func,
+                                  "Write the multires paint mask from top-level values in "
+                                  "subdivided-mesh vertex order (one float per subdivided "
+                                  "vertex); the mask layer is created when missing");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_MAIN);
+  parm = RNA_def_pointer(
+      func, "depsgraph", "Depsgraph", "", "Depsgraph to get evaluated data from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_float_array(func,
+                             "mask_values",
+                             1,
+                             nullptr,
+                             0.0f,
+                             1.0f,
+                             "",
+                             "Per-subdivided-vertex mask values",
+                             0.0f,
+                             1.0f);
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL | PROP_DYNAMIC, PARM_REQUIRED);
+
+  func = RNA_def_function(
+      srna, "multires_mask_to_vert_values", "rna_Object_multires_mask_to_vert_values");
+  RNA_def_function_ui_description(func,
+                                  "Read the multires paint mask as top-level values in "
+                                  "subdivided-mesh vertex order (all zero when the object "
+                                  "has no mask layer)");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(
+      func, "depsgraph", "Depsgraph", "", "Depsgraph to get evaluated data from");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_float_array(func,
+                             "mask_values",
+                             1,
+                             nullptr,
+                             0.0f,
+                             1.0f,
+                             "",
+                             "Per-subdivided-vertex mask values",
+                             0.0f,
+                             1.0f);
+  RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
+  parm = RNA_def_boolean(
+      func, "has_mask", false, "Has Mask", "Whether the object had a mask layer");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_OUTPUT);
 
   /* Crazy-space access. */
 

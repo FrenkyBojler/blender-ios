@@ -85,12 +85,18 @@ class MultiresMap:
     """Correspondence between engine grid samples and Blender subdivided
     vertices for one object, built once from the undisplaced base."""
 
-    def __init__(self, level, engine_sample_to_blender, blender_to_engine_sample):
+    def __init__(self, level, engine_sample_to_blender, blender_to_engine_sample,
+                 engine_vert_to_blender):
         self.level = level
         # engine grid-sample index -> Blender subdiv-vertex index (import seed).
         self.engine_sample_to_blender = engine_sample_to_blender
         # Blender subdiv-vertex index -> engine grid-sample index (export bake).
         self.blender_to_engine_sample = blender_to_engine_sample
+        # engine level-mesh vertex -> Blender subdiv-vertex index (per-vertex
+        # attribute exchange, e.g. the paint mask). Derived from the grid
+        # tables (each grid sample names its engine vertex), not another
+        # nearest-neighbour pass.
+        self.engine_vert_to_blender = engine_vert_to_blender
 
 
 def build_engine(base_arrays, level):
@@ -126,7 +132,23 @@ def build_map(context, base_arrays, mr_ptr, level):
     blender_base = _base_reference_positions(context, base_arrays, level)
     engine_sample_to_blender = _nearest(engine_base, blender_base)
     blender_to_engine_sample = _nearest(blender_base, engine_base)
-    return MultiresMap(level, engine_sample_to_blender, blender_to_engine_sample)
+
+    # Grid sample -> engine vertex, from the stack's grid tables; combined
+    # with the sample map this gives the per-vertex correspondence (seam
+    # replicas of one vertex agree on their Blender pairing).
+    import sculptcore
+
+    mgr = engine.manager()
+    mr_obj = mgr.get_bound_pointer(
+        mgr.get("sculptcore::subdiv::Multires"), mr_ptr, deref=False)
+    with sculptcore.construct_from_items(mgr, mgr.get("int32"), []) as out:
+        mr_obj.levelGridVertsOut(level, out)
+        grid_verts = out.numpy().copy()
+    valid = grid_verts >= 0
+    engine_vert_to_blender = np.zeros(int(grid_verts.max()) + 1, dtype=np.int64)
+    engine_vert_to_blender[grid_verts[valid]] = engine_sample_to_blender[valid]
+    return MultiresMap(level, engine_sample_to_blender, blender_to_engine_sample,
+                       engine_vert_to_blender)
 
 
 def import_displacement(mr_ptr, mapping, blender_top_positions):
@@ -158,3 +180,40 @@ def export_bake(ob, depsgraph, mr_ptr, mapping):
         engine_top[mapping.blender_to_engine_sample].reshape(-1), dtype=np.float32)
     ob.multires_reshape_from_vert_positions(depsgraph, vertcos)
     ob.data.update_tag()
+
+
+# Mask exchange (A4). The engine mask lives on the level mesh's
+# `.spatial.v.mask` column, Blender's on CD_GRID_PAINT_MASK; both directions
+# route through top-level per-subdiv-vertex values via the vert map.
+_SC_MASK = b".spatial.v.mask"
+
+
+def import_mask(ob, depsgraph, mesh_ptr, mapping):
+    """Seed the engine mask on the (top-level) engine mesh from the object's
+    grid paint mask. No-op without a mask layer; returns True when seeded."""
+    import numpy as np
+
+    values, has_mask = ob.multires_mask_to_vert_values(depsgraph)
+    if not has_mask:
+        return False
+    blender_values = np.array(values, dtype=np.float32)
+    engine_values = np.ascontiguousarray(
+        blender_values[mapping.engine_vert_to_blender], dtype=np.float32)
+    engine.capi().lib.Mesh_writeVertFloatAttr(mesh_ptr, _SC_MASK, engine_values)
+    return True
+
+
+def export_mask(ob, depsgraph, mesh_ptr, mapping):
+    """Write the engine mask back into the object's grid paint mask (created
+    on first use). No-op when the engine mesh carries no mask."""
+    import numpy as np
+
+    engine_values = np.zeros(len(mapping.engine_vert_to_blender), dtype=np.float32)
+    if not engine.capi().lib.Mesh_readVertFloatAttr(mesh_ptr, _SC_MASK, engine_values):
+        return False
+    blender_values = np.zeros(len(mapping.blender_to_engine_sample), dtype=np.float32)
+    blender_values[mapping.engine_vert_to_blender] = engine_values
+    ob.multires_mask_from_vert_values(
+        depsgraph, np.ascontiguousarray(blender_values, dtype=np.float32))
+    ob.data.update_tag()
+    return True
