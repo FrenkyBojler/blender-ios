@@ -58,6 +58,9 @@ class Session:
         "multires_level",
         "multires_active_level",
         "multires_show_viewport",
+        # Store snapshot after the latest undo push (bytes) — the next push's
+        # pre-state, and the C4 blob-fallback base for level-crossing undo.
+        "multires_last_blob",
         "_freed",
     )
 
@@ -84,6 +87,7 @@ class Session:
         self.multires_level = 0
         self.multires_active_level = 0
         self.multires_show_viewport = True
+        self.multires_last_blob = None
         self._freed = False
 
     def mesh(self):

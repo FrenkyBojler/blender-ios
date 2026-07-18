@@ -12,9 +12,11 @@
  * byte size, and applies the delta through the mode's `undo_decode`/`undo_free`
  * callbacks.
  *
- * The type is opt-in: `poll` is true only for an active object in a custom
- * mode whose #ObjectModeType set #OBJECT_MODE_TYPE_USE_CUSTOM_UNDO and defined
- * the callbacks, so modes that stay on memfile undo are unaffected.
+ * The type is never chosen from context (`poll` is null, like #SCULPT): steps
+ * are created only by the explicit typed push in #ED_custom_mode_undo_push.
+ * Generic pushes while in the mode — property edits, operators without their
+ * own undo type — fall through to the memfile catch-all, so DNA changes made
+ * in the mode (e.g. multires `sculpt_levels`) stay undoable.
  *
  * This is the Tier-2 lifecycle (push / decode / free); the full memfile-
  * interleave discipline (undo-integration plan §4) layers on top.
@@ -65,11 +67,6 @@ static Object *custom_mode_active_object(bContext *C)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   return BKE_view_layer_active_object_get(view_layer);
-}
-
-static bool custom_mode_undosys_poll(bContext *C)
-{
-  return BKE_object_custom_mode_uses_custom_undo(custom_mode_active_object(C));
 }
 
 static bool custom_mode_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *us_p)
@@ -129,7 +126,9 @@ static void custom_mode_undosys_foreach_ID_ref(UndoStep *us_p,
 void ED_custom_mode_undosys_type(UndoType *ut)
 {
   ut->identifier = "CUSTOM_MODE";
-  ut->poll = custom_mode_undosys_poll;
+  /* No poll from context (matches #SCULPT): generic pushes in the mode must
+   * become memfile steps, or DNA edits made while in the mode are lost. */
+  ut->poll = nullptr;
   ut->step_encode = custom_mode_undosys_step_encode;
   ut->step_decode = custom_mode_undosys_step_decode;
   ut->step_free = custom_mode_undosys_step_free;

@@ -3,8 +3,9 @@
 Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
-Last updated: 2026-07-17. Current focus: **P8 multires — session wiring + C2
-level UI done; next C4 (undo payload)**.
+Last updated: 2026-07-17. Current focus: **P8 multires — session wiring, C2
+level UI and C4 undo all done; next A4 (grid paint mask) or the verification
+tail (production asset, cage corpus)**.
 
 ---
 
@@ -51,16 +52,25 @@ a generation bump, draw tree re-registered); enter honors it and
 `_flush_multires` restores it after the top-level dump. N-panel "Multires"
 slider. Gate: `scripts/p8_level.py`.
 
+C4 is done: level-crossing undo works via per-stroke store-snapshot blobs
+(`undo.push` serializes post-writeback; decode falls back to
+`convert.multires_restore_blob` when the step's meshlog died), the level
+switch itself undoes through its memfile property step + the depsgraph
+handler, and the enabler was a C fix — `custom_mode_undo.cc` now has
+`ut->poll = nullptr` (generic pushes fall to memfile; before, property edits
+in-mode became inert CUSTOM steps and were unrecoverable) plus
+flush-on-final-decode in `undo.decode` (re-asserts the engine after a
+correct-order memfile restore below a custom step). Gates: `p8_c4.py` + the
+full P6 suite (`claudeMemory/tests/`, run via `run_sync.py`).
+
 ## 3. The exact next tasks
 
-- **C4** — level-crossing undo + store-rewriting ops. **In-level stroke
-  undo/redo is already exact** (P6 meshlog + flush bake, `p8_mundo.py` —
-  undo 2e-7 / redo bit-exact, no extra code). What remains: a level switch
-  resets the meshlog + bumps the generation (prior steps decode as no-ops),
-  and down-refit/subdivide/delete rewrite the store — both want
-  `Multires_serializeStore`/`_restoreStore` External-chunk payloads.
+- **A4** — grid paint-mask channel in/out (engine grid channel I/O + the
+  `.sculpt_mask`-equivalent on grids).
 - P8 verification tail: production-asset render comparison; corpus (n-gon,
-  creased, boundary-heavy cages; levels 1–6+); A4 grid paint-mask channel.
+  creased, boundary-heavy cages; levels 1–6+).
+- Store-rewriting ops (down-refit, subdivide/delete) land with their
+  features; their undo payload seam (`serializeStore` blobs) already exists.
 
 ## 4. Environment gotchas (learned the hard way)
 
@@ -103,3 +113,9 @@ Launch any with `blender --factory-startup --python <script>`; read
   (CUSTOM_MODE step → meshlog seek → re-bake; undo 2e-7, redo bit-exact).
   Timer-run ops push no undo steps — the harness pushes a "setup" step so
   the stroke has a real boundary below it.
+- `p8_c4.py` — **level-crossing undo/redo** (strokes at two levels + a
+  sculpt-level switch; meshlog fast path, blob fallback, level follows the
+  history).
+- Run any timer-style harness with `run_harness.py`, and the synchronous
+  P6 tests (`claudeMemory/tests/custom_undo_*.py`) with `run_sync.py`
+  (hard-exits — `wm.quit_blender` can block on the save prompt).

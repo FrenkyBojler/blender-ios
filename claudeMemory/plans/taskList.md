@@ -491,6 +491,12 @@ coherence across memfile interleaves / mode-exit boundaries is the hard part
       not an opaque `PyObject *` from an `undo_encode` trampoline — no GIL work
       at free time. `UNDOTYPE_FLAG_DECODE_ACTIVE_STEP` so the type reverts its
       own step on undo rather than relying on the destination memfile decode.)
+      **Amended in P8 C4:** `ut->poll = nullptr` (like SCULPT) — steps come
+      only from the explicit typed push; generic pushes in-mode (property
+      edits) fall through to memfile so DNA changes stay undoable. Paired
+      with a flush-on-final-decode in addon `undo.decode` (the correct-order
+      memfile restore below a custom step replaces Mesh data the engine must
+      re-assert). Full P6 suite re-verified after the change.
 - [x] A2 `undo_decode`(+`is_final`)/`undo_free` trampolines +
       `OBJECT_OT_custom_mode_undo_push` (replaces the planned
       `undo_encode`/`undo_push_custom`).
@@ -690,13 +696,33 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       rebind 386→98 verts, sculpt at L2, flush restore, cascade into the
       bake) and GUI (live provider redraw on switch L3→L1→L3, coarse edit
       rides the cascade). Subdivide/delete deferred.
-- [~] C4 Undo — **in-level stroke undo/redo already exact** via the P6
-      meshlog path composed with the flush bake (undo 2e-7, redo bit-exact;
-      `scripts/p8_mundo.py`), no extra code needed. Remaining C4 scope:
-      level-crossing undo (a level switch resets the meshlog + bumps the
-      generation, orphaning prior steps → they decode as no-ops) and
-      store-rewriting ops (down-refit, subdivide/delete) via
-      `Multires_serializeStore`/`_restoreStore` External chunks.
+- [x] C4 Undo **done** — three layers:
+      (1) In-level stroke undo/redo exact via the P6 meshlog path + flush
+      bake, no extra code (`scripts/p8_mundo.py`).
+      (2) **Level-crossing undo** via store-snapshot fallback: `undo.push`
+      captures `Multires_serializeStore` blobs per stroke (post-writeback,
+      `blob_before`/`blob_after`, neighbours share one bytes object; size
+      counts toward the undo limiter); when a step's meshlog died (level
+      switch / earlier blob restore → generation mismatch), decode restores
+      the blob at the step's recorded level (`convert.multires_restore_blob`
+      → `restoreStore` + `setActiveLevel` + rebind). The **level switch
+      itself** needs no custom step: the `sculpt_levels` property edit pushes
+      a memfile step, and undo re-drives the engine through the depsgraph
+      handler. `session.multires_last_blob` keeps the chain rooted at the
+      landed state across undo/redo branching.
+      (3) Enabler fix in `custom_mode_undo.cc`: **`ut->poll = nullptr`**
+      (like SCULPT) — the old context poll made EVERY generic push (property
+      edits, `ed.undo_push`) an inert CUSTOM step, so DNA edits made in-mode
+      were unrecoverable. Generic pushes now fall to the memfile catch-all.
+      Follow-up in `undo.decode`: flush on every final decode even when the
+      cursor did not move — the correct-order rule may have decoded an older
+      memfile below the step (replacing the Mesh) which the flush re-asserts.
+      Verified: `scripts/p8_c4.py` (strokes at L3/L2 with a switch between;
+      undo to the asset and redo back — every stop ~1e-7, level follows the
+      history) + the FULL P6 suite re-run green (7 tests) + full P8 suite.
+      Store-rewriting ops (down-refit, subdivide/delete) stay deferred with
+      their features. Caveat: one full store blob per stroke (limiter-bounded;
+      revisit if profiling demands per-level chunks).
 
 ### Verification (per plan §5)
 - [~] Zero-displacement and no-stroke identity round trips — no-stroke

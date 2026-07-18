@@ -200,6 +200,9 @@ def _enter_multires(ob, md):
     sculpt_level = min(max(md.sculpt_levels, 1), level)
     if sculpt_level != level:
         set_multires_level(ob, sculpt_level)
+
+    # The imported state is the first undo push's pre-state (C4).
+    session.multires_last_blob = multires_store_blob(session)
     return session
 
 
@@ -406,6 +409,43 @@ def _rebind_multires_views(session, active_level):
         lib.sc_external_draw_unregister(session.draw_key)
         lib.sc_external_draw_register(session.draw_key, tree_ptr)
         lib.sc_external_draw_update(session.draw_key)
+
+
+def multires_store_blob(session):
+    """Snapshot the multires displacement store as bytes (C4 undo payload).
+    The active level is written back first so pending slot-mesh edits are
+    included. Returns None on failure (or for plain-Mesh sessions)."""
+    import ctypes
+
+    if not session.multires_ptr:
+        return None
+    lib = engine.capi().lib
+    lib.Multires_writeback(session.multires_ptr, session.multires_active_level)
+    size = ctypes.c_int(0)
+    buf = lib.Multires_serializeStore(session.multires_ptr, ctypes.byref(size))
+    if not buf or size.value <= 0:
+        return None
+    try:
+        return ctypes.string_at(buf, size.value)
+    finally:
+        lib.freeMeshBuffer(buf)
+
+
+def multires_restore_blob(ob, session, blob, level):
+    """Restore a store snapshot and re-activate `level` (C4 undo fallback for
+    steps whose meshlog died — a level switch or blob restore reset it). The
+    restore invalidates every derived slot, so the views always rebind.
+    Returns False when the blob no longer fits the cage (foreign rebuild)."""
+    lib = engine.capi().lib
+    if not lib.Multires_restoreStore(session.multires_ptr, blob, len(blob)):
+        print("SculptCore: multires undo blob no longer matches {!r}; "
+              "step skipped".format(ob.name))
+        return False
+    actual = lib.Multires_setActiveLevel(session.multires_ptr, level)
+    _rebind_multires_views(session, actual)
+    # The store now equals this blob; a new stroke branches from here.
+    session.multires_last_blob = blob
+    return True
 
 
 def set_multires_level(ob, level):

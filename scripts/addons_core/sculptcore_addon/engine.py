@@ -132,6 +132,19 @@ class _CApi:
         lib.Multires_fromLevelPositions.argtypes = [
             ctypes.c_void_p, ctypes.c_int, f32p, ctypes.c_int]
         lib.Multires_fromLevelPositions.restype = ctypes.c_int
+        lib.Multires_writeback.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        lib.Multires_writeback.restype = ctypes.c_int
+        # Store snapshot seam (P8 C4): serialize returns an engine-owned
+        # buffer (free with freeMeshBuffer); restore replaces the store and
+        # invalidates every derived level (re-activate + re-fetch afterwards).
+        lib.Multires_serializeStore.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+        lib.Multires_serializeStore.restype = ctypes.POINTER(ctypes.c_uint8)
+        lib.Multires_restoreStore.argtypes = [
+            ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        lib.Multires_restoreStore.restype = ctypes.c_int
+        lib.freeMeshBuffer.argtypes = [ctypes.POINTER(ctypes.c_uint8)]
+        lib.freeMeshBuffer.restype = None
 
         # External draw provider (P5 D6): register a tree under the object's
         # session_uid, refresh its GPU-node CPU buffers, and hand Blender the
