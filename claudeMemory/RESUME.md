@@ -87,6 +87,16 @@ divergence guard keys off `session.blender_verts_num`). Gates:
 `--enable-event-simulate` + `win.event_simulate` (dismiss the splash first —
 it eats the first simulated click).
 
+Real-use follow-up fixes (test under the USER'S prefs, not only factory —
+OpenGL backend + a real layout caught two GUI-path bugs the harnesses
+missed): (1) `draw_refresh` must tag `ID_RECALC_SHADING` (new 'SHADING'
+item on `ID.update_tag`) or the draw manager never re-queries the provider
+— the old throttled flush tagged implicitly; and `draw_external` must
+`GPU_vertbuf_use` after refilling (GL uploads dirty vertbufs only on bind;
+cached VAOs never rebind). (2) Paint cursors draw with the WINDOW pixel
+projection — never re-ortho to the region (stretched oval); translate the
+model-view to the region origin instead.
+
 ## 4. Environment gotchas (learned the hard way)
 
 - **The addon runs from the build dir, not the source tree.** After editing any
