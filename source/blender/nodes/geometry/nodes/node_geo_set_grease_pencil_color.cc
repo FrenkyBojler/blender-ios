@@ -132,20 +132,6 @@ static void rna_SetGPColor_mode_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int
 
 static void node_rna(StructRNA *srna)
 {
-  static const EnumPropertyItem mode_items[] = {
-      {int(Mode::Stroke),
-       "STROKE",
-       ICON_NONE,
-       "Stroke",
-       "Set the color and opacity for the points of the stroke"},
-      {int(Mode::Fill),
-       "FILL",
-       ICON_NONE,
-       "Fill",
-       "Set the color and opacity for the stroke fills"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   PropertyRNA *prop;
   prop = RNA_def_node_enum(
       srna, "mode", "Mode", "", mode_items, NOD_inline_enum_accessors(custom1));
