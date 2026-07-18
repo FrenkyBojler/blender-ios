@@ -69,12 +69,18 @@ flush-on-final-decode in `undo.decode` (re-asserts the engine after a
 correct-order memfile restore below a custom step). Gates: `p8_c4.py` + the
 full P6 suite (`claudeMemory/tests/`, run via `run_sync.py`).
 
+The P8 verification tail is DONE: cage corpus (`p8_corpus.py` — n-gon/tri/
+boundary/creased, all ~1e-7 except creased export ~5e-4, documented), deep
+levels + production scale (`p8_scale.py` — L6 exact; 289k verts at 6e-7,
+~12 s enter, `_nearest` now `mathutils.kdtree`), and the render comparison
+(`p8_render.py` — full session round trip renders identically).
+
 ## 3. The exact next tasks
 
 - **A4** — grid paint-mask channel in/out (engine grid channel I/O + the
-  `.sculpt_mask`-equivalent on grids).
-- P8 verification tail: production-asset render comparison; corpus (n-gon,
-  creased, boundary-heavy cages; levels 1–6+).
+  `.sculpt_mask`-equivalent on grids). Needs a small Blender C seam
+  (CD_GRID_PAINT_MASK read/write) → blender.exe rebuild.
+- P7 M2/M3 — manifest-generated engine-prop PropertyGroups + brush panel.
 - Store-rewriting ops (down-refit, subdivide/delete) land with their
   features; their undo payload seam (`serializeStore` blobs) already exists.
 

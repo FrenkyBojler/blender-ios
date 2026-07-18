@@ -779,9 +779,20 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       revisit if profiling demands per-level chunks).
 
 ### Verification (per plan §5)
-- [~] Zero-displacement and no-stroke identity round trips — no-stroke
+- [x] Zero-displacement and no-stroke identity round trips — no-stroke
       identity through the full mode lifecycle at ~2e-7 (`p8_session.py`);
-      render comparison on a production multires asset still owed.
+      **render comparison done** (`scripts/p8_render.py`): a displaced
+      production-style asset through a full enter/exit session renders
+      identically (max pixel diff = one 8-bit quantum, mean 0).
 - [x] Edit round trip visible/correct in vanilla Blender at view levels
       1–3 (GUI, displaced multires cube; deeper levels with the corpus pass).
-- [ ] Corpus: n-gon, creased, boundary-heavy cages; levels 1–6+.
+- [x] **Corpus done** (`scripts/p8_corpus.py`): quad cube, n-gon cube,
+      triangle cone, open boundary grid, open cylinder, creased cube ×
+      L2–4 — all bijective, import/export ~1e-7 except the creased cube's
+      export (~5e-4, within tolerance; the NN reference is built uncreased
+      while Blender's bake respects creases — carry creases into the
+      reference/cage if tighter is ever needed). Deep levels + scale
+      (`scripts/p8_scale.py`): L5–6 exact; a 1.1k-face sphere at L4 (289k
+      subdiv verts) round-trips at 6e-7, enter cost ~12 s (KD-tree map build
+      dominates at ~7 s — `_nearest` swapped from O(N·M) brute force to
+      `mathutils.kdtree`, without which production counts were unreachable).

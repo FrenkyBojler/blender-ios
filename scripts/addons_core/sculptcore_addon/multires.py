@@ -64,14 +64,20 @@ def _base_reference_positions(context, base_arrays, level):
 
 
 def _nearest(query, reference):
-    """For each row of `query`, the index of the nearest row in `reference`."""
+    """For each row of `query`, the index of the nearest row in `reference`
+    (KD-tree — the brute-force pairing is O(N*M) and unusable at production
+    vertex counts)."""
     import numpy as np
+    from mathutils.kdtree import KDTree
 
+    tree = KDTree(len(reference))
+    for i, co in enumerate(reference):
+        tree.insert(co, i)
+    tree.balance()
     idx = np.empty(len(query), dtype=np.int64)
-    for i in range(0, len(query), 256):
-        block = query[i:i + 256]
-        d = np.linalg.norm(block[:, None, :] - reference[None, :, :], axis=2)
-        idx[i:i + 256] = d.argmin(axis=1)
+    for i, co in enumerate(query):
+        _co, index, _dist = tree.find(co)
+        idx[i] = index
     return idx
 
 
