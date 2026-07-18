@@ -121,7 +121,7 @@ void solve_length_and_collision_constraints(const OffsetIndices<int> points_by_c
                 break;
               }
               const float3 hit_pos_su = ray.origin + ray.direction * hit->distance;
-              const float3 hit_normal_su = hit->normal;
+              const float3 hit_normal_su = math::normalize(hit->normal);
               if (math::dot(hit_normal_su, ray_direction_su) > 0.0f) {
                 /* Moving from the inside to the outside is ok. */
                 break;

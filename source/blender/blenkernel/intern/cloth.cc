@@ -20,6 +20,7 @@
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_rand_c.hh"
 
@@ -1432,7 +1433,7 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
   int vert_idx = -1;
 
   if (rayhit->index != -1 && rayhit->distance <= max_length) {
-    if (check_normal && dot_v3v3(rayhit->normal, no) < 0.0f) {
+    if (check_normal && dot_v3v3(math::normalize(rayhit->normal), no) < 0.0f) {
       /* We hit a point that points in the same direction as our starting point. */
       return false;
     }

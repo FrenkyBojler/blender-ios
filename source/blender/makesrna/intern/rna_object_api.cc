@@ -666,7 +666,7 @@ static void rna_Object_ray_cast(Object *ob,
         *r_success = success = true;
 
         copy_v3_v3(r_location, hit->position(ray));
-        copy_v3_v3(r_normal, hit->normal);
+        copy_v3_v3(r_normal, math::normalize(hit->normal));
         *r_index = mesh_corner_tri_to_face_index(mesh_eval, hit->index);
       }
     }

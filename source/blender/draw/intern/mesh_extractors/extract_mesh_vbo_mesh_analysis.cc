@@ -15,6 +15,7 @@
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "BKE_bvh.hh"
@@ -225,7 +226,7 @@ static void statvis_calc_thickness(const MeshRenderData &mr,
         const bke::bvh::Ray ray(ray_co, ray_no, face_dists[index]);
         const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(ray);
         if (hit && hit->distance < face_dists[index]) {
-          float angle_fac = fabsf(dot_v3v3(mr.face_normals[index], hit->normal));
+          float angle_fac = fabsf(dot_v3v3(mr.face_normals[index], math::normalize(hit->normal)));
           angle_fac = 1.0f - angle_fac;
           angle_fac = angle_fac * angle_fac * angle_fac;
           angle_fac = 1.0f - angle_fac;
