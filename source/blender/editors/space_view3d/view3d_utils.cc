@@ -1700,6 +1700,7 @@ void ED_view3d_to_object(const Depsgraph *depsgraph,
   ED_view3d_to_m4(mat, ofs, quat, dist);
 
   if (camroll != 0.0f) {
+    /* The view roll is already applied to `quat` so removed it here. */
     rotate_m4(mat, 'Z', camroll);
   }
 
