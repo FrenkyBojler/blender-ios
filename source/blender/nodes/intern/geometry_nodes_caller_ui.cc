@@ -869,14 +869,14 @@ static void draw_manage_panel(const bContext *C,
   }
 }
 
-static void draw_debug_view_selector(const bContext & /*C*/,
+static void draw_debug_view_selector(const bContext &C,
                                      ui::Layout &layout,
                                      Object &object,
                                      NodesModifierData &nmd)
 {
   const int required_mode = eModifierMode_Realtime |
                             (BKE_object_is_in_editmode(&object) ? eModifierMode_Editmode : 0);
-  if ((nmd.modifier.mode & required_mode) != required_mode ||
+  if (!BKE_modifier_is_enabled(CTX_data_scene(&C), &nmd.modifier, required_mode) ||
       !(nmd.flag & NODES_MODIFIER_SHOW_DEBUG_VIEWS) || !nmd.runtime->eval_log)
   {
     return;
@@ -897,17 +897,17 @@ static void draw_debug_view_selector(const bContext & /*C*/,
   name_row.label(IFACE_("Debug View"), ICON_NONE);
 
   ui::Layout &controls = split.row(true);
+  const std::string selected_name = debug_view::candidate_display_name(
+      candidates, selected_index, IFACE_("Viewer"));
   if (candidates.size() == 1) {
-    controls.label(candidates.first().display_name, ICON_NONE);
+    controls.label(selected_name, ICON_NONE);
     return;
   }
 
   PointerRNA props = controls.op("OBJECT_OT_geometry_nodes_debug_view_cycle", "", ICON_TRIA_LEFT);
   RNA_boolean_set(&props, "reverse", true);
 
-  controls.menu("OBJECT_MT_geometry_nodes_debug_views",
-                candidates[selected_index].display_name,
-                ICON_DOWNARROW_HLT);
+  controls.menu("OBJECT_MT_geometry_nodes_debug_views", selected_name, ICON_DOWNARROW_HLT);
 
   props = controls.op("OBJECT_OT_geometry_nodes_debug_view_cycle", "", ICON_TRIA_RIGHT);
   RNA_boolean_set(&props, "reverse", false);

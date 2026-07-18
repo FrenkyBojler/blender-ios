@@ -14,8 +14,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.hh"
 
-#include "BLT_translation.hh"
-
 #include "IMB_imbuf.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
@@ -1208,9 +1206,7 @@ Span<debug_view::Candidate> NodesEvalLog::debug_view_candidates()
           candidate.sort_order = reversed_sort_order;
           candidate.sort_order.append(viewer_log.viewer_log->node_order);
           candidate.context_names = reversed_context_names;
-          candidate.viewer_name = viewer_log.viewer_log->debug_view_name.empty() ?
-                                      IFACE_("Viewer") :
-                                      viewer_log.viewer_log->debug_view_name;
+          candidate.viewer_name = viewer_log.viewer_log->debug_view_name;
         }
       }
     }

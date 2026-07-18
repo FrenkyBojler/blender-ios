@@ -51,7 +51,13 @@ static bool candidate_less(const Candidate &a, const Candidate &b)
   return a.identifier.viewer_node_id < b.identifier.viewer_node_id;
 }
 
-static std::string full_name_for_candidate(const Candidate &candidate)
+static StringRef candidate_viewer_name(const Candidate &candidate,
+                                       const StringRef default_viewer_name)
+{
+  return candidate.viewer_name.empty() ? default_viewer_name : StringRef(candidate.viewer_name);
+}
+
+std::string candidate_full_name(const Candidate &candidate, const StringRef default_viewer_name)
 {
   std::string name;
   for (const std::string &context_name : candidate.context_names) {
@@ -63,8 +69,41 @@ static std::string full_name_for_candidate(const Candidate &candidate)
   if (!name.empty()) {
     name += " / ";
   }
-  name += candidate.viewer_name;
+  name += candidate_viewer_name(candidate, default_viewer_name);
   return name;
+}
+
+std::string candidate_display_name(const Span<Candidate> candidates,
+                                   const int candidate_index,
+                                   const StringRef default_viewer_name)
+{
+  if (!candidates.index_range().contains(candidate_index)) {
+    return {};
+  }
+  const Candidate &candidate = candidates[candidate_index];
+  const StringRef viewer_name = candidate_viewer_name(candidate, default_viewer_name);
+  const bool has_duplicate_name = std::ranges::any_of(candidates, [&](const Candidate &other) {
+    return &other != &candidate &&
+           candidate_viewer_name(other, default_viewer_name) == viewer_name;
+  });
+  if (!has_duplicate_name) {
+    return viewer_name;
+  }
+
+  std::string display_name = candidate_full_name(candidate, default_viewer_name);
+  int duplicate_number = 1;
+  for (const int previous_i : IndexRange(candidate_index)) {
+    const Candidate &previous = candidates[previous_i];
+    if (candidate_viewer_name(previous, default_viewer_name) == viewer_name &&
+        candidate_full_name(previous, default_viewer_name) == display_name)
+    {
+      duplicate_number++;
+    }
+  }
+  if (duplicate_number > 1) {
+    display_name = fmt::format("{} ({})", display_name, duplicate_number);
+  }
+  return display_name;
 }
 
 void finalize_candidates(Vector<Candidate> &candidates)
@@ -82,40 +121,6 @@ void finalize_candidates(Vector<Candidate> &candidates)
     unique_candidates.append(std::move(candidate));
   }
   candidates = std::move(unique_candidates);
-
-  for (Candidate &candidate : candidates) {
-    candidate.full_name = full_name_for_candidate(candidate);
-    candidate.display_name = candidate.viewer_name;
-  }
-
-  /* Add context only where the Viewer name alone is ambiguous. */
-  for (const int i : candidates.index_range()) {
-    const bool has_duplicate_name = std::ranges::any_of(candidates, [&](const Candidate &other) {
-      return &other != &candidates[i] && other.viewer_name == candidates[i].viewer_name;
-    });
-    if (has_duplicate_name) {
-      candidates[i].display_name = candidates[i].full_name;
-    }
-  }
-
-  /* Identical context paths are possible when the same group is instantiated more than once. */
-  Vector<std::string> names_before_suffix;
-  names_before_suffix.reserve(candidates.size());
-  for (const Candidate &candidate : candidates) {
-    names_before_suffix.append(candidate.display_name);
-  }
-  for (const int i : candidates.index_range()) {
-    int duplicate_number = 1;
-    for (const int previous_i : IndexRange(i)) {
-      if (names_before_suffix[previous_i] == names_before_suffix[i]) {
-        duplicate_number++;
-      }
-    }
-    if (duplicate_number > 1) {
-      candidates[i].display_name = fmt::format(
-          "{} ({})", names_before_suffix[i], duplicate_number);
-    }
-  }
 }
 
 int find_candidate_index(const Span<Candidate> candidates,

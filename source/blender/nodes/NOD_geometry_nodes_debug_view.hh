@@ -48,17 +48,20 @@ struct Candidate {
   Vector<int> sort_order;
   /** Human-readable names of the nested group instances. */
   Vector<std::string> context_names;
+  /** Empty for the standard Viewer name, which is translated only when presented in the UI. */
   std::string viewer_name;
-
-  /** Concise unique name shown in the modifier. */
-  std::string display_name;
-  /** Complete context path used in tooltips. */
-  std::string full_name;
 };
 
-/** Sort candidates deterministically, remove duplicate identities, and disambiguate their names.
- */
+/** Sort candidates deterministically and remove duplicate identities. */
 void finalize_candidates(Vector<Candidate> &candidates);
+
+/** Complete context path, using the translated default name passed by the UI. */
+std::string candidate_full_name(const Candidate &candidate, StringRef default_viewer_name);
+
+/** Concise name with context and a suffix added only when needed for disambiguation. */
+std::string candidate_display_name(Span<Candidate> candidates,
+                                   int candidate_index,
+                                   StringRef default_viewer_name);
 
 /**
  * Find the current selection or the first candidate as fallback without changing the selection.

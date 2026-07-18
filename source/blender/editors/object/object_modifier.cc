@@ -3672,8 +3672,10 @@ static void geometry_nodes_debug_view_menu_draw(const bContext *C, Menu *menu)
 
   ui::Layout &layout = *menu->layout;
   for (const int i : candidates.index_range()) {
+    const std::string display_name = nodes::debug_view::candidate_display_name(
+        candidates, i, IFACE_("Viewer"));
     PointerRNA props = layout.op("OBJECT_OT_geometry_nodes_debug_view_select",
-                                 candidates[i].display_name,
+                                 display_name,
                                  i == selected_index ? ICON_RADIOBUT_ON : ICON_RADIOBUT_OFF);
     geometry_nodes_debug_view_identifier_set(props, candidates[i].identifier);
   }
@@ -3720,7 +3722,7 @@ static std::string geometry_nodes_debug_view_select_description(bContext *C,
     if (candidate.identifier == *identifier) {
       return fmt::format(fmt::runtime(TIP_("Select Debug View: {}. An active Viewer takes "
                                            "precedence")),
-                         candidate.full_name);
+                         nodes::debug_view::candidate_full_name(candidate, IFACE_("Viewer")));
     }
   }
   return {};

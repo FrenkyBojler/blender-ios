@@ -68,10 +68,25 @@ TEST(GeometryNodesDebugView, DuplicateNamesUseContextThenSuffix)
 
   finalize_candidates(candidates);
 
-  EXPECT_EQ(candidates[0].display_name, "Surface");
-  EXPECT_EQ(candidates[1].display_name, "Inner Group / Surface");
-  EXPECT_EQ(candidates[2].display_name, "Inner Group / Surface (2)");
-  EXPECT_EQ(candidates[1].full_name, "Inner Group / Surface");
+  EXPECT_EQ(candidate_display_name(candidates, 0, "Viewer"), "Surface");
+  EXPECT_EQ(candidate_display_name(candidates, 1, "Viewer"), "Inner Group / Surface");
+  EXPECT_EQ(candidate_display_name(candidates, 2, "Viewer"), "Inner Group / Surface (2)");
+  EXPECT_EQ(candidate_full_name(candidates[1], "Viewer"), "Inner Group / Surface");
+}
+
+TEST(GeometryNodesDebugView, DefaultNameIsTranslatedAtPresentationTime)
+{
+  Vector<Candidate> candidates;
+  candidates.append(candidate(10, 1, {1}, {"Default Group"}, ""));
+  candidates.append(candidate(20, 2, {2}, {"Custom Group"}, "Viewer"));
+  finalize_candidates(candidates);
+
+  EXPECT_TRUE(candidates[0].viewer_name.empty());
+  EXPECT_EQ(candidate_display_name(candidates, 0, "Translated Viewer"), "Translated Viewer");
+  EXPECT_EQ(candidate_display_name(candidates, 1, "Translated Viewer"), "Viewer");
+
+  EXPECT_EQ(candidate_display_name(candidates, 0, "Viewer"), "Default Group / Viewer");
+  EXPECT_EQ(candidate_display_name(candidates, 1, "Viewer"), "Custom Group / Viewer");
 }
 
 TEST(GeometryNodesDebugView, DuplicateIdentityIsRemoved)
@@ -124,6 +139,22 @@ TEST(GeometryNodesDebugView, FindFallbackDoesNotChangeSelection)
   EXPECT_EQ(selection, identifier(99, 99));
   EXPECT_EQ(find_candidate_index({}, selection), -1);
   EXPECT_EQ(selection, identifier(99, 99));
+}
+
+TEST(GeometryNodesDebugView, PreferredSelectionReturnsAfterFallback)
+{
+  Vector<Candidate> candidates;
+  candidates.append(candidate(10, 1, {1}, {}, "First"));
+  candidates.append(candidate(20, 2, {2}, {}, "Preferred"));
+  finalize_candidates(candidates);
+
+  const Identifier preferred = candidates[1].identifier;
+  std::optional<Identifier> selection = preferred;
+  EXPECT_EQ(find_candidate_index(candidates.as_span().take_front(1), selection), 0);
+  EXPECT_EQ(selection, preferred);
+
+  EXPECT_EQ(find_candidate_index(candidates, selection), 1);
+  EXPECT_EQ(selection, preferred);
 }
 
 TEST(GeometryNodesDebugView, ZeroOneAndManySelection)
@@ -225,8 +256,8 @@ TEST_F(CandidateCollectionTest, IsCached)
 
   const Span<Candidate> first_candidates = root_log.debug_view_candidates();
   ASSERT_EQ(first_candidates.size(), 2);
-  EXPECT_EQ(first_candidates[0].display_name, "First");
-  EXPECT_EQ(first_candidates[1].display_name, "Second");
+  EXPECT_EQ(candidate_display_name(first_candidates, 0, "Viewer"), "First");
+  EXPECT_EQ(candidate_display_name(first_candidates, 1, "Viewer"), "Second");
 
   const Span<Candidate> second_candidates = root_log.debug_view_candidates();
   EXPECT_EQ(second_candidates.data(), first_candidates.data());
