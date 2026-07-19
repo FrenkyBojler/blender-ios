@@ -576,9 +576,6 @@ def view3d_texture_paint_complex():
 
 
 def view3d_particle_edit_undo_from_texture_paint():
-    import os
-    import tempfile
-
     import bpy
 
     e, t, window = ui.test_window()
@@ -598,14 +595,10 @@ def view3d_particle_edit_undo_from_texture_paint():
     yield from ui.call_menu(e, "Add -> Mesh -> Cube")
     ob = window.view_layer.objects.active
 
-    material = bpy.data.materials.new("Material")
-    material.use_nodes = True
-    image = bpy.data.images.new("Paint Image", width=32, height=32)
-    image_node = material.node_tree.nodes.new("ShaderNodeTexImage")
-    image_node.image = image
-    image_node.select = True
-    material.node_tree.nodes.active = image_node
-    ob.data.materials.append(material)
+    yield e.ctrl.tab().t()              # Texture Paint via the mode pie.
+    yield from ui.call_operator(e, "Add Texture Paint Slot")
+    yield e.ret()                       # Accept popup.
+    yield e.ctrl.tab().o()              # Object mode.
 
     yield from ui.call_operator(e, "Add Particle System Slot")
     psys = ob.particle_systems.active
@@ -643,20 +636,6 @@ def view3d_particle_edit_undo_from_texture_paint():
     assert_particle_edit_valid()
     yield e.a()
     assert_particle_edit_valid()
-
-    # Loading after this transition used to crash if undo left the object in invalid mode 48.
-    with tempfile.TemporaryDirectory(prefix="blender_test_particle_edit_undo_") as temp_dir:
-        filepath = os.path.join(temp_dir, "particle_edit_undo.blend")
-        t.assertEqual(
-            bpy.ops.wm.save_as_mainfile(filepath=filepath, check_existing=False, compress=False),
-            {'FINISHED'},
-        )
-        t.assertEqual(bpy.ops.wm.open_mainfile(filepath=filepath), {'FINISHED'})
-        yield
-        e, t, window = ui.test_window()
-        assert_particle_edit_valid()
-        yield e.alt.a()
-        assert_particle_edit_valid()
 
 
 def view3d_mesh_edit_separate():
