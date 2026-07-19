@@ -38,11 +38,11 @@ def positions(ob):
     return a.reshape(-1, 3)
 
 
-def band_mean_dz(before, after, lo, hi):
-    """Mean |dz| of verts whose rest x lies in [lo, hi]."""
-    sel = (before[:, 0] >= lo) & (before[:, 0] <= hi)
+def band_mean_dz(before, after, lo, hi, axis=0):
+    """Mean |dz| of verts whose rest coordinate on `axis` lies in [lo, hi]."""
+    sel = (before[:, axis] >= lo) & (before[:, axis] <= hi)
     if not sel.any():
-        _fail("empty x band [{:f}, {:f}]".format(lo, hi))
+        _fail("empty band [{:f}, {:f}] on axis {:d}".format(lo, hi, axis))
     return float(np.abs(after[sel, 2] - before[sel, 2]).mean())
 
 
@@ -128,6 +128,38 @@ def main():
             bright, dark))
     print("PASS: gradient modulates the stroke (bright {:.5f}, dark {:.6f})".format(
         bright, dark))
+
+    # -- View Plane maps to the brush-centered Projected space --------------
+    # Basis at surfaceNo +Z: the |n.z| >= 0.999 branch picks ref (1,0,0), so
+    # t1 = ref x n = -Y and uv.x = rel.t1 / (2r) + 0.5 — the bake's x gradient
+    # runs along world -y, bright toward -y. The dab column is the same as
+    # before, so any y asymmetry is the texture's.
+    session.meshlog.undo(session.mesh(), session.tree())
+    session.meshlog_cursor = max(0, session.meshlog_cursor - 1)
+    convert.flush(ob)
+    bl_brush.texture_slot.map_mode = 'VIEW_PLANE'
+    texture.apply_texture(bl_brush, sc_brush)
+    if int(sc_brush.coord_space) != 4:
+        _fail("'VIEW_PLANE' should select the Projected coord space")
+    before = positions(ob).copy()
+    strokemod.stroke_begin(session, has_dyntopo=False)
+    for _ in range(4):
+        strokemod.apply_dab(session, kernel, (0.0, 0.0, 0.0), (0.0, 0.0, 1.0), 0.9)
+    strokemod.stroke_end(session)
+    convert.flush(ob)
+    after = positions(ob)
+    if not np.isfinite(after).all():
+        _fail("non-finite positions after Projected stroke")
+    # The tile spans the brush diameter, so the +-0.4 bands read gradient
+    # intensities ~0.72 vs ~0.28 (ratio ~2.6, not clamped-to-zero like the
+    # Global case) — assert the direction and a conservative ratio.
+    bright = band_mean_dz(before, after, -0.5, -0.3, axis=1)
+    dark = band_mean_dz(before, after, 0.3, 0.5, axis=1)
+    if not (bright > 1e-4 and bright > 1.8 * max(dark, 1e-9)):
+        _fail("Projected mapping did not modulate across the brush "
+              "(bright {:.6f}, dark {:.6f})".format(bright, dark))
+    print("PASS: View Plane -> Projected modulates across the brush "
+          "(bright {:.5f}, dark {:.6f})".format(bright, dark))
 
     # -- clearing the Blender texture clears the engine texture -------------
     bl_brush.texture = None

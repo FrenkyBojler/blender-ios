@@ -10,11 +10,9 @@ binds it per stroke: ``Texture.evaluate`` sampled over an N x N grid on
 ``[-1, 1]^2`` (the intensity channel, matching Blender's own brush-texture
 sampling), cached by texture name, invalidated when the depsgraph reports the
 Texture changed. ``texture_slot.map_mode`` selects the engine
-``TexCoordSpace``; the view-pinned modes additionally need the stroke
-operator to push the region's perspective matrix (``set_render_matrix``).
-
-Engine ``Projected`` UV is world-units on the brush tangent plane (not
-radius-normalized like Blender's Area Plane) — a documented parity limit.
+``TexCoordSpace``; the screen-pinned modes (Tiled / Stencil) additionally
+need the stroke operator to push the region's perspective matrix
+(``setRenderMatrix``) so the engine can perspective-project to viewport UV.
 """
 
 import bpy
@@ -26,12 +24,16 @@ from . import engine
 BAKE_SIZE = 128
 
 # Blender texture_slot.map_mode -> engine TexCoordSpace value (brush.h).
-# RANDOM and STENCIL have no engine analogue yet (parity checklist).
+# Blender's View Plane is brush-centered (the texture follows the brush and
+# scales with its radius), which matches the engine's normalized Projected
+# space, not its screen-pinned ViewPlane — that one matches Stencil. RANDOM
+# has no engine analogue yet (parity checklist).
 _COORD_SPACE = {
     '3D': 0,          # Global
-    'VIEW_PLANE': 1,  # ViewPlane
-    'TILED': 2,       # ViewRepeat
+    'VIEW_PLANE': 4,  # Projected (brush-centered tangent plane)
     'AREA_PLANE': 4,  # Projected
+    'TILED': 2,       # ViewRepeat (screen-pinned, tiled)
+    'STENCIL': 1,     # ViewPlane (screen-pinned)
 }
 
 # Texture name -> flat row-major grayscale list (BAKE_SIZE^2 floats).
@@ -79,7 +81,7 @@ def needs_render_matrix(bl_brush):
     (view-pinned UV)."""
     slot = bl_brush.texture_slot if bl_brush else None
     return (bl_brush is not None and bl_brush.texture is not None
-            and slot is not None and slot.map_mode in {'VIEW_PLANE', 'TILED'})
+            and slot is not None and slot.map_mode in {'TILED', 'STENCIL'})
 
 
 def apply_texture(bl_brush, sc_brush):
