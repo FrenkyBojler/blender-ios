@@ -178,7 +178,6 @@ def _activate_tools_for_context(space_type, *, mode=None, setup_fn=None):
                     space_type=space_type,
                 )
 
-
         area.tag_redraw()
         yield
 
