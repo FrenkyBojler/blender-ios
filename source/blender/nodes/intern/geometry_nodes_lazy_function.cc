@@ -37,12 +37,23 @@
 #include "BLI_stack.hh"
 
 #include "DNA_ID.h"
+#include "DNA_collection_types.h"
+#include "DNA_image_types.h"
+#include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BKE_anonymous_attribute_make.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_compute_contexts.hh"
+#include "BKE_curves.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_instances.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_node_legacy_types.hh"
@@ -153,20 +164,224 @@ struct DebugLogingParams final : public lf::Params {
     return base.get_output_data_ptr(index);
   }
 
+  template<typename T> uint64_t hash(const Span<T> values) const
+  {
+    uint64_t iter = 0;
+
+    if constexpr (std::is_same_v<T, BundlePtr>) {
+      for (const T &value : values) {
+        iter = get_default_hash(iter, this->hash(value));
+      }
+    }
+    else if constexpr (std::is_same_v<T, ClosurePtr>) {
+      return 44;
+    }
+    else if constexpr (std::is_same_v<T, GeometrySet>) {
+      for (const T &value : values) {
+        iter = get_default_hash(iter, this->hash(value));
+      }
+    }
+    else if constexpr (dna::is_ID_v<std::remove_pointer_t<T>>) {
+      for (const T &value : values) {
+        iter = get_default_hash(iter, value->id.name);
+      }
+    }
+    else {
+      static_assert(!std::is_pointer_v<T>);
+      for (const T &value : values) {
+        iter = get_default_hash(iter, value);
+      }
+    }
+    return iter;
+  }
+
+  uint64_t hash(MutableSpan<std::pair<std::string, uint64_t>> values) const
+  {
+    std::sort(values.begin(),
+              values.end(),
+              [&](const std::pair<std::string, uint64_t> &a,
+                  const std::pair<std::string, uint64_t> &b) { return a.first < b.first; });
+    return this->hash(values.as_span());
+  }
+
+  uint64_t hash(const Span<const Material *> values) const
+  {
+    uint64_t iter = 0;
+    for (const Material *value : values) {
+      iter = get_default_hash(iter, value->id.name);
+    }
+    return iter;
+  }
+
+  uint64_t hash(const bke::AttributeAccessor &value) const
+  {
+    Vector<std::pair<std::string, uint64_t>> hashes;
+    value.foreach_attribute([&](const AttributeIter &iter) {
+      GVArray values = *iter.get();
+      bke::attribute_math::to_static_type(values.type(), [&]<typename T>() {
+        hashes.append(std::make_pair(
+            std::string(iter.name),
+            get_default_hash(
+                this->hash<T>(VArraySpan<T>(values.typed<T>())), iter.domain, iter.data_type)));
+      });
+    });
+
+    return this->hash(hashes);
+  }
+
+  uint64_t hash(const GeometrySet &value) const
+  {
+    uint64_t hash_value = get_default_hash(value.name(), this->hash(value.bundle_ptr()));
+
+    if (const Mesh *mesh = value.get_mesh()) {
+      hash_value = get_default_hash(hash_value,
+                                    this->hash(mesh->attributes()),
+                                    this->hash(Span(mesh->mat, mesh->totcol)),
+                                    get_default_hash(mesh->face_offsets(),
+                                                     mesh->verts_num,
+                                                     mesh->edges_num,
+                                                     mesh->faces_num,
+                                                     mesh->corners_num));
+    }
+
+    if (const Curves *curves_id = value.get_curves()) {
+      const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      hash_value = get_default_hash(hash_value,
+                                    this->hash(curves.attributes()),
+                                    curves.offsets(),
+                                    Span(curves.curve_type_counts()));
+    }
+
+    if (const PointCloud *points = value.get_pointcloud()) {
+      hash_value = get_default_hash(hash_value,
+                                    this->hash(points->attributes()),
+                                    this->hash(Span(points->mat, points->totcol)),
+                                    points->totpoint);
+    }
+
+    if (const bke::Instances *instances = value.get_instances()) {
+      hash_value = get_default_hash(hash_value,
+                                    this->hash(instances->attributes()),
+                                    this->hash(instances->reference_handles()),
+                                    this->hash(instances->transforms()));
+      for (const bke::InstanceReference &reference : instances->references()) {
+        switch (reference.type()) {
+          using enum bke::InstanceReference::Type;
+          case None:
+            break;
+          case Object: {
+            hash_value = get_default_hash(hash_value, reference.object().id.name);
+          }
+          case Collection: {
+            hash_value = get_default_hash(hash_value, reference.collection().id.name);
+          }
+          case GeometrySet: {
+            hash_value = get_default_hash(hash_value, this->hash(reference.geometry_set()));
+          }
+        }
+      }
+    }
+
+    return hash_value;
+  }
+
+  uint64_t hash(const BundlePtr value) const
+  {
+    // Vector<std::string> pathes = value->gather_paths([&](const Bundle &/*bundle*/) {
+    //   return true;
+    // });
+    // std::sort(pathes.begin(), pathes.end());
+    //
+    // Array<uint64_t> items_hashes(pathes.size());
+    // for (const int i : pathes.index_range()) {
+    //   const BundleItemValue &item = *value->lookup(*BundleKey::from_ustr(UString(pathes[i])));
+    //
+    //   if (const std::optional<SocketValueVariant> socket_value = item.as<SocketValueVariant>())
+    //   {
+    //     items_hashes[i] = this->hash(*socket_value);
+    //     continue;
+    //   }
+    //
+    //   if (const std::optional<BundleItemInternalValue> internal_value =
+    //   item.as<BundleItemInternalValue>()) {
+    //     items_hashes[i] = get_default_hash(internal_value->value->type_name());
+    //     continue;
+    //   }
+    //
+    //   items_hashes[i] = 0;
+    // }
+    //
+    // return get_default_hash(this->hash(pathes.as_span()), this->hash(items_hashes.as_span()));
+    return 0;
+  }
+
+  uint64_t hash(const GListPtr value) const
+  {
+    uint64_t hash_value = 0;
+    const GVArray values = value->varray();
+    values.type()
+        .to_static_type<float,
+                        float2,
+                        float3,
+                        float4,
+                        int,
+                        int2,
+                        bool,
+                        int8_t,
+                        short2,
+                        ColorGeometry4f,
+                        ColorGeometry4b,
+                        math::Quaternion,
+                        float4x4,
+                        nodes::MenuValue,
+                        std::string,
+                        nodes::BundlePtr,
+                        nodes::ClosurePtr,
+                        GeometrySet,
+                        Material *,
+                        Object *,
+                        Collection *,
+                        Image *,
+                        VFont *,
+                        Scene *,
+                        bSound *>(
+            [&]<typename T>() { hash_value = this->hash(VArraySpan<T>(values.typed<T>())); });
+    return hash_value;
+  }
+
+  uint64_t hash(const GPointer value) const
+  {
+    if (value.type()->is<GeometrySet>()) {
+      return this->hash(*value.get<GeometrySet>());
+    }
+
+    if (value.type()->is<BundlePtr>()) {
+      return this->hash(*value.get<BundlePtr>());
+    }
+
+    if (value.type()->is<GListPtr>()) {
+      return this->hash(*value.get<GListPtr>());
+    }
+
+    if (value.type()->is_hashable()) {
+      return value.type()->hash(value.get());
+    }
+
+    return 0;
+  }
+
   uint64_t hash(const SocketValueVariant &value) const
   {
     if (value.is_single()) {
-      const GPointer value_ptr = value.get_single_ptr();
-      if (value_ptr.type()->is_hashable()) {
-        return value_ptr.type()->hash(value_ptr.get());
-      }
-
-      return 0;
+      return this->hash(value.get_single_ptr());
     }
 
     if (value.is_field()) {
-      const auto field = value.get<GField>();
-      return field.hash();
+      return value.get<GField>().hash();
+    }
+
+    if (value.is_list()) {
+      return this->hash(value.get<GListPtr>());
     }
 
     return 0;
