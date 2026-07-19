@@ -163,6 +163,7 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
+  /* Kept so the finish logic below runs for both exit paths */
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
   /* execute the events */

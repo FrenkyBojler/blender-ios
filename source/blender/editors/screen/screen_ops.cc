@@ -6883,13 +6883,13 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   return start_playback(C, sync, mode);
 }
 
-/* Checks which screen has `animtimer`,if found, extracts its playback flags as a
- * #PreScrubbingState. always sets `screen.scrubbing` to true before returning, regardless of
- * whether playback was active. */
+/* If any screen is currently playing back, stops playback and returns its flags as a
+ * #PreScrubbingState to resume later. always sets `screen.scrubbing` to true before returning,
+ * regardless of whether playback was active. */
 std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen &screen)
 {
-  /* `screen.scrubbing` must be set after grabbing animtimer, otherwise playback can't be stopped
-   * from another window.*/
+  /* Note: `screen.scrubbing` can't be set beofre grabbing all data about `animtimer`, doing so
+   * breaks stopping playback from another window.*/
   BLI_assert_msg(!screen.scrubbing, "scrubbing should not be active yet");
 
   bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(&C));
