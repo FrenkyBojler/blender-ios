@@ -2287,6 +2287,12 @@ static wmOperatorStatus object_custom_mode_toggle_exec(bContext *C, wmOperator *
     }
     STRNCPY(ob->custom_mode_id, mt->idname);
     ob->mode = OB_MODE_CUSTOM;
+    if (mt->flag & OBJECT_MODE_TYPE_USE_SCULPT_PAINT) {
+      /* Same init as entering vanilla sculpt mode: ensures
+       * #ToolSettings.sculpt and activates the default brush asset when no
+       * brush is active yet. */
+      BKE_paint_init(CTX_data_main(C), CTX_data_scene(C), PaintMode::Sculpt);
+    }
     if (mt->enter) {
       mt->enter(mt, C, ob);
     }
