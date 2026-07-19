@@ -68,6 +68,7 @@ uint64_t ViewportRequest::hash() const
 struct OrigMeshData {
   StringRef active_color;
   StringRef default_color;
+  VectorSet<StringRefNull> uv_map_names;
   StringRef active_uv_map;
   StringRef default_uv_map;
   int active_uv_map_index;
@@ -83,7 +84,7 @@ struct OrigMeshData {
         face_set_seed(mesh.face_sets_color_seed),
         attributes(mesh.attributes())
   {
-    VectorSet<StringRefNull> uv_map_names = mesh.uv_map_names();
+    uv_map_names = mesh.uv_map_names();
     active_uv_map_index = uv_map_names.index_of_try(StringRefNull(active_uv_map));
   }
 };
@@ -1005,24 +1006,22 @@ static void calc_node_uvs(const SubdivCCG &subdiv_ccg,
 }
 
 BLI_NOINLINE static void fill_uvs_grids(const Object &object,
-                                        const Span<int> material_indices,
                                         const OrigMeshData &orig_mesh_data,
+                                        const Span<int> material_indices,
                                         const Span<int> mat_index_to_uv_index,
                                         const BitSpan use_flat_layout,
                                         const IndexMask &node_mask,
+                                        const StringRef name,
                                         const MutableSpan<gpu::VertBufPtr> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
   const SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
-  /* TODO: What should the `name` parameter here be, in the case of rendering an object with
-   * multiple materials ?*/
-  ensure_vbos_allocated_grids(
-      object,
-      attribute_format(orig_mesh_data, orig_mesh_data.active_uv_map, bke::AttrType::Float2),
-      use_flat_layout,
-      node_mask,
-      vbos);
+  ensure_vbos_allocated_grids(object,
+                              attribute_format(orig_mesh_data, name, bke::AttrType::Float2),
+                              use_flat_layout,
+                              node_mask,
+                              vbos);
   threading::EnumerableThreadSpecific<Vector<float2>> all_tls;
   node_mask.foreach_index(
       [&](const int i) {
@@ -1046,6 +1045,55 @@ BLI_NOINLINE static void fill_uvs_grids(const Object &object,
         std::copy_n(tls.data(), tls.size(), data);
       },
       exec_mode::grain_size(1));
+}
+
+BLI_NOINLINE static void update_generic_attribute_grids(const Object &object,
+                                                        const OrigMeshData &orig_mesh_data,
+                                                        const Span<int> material_indices,
+                                                        const Span<int> mat_index_to_uv_index,
+                                                        const BitSpan use_flat_layout,
+                                                        const IndexMask &node_mask,
+                                                        const StringRef name,
+                                                        const MutableSpan<gpu::VertBufPtr> vbos)
+{
+  const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
+  const bke::GAttributeReader attr = attributes.lookup(name);
+  if (attr.domain == bke::AttrDomain::Edge) {
+    return;
+  }
+
+  if (!attr) {
+    ensure_vbos_allocated_grids(object,
+                                attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
+                                use_flat_layout,
+                                node_mask,
+                                vbos);
+    node_mask.foreach_index([&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); },
+                            exec_mode::grain_size(1));
+    return;
+  }
+
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
+
+  if (attr.domain == bke::AttrDomain::Corner && data_type == bke::AttrType::Float2) {
+    fill_uvs_grids(object,
+                   orig_mesh_data,
+                   material_indices,
+                   mat_index_to_uv_index,
+                   use_flat_layout,
+                   node_mask,
+                   name,
+                   vbos);
+    return;
+  }
+
+  ensure_vbos_allocated_grids(object,
+                              attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
+                              use_flat_layout,
+                              node_mask,
+                              vbos);
+  node_mask.foreach_index([&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); },
+                          exec_mode::grain_size(1));
 }
 
 BLI_NOINLINE static void update_positions_bmesh(const Object &object,
@@ -1571,18 +1619,21 @@ static BitVector<> calc_use_flat_layout(const Object &object,
        * face corner attributes, sharp faces, or face sets. */
       return {};
     case bke::pbvh::Type::Grids: {
+      const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       /* When rendering UVs, we cannot use a flat layout */
-      for (const AttributeRequest &attr : request.attributes) {
-        if (std::holds_alternative<CustomRequest>(attr)) {
-          const CustomRequest custom = std::get<CustomRequest>(attr);
-          if (custom == CustomRequest::UV) {
+      for (const AttributeRequest &attr_request : request.attributes) {
+        if (std::holds_alternative<GenericRequest>(attr_request)) {
+          const GenericRequest request = std::get<GenericRequest>(attr_request);
+          const bke::GAttributeReader attr = attributes.lookup(request);
+          const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
+          /* TODO: This check might not be correct, re-investigate later */
+          if (attr.domain == bke::AttrDomain::Corner && data_type == bke::AttrType::Float2) {
             return BitVector<>(nodes.size(), false);
           }
         }
       }
 
-      const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
       const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
       if (sharp_faces.is_empty()) {
         return BitVector<>(nodes.size(), false);
@@ -1856,9 +1907,6 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
           case CustomRequest::FaceSet:
             update_face_sets_mesh(object, orig_mesh_data, mask, vbos);
             break;
-          case CustomRequest::UV:
-            BLI_assert_msg(0, "Mesh UV attributes should be handled as a generic attribute");
-            break;
         }
       }
       else {
@@ -1882,26 +1930,17 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
           case CustomRequest::FaceSet:
             fill_face_sets_grids(object, orig_mesh_data, use_flat_layout_, mask, vbos);
             break;
-          case CustomRequest::UV:
-            fill_uvs_grids(object,
-                           material_indices_,
-                           orig_mesh_data,
-                           mat_index_to_uv_index,
-                           use_flat_layout_,
-                           mask,
-                           vbos);
-            break;
         }
       }
       else {
-        ensure_vbos_allocated_grids(
-            object,
-            attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
-            use_flat_layout_,
-            mask,
-            vbos);
-        mask.foreach_index([&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); },
-                           exec_mode::grain_size(1));
+        update_generic_attribute_grids(object,
+                                       orig_mesh_data,
+                                       material_indices_,
+                                       mat_index_to_uv_index,
+                                       use_flat_layout_,
+                                       mask,
+                                       std::get<GenericRequest>(attr),
+                                       vbos);
       }
       break;
     }
@@ -1919,9 +1958,6 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
             break;
           case CustomRequest::FaceSet:
             update_face_sets_bmesh(object, orig_mesh_data, mask, vbos);
-            break;
-          case CustomRequest::UV:
-            BLI_assert_msg(0, "BMesh UV attributes should be handled as a generic attribute");
             break;
         }
       }

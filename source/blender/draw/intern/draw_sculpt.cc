@@ -157,15 +157,8 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
 
   if (features & SCULPT_BATCH_UV) {
     const StringRef uv_name = mesh->active_uv_map_name();
-    if (bke::object::pbvh_get(*ob)->type() == bke::pbvh::Type::Grids) {
-      if (!uv_name.is_empty()) {
-        attrs.append(pbvh::CustomRequest::UV);
-      }
-    }
-    else {
-      if (!uv_name.is_empty()) {
-        attrs.append(pbvh::GenericRequest(uv_name));
-      }
+    if (!uv_name.is_empty()) {
+      attrs.append(pbvh::GenericRequest(uv_name));
     }
   }
 
