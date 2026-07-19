@@ -71,13 +71,10 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Scene &scene : bmain->scenes) {
       Editing *ed = scene.ed;
       if (ed == nullptr) {
-        return;
+        continue;
       }
 
       ed->image_user.flag |= IMA_ANIM_ALWAYS;
-
-      /* Change all image strips to image id strips */
-      seq::relations_convert_to_image_id_strips(bmain, &scene);
     }
   }
 

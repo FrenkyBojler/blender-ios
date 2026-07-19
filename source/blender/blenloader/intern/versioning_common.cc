@@ -18,6 +18,7 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_map.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.hh"
@@ -25,6 +26,7 @@
 #include "BKE_animsys.hh"
 #include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_library.hh"
@@ -44,9 +46,14 @@
 
 #include "BLT_translation.hh"
 
+#include "SEQ_iterator.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 
 #include "MEM_guardedalloc.h"
+
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "BLO_readfile.hh"
 #include "readfile.hh"
@@ -748,6 +755,45 @@ bNodeTree *version_get_scene_compositor_node_tree(Main *bmain, Scene *scene)
   return scene->compositing_node_group;
 }
 
+void do_version_image_id_strips(Main *bmain, Scene *scene)
+{
+  Editing *ed = seq::editing_get(scene);
+  if (ed == nullptr) {
+    return;
+  }
+
+  for (Strip *strip : seq::query_all_strips_recursive(&ed->seqbase)) {
+    if (strip->data == nullptr) {
+      continue;
+    }
+
+    if (strip->type == STRIP_TYPE_IMAGE) {
+      if (strip->data->dirpath == nullptr) {
+        continue;
+      }
+
+      StripElem *s_elem = &strip->data->stripdata[0];
+
+      char filepath[FILE_MAX];
+      BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, s_elem->filename);
+
+      Image *img = BKE_image_load_exists(bmain, filepath);
+      img->source = IMA_SRC_FILE;
+
+      strip->data->dirpath[0] = '\0';
+      MEM_delete(strip->data->stripdata);
+
+      strip->type = STRIP_TYPE_IMAGE_ID;
+      strip->image_id = img;
+      id_us_ensure_real(id_cast<ID *>(img));
+
+      seq::relations_invalidate_cache(scene, strip);
+      seq::strip_lookup_invalidate(scene->ed);
+      DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+    }
+  }
+}
+
 static bool blendfile_or_libraries_versions_atleast(Main *bmain,
                                                     const short versionfile,
                                                     const short subversionfile)
@@ -877,6 +923,14 @@ void do_versions_after_setup(Main *new_bmain,
           nmd.node_group = nullptr;
         }
       }
+    }
+  }
+
+  // TODO: GD;; Change before merge! (and bump version up, match the one on versioning_530)
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 503, 99)) {
+    for (Scene &scene : new_bmain->scenes) {
+      /* Change all image strips to image id strips */
+      do_version_image_id_strips(new_bmain, &scene);
     }
   }
 }

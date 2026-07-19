@@ -13,18 +13,14 @@
 
 #include "BLI_listbase.hh"
 #include "BLI_math_base_c.hh"
-#include "BLI_path_utils.hh"
 #include "BLI_session_uid.hh"
 #include "BLI_string.hh"
 
-#include "BKE_image.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_build.hh"
 
 #include "MOV_read.hh"
 
@@ -291,58 +287,6 @@ void relations_invalidate_image_id_strips(const Main *bmain, Image *image_target
       invalidate_image_id_strips(scene, image_target, &scene->ed->seqbase);
     }
   }
-}
-
-void convert_to_image_id_strips(Main *bmain, ListBaseT<Strip> *seqbase, Scene *scene)
-{
-  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
-  {
-    if (strip->data == nullptr) {
-      continue;
-    }
-
-    if (strip->type == STRIP_TYPE_IMAGE) {
-      if (strip->data->dirpath == nullptr) {
-        continue;
-      }
-
-      StripElem *s_elem = &strip->data->stripdata[0];
-
-      char filepath[FILE_MAX];
-      BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, s_elem->filename);
-
-      Image *img = BKE_image_load_exists(bmain, filepath);
-      img->source = IMA_SRC_FILE;
-
-      strip->data->dirpath[0] = '\0';
-      MEM_delete(strip->data->stripdata);
-
-      strip->type = STRIP_TYPE_IMAGE_ID;
-      strip->image_id = img;
-      id_us_ensure_real(id_cast<ID *>(img));
-
-      relations_invalidate_cache(scene, strip);
-      strip_lookup_invalidate(scene->ed);
-      DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-    }
-    else if (strip->type == STRIP_TYPE_META) {
-      convert_to_image_id_strips(bmain, &strip->seqbase, scene);
-    }
-  }
-}
-
-void relations_convert_to_image_id_strips(Main *bmain, Scene *scene)
-{
-  if (scene == nullptr) {
-    return;
-  }
-
-  Editing *ed = seq::editing_get(scene);
-  if (ed == nullptr) {
-    return;
-  }
-
-  convert_to_image_id_strips(bmain, &ed->seqbase, scene);
 }
 
 void relations_free_imbuf(Scene *scene, ListBaseT<Strip> *seqbase, bool for_render)
