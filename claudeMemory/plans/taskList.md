@@ -421,7 +421,20 @@ path. Deferral of modifier/GN/shape-key sculpting per
       broke (spatial_reorder_inc, spatial_displacement_bounds) now pass; every
       other failure is pre-existing (GPU/backend config, identical on serial).
       Addon 12-section regression green; scale-bench byte-identical. Largest
-      remaining enter cost is now `Mesh_fromArrays` (~1.04 s at 1M).
+      remaining enter cost is now `Mesh_fromArrays` (~1.0-1.3 s at 1M).
+      **`Mesh_fromArrays` investigated — left as is (near its floor for the
+      incremental approach).** Profiled at 1M: verts ~55 ms, then the face loop
+      splits ~find_edge 250 / make_edge 300 (disk_insert) / make_face 670
+      (corner alloc + radial_insert + prev/next linking) — inherent per-element
+      half-edge construction, no single dominant cost. Micro-opts don't help:
+      locality alloc is a wash (measured via `SCULPTCORE_NO_LOCALITY_ALLOC`),
+      and a `(v1,v2)->edge` hash-map dedup replacing `find_edge` was ~480 ms
+      *slower* (the O(valence^2) disk walk is cache-local; a 2M-entry map is
+      not). `Vector::ensure_size` already grows ~1.5x geometrically, so
+      pre-reserving the domains is marginal. A real win needs a bulk/parallel
+      topology construction (sort-based edge dedup + bulk disk/radial cycle
+      build) — a large, risky rewrite of core mesh code, deferred as its own
+      effort. No code change committed.
 - [ ] Dyntopo-stroke exit produces a valid Mesh with warned layer drops.
 - [ ] ASAN over enter/stroke/exit/undo cycles.
 
