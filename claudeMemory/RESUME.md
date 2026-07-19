@@ -13,9 +13,11 @@ so field-only test setups saw strength/radius 0 → NaN, and `nan < eps`
 guards never failed. Rule: after setting engine-brush fields, always
 `brush.writeProps()` (the operator's `apply_brush` does), and re-publish
 after `resync_if_diverged` (rebuild makes a fresh brush). Movement guards
-are now NaN-proof (`not (isfinite and delta > eps)`). A real-pen feel test
-is still owed (simulation can't carry pressure). Next: P7 M5 formalization,
-brush textures, or store-rewriting ops.
+are now NaN-proof (`not (isfinite and delta > eps)`). P7 M5 is formalized:
+`tests/brush_parity_test.py` (per-type effect + UNSUPPORTED refusal +
+apply_brush field-name sweep), green on both builds. A real-pen feel test
+is still owed (simulation can't carry pressure). Next: brush textures
+(P7 phase 2), store-rewriting ops, or the workspace mode-memory nit.
 
 ---
 

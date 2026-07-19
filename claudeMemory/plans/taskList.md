@@ -707,13 +707,15 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       backend config + two stale tests). Real-pen feel test still owed
       (simulated events cannot carry pressure). Autosmooth program and
       pixel-radius unprojection landed earlier (P3 A3 / P4 S2).
-- [~] M5 Per-brush-type parity harness (headless) — dabs each supported
+- [x] M5 Per-brush-type parity harness (headless) — dabs each supported
       brush on a sphere and asserts the expected effect (DRAW/SHARP/INFLATE
       net-outward; CLAY/PLANE/SCRAPE/PINCH/SMOOTH move verts; MASK leaves
       positions put), plus a guard check that every `UNSUPPORTED` type is
       refused and `apply_brush` runs against real Blender brushes without a
-      field-name error. All pass. (Verification script in the session
-      scratchpad; formalize into a tracked addon test with S4.)
+      field-name error. Formalized as
+      `claudeMemory/tests/brush_parity_test.py` (run via `run_sync.py`;
+      NaN-proof guards per the ASAN-refresh convention). All 13 checks pass
+      on RelWithDebInfo and ASAN-clean on the MSVC ASAN build.
 - [ ] Phase 2: brush textures (`mtex` → `tex_*`), cavity automask.
 - [ ] Parity checklist maintained for unmapped features (cloth/boundary/
       multiplane, topology rake, front-face, accumulate, tip shape).
