@@ -364,9 +364,31 @@ path. Deferral of modifier/GN/shape-key sculpting per
       verified in P2).
 
 ### Verification (per plan §5)
-- [ ] No-stroke round trip byte-identical over the mesh corpus (incl. n-gons,
-      loose geometry, 1M verts).
-- [ ] Fast-path flush ≤ tens of ms at 1M verts; enter ≤ few hundred ms.
+- [x] No-stroke round trip byte-identical over the mesh corpus — DONE, gated
+      by `claudeMemory/tests/scale_bench.py`: a topology corpus (quad grid,
+      triangulated grid, n-gon fan) plus every benchmark size up to 1M verts
+      round-trips enter→flush **byte-identical** (`np.array_equal`, maxdiff
+      0). Loose-edge-only meshes are still owed (validate warns but the round
+      trip is unverified for them).
+- [~] Fast-path flush ≤ tens of ms at 1M verts; enter ≤ few hundred ms —
+      **measured, targets NOT met, but the shape is reassuring**
+      (`scale_bench.py`, RelWithDebInfo engine DLL). Every phase scales
+      **linearly** 50k→1M (gather/fromArrays/loadAttrs/draw ~18-20×,
+      buildTree ~27×) — **no hidden O(n²)**, so the architecture is sound and
+      it is a constant-factor problem. At ~1M verts: enter **4.5 s** (target
+      ~400 ms), fast flush **197 ms** (target ~50 ms), per-DRAW-dab ~42 ms.
+      Enter splits roughly evenly across gather (0.73 s, Blender RNA
+      `foreach_get`) / fromArrays (0.89 s) / buildTree (1.78 s) / loadAttrs
+      (0.97 s, dominated by the 4M-corner UV `foreach_get`) / draw (0.10 s).
+      Ruled out: flat-grid BVH degeneracy (a domed 200k mesh builds in the
+      same 353 ms as flat). **Prime suspect:** the litestl leak-tracking
+      allocator is compiled into the native/python DLL for *every* build type
+      (`NO_DEBUG_ALLOC` is only set for WASM+ASAN) — every alloc/free takes a
+      global mutex and links onto a per-thread list, a per-allocation tax that
+      would be off in a shipping build. Next step to quantify: rebuild the
+      python target with `-DNO_DEBUG_ALLOC` and re-measure; then the
+      Blender-side RNA `foreach_get` costs (gather + UV load) are the
+      addon-side lever.
 - [ ] Dyntopo-stroke exit produces a valid Mesh with warned layer drops.
 - [ ] ASAN over enter/stroke/exit/undo cycles.
 
@@ -542,7 +564,11 @@ EEVEE + overlays branch exactly where `use_pbvh_draw` branches.
       a GUI GPU context (Windows background has none) — manual check pending.
 
 ### Verification (per plan §5)
-- [ ] Dirty-node-only uploads confirmed (RenderDoc); 1M+ tri interactive.
+- [~] Dirty-node-only uploads confirmed (RenderDoc); 1M+ tri interactive.
+      Headless dab cost measured at 1M verts (`scale_bench.py`): ~42 ms per
+      DRAW dab (whole-mesh region, no spacing) — borderline-interactive on
+      the CPU dab alone, before draw. RenderDoc dirty-upload confirmation and
+      the live GPU frame time still need a GUI GPU context.
 - [ ] Mask/face-set/color parity in Workbench; per-node materials in EEVEE.
 - [ ] Cycles-viewport fallback to flushed mesh; no GPU leaks on exit/undo.
 
