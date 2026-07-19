@@ -729,13 +729,35 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       Texture section. Gate: `tests/brush_texture_test.py` (gradient
       modulates DRAW, symmetric control, cache invalidation, unmapped
       clears). Parity limits documented in the plan (Projected UV is
-      world-units, DRAW-family kernels only, no mtex extras). Cavity
-      automask still open (engine fields exist and are reflected; needs
-      `apply_brush` wiring + a gate). Interactive view-pinned mapping check
-      still owed (headless covers Global only).
+      world-units, DRAW-family kernels only, no mtex extras).
+      **GUI-verified by the user** — texture brush drawing works in the
+      viewport, closing the interactive mapping check. Three fixes came out
+      of that pass: the paint context now resolves for custom modes
+      (`OBJECT_MODE_TYPE_USE_SCULPT_PAINT`, so the properties-editor Texture
+      tab appears), the view-pinned UV gained the missing perspective divide
+      / NDC remap and Blender's brush-centered View Plane maps to the
+      engine's normalized Projected space, and custom-mode entry now runs
+      `BKE_paint_init` so a fresh session has an active brush.
+      **Cavity automask DONE**: `mapping.cavity_settings` resolves
+      `MeshAutomaskingSettings` with Blender's precedence (brush cavity flags
+      win over the Paint-level ones) and `_apply_cavity` copies
+      enable/inverted/factor/blur-steps and bakes the custom curve into the
+      engine's 256-entry LUT; the stroke operator passes the owning Paint.
+      N-panel Automasking section. Gate:
+      `tests/cavity_automask_test.py` — measures the mask directly by
+      dividing each configuration's dab by an unmasked baseline (falloff
+      cancels, so the ratio *is* the factor) on a grooved plane: concave
+      floor 0.979, convex shoulder 0.016, flat exactly 0.500, inverted
+      mirrors both about 0.5, `cavity_factor = 0` is a uniform 0.5, and a
+      constant-1 custom curve restores full strength. The measurement also
+      corrected the engine's `cavityRemap` doc comment, which had the
+      convention backwards — concave pushes toward 1 (the effect stays in
+      cavities), matching Blender's identical estimator.
 - [ ] Parity checklist maintained for unmapped features (cloth/boundary/
       multiplane, topology rake, front-face, accumulate, tip shape,
-      mtex RANDOM/STENCIL map modes + brightness/contrast/invert).
+      mtex RANDOM/STENCIL map modes + brightness/contrast/invert, and the
+      non-cavity automasking modes — topology, face sets, boundary, view
+      normal, start normal).
 
 ---
 

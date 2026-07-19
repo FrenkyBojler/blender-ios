@@ -88,6 +88,44 @@ class SCULPTCORE_PT_brush(bpy.types.Panel):
                 col.label(text="Mapping not supported by the engine", icon='INFO')
 
 
+class SCULPTCORE_PT_automasking(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = _CATEGORY
+    bl_label = "Automasking"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return _in_mode(context) and context.tool_settings.sculpt.brush is not None
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        paint = context.tool_settings.sculpt
+        brush = paint.brush
+        settings = brush.mesh_automasking_settings
+
+        # Only cavity is mapped; the brush's own settings take precedence over
+        # the Paint-level ones (Blender's rule), so edit them here.
+        col = layout.column(align=True)
+        col.prop(settings, "use_automasking_cavity", text="Cavity")
+        col.prop(settings, "use_automasking_cavity_inverted", text="Cavity (Inverted)")
+
+        active = mapping.cavity_settings(brush, paint)
+        col = layout.column(align=True)
+        col.active = active is not None
+        col.prop(settings, "cavity_factor", text="Factor")
+        col.prop(settings, "cavity_blur_steps", text="Blur")
+        col.prop(settings, "use_automasking_custom_cavity_curve", text="Custom Curve")
+        if settings.use_automasking_custom_cavity_curve:
+            layout.template_curve_mapping(settings, "cavity_curve", brush=True)
+
+        if active is not None and active != settings:
+            layout.label(text="Driven by the tool settings", icon='INFO')
+        layout.label(text="Other automasking modes are not mapped", icon='INFO')
+
+
 class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -138,6 +176,7 @@ class SCULPTCORE_PT_multires(bpy.types.Panel):
 
 _classes = (
     SCULPTCORE_PT_brush,
+    SCULPTCORE_PT_automasking,
     SCULPTCORE_PT_dyntopo,
     SCULPTCORE_PT_multires,
 )

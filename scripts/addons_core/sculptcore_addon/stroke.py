@@ -375,7 +375,8 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def _dab_at(self, context, event):
-        unified = context.tool_settings.sculpt.unified_paint_settings
+        paint = context.tool_settings.sculpt
+        unified = paint.unified_paint_settings
         # The keymap sets INVERT for Ctrl-LMB; live Ctrl also inverts so the
         # direction can be toggled mid-stroke.
         invert = event.ctrl or self.mode == 'INVERT'
@@ -388,7 +389,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             world_radius = _world_radius(context, self.brush, position)
             mapping.apply_brush(
                 self.brush, unified, self.session.brush_obj,
-                world_radius=world_radius, invert=invert)
+                world_radius=world_radius, invert=invert, paint=paint)
             if self._anchor is None:
                 # Anchor the region at the stroke-start surface point.
                 self._anchor = position
@@ -412,7 +413,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                 world_radius = _world_radius(context, self.brush, position)
                 mapping.apply_brush(
                     self.brush, unified, self.session.brush_obj,
-                    world_radius=world_radius, invert=invert)
+                    world_radius=world_radius, invert=invert, paint=paint)
                 if self._use_pressure:
                     # The executor consumes the device samples in loadProps;
                     # refill per dab (engine bridge convention).

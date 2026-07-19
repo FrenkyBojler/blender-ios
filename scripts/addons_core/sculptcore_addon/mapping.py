@@ -135,6 +135,55 @@ def _bake_falloff(bl_brush, sc_brush):
     # the spherical distance for now.
     sc_brush.falloff_shape = _FALLOFF_SHAPE_SPHERICAL
 
+
+# Cavity automasking. The engine mirrors Blender's estimator and remap
+# (automask.h, ported from `calc_cavity_factor`), so the mapping is a direct
+# field copy plus the optional custom curve baked into the engine's LUT.
+_CAVITY_CURVE_SIZE = 256
+
+
+def cavity_settings(bl_brush, paint):
+    """The `MeshAutomaskingSettings` that governs cavity for this stroke, or
+    None when cavity automasking is off.
+
+    Mirrors Blender's `automasking_flags_get` precedence: the brush's own
+    cavity flags win when it enables either cavity mode, otherwise the
+    Paint-level settings apply."""
+    for settings in (bl_brush.mesh_automasking_settings if bl_brush else None,
+                     paint.mesh_automasking_settings if paint else None):
+        if settings is not None and (settings.use_automasking_cavity
+                                     or settings.use_automasking_cavity_inverted):
+            return settings
+    return None
+
+
+def _apply_cavity(settings, sc_brush):
+    """Copy the resolved cavity settings onto the engine brush. The executor
+    pre-fills a per-vertex factor once per stroke when `automask_cavity` is
+    set; every kernel that reads the strength intrinsic is masked by it."""
+    if settings is None:
+        sc_brush.automask_cavity = False
+        return
+
+    sc_brush.automask_cavity = True
+    sc_brush.cavity_inverted = bool(settings.use_automasking_cavity_inverted)
+    sc_brush.cavity_factor = settings.cavity_factor
+    sc_brush.cavity_blur_steps = settings.cavity_blur_steps
+
+    use_curve = bool(settings.use_automasking_custom_cavity_curve)
+    sc_brush.cavity_use_curve = use_curve
+    if not use_curve:
+        return
+    # The engine samples the LUT in un-inverted space and inverts afterwards,
+    # the same order Blender evaluates the curve in, so bake it as authored.
+    cumap = settings.cavity_curve
+    cumap.update()
+    curve = cumap.curves[0]
+    n = _CAVITY_CURVE_SIZE
+    for i in range(n):
+        value = cumap.evaluate(curve, i / (n - 1))
+        sc_brush.setCavityCurveEntry(i, min(1.0, max(0.0, value)))
+
 # For UI / diagnostics: every mapped type (supported or not).
 KERNEL_BY_TYPE = {t: v[0] for t, v in _MAP.items()}
 
@@ -152,12 +201,15 @@ def kernel_enum(mgr, bl_brush):
     return int(mgr.get("sculptcore::brush::SculptBrushes").items[entry[0]])
 
 
-def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert):
+def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert, paint=None):
     """Configure a SculptCore Brush from a Blender Brush for a stroke.
 
     ``world_radius`` is the object-space dab radius; ``invert`` folds a live
     modifier (e.g. Ctrl) with the brush direction flag; ``unified`` is the
-    per-Paint ``UnifiedPaintSettings`` (may be None).
+    per-Paint ``UnifiedPaintSettings`` (may be None). ``paint`` is the owning
+    ``Paint`` (``tool_settings.sculpt``), consulted for automasking settings
+    the brush itself does not override; without it only the brush's own
+    settings apply.
     """
     strength = bl_brush.strength
     if unified is not None and unified.use_unified_strength:
@@ -179,6 +231,7 @@ def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert):
         bc[0], bc[1], bc[2], bc[3] = col[0], col[1], col[2], 1.0
 
     _bake_falloff(bl_brush, sc_brush)
+    _apply_cavity(cavity_settings(bl_brush, paint), sc_brush)
 
     # Generated engine-only uniforms (Brush.sculptcore, brush-mapping M2) —
     # after the mapping so table-driven fields keep authority.
