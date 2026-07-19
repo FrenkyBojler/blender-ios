@@ -54,18 +54,15 @@ def _setup_view3d(tool_mode):
     e, t, window, area = yield from _setup_editor_area("VIEW_3D")
 
     bpy.ops.mesh.primitive_cube_add()
-    yield
 
     if tool_mode == "OBJECT":
         pass
 
     elif tool_mode == "EDIT_MESH":
         bpy.ops.object.mode_set(mode="EDIT")
-        yield
 
     elif tool_mode == "SCULPT":
         bpy.ops.object.mode_set(mode="SCULPT")
-        yield
 
     else:
         raise RuntimeError(f"Unsupported mode {tool_mode}")
@@ -94,13 +91,6 @@ def _setup_sequencer(view_type):
     yield
 
     return e, t, window, area
-
-
-def _redraw_redraw_ui(area):
-    for region in area.regions:
-        region.tag_redraw()
-    area.tag_redraw()
-    yield
 
 
 def _get_tool_items(space_type, mode=None):
@@ -155,7 +145,7 @@ def _activate_tools_for_context(space_type, *, mode=None, setup_fn=None):
     import bpy
 
     if setup_fn is None:
-        setup_fn = lambda: _setup_editor_area(space_type)
+        def setup_fn(): return _setup_editor_area(space_type)
 
     e, t, window, area = yield from setup_fn()
 
@@ -188,9 +178,9 @@ def _activate_tools_for_context(space_type, *, mode=None, setup_fn=None):
                     space_type=space_type,
                 )
 
-        yield
 
-        yield from _redraw_redraw_ui(area)
+        area.tag_redraw()
+        yield
 
         active_tool_id = _get_active_tool_id(window.workspace, area)
         t.assertEqual(active_tool_id, tool.idname)
