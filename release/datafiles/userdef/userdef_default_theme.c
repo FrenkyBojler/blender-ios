@@ -214,7 +214,7 @@ const bTheme U_theme_default = {
       .outline_sel = RGBA(0x2d2d2dff),
       .inner = RGBA(0xffffff00),
       .inner_sel = RGBA(0x4772b3ff),
-      .item = RGBA(0xffffff33),
+      .item = RGBA(0xffffffcc),
       .text = RGBA(0xccccccff),
       .text_sel = RGBA(0xffffffff),
       .roundness = 0.2f,
@@ -229,9 +229,8 @@ const bTheme U_theme_default = {
       .text_sel = RGBA(0xffffffff),
       .roundness = 0.2f,
     },
-    .link = RGBA(0x6FA9E6ff),
     .wcol_state = {
-      .error = RGBA(0x771111ff),
+      .error = RGBA(0x991616ff),
       .warning = RGBA(0xac8737ff),
       .info = RGBA(0x28487dff),
       .success = RGBA(0x188625ff),
@@ -256,6 +255,7 @@ const bTheme U_theme_default = {
     .transparent_checker_primary = RGBA(0x333333ff),
     .transparent_checker_secondary = RGBA(0x262626ff),
     .transparent_checker_size = 8,
+    .link = RGBA(0x6fa9e6ff),
     .icon_alpha = 1.0f,
     .icon_saturation = 0.5f,
     .widget_text_cursor = RGBA(0x71a8ffff),
@@ -351,7 +351,6 @@ const bTheme U_theme_default = {
   },
   .space_properties = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xe6e6e6ff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -365,7 +364,6 @@ const bTheme U_theme_default = {
   .space_view3d = {
     .back = RGBA(0x3d3d3dff),
     .back_grad = RGBA(0x30303000),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -373,6 +371,7 @@ const bTheme U_theme_default = {
     .header_text_hi = RGBA(0xffffffff),
     .grid = RGBA(0x54545480),
     .grid_major = RGBA(0x545454ff),
+    .grid_axis_brightness = 0.46f,
     .wire = RGBA(0x000000ff),
     .wire_edit = RGBA(0x000000ff),
     .select = RGBA(0xed5700ff),
@@ -433,13 +432,11 @@ const bTheme U_theme_default = {
   },
   .space_file = {
     .back = RGBA(0x28282800),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
     .header_text = RGBA(0xeeeeeeff),
     .header_text_hi = RGBA(0xffffffff),
-    .hilite = RGBA(0x4772b3ff),
     .vertex_size = 3,
     .outline_width = 1,
     .facedot_size = 4,
@@ -447,7 +444,6 @@ const bTheme U_theme_default = {
   },
   .space_graph = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xa6a6a6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -464,7 +460,6 @@ const bTheme U_theme_default = {
   },
   .space_info = {
     .back = RGBA(0x1d1d1d00),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xc3c3c3ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -487,7 +482,6 @@ const bTheme U_theme_default = {
   },
   .space_action = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xa6a6a6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -509,7 +503,6 @@ const bTheme U_theme_default = {
   },
   .space_nla = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xa6a6a6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -537,7 +530,6 @@ const bTheme U_theme_default = {
   },
   .space_sequencer = {
     .back = RGBA(0x18181800),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xa6a6a6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -576,7 +568,6 @@ const bTheme U_theme_default = {
   },
   .space_image = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -607,7 +598,6 @@ const bTheme U_theme_default = {
   },
   .space_text = {
     .back = RGBA(0x23232300),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -631,7 +621,6 @@ const bTheme U_theme_default = {
   },
   .space_outliner = {
     .back = RGBA(0x28282800),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xc3c3c3ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x282828b3),
@@ -650,7 +639,6 @@ const bTheme U_theme_default = {
   },
   .space_node = {
     .back = RGBA(0x1a1a1a00),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x1a1a1ab3),
@@ -697,7 +685,6 @@ const bTheme U_theme_default = {
   },
   .space_preferences = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -710,7 +697,6 @@ const bTheme U_theme_default = {
   },
   .space_console = {
     .back = RGBA(0x1d1d1d00),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -728,7 +714,6 @@ const bTheme U_theme_default = {
   },
   .space_clip = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xa6a6a6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
@@ -752,7 +737,6 @@ const bTheme U_theme_default = {
   },
   .space_topbar = {
     .back = RGBA(0x18181800),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xe6e6e6ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x181818b3),
@@ -765,7 +749,6 @@ const bTheme U_theme_default = {
   },
   .space_statusbar = {
     .back = RGBA(0x30303000),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0x838383ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x181818b3),
@@ -778,7 +761,6 @@ const bTheme U_theme_default = {
   },
   .space_spreadsheet = {
     .back = RGBA(0x28282800),
-    .title = RGBA(0xffffffff),
     .text = RGBA(0xc3c3c3ff),
     .text_hi = RGBA(0xffffffff),
     .header = RGBA(0x303030b3),
