@@ -400,7 +400,9 @@ struct DebugLogingParams final : public lf::Params {
     std::stringstream stream;
     for (const int i : path.index_range()) {
       path.last(i)->print_current_in_line(stream);
-      stream << ", ";
+      if (i < path.size() - 1) {
+        stream << ", ";        
+      }
     }
 
     return stream.str();
