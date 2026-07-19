@@ -395,6 +395,18 @@ path. Deferral of modifier/GN/shape-key sculpting per
       buildTree 1.55 s — an engine-repo optimization, e.g. parallelizing the
       tree build). Closing the gap is a real optimization project, not a
       build-flag fix.
+      **Addon-side RNA wins DONE** (`convert.py`): the legacy collection
+      accessors (`vertices.co`, `uv_layers.active.data.uv`) are pathologically
+      slow versus the contiguous-attribute API. Switched positions, the UV
+      load, corner-verts and the positions write-back to
+      `mesh.attributes[...].data.foreach_get/set` (with fallbacks). Per-call
+      at 1M/4M corners: UV 866→3 ms (300x), positions 39→3 ms, corner-verts
+      358→178 ms. Net at 1M: **enter 4.2 s → 3.2 s (−24%)**, loadAttrs
+      884→43 ms, gather 743→370 ms, and **flush 221→43 ms — now under the
+      ~50 ms target**. Byte-identical round trips and the 12-section addon
+      regression stay green. Remaining enter cost is now ~83% engine compute
+      (fromArrays 0.95 s + buildTree 1.71 s) — the spatial-tree parallelization
+      is the next lever.
 - [ ] Dyntopo-stroke exit produces a valid Mesh with warned layer drops.
 - [ ] ASAN over enter/stroke/exit/undo cycles.
 
