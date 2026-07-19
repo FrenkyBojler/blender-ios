@@ -91,6 +91,8 @@ CDT_input<T> fill_input_from_string(const char *spec, InputStorage<T> &r_storage
   ans.edge = r_storage.edge;
   ans.face_offsets = r_storage.face_offsets.as_span();
   ans.face_vert_indices = r_storage.face_vert_indices;
+  ans.needed_ids = CDT_ids_needed_type::CDT_ORIG_VERTS | CDT_ids_needed_type::CDT_ORIG_EDGES |
+                   CDT_ids_needed_type::CDT_ORIG_FACES;
 #ifdef WITH_GMP
   if (std::is_same_v<mpq_class, T>) {
     ans.epsilon = T(0);
@@ -948,9 +950,9 @@ template<typename T> void even_odd_boundary_disagreement_test()
  * - Outer edges count 1 (flip 1), inner edges count 2 (flip 0): outer ring reaches
  *   parity 1 from `outer_face`, "inside inner" inherits via flip 0. All 10 triangles
  *   filled.
- * - Even-odd is independent of `need_ids`: the detector reads `polygon_boundary_count_map`,
- *   not `CDTEdge::input_ids` (which collapses when `need_ids = false`). */
-template<typename T> void even_odd_coincident_polygons_need_ids_stable_test()
+ * - Even-odd is independent of `needed_ids`: the detector reads `polygon_boundary_count_map`,
+ *   not `CDTEdge::input_ids` (which collapses when `needed_ids = 0`). */
+template<typename T> void even_odd_coincident_polygons_needed_ids_stable_test()
 {
   const char *spec = R"(8 0 3
   0.0 0.0
@@ -968,12 +970,12 @@ template<typename T> void even_odd_coincident_polygons_need_ids_stable_test()
 
   InputStorage<T> store_with_ids;
   CDT_input<T> in_with_ids = fill_input_from_string<T>(spec, store_with_ids);
-  in_with_ids.need_ids = true;
+  in_with_ids.needed_ids = CDT_ids_needed_type::CDT_ORIG_FACES;
   CDT_result<T> out_with_ids = delaunay_2d_calc(in_with_ids, CDT_INSIDE_WITH_HOLES);
 
   InputStorage<T> store_no_ids;
   CDT_input<T> in_no_ids = fill_input_from_string<T>(spec, store_no_ids);
-  in_no_ids.need_ids = false;
+  in_no_ids.needed_ids = 0;
   CDT_result<T> out_no_ids = delaunay_2d_calc(in_no_ids, CDT_INSIDE_WITH_HOLES);
 
   /* V=8, H=4 hull -> 2V - H - 2 = 10 triangles. */
@@ -1030,7 +1032,7 @@ template<typename T> void even_odd_self_doubled_polygon_with_hole_test()
 
   InputStorage<T> store;
   CDT_input<T> in = fill_input_from_string<T>(spec, store);
-  in.need_ids = true;
+  in.needed_ids = CDT_ids_needed_type::CDT_ORIG_FACES;
 
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   if (DO_DRAW) {
@@ -3431,7 +3433,7 @@ template<typename T> void fill_curve_degenerate_interior_faces_test()
   in.face_offsets = OffsetIndices<int>(face_offsets);
   in.face_vert_indices = face_vert_offsets;
   in.epsilon = T(0.00001);
-  in.need_ids = false;
+  in.needed_ids = 0;
 
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(out.vert.size(), 117);
@@ -3440,7 +3442,7 @@ template<typename T> void fill_curve_degenerate_interior_faces_test()
 }
 
 /**
- * A single hexagon face plus two points that aren't part of any face, with `need_ids = false`
+ * A single hexagon face plus two points that aren't part of any face, with `needed_ids = 0`
  * and #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES (as used by the "Fill Curve" node).
  * The stray points force triangulation edges that never represent an input face,
  * so #remove_non_constraint_edges_leave_valid_bmesh dissolves them without its usual
@@ -3466,7 +3468,7 @@ template<typename T> void dissolve_pendant_edge_face_test()
   )";
   InputStorage<T> store;
   CDT_input<T> in = fill_input_from_string<T>(spec, store);
-  in.need_ids = false;
+  in.needed_ids = 0;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(out.vert.size(), 8);
   EXPECT_EQ(out.edge.size(), 6);
@@ -3478,7 +3480,7 @@ template<typename T> void dissolve_pendant_edge_face_test()
 
 /**
  * A single self-intersecting 7-sided polygon (one repeated vertex) plus two stray points
- * that don't belong to a face, `need_ids = false`, #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES.
+ * that don't belong to a face, `needed_ids = 0`, #CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES.
  * #remove_faces_in_holes crashed on a `symedge` invalidated by an earlier dissolve pass,
  * see: #160787.
  */
@@ -3498,7 +3500,7 @@ template<typename T> void stale_symedge_before_remove_faces_in_holes_test()
   )";
   InputStorage<T> store;
   CDT_input<T> in = fill_input_from_string<T>(spec, store);
-  in.need_ids = false;
+  in.needed_ids = 0;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(out.vert.size(), 12);
   EXPECT_EQ(out.edge.size(), 18);
@@ -3527,7 +3529,7 @@ template<typename T> void fuzz_repro_minimize_test1()
   )";
   InputStorage<T> store;
   CDT_input<T> in = fill_input_from_string<T>(spec, store);
-  in.need_ids = true;
+  in.needed_ids = CDT_ids_needed_type::CDT_ORIG_FACES;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   (void)out;
 }
@@ -3551,7 +3553,7 @@ template<typename T> void fuzz_repro_minimize_test2()
   )";
   InputStorage<T> store;
   CDT_input<T> in = fill_input_from_string<T>(spec, store);
-  in.need_ids = false;
+  in.needed_ids = 0;
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   (void)out;
 }
@@ -3568,7 +3570,9 @@ template<typename T> void intersection_simple_edge_ids_test()
   )";
   InputStorage<T> store;
   CDT_input<T> input = fill_input_from_string<T>(spec, store);
-  input.need_ids = true;
+  input.needed_ids = CDT_ids_needed_type::CDT_ORIG_VERTS | CDT_ids_needed_type::CDT_ORIG_EDGES |
+                     CDT_ids_needed_type::CDT_INTERSECTED_EDGES |
+                     CDT_ids_needed_type::CDT_ORIG_FACES;
   CDT_result<T> result = delaunay_2d_calc(input, CDT_CONSTRAINTS);
   EXPECT_EQ(result.intersected_edges_orig.size(), 5);
   EXPECT_TRUE(output_vert_is_intersection_and_has_edge_input_ids<T>(result, 4, 0, 1));
@@ -3593,7 +3597,9 @@ template<typename T> void intersection_squares_edge_ids_test()
   )";
   InputStorage<T> store;
   CDT_input<T> input = fill_input_from_string<T>(spec, store);
-  input.need_ids = true;
+  input.needed_ids = CDT_ids_needed_type::CDT_ORIG_VERTS | CDT_ids_needed_type::CDT_ORIG_EDGES |
+                     CDT_ids_needed_type::CDT_INTERSECTED_EDGES |
+                     CDT_ids_needed_type::CDT_ORIG_FACES;
   CDT_result<T> result = delaunay_2d_calc(input, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   EXPECT_EQ(result.intersected_edges_orig.size(), 10);
   EXPECT_TRUE(output_vert_is_intersection_and_has_edge_input_ids<T>(
@@ -3682,7 +3688,7 @@ TEST(delaunay_d, EvenOddBoundaryDisagreement)
 
 TEST(delaunay_d, EvenOddCoincidentPolygonsNeedIdsStable)
 {
-  even_odd_coincident_polygons_need_ids_stable_test<double>();
+  even_odd_coincident_polygons_needed_ids_stable_test<double>();
 }
 
 TEST(delaunay_d, EvenOddSelfDoubledPolygonWithHole)
@@ -3992,7 +3998,7 @@ TEST(delaunay_m, EvenOddBoundaryDisagreement)
 
 TEST(delaunay_m, EvenOddCoincidentPolygonsNeedIdsStable)
 {
-  even_odd_coincident_polygons_need_ids_stable_test<mpq_class>();
+  even_odd_coincident_polygons_needed_ids_stable_test<mpq_class>();
 }
 
 TEST(delaunay_m, EvenOddSelfDoubledPolygonWithHole)
@@ -4189,8 +4195,11 @@ TEST(delaunay_m, IntersectionSquaresEdgeIds)
 
 #if DO_TEXT_TESTS
 template<typename T>
-void text_test(
-    int arc_points_num, int lets_per_line_num, int lines_num, CDT_output_type otype, bool need_ids)
+void text_test(int arc_points_num,
+               int lets_per_line_num,
+               int lines_num,
+               CDT_output_type otype,
+               unsigned int needed_ids)
 {
   constexpr bool print_timing = true;
   /*
@@ -4329,14 +4338,14 @@ void text_test(
     }
   }
   in.epsilon = b_before_arcs_in.epsilon;
-  in.need_ids = need_ids;
+  in.needed_ids = needed_ids;
   double tstart = BLI_time_now_seconds();
   CDT_result<T> out = delaunay_2d_calc(in, otype);
   double tend = BLI_time_now_seconds();
   if (print_timing) {
     std::cout << "time = " << tend - tstart << "\n";
   }
-  if (!need_ids) {
+  if (needed_ids == 0) {
     EXPECT_EQ(out.vert_orig.size(), 0);
     EXPECT_EQ(out.edge_orig.size(), 0);
     EXPECT_EQ(out.face_orig.size(), 0);
@@ -4349,7 +4358,7 @@ void text_test(
     if (lines_num > 1) {
       label += " lines=" + std::to_string(lines_num);
     }
-    if (!need_ids) {
+    if (needed_ids == 0) {
       label += " no_ids";
     }
     if (otype != CDT_INSIDE_WITH_HOLES) {
@@ -4359,9 +4368,13 @@ void text_test(
   }
 }
 
+constexpr unsigned int need_vef_ids = CDT_ids_needed_type::CDT_ORIG_VERTS |
+                                      CDT_ids_needed_type::CDT_ORIG_EDGES |
+                                      CDT_ids_needed_type::CDT_ORIG_FACES;
+
 TEST(delaunay_d, TextB10)
 {
-  text_test<double>(10, 1, 1, CDT_INSIDE_WITH_HOLES, true);
+  text_test<double>(10, 1, 1, CDT_INSIDE_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_noids)
@@ -4371,7 +4384,7 @@ TEST(delaunay_d, TextB10_noids)
 
 TEST(delaunay_d, TextB10_inside)
 {
-  text_test<double>(10, 1, 1, CDT_INSIDE, true);
+  text_test<double>(10, 1, 1, CDT_INSIDE, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_inside_noids)
@@ -4381,7 +4394,7 @@ TEST(delaunay_d, TextB10_inside_noids)
 
 TEST(delaunay_d, TextB10_constraints)
 {
-  text_test<double>(10, 1, 1, CDT_CONSTRAINTS, true);
+  text_test<double>(10, 1, 1, CDT_CONSTRAINTS, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_constraints_noids)
@@ -4391,7 +4404,7 @@ TEST(delaunay_d, TextB10_constraints_noids)
 
 TEST(delaunay_d, TextB10_constraints_valid_bmesh)
 {
-  text_test<double>(10, 1, 1, CDT_CONSTRAINTS_VALID_BMESH, true);
+  text_test<double>(10, 1, 1, CDT_CONSTRAINTS_VALID_BMESH, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_constraints_valid_bmesh_noids)
@@ -4401,7 +4414,7 @@ TEST(delaunay_d, TextB10_constraints_valid_bmesh_noids)
 
 TEST(delaunay_d, TextB10_constraints_valid_bmesh_with_holes)
 {
-  text_test<double>(10, 1, 1, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, true);
+  text_test<double>(10, 1, 1, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_constraints_valid_bmesh_with_holes_noids)
@@ -4411,12 +4424,12 @@ TEST(delaunay_d, TextB10_constraints_valid_bmesh_with_holes_noids)
 
 TEST(delaunay_d, TextB200)
 {
-  text_test<double>(200, 1, 1, CDT_INSIDE_WITH_HOLES, true);
+  text_test<double>(200, 1, 1, CDT_INSIDE_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_10_10)
 {
-  text_test<double>(10, 10, 10, CDT_INSIDE_WITH_HOLES, true);
+  text_test<double>(10, 10, 10, CDT_INSIDE_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_d, TextB10_10_10_noids)
@@ -4427,17 +4440,17 @@ TEST(delaunay_d, TextB10_10_10_noids)
 #  ifdef WITH_GMP
 TEST(delaunay_m, TextB10)
 {
-  text_test<mpq_class>(10, 1, 1, CDT_INSIDE_WITH_HOLES, true);
+  text_test<mpq_class>(10, 1, 1, CDT_INSIDE_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_m, TextB200)
 {
-  text_test<mpq_class>(200, 1, 1, CDT_INSIDE_WITH_HOLES, true);
+  text_test<mpq_class>(200, 1, 1, CDT_INSIDE_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_m, TextB10_10_10)
 {
-  text_test<mpq_class>(10, 10, 10, CDT_INSIDE_WITH_HOLES, true);
+  text_test<mpq_class>(10, 10, 10, CDT_INSIDE_WITH_HOLES, need_vef_ids);
 }
 
 TEST(delaunay_m, TextB10_10_10_noids)
@@ -4562,6 +4575,8 @@ void rand_delaunay_test(int test_kind,
       if (nfaces > 0) {
         in.face = Array<Vector<int>>(nfaces);
       }
+      /* Can change this to time effect of calculating ids. */
+      in.needed_ids = need_vef_ids;
 
       /* Make vertices and edges or faces. */
       switch (test_kind) {

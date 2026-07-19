@@ -1840,7 +1840,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     M_Geometry_delaunay_2d_cdt_doc,
     ".. function:: delaunay_2d_cdt(vert_coords, edges, faces, output_type, epsilon, "
-    "need_ids=True, /)\n"
+    "needed_ids=0, /)\n"
     "\n"
     "   Computes the Constrained Delaunay Triangulation of a set of vertices,\n"
     "   with edges and faces that must appear in the triangulation.\n"
@@ -1872,7 +1872,12 @@ PyDoc_STRVAR(
     "   :param epsilon: For nearness tests; should not be zero\n"
     "   :type epsilon: float\n"
     "   :param need_ids: are the orig output arrays needed?\n"
-    "   :type need_ids: bool\n"
+    "   :type needed_ids: int. Bitmask of 0x1 => need orig_verts. "
+    "0x2 => need intersected edges. "
+    "0x4 => need original edges. "
+    "0x8 => need original faces. "
+    "0x10 => need original faces that go CW. "
+    "0x20 => only need on instance of each original.\n"
     "   :return: Output tuple, (vert_coords, edges, faces, orig_verts, orig_edges, orig_faces)\n"
     "   :rtype: tuple["
     "list[:class:`mathutils.Vector`], "
@@ -1887,7 +1892,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   PyObject *vert_coords, *edges, *faces;
   int output_type;
   float epsilon;
-  bool need_ids = true;
+  int needed_ids = 0;
   float (*in_coords)[2] = nullptr;
   int (*in_edges)[2] = nullptr;
   Py_ssize_t vert_coords_len, edges_len;
@@ -1914,7 +1919,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
                         &output_type,
                         &epsilon,
                         PyC_ParseBool,
-                        &need_ids))
+                        &needed_ids))
   {
     return nullptr;
   }
@@ -1957,7 +1962,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   in.face_offsets = face_offsets.as_span();
   in.face_vert_indices = face_vert_indices;
   in.epsilon = epsilon;
-  in.need_ids = need_ids;
+  in.needed_ids = needed_ids;
 
   const meshintersect::CDT_result<double> res = meshintersect::delaunay_2d_calc(
       in, CDT_output_type(output_type));
