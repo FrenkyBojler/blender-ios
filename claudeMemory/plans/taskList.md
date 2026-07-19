@@ -407,6 +407,21 @@ path. Deferral of modifier/GN/shape-key sculpting per
       regression stay green. Remaining enter cost is now ~83% engine compute
       (fromArrays 0.95 s + buildTree 1.71 s) — the spatial-tree parallelization
       is the next lever.
+      **Spatial-tree parallelization DONE** (engine
+      `SpatialTree::buildAllParallel`, see
+      [../research/spatial-build-parallelization.md](../research/spatial-build-parallelization.md)):
+      a level-synchronous top-down median partition replaces the serial
+      one-face-at-a-time insertion (kept as `buildAllSerial` /
+      `SC_SERIAL_BUILD` fallback). Vert ownership = lowest-incident-face's leaf
+      (atomic-min, brush/raycast-correct); leaves sized to ~leaf_limit verts by
+      the F/V ratio; a preorder-DFS renumber keeps node ids/`leaves()`
+      deterministic. At 1M: **buildTree 1749 → 346 ms (5.1x)**, the insertion
+      phase 1506 → 32 ms (46x). **Enter overall 4.47 s → 1.86 s (2.4x)** across
+      the whole P3 perf pass. Engine ctest: the two tests the change first
+      broke (spatial_reorder_inc, spatial_displacement_bounds) now pass; every
+      other failure is pre-existing (GPU/backend config, identical on serial).
+      Addon 12-section regression green; scale-bench byte-identical. Largest
+      remaining enter cost is now `Mesh_fromArrays` (~1.04 s at 1M).
 - [ ] Dyntopo-stroke exit produces a valid Mesh with warned layer drops.
 - [ ] ASAN over enter/stroke/exit/undo cycles.
 
