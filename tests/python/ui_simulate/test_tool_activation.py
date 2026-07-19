@@ -4,25 +4,9 @@
 
 """
 This file does not run anything, its methods are accessed for tests by ``run_blender_setup.py``.
-
-Regression tests for workspace tools that verify activation, active-tool state,
-and redraw of the tool-settings and header regions for registered tools.
 """
 
-import os
-import sys
-
 import modules.ui_test_utils as ui
-
-
-def _ensure_tool_helper():
-    startup_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "startup"))
-    if startup_path not in sys.path:
-        sys.path.insert(0, startup_path)
-    import bl_ui.space_toolsystem_toolbar  # noqa: F401
-    from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
-
-    return ToolSelectPanelHelper
 
 
 def _setup_editor_area(area_type):
@@ -52,7 +36,6 @@ def _setup_view3d(tool_mode):
     import bpy
 
     e, t, window, area = yield from _setup_editor_area("VIEW_3D")
-
     bpy.ops.mesh.primitive_cube_add()
 
     if tool_mode == "OBJECT":
@@ -94,12 +77,12 @@ def _setup_sequencer(view_type):
 
 
 def _get_tool_items(space_type, mode=None):
-    ToolSelectPanelHelper = _ensure_tool_helper()
+    import bpy
+    from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
+
     tool_class = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
     if tool_class is None:
         return []
-
-    import bpy
 
     items = ToolSelectPanelHelper._tools_flatten(
         tool_class.tools_from_context(bpy.context, mode)
