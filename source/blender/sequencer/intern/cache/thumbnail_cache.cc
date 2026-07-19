@@ -233,7 +233,7 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   if (strip->type == STRIP_TYPE_MASK && strip->mask) {
     return true;
   }
-  if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id) {
+  if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image) {
     return true;
   }
   if (strip->type == STRIP_TYPE_SCENE && (strip->flag & SEQ_SCENE_STRIPS) == 0 && strip->scene &&
@@ -282,8 +282,8 @@ static ThumbnailCache::SourceKey get_key_from_strip(const Scene *scene,
       BLI_assert(strip->clip);
       return ThumbnailCache::SourceKey(&strip->clip->id);
     case STRIP_TYPE_IMAGE_ID:
-      BLI_assert(strip->image_id);
-      return ThumbnailCache::SourceKey(&strip->image_id->id);
+      BLI_assert(strip->image);
+      return ThumbnailCache::SourceKey(&strip->image->id);
     case STRIP_TYPE_MASK:
       BLI_assert(strip->mask);
       return ThumbnailCache::SourceKey(&strip->mask->id);
@@ -694,8 +694,8 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
     if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip != nullptr) {
       source_id = &strip->clip->id;
     }
-    else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id != nullptr) {
-      source_id = &strip->image_id->id;
+    else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image != nullptr) {
+      source_id = &strip->image->id;
     }
     else if (strip->type == STRIP_TYPE_MASK && strip->mask != nullptr) {
       source_id = &strip->mask->id;
@@ -867,8 +867,8 @@ void thumbnail_cache_invalidate_strip(Scene *scene, const Strip *strip)
       else if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip) {
         removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->clip->id));
       }
-      else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id) {
-        removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->image_id->id));
+      else if (strip->type == STRIP_TYPE_IMAGE_ID && strip->image) {
+        removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->image->id));
       }
       else if (strip->type == STRIP_TYPE_MASK && strip->mask) {
         removed |= cache->remove_entry(ThumbnailCache::SourceKey(&strip->mask->id));

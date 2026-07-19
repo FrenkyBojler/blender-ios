@@ -46,11 +46,11 @@ namespace blender::seq {
 bool transform_single_image_check(const Strip *strip)
 {
   if (strip->type == STRIP_TYPE_IMAGE_ID) {
-    if (strip->image_id == nullptr) {
+    if (strip->image == nullptr) {
       return true;
     }
 
-    if (ELEM(strip->image_id->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+    if (ELEM(strip->image->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
       return false;
     }
     return true;
@@ -635,12 +635,12 @@ float2 image_transform_raw_size_get(const Scene *scene, const Strip *strip)
   }
 
   if (strip->type == STRIP_TYPE_IMAGE_ID) {
-    if (strip->image_id != nullptr) {
+    if (strip->image != nullptr) {
       void *lock;
-      ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image_id, nullptr, &lock);
+      ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image, nullptr, &lock);
       if (ibuf) {
         const float2 size(float(ibuf->x), float(ibuf->y));
-        BKE_image_release_ibuf(strip->image_id, ibuf, lock);
+        BKE_image_release_ibuf(strip->image, ibuf, lock);
         return size;
       }
     }

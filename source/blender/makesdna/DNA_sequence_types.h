@@ -398,7 +398,7 @@ struct Strip {
   /** For MOVIECLIP strips. */
   struct MovieClip *clip = nullptr;
   /** For IMAGE_ID strips. */
-  struct Image *image_id = nullptr;
+  struct Image *image = nullptr;
   /** For MASK strips. */
   struct Mask *mask = nullptr;
 

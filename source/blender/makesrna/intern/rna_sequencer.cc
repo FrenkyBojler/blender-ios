@@ -3618,9 +3618,9 @@ static void rna_def_image_id(BlenderRNA *brna)
       srna, "ImageID Strip", "Sequence strip to load an image from the image editor");
   RNA_def_struct_sdna(srna, "Strip");
 
-  prop = RNA_def_property(srna, "image_id", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Image ID", "Image ID that this strip uses");
+  RNA_def_property_ui_text(prop, "Image", "Image datablock that this strip uses");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   rna_def_filter_video(srna);

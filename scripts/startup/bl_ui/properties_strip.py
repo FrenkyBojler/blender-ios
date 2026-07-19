@@ -565,7 +565,7 @@ class STRIP_PT_source(StripButtonsPanel, Panel):
                 col.prop(strip, "use_deinterlace")
             else:  # elif strip_Type == 'IMAGE_ID'
                 iuser = scene.sequence_editor.image_user
-                layout.template_image(strip, "image_id", iuser, multiview=True)
+                layout.template_image(strip, "image", iuser, multiview=True)
 
             if scene.render.use_multiview:
                 layout.prop(strip, "use_multiview")

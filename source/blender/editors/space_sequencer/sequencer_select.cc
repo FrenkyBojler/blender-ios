@@ -2665,10 +2665,9 @@ static bool select_grouped_data(VectorSet<Strip *> strips,
         [&](Strip *strip) { return strip->type == STRIP_TYPE_MOVIECLIP && strip->clip == clip; });
   }
   else if (act_strip->type == STRIP_TYPE_IMAGE_ID) {
-    Image *img = act_strip->image_id;
-    select_matching([&](Strip *strip) {
-      return strip->type == STRIP_TYPE_IMAGE_ID && strip->image_id == img;
-    });
+    Image *img = act_strip->image;
+    select_matching(
+        [&](Strip *strip) { return strip->type == STRIP_TYPE_IMAGE_ID && strip->image == img; });
   }
   else if (act_strip->type == STRIP_TYPE_MASK) {
     Mask *mask = act_strip->mask;

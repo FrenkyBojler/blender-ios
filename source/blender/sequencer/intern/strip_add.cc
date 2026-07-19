@@ -180,7 +180,7 @@ Strip *add_image_id_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *loa
 {
   Strip *strip = strip_alloc(
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE_ID);
-  strip->image_id = load_data->image_id;
+  strip->image = load_data->image_id;
   strip->len = get_image_id_len(load_data->image_id);
   id_us_ensure_real(id_cast<ID *>(load_data->image_id));
   strip_add_set_name(scene, strip, load_data);
@@ -676,11 +676,11 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
       strip->len = std::max(strip->len, 0);
       break;
     case STRIP_TYPE_IMAGE_ID: {
-      if (strip->image_id == nullptr) {
+      if (strip->image == nullptr) {
         return;
       }
 
-      strip->len = get_image_id_len(strip->image_id);
+      strip->len = get_image_id_len(strip->image);
 
       strip->len -= strip->anim_startofs;
       strip->len -= strip->anim_endofs;

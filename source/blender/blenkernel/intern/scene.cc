@@ -818,7 +818,7 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   FOREACHID_PROCESS_IDSUPER(data, strip->scene, IDWALK_CB_NEVER_SELF);
   FOREACHID_PROCESS_IDSUPER(data, strip->scene_camera, IDWALK_CB_NOP);
   FOREACHID_PROCESS_IDSUPER(data, strip->clip, IDWALK_CB_USER);
-  FOREACHID_PROCESS_IDSUPER(data, strip->image_id, IDWALK_CB_USER);
+  FOREACHID_PROCESS_IDSUPER(data, strip->image, IDWALK_CB_USER);
   FOREACHID_PROCESS_IDSUPER(data, strip->mask, IDWALK_CB_USER);
   FOREACHID_PROCESS_IDSUPER(data, strip->sound, IDWALK_CB_USER);
   IDP_foreach_property(strip->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {

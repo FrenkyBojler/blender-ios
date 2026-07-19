@@ -443,7 +443,7 @@ bool strip_has_valid_data(const Strip *strip)
     case STRIP_TYPE_MOVIECLIP:
       return (strip->clip != nullptr);
     case STRIP_TYPE_IMAGE_ID:
-      return (strip->image_id != nullptr);
+      return (strip->image != nullptr);
     case STRIP_TYPE_SCENE:
       return (strip->scene != nullptr);
     case STRIP_TYPE_SOUND:

@@ -2394,8 +2394,8 @@ static void sequencer_report_duplicates(wmOperator *op, ListBaseT<Strip> *duplic
         }
         break;
       case STRIP_TYPE_IMAGE_ID:
-        if (strip.image_id) {
-          images.add(strip.image_id);
+        if (strip.image) {
+          images.add(strip.image);
         }
         break;
       case STRIP_TYPE_MASK:
@@ -3443,18 +3443,18 @@ static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op
 
       break;
     case STRIP_TYPE_IMAGE_ID:
-      img = active_strip->image_id;
+      img = active_strip->image;
       if (img == nullptr) {
         return OPERATOR_CANCELLED;
       }
 
-      if (active_strip->image_id != nullptr) {
+      if (active_strip->image != nullptr) {
         void *lock;
-        ImBuf *ibuf = BKE_image_acquire_ibuf(active_strip->image_id, nullptr, &lock);
+        ImBuf *ibuf = BKE_image_acquire_ibuf(active_strip->image, nullptr, &lock);
         if (ibuf) {
           orig_width = ibuf->x;
           orig_height = ibuf->y;
-          BKE_image_release_ibuf(active_strip->image_id, ibuf, lock);
+          BKE_image_release_ibuf(active_strip->image, ibuf, lock);
         }
       }
 
@@ -4343,13 +4343,13 @@ static wmOperatorStatus sequencer_strip_transform_fit_exec(bContext *C, wmOperat
         src_h = cv->height;
       }
       else if (strip.type == STRIP_TYPE_IMAGE_ID) {
-        if (strip.image_id != nullptr) {
+        if (strip.image != nullptr) {
           void *lock;
-          ImBuf *ibuf = BKE_image_acquire_ibuf(strip.image_id, nullptr, &lock);
+          ImBuf *ibuf = BKE_image_acquire_ibuf(strip.image, nullptr, &lock);
           if (ibuf) {
             src_w = float(ibuf->x);
             src_h = float(ibuf->y);
-            BKE_image_release_ibuf(strip.image_id, ibuf, lock);
+            BKE_image_release_ibuf(strip.image, ibuf, lock);
           }
         }
       }

@@ -1223,7 +1223,7 @@ static ImBuf *seq_render_movieclip_strip(const RenderData *context,
 
 static ImBuf *seq_get_image_id_strip(const RenderData *context, Strip *strip, float frame_index)
 {
-  if (!strip->image_id) {
+  if (!strip->image) {
     return nullptr;
   }
 
@@ -1232,7 +1232,7 @@ static ImBuf *seq_get_image_id_strip(const RenderData *context, Strip *strip, fl
   ImageUser *user = &context->scene->ed->image_user;  // the original one is not a potiner
   user->framenr = int(frame_index) + strip->anim_startofs + 1;
 
-  ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image_id, user, nullptr);
+  ImBuf *ibuf = BKE_image_acquire_ibuf(strip->image, user, nullptr);
   return ibuf;
 }
 

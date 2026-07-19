@@ -784,7 +784,7 @@ void do_version_image_id_strips(Main *bmain, Scene *scene)
       MEM_delete(strip->data->stripdata);
 
       strip->type = STRIP_TYPE_IMAGE_ID;
-      strip->image_id = img;
+      strip->image = img;
       id_us_ensure_real(id_cast<ID *>(img));
 
       seq::relations_invalidate_cache(scene, strip);

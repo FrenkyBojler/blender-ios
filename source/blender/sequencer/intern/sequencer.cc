@@ -191,8 +191,8 @@ static void seq_strip_free_ex(Scene *scene,
     id_us_min(&strip->clip->id);
   }
 
-  if (strip->image_id && do_id_user) {
-    id_us_min(&strip->image_id->id);
+  if (strip->image && do_id_user) {
+    id_us_min(&strip->image->id);
   }
 
   if (strip->mask && do_id_user) {
@@ -736,14 +736,14 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
     }
   }
   else if (strip->type == STRIP_TYPE_IMAGE_ID) {
-    if (flag_is_set(ctx.dupe_flag, StripDuplicate::Data) && strip_new->image_id != nullptr) {
-      Image *image_old = strip_new->image_id;
+    if (flag_is_set(ctx.dupe_flag, StripDuplicate::Data) && strip_new->image != nullptr) {
+      Image *image_old = strip_new->image;
       ctx.image_ids.add(image_old);
-      strip_new->image_id = reinterpret_cast<Image *>(BKE_id_copy_for_duplicate(
+      strip_new->image = reinterpret_cast<Image *>(BKE_id_copy_for_duplicate(
           ctx.bmain, reinterpret_cast<ID *>(image_old), USER_DUP_LINKED_ID, LIB_ID_COPY_DEFAULT));
     }
     if ((ctx.copy_flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      id_us_plus(&strip_new->image_id->id);
+      id_us_plus(&strip_new->image->id);
     }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
