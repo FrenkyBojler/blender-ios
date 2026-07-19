@@ -63,6 +63,9 @@ def _on_depsgraph_update(scene, depsgraph=None):
     # too (cheap: a dict scan) or its engine session leaks.
     _reconcile()
     _sync_multires_levels()
+    if depsgraph is not None:
+        from . import texture
+        texture.invalidate_from_depsgraph(depsgraph)
 
 
 def _reconcile():
@@ -85,8 +88,11 @@ def _on_undo_redo(scene, depsgraph=None):
 
 @persistent
 def _on_load(*_args):
-    # The previous file's engine meshes are orphaned by the load.
+    # The previous file's engine meshes are orphaned by the load, and the
+    # texture bakes belong to the replaced file's datablocks.
     engine.free_all_sessions()
+    from . import texture
+    texture.invalidate()
 
 
 def register():

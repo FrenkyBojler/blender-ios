@@ -77,6 +77,16 @@ class SCULPTCORE_PT_brush(bpy.types.Panel):
             for name in names:
                 col.prop(group, name)
 
+        # Brush texture (Phase 2). Unmapped map modes sculpt untextured.
+        col.separator()
+        col.label(text="Texture")
+        col.template_ID(brush, "texture", new="texture.new")
+        if brush.texture is not None:
+            col.prop(brush.texture_slot, "map_mode", text="Mapping")
+            from . import texture as texture_mod
+            if brush.texture_slot.map_mode not in texture_mod._COORD_SPACE:
+                col.label(text="Mapping not supported by the engine", icon='INFO')
+
 
 class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'

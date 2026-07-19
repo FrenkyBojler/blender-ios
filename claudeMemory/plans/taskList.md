@@ -716,9 +716,26 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       `claudeMemory/tests/brush_parity_test.py` (run via `run_sync.py`;
       NaN-proof guards per the ASAN-refresh convention). All 13 checks pass
       on RelWithDebInfo and ASAN-clean on the MSVC ASAN build.
-- [ ] Phase 2: brush textures (`mtex` → `tex_*`), cavity automask.
+- [~] Phase 2 — **brush textures DONE** (plan:
+      [brush-textures.md](./brush-textures.md)): engine seam is bindings-only
+      (`Brush.setTexture/clearTexture` + reflected
+      `coord_space`/`tex_repeat`/`tex_width`/`tex_height`, a
+      `TexCoordSpace` enum binder, `CommandExecutor.setRenderMatrix`); addon
+      `texture.py` bakes `Texture.evaluate` intensity over `[-1,1]²` at
+      128², caches by name (depsgraph + load_post invalidation), maps
+      `map_mode` → `TexCoordSpace` (3D/VIEW_PLANE/TILED/AREA_PLANE;
+      RANDOM/STENCIL unmapped → cleared), and the stroke operator binds per
+      stroke (+ perspective matrix for the view-pinned modes). N-panel
+      Texture section. Gate: `tests/brush_texture_test.py` (gradient
+      modulates DRAW, symmetric control, cache invalidation, unmapped
+      clears). Parity limits documented in the plan (Projected UV is
+      world-units, DRAW-family kernels only, no mtex extras). Cavity
+      automask still open (engine fields exist and are reflected; needs
+      `apply_brush` wiring + a gate). Interactive view-pinned mapping check
+      still owed (headless covers Global only).
 - [ ] Parity checklist maintained for unmapped features (cloth/boundary/
-      multiplane, topology rake, front-face, accumulate, tip shape).
+      multiplane, topology rake, front-face, accumulate, tip shape,
+      mtex RANDOM/STENCIL map modes + brightness/contrast/invert).
 
 ---
 

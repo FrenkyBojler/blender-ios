@@ -15,9 +15,15 @@ guards never failed. Rule: after setting engine-brush fields, always
 after `resync_if_diverged` (rebuild makes a fresh brush). Movement guards
 are now NaN-proof (`not (isfinite and delta > eps)`). P7 M5 is formalized:
 `tests/brush_parity_test.py` (per-type effect + UNSUPPORTED refusal +
-apply_brush field-name sweep), green on both builds. A real-pen feel test
-is still owed (simulation can't carry pressure). Next: brush textures
-(P7 phase 2), store-rewriting ops, or the workspace mode-memory nit.
+apply_brush field-name sweep), green on both builds. **Brush textures
+(P7 Phase 2) landed** — plan: `plans/brush-textures.md`; engine seam is
+bindings-only (`setTexture`/`clearTexture`/`setRenderMatrix` + reflected
+coord_space/tex_repeat), addon `texture.py` bakes `Texture.evaluate` at
+128² with name-keyed caching, the stroke operator binds per stroke, gate
+`tests/brush_texture_test.py`. Still owed: an interactive check of the
+view-pinned mappings (VIEW_PLANE/TILED — headless covers Global), the
+real-pen feel test, and cavity automask (fields reflected, unwired).
+Next: cavity automask, store-rewriting ops, or the workspace mode nit.
 
 ---
 

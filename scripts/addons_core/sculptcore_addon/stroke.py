@@ -20,7 +20,7 @@ is scriptable end-to-end.
 
 import bpy
 
-from . import convert, engine, mapping, undo
+from . import convert, engine, mapping, texture, undo
 
 
 def _float3(mgr, x, y, z):
@@ -334,6 +334,11 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                 sc_brush.addPropDynamic(
                     mapping.PROP_RADIUS, mapping.DEVICE_PRESSURE, mapping.MIX_MULTIPLY, 1.0)
                 self._use_pressure = True
+        # Brush texture (Phase 2): bind or clear per stroke; view-pinned
+        # mappings also need the current perspective matrix.
+        texture.apply_texture(self.brush, sc_brush)
+        if texture.needs_render_matrix(self.brush):
+            texture.apply_render_matrix(context, _ensure_executor(self.session))
         self._anchor = None
         self._anchor_normal = None
         # Dab spacing along the stroke path (engine StrokeSpacer semantics:
