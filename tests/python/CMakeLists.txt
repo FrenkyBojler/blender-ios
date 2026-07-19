@@ -1268,6 +1268,7 @@ if(TEST_SRC_DIR_EXISTS)
     mesh/split_edges
     mesh/triangulate
     points
+    simulation
     texture
     utilities
     vector
@@ -1297,15 +1298,6 @@ if(TEST_SRC_DIR_EXISTS)
     endforeach()
   endforeach()
 
-  file(GLOB files "${TEST_SRC_DIR}/modeling/geometry_nodes/simulation/*.blend")
-  foreach(file ${files})
-    get_filename_component(filename ${file} NAME_WE)
-    add_blender_test(
-      geo_node_simulation_test_${filename}
-      ${file}
-      --python ${TEST_PYTHON_DIR}/geo_node_sim_test.py
-    )
-  endforeach()
 endif()
 
 # ------------------------------------------------------------------------------
