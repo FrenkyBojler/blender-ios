@@ -23,7 +23,7 @@ bl_info = {
 
 import bpy
 
-from . import convert, cursor, engine, handlers, keymap, props, stroke, tools, ui, undo
+from . import convert, cursor, engine, engine_props, handlers, keymap, props, stroke, tools, ui, undo
 
 
 class SculptCoreMode(bpy.types.ObjectModeType):
@@ -62,6 +62,7 @@ class SculptCoreMode(bpy.types.ObjectModeType):
 
 def register():
     props.register()
+    engine_props.register()
     stroke.register()
     # Hand the mode the native external draw provider so custom-mode objects
     # draw their per-node geometry from the engine (P5 D6). Best-effort: if the
@@ -89,6 +90,7 @@ def unregister():
     keymap.unregister()
     bpy.utils.unregister_class(SculptCoreMode)
     stroke.unregister()
+    engine_props.unregister()
     props.unregister()
     engine.free_all_sessions()
     undo.reset()

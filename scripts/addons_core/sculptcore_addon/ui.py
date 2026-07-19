@@ -12,7 +12,7 @@ into the engine's active level (P8 C2).
 
 import bpy
 
-from . import engine, mapping, multires
+from . import engine, engine_props, mapping, multires
 
 _CATEGORY = "SculptCore"
 
@@ -67,6 +67,15 @@ class SCULPTCORE_PT_brush(bpy.types.Panel):
         row.prop(unified, "use_unified_strength", text="", icon='WORLD')
         col.prop(brush, "spacing")
         col.prop(brush, "direction", expand=True)
+
+        # Engine-only uniforms for this brush's kernel (generated group, M2).
+        names = engine_props.props_for_type(brush.sculpt_brush_type)
+        group = getattr(brush, "sculptcore", None)
+        if names and group is not None:
+            col.separator()
+            col.label(text="Engine")
+            for name in names:
+                col.prop(group, name)
 
 
 class SCULPTCORE_PT_dyntopo(bpy.types.Panel):

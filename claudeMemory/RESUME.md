@@ -83,9 +83,14 @@ each grid's own level). Addon: `MultiresMap.engine_vert_to_blender` (from
 `.spatial.v.mask` ⇄ `CD_GRID_PAINT_MASK`, exchanged at the top level (enter/
 flush/level-switch persist). Gate: `scripts/p8_mask.py`.
 
+P7 M2/M3 are done: `engine_props.py` generates `Brush.sculptcore` from the
+per-kernel uniform manifests (defaults from engine FIELDS, not DSL defs;
+string members via `read_litestl_string(x.ptr)`; `entry.def` via getattr;
+int primitive is `int32`), `mapping.apply_brush` routes it per dab, and the
+N-panel draws an "Engine" section. Gate: `tests/engine_props_test.py`.
+
 ## 3. The exact next tasks
 
-- P7 M2/M3 — manifest-generated engine-prop PropertyGroups + brush panel.
 - Hardening gates still open: live GUI object/workspace switch matrix (P2),
   ASAN + `WITH_UNITY_BUILD=OFF` clean build (P2/P3).
 - Store-rewriting ops (down-refit, subdivide/delete) land with their

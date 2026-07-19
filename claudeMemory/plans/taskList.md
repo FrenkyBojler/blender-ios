@@ -630,8 +630,28 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       between, CONSTANT spreads (regression suite `falloff presets`). Still
       to fill in: POSE (pose-cage), hardness fold-in, autosmooth
       `[main, SMOOTH]` program, PROJECTED falloff shape.
-- [ ] M2 Manifest walk → generated `PropertyGroup`s; idempotent register.
-- [ ] M3 Brush UI panel (+ auto engine-props section, dyntopo panel).
+- [x] M2 **done** — `engine_props.py`: at register a throwaway engine
+      mesh/tree/brush/executor walks `queryUniformManifest` per mapped
+      kernel; every engine-only float uniform (not mapping-driven, with a
+      bound Brush field — the plain dab path reads fields) becomes a
+      `FloatProperty` on the generated `Brush.sculptcore` PropertyGroup
+      (asset-serializable; values survive addon re-enable as IDProperties).
+      Range from the manifest `@range`; **default from the engine FIELD, not
+      the DSL `def`** (planeSide is +1 as a field but 0 in the DSL — the DSL
+      default would break the plane family). `mapping.apply_brush` copies
+      the active kernel's values into the engine fields per dab, after the
+      mapping table so table-driven fields keep authority. Gotchas: the
+      reflected string member needs `read_litestl_string(entry.name.ptr)`;
+      `entry.def` needs `getattr` (Python keyword); the reflected int
+      primitive is `int32`. Current yield: kelvinlet `mu`/`nu`, plane-family
+      `planeSide`. Verified (`tests/engine_props_test.py`, ALL PASS):
+      generation, apply routing, `nu` behaviorally reshapes the elastic
+      field (`mu` is normalized out by the kernel by design), CLAY behavior
+      unchanged with generated defaults, disable/re-enable idempotent.
+- [x] M3 **done** — the N-panel Brush section gained an auto "Engine"
+      subsection listing the active kernel's generated props (GUI-verified:
+      Elastic Deform shows mu/nu at engine defaults). Brush + Dyntopo +
+      Multires panels already existed.
 - [x] M4 **done** — Pressure: the stroke operator configures the engine's
       per-stroke device dynamics through the int-keyed ids (the string API
       can't marshal `util::string`; constants in `mapping.py`) —

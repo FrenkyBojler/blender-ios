@@ -180,5 +180,10 @@ def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert):
 
     _bake_falloff(bl_brush, sc_brush)
 
+    # Generated engine-only uniforms (Brush.sculptcore, brush-mapping M2) —
+    # after the mapping so table-driven fields keep authority.
+    from . import engine_props
+    engine_props.apply(bl_brush, sc_brush)
+
     # writeProps() bakes the scalar fields into the kernel's uniform block.
     sc_brush.writeProps()
