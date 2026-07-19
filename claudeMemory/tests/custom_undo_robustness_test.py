@@ -64,6 +64,7 @@ def main():
     draw = int(mgr.get("sculptcore::brush::SculptBrushes").items["DRAW"])
     brush = strokemod._ensure_brush(session)
     brush.strength, brush.radius = 0.5, 0.5
+    brush.writeProps()
 
     # -- 1. exception inside undo_decode must not crash --------------------
     _stroke(session, strokemod, undo_mod, context, draw)

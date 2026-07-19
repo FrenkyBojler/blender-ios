@@ -9790,7 +9790,15 @@ static int bpy_class_validate(PointerRNA *dummy_ptr, void *py_data, bool *have_f
 }
 
 /* TODO: multiple return values like with RNA functions. */
-static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms)
+/* CLAUDENOTE: dev-only ASAN workaround (revert before the PR). Same
+ * use-after-poison false positive as #bpy_class_validate_recursive above:
+ * `PyCodeObject::co_argcount` reads land in CPython's user-poisoned obmalloc
+ * pools; MSVC ASAN has no ignorelist, so exclude just this function. */
+#if defined(__SANITIZE_ADDRESS__) && defined(_MSC_VER) && !defined(__clang__)
+__declspec(no_sanitize_address)
+#endif
+static int
+bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms)
 {
   PyObject *args;
   PyObject *ret = nullptr, *py_srna = nullptr, *py_class_instance = nullptr, *parmitem;

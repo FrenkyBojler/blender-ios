@@ -3,15 +3,19 @@
 Fast entry point for a new session. Everything is in git + `claudeMemory/`;
 nothing lives only in a chat. Read this, then the two docs in §1, then continue.
 
-Last updated: 2026-07-18. Current focus: **usability pass COMPLETE** —
-cursor overlay (ObjectModeType.draw_cursor seam + cursor.py), keymap pass
-(Shift-smooth / Ctrl-invert via stroke `mode` enum, F / Shift-F radials),
-and pressure (M4: per-stroke device dynamics via int-keyed ids + per-dab
-`event.pressure`; engine fix — `execBrush` now applies `loadCommonProps`
-with the device ctx). A real-pen feel test is still owed (simulation can't
-carry pressure). Next: P8 A4 (grid paint mask), the P8 verification tail
-(production asset, cage corpus), or P7 M2/M3 (engine-prop PropertyGroups +
-brush panel).
+Last updated: 2026-07-19. Current focus: **hardening gates COMPLETE** —
+unity-off clean build, GUI switch matrix, and the ASAN refresh (all sync
+tests + p8_session/p8_mask/p8_c4 ASAN-clean; `bpy_class_call` got the same
+dev-only `no_sanitize_address` as `bpy_class_validate_recursive`). The
+refresh caught six sync tests gone VACUOUS since the pressure change:
+`execBrush` → `loadCommonProps` overwrites engine-brush fields from props,
+so field-only test setups saw strength/radius 0 → NaN, and `nan < eps`
+guards never failed. Rule: after setting engine-brush fields, always
+`brush.writeProps()` (the operator's `apply_brush` does), and re-publish
+after `resync_if_diverged` (rebuild makes a fresh brush). Movement guards
+are now NaN-proof (`not (isfinite and delta > eps)`). A real-pen feel test
+is still owed (simulation can't carry pressure). Next: P7 M5 formalization,
+brush textures, or store-rewriting ops.
 
 ---
 

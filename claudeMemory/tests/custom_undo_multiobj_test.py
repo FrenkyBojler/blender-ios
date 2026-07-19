@@ -85,10 +85,13 @@ def main():
     for s in (s_one, s_two):
         b = strokemod._ensure_brush(s)
         b.strength, b.radius = 0.5, 0.5
+        b.writeProps()
 
     pre_one, pre_two = pos("One"), pos("Two")
     post_one = stroke("One", s_one, strokemod, undo_mod, context, (0.0, 0.0, 1.0))
     post_two = stroke("Two", s_two, strokemod, undo_mod, context, (3.0, 0.0, 1.0))
+    if not (np.isfinite(post_one).all() and np.abs(post_one - pre_one).max() > 1e-6):
+        _fail("stroke on One did not change positions (brush setup?)")
 
     # Undo: last stroke was Two -> Two reverts, One untouched.
     bpy.ops.ed.undo()

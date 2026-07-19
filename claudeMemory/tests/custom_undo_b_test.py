@@ -91,12 +91,15 @@ def main():
     brush = strokemod._ensure_brush(session)
     brush.strength = 0.5
     brush.radius = 0.5
+    # execBrush reloads fields from the brush props each dab, so field writes
+    # must be published or the kernel sees zeros (radius 0 -> NaN).
+    brush.writeProps()
 
     pre = positions()
     post_a = do_stroke(session, strokemod, undo_mod, context, (0.0, 0.0, 1.0))
     post_b = do_stroke(session, strokemod, undo_mod, context, (1.0, 0.0, 0.0))
     post_c = do_stroke(session, strokemod, undo_mod, context, (0.0, 1.0, 0.0))
-    if np.abs(post_c - pre).max() < 1e-6:
+    if not (np.isfinite(post_c).all() and np.abs(post_c - pre).max() > 1e-6):
         _fail("strokes did not change positions (brush setup?)")
     print("PASS: three strokes applied (max delta {:.3f})".format(
         float(np.abs(post_c - pre).max())))

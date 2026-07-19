@@ -270,15 +270,29 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
       the reconcile on `depsgraph_update_post` too, so any real scene change
       sweeps stale sessions (verified live: the leak cleared on the next
       update).
-- [~] ASAN + `WITH_UNITY_BUILD=OFF` clean build — **unity-off DONE**: full
+- [x] ASAN + `WITH_UNITY_BUILD=OFF` clean build — **unity-off DONE**: full
       clang non-unity build (2187 targets, separate dir
       `../build_windows_x64_unityoff`) compiles and links with zero errors,
       and its binary passes the full multires session harness — no hidden
       include dependencies in any of the added headers. (Build note: run
       long builds DETACHED — killed tool-timeout rounds corrupt `.ninja_log`
-      and restart the build from scratch each time.) ASAN: the P6-era MSVC
-      ASAN pass covered the undo/session paths; an incremental refresh over
-      the newer C code is building — rerun the suite when it lands.
+      and restart the build from scratch each time.) ASAN refresh over the
+      post-P6 C code: **DONE, all green** — six sync tests + the three p8 GUI
+      harnesses (p8_session/p8_mask/p8_c4) run ASAN-clean (0 errors) with the
+      P6 suppression setup. The re-run surfaced that six sync tests had gone
+      VACUOUS: `execBrush` now runs `loadCommonProps` (pressure/M4), which
+      overwrites engine-brush FIELDS from PROPS each dab — tests that set
+      fields without `writeProps()` got strength/radius 0 (radius 0 → NaN
+      positions, and `nan < threshold` comparisons never fail). Fixed by
+      publishing via `writeProps()` (the bridge convention; the operator's
+      `apply_brush` already does) and hardening the movement guards to
+      `not (isfinite(...) and delta > eps)`. The meshchange failure was the
+      same issue one level deeper: `resync_if_diverged` builds a fresh
+      session brush, so props must be re-published after a rebuild.
+      `bpy_class_call` (bpy_rna.cc) got the same dev-only
+      `no_sanitize_address` exclusion as `bpy_class_validate_recursive`
+      (identical `co_argcount` obmalloc false positive, hit via header_draw)
+      so the p8 GUI harnesses can run under ASAN.
 
 ---
 

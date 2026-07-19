@@ -76,9 +76,12 @@ def main():
     session = engine.sessions[OBJ]
     brush = strokemod._ensure_brush(session)
     brush.strength, brush.radius = 0.5, 0.5
+    brush.writeProps()
 
     pre = positions()
     post_a = do_stroke(session, strokemod, undo_mod, context, (0.0, 0.0, 1.0))
+    if not (np.isfinite(post_a).all() and np.abs(post_a - pre).max() > 1e-6):
+        _fail("stroke A did not change positions (brush setup?)")
     post_b = do_stroke(session, strokemod, undo_mod, context, (1.0, 0.0, 0.0))
     # Foreign memfile step between strokes (a mesh-preserving snapshot, e.g. a
     # scene-setting tweak the user makes mid-sculpt).

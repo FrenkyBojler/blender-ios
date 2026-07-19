@@ -54,6 +54,7 @@ def main():
     draw = int(mgr.get("sculptcore::brush::SculptBrushes").items["DRAW"])
     brush = strokemod._ensure_brush(session)
     brush.strength, brush.radius = 0.5, 0.5
+    brush.writeProps()
 
     # One normal stroke.
     strokemod.stroke_begin(session, has_dyntopo=False)
@@ -97,6 +98,11 @@ def main():
     if hit is None:
         _fail("raycast missed the rebuilt mesh")
     center, normal, _ = hit
+    # The rebuild constructed a fresh engine brush; publish props to it the
+    # way the stroke operator does (apply_brush -> writeProps) each invoke.
+    brush = strokemod._ensure_brush(session)
+    brush.strength, brush.radius = 0.5, 0.5
+    brush.writeProps()
     before = np.empty(v_after * 3, dtype=np.float32)
     ob.data.vertices.foreach_get("co", before)
     strokemod.stroke_begin(session, has_dyntopo=False)
@@ -107,7 +113,7 @@ def main():
     undo_mod.push(context, ob, session)
     after = np.empty(v_after * 3, dtype=np.float32)
     ob.data.vertices.foreach_get("co", after)
-    if float(np.abs(after - before).max()) < 1e-6:
+    if not (np.isfinite(after).all() and float(np.abs(after - before).max()) > 1e-6):
         _fail("stroke on rebuilt session did not change the mesh")
     print("PASS: stroke on the rebuilt session works")
 

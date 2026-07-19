@@ -58,6 +58,7 @@ def main():
     draw = int(mgr.get("sculptcore::brush::SculptBrushes").items["DRAW"])
     brush = strokemod._ensure_brush(session)
     brush.strength, brush.radius = 0.4, 0.4
+    brush.writeProps()
 
     ob = bpy.data.objects[OBJ]
     pushed_total = 0.0
