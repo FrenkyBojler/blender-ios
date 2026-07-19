@@ -3439,7 +3439,8 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
     return {
         pbvh_gather_generic_cube(ob, brush, brush_local_mat, use_original, memory),
         std::nullopt,
-        sculpt_normal,
+        brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE ? std::optional{sculpt_normal} :
+                                                            std::nullopt,
     };
   }
 
