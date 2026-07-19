@@ -1608,22 +1608,30 @@ class WM_OT_properties_edit(Operator):
 
     @staticmethod
     def _convert_new_value_single(old_value, new_type):
-        if isinstance(old_value, list) and len(old_value) > 0:
+        import idprop
+        # Can't convert from strings/data-block/nested data types.
+        if isinstance(old_value, (str, bytes, bpy.types.ID, idprop.types.IDPropertyGroup, type(None))):
+            return new_type()
+
+        if hasattr(old_value, "__len__") and len(old_value) > 0:
             return new_type(old_value[0])
-        if not isinstance(old_value, (int, float, bool)):
-            return new_type(1.0 if old_value else 0.0)
+
         return new_type(old_value)
 
     # Helper method to create a list of a given value and type, using a sequence or non-sequence old value.
     @staticmethod
     def _convert_new_value_array(old_value, new_type, new_len):
-        if isinstance(old_value, list):
+        import idprop
+        # Can't convert from strings/data-block/nested data types.
+        if isinstance(old_value, (str, bytes, bpy.types.ID, idprop.types.IDPropertyGroup, type(None))):
+            return [new_type()] * new_len
+
+        if hasattr(old_value, "__len__"):
             new_array = [new_type()] * new_len
             for i in range(min(len(old_value), new_len)):
                 new_array[i] = new_type(old_value[i])
             return new_array
-        if not isinstance(old_value, (int, float, bool)):
-            return [new_type(1.0 if old_value else 0.0)] * new_len
+
         return [new_type(old_value)] * new_len
 
     # Convert an old property for a string, avoiding unhelpful string representations for custom list types.
