@@ -26,6 +26,7 @@
 #include "BKE_curve.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_nla.hh"
+#include "BKE_scene.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -261,8 +262,51 @@ static void draw_fcurve_active_vertex(const FCurve *fcu, const View2D *v2d, cons
   immEnd();
 }
 
+static void draw_fcurve_cfra_keyframe_vertices(FCurve *fcu,
+                                               View2D *v2d,
+                                               const uint pos,
+                                               const float cfra)
+{
+  const float base_size = (fcu->flag & FCURVE_PROTECTED) == 0 ?
+                              ui::theme::get_value_f(TH_VERTEX_SIZE) * UI_SCALE_FAC :
+                              (ui::theme::get_value_f(TH_VERTEX_SIZE) * UI_SCALE_FAC) * 0.8f;
+
+  constexpr float DEFAULT_VERTEX_SIZE_THRESHOLD_PX = 6.0f;
+  constexpr float MIN_EMPHASIZED_KEYFRAME_SIZE_PX = 9.0f;
+
+  if (base_size > DEFAULT_VERTEX_SIZE_THRESHOLD_PX * UI_SCALE_FAC) {
+    return; /* Already big enough to read over the playhead. */
+  }
+  const float emphasized_size = std::max(base_size,
+                                         MIN_EMPHASIZED_KEYFRAME_SIZE_PX * UI_SCALE_FAC);
+
+  const IndexRange index_range = get_bounding_bezt_index_range(fcu, v2d->cur.xmin, v2d->cur.xmax);
+
+  Vector<int> matches;
+  for (const int i : index_range) {
+    if (fabsf(fcu->bezt[i].vec[1][0] - cfra) < 1e-3f) {
+      matches.append(i);
+    }
+  }
+  if (matches.is_empty()) {
+    return;
+  }
+
+  immUniform1f("size", emphasized_size);
+  immBeginAtMost(GPU_PRIM_POINTS, matches.size());
+  for (const int i : matches) {
+    BezTriple *bezt = &fcu->bezt[i];
+    set_fcurve_vertex_color(fcu, (bezt->f2 & SELECT) != 0);
+    immVertex2fv(pos, bezt->vec[1]);
+  }
+  immEnd();
+}
+
 /* helper func - draw keyframe vertices only for an F-Curve */
-static void draw_fcurve_keyframe_vertices(FCurve *fcu, View2D *v2d, const uint pos)
+static void draw_fcurve_keyframe_vertices(FCurve *fcu,
+                                          View2D *v2d,
+                                          const uint pos,
+                                          const float cfra)
 {
   immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
 
@@ -278,6 +322,7 @@ static void draw_fcurve_keyframe_vertices(FCurve *fcu, View2D *v2d, const uint p
   draw_fcurve_selected_keyframe_vertices(fcu, false, pos, index_range);
   draw_fcurve_selected_keyframe_vertices(fcu, true, pos, index_range);
   draw_fcurve_active_vertex(fcu, v2d, pos);
+  draw_fcurve_cfra_keyframe_vertices(fcu, v2d, pos, cfra);
 
   immUnbindProgram();
 }
@@ -384,10 +429,8 @@ static void draw_fcurve_handle_vertices(FCurve *fcu, View2D *v2d, bool sel_handl
   immUnbindProgram();
 }
 
-static void draw_fcurve_vertices(ARegion *region,
-                                 FCurve *fcu,
-                                 bool do_handles,
-                                 bool sel_handle_only)
+static void draw_fcurve_vertices(
+    ARegion *region, FCurve *fcu, bool do_handles, bool sel_handle_only, const float cfra)
 {
   View2D *v2d = &region->v2d;
 
@@ -410,7 +453,7 @@ static void draw_fcurve_vertices(ARegion *region,
   }
 
   /* draw keyframes over the handles */
-  draw_fcurve_keyframe_vertices(fcu, v2d, pos);
+  draw_fcurve_keyframe_vertices(fcu, v2d, pos, cfra);
 
   GPU_program_point_size(false);
   GPU_blend(GPU_BLEND_NONE);
@@ -1283,7 +1326,11 @@ static void draw_fcurve(bAnimContext *ac, SpaceGraph *sipo, ARegion *region, bAn
           draw_fcurve_handles(sipo, region, fcu);
         }
 
-        draw_fcurve_vertices(region, fcu, do_handles, (sipo->flag & SIPO_SELVHANDLESONLY));
+        draw_fcurve_vertices(region,
+                             fcu,
+                             do_handles,
+                             (sipo->flag & SIPO_SELVHANDLESONLY),
+                             BKE_scene_frame_get(ac->scene));
       }
       else {
         /* samples: only draw two indicators at either end as indicators */
