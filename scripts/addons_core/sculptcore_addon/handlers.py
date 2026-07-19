@@ -58,6 +58,10 @@ def _sync_multires_levels():
 
 @persistent
 def _on_depsgraph_update(scene, depsgraph=None):
+    # Deleting an in-mode object (outliner / bpy.data) never runs the exit
+    # callback and fires no undo signal until much later, so reconcile here
+    # too (cheap: a dict scan) or its engine session leaks.
+    _reconcile()
     _sync_multires_levels()
 
 

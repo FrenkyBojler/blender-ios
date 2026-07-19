@@ -89,10 +89,18 @@ string members via `read_litestl_string(x.ptr)`; `entry.def` via getattr;
 int primitive is `int32`), `mapping.apply_brush` routes it per dab, and the
 N-panel draws an "Engine" section. Gate: `tests/engine_props_test.py`.
 
+The GUI switch matrix is done (see P2 in the taskList): background-mode
+objects are inert+drawn, outliner activation force-exits vanilla-style,
+workspace mode memory transitions cleanly, addon disable force-exits, and
+the delete-while-in-mode session leak is fixed (reconcile now also runs on
+`depsgraph_update_post`).
+
 ## 3. The exact next tasks
 
-- Hardening gates still open: live GUI object/workspace switch matrix (P2),
-  ASAN + `WITH_UNITY_BUILD=OFF` clean build (P2/P3).
+- Hardening gate still open: ASAN + `WITH_UNITY_BUILD=OFF` clean build
+  (unity-off build in progress at `../build_windows_x64_unityoff`; resume
+  with `bl_env.bat cmake --build ../build_windows_x64_unityoff --target
+  blender` — ninja is incremental).
 - Store-rewriting ops (down-refit, subdivide/delete) land with their
   features; their undo payload seam (`serializeStore` blobs) already exists.
 

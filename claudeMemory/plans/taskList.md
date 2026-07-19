@@ -255,8 +255,21 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
       renders (KeyError fixed by the static 'CUSTOM' item); panels/keymap key
       off `CTX_data_mode_string` — interactive panel/keymap-event check rides
       P4's addon (which registers real panels + keymap items).
-- [ ] Object/workspace *GUI* switch matrix + addon-disable while in mode in a
-      live session (generic-exit branch is unit-verified; GUI pass pending).
+- [x] Object/workspace *GUI* switch matrix **done** (live event-sim session):
+      (1) background-mode object while another is active (mode lock ON) is
+      inert (stroke/cursor polls gate on the active object) and still draws
+      via the provider; (2) outliner-activating a background in-mode object
+      force-exits it through the generic path — vanilla lock-ON semantics
+      (`outliner_select.cc` exits mode-incompatible objects), session freed
+      cleanly; (3) activating the in-mode object itself keeps the mode;
+      (4) switching to a workspace with a remembered mode (Modeling→EDIT)
+      transitions cleanly through the compat path (nit: workspaces do not
+      remember a custom mode); (5) addon disable while in mode force-exits,
+      re-enable + re-enter work; (6) deleting an in-mode object leaked its
+      session (only undo/load reconciled) — **fixed**: `handlers` now runs
+      the reconcile on `depsgraph_update_post` too, so any real scene change
+      sweeps stale sessions (verified live: the leak cleared on the next
+      update).
 - [ ] ASAN + `WITH_UNITY_BUILD=OFF` clean build (run before the P2 work is
       called done-done; new headers + DNA touched).
 
