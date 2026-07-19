@@ -65,11 +65,15 @@
 #include "list_function_eval.hh"
 #include "volume_grid_function_eval.hh"
 
+#include "CLG_log.h"
+
 #include <fmt/format.h>
 #include <iostream>
 #include <sstream>
 
 namespace blender::nodes {
+
+static CLG_LogRef LOG = {"geometry_nodes_execution"};
 
 using bke::bNodeTreeZone;
 using bke::bNodeTreeZones;
@@ -117,6 +121,123 @@ static void lazy_function_interface_from_node(const bNode &node,
         socket->name, CPPType::get<SocketValueVariant>());
   }
 }
+
+struct DebugLogingParams final : public lf::Params {
+  lf::Params &base;
+  const lf::Context &context;
+  const Span<lf::Output> outputs;
+  const bNode &node;
+
+  DebugLogingParams(const LazyFunction &fn,
+                    lf::Params &base,
+                    const lf::Context &context,
+                    const Span<lf::Output> outputs,
+                    const bNode &node)
+      : lf::Params(fn, true), base(base), context(context), outputs(outputs), node(node)
+  {
+  }
+
+ private:
+  void *try_get_input_data_ptr_impl(const int index) const override
+  {
+    return base.try_get_input_data_ptr(index);
+  }
+
+  void *try_get_input_data_ptr_or_request_impl(const int index) override
+  {
+    return base.try_get_input_data_ptr_or_request(index);
+  }
+
+  void *get_output_data_ptr_impl(const int index) override
+  {
+    return base.get_output_data_ptr(index);
+  }
+
+  uint64_t hash(const SocketValueVariant &value) const
+  {
+    if (value.is_single()) {
+      const GPointer value_ptr = value.get_single_ptr();
+      if (value_ptr.type()->is_hashable()) {
+        return value_ptr.type()->hash(value_ptr.get());
+      }
+
+      return 0;
+    }
+
+    if (value.is_field()) {
+      const auto field = value.get<GField>();
+      return field.hash();
+    }
+
+    return 0;
+  }
+
+  std::string print_stack() const
+  {
+    const auto &user_data = dynamic_cast<const GeoNodesUserData &>(*context.user_data);
+    Vector<const ComputeContext *> path;
+    for (const ComputeContext *iter = user_data.compute_context; iter != nullptr;
+         iter = iter->parent())
+    {
+      path.append(iter);
+    }
+
+    std::stringstream stream;
+    for (const int i : path.index_range()) {
+      path.last(i)->print_current_in_line(stream);
+      stream << ", ";
+    }
+
+    return stream.str();
+  }
+
+  void output_set_impl(const int index) override
+  {
+    // const auto &user_data = dynamic_cast<const GeoNodesUserData &>(*context.user_data);
+    // if (!user_data.full_debug_value_log) {
+    //   base.output_set(index);
+    //   return;
+    // }
+
+    const lf::Output &lf_socket = outputs[index];
+    if (!lf_socket.type->is<SocketValueVariant>()) {
+      base.output_set(index);
+      return;
+    }
+
+    const auto &value = *static_cast<const SocketValueVariant *>(base.get_output_data_ptr(index));
+    const std::string log_value = fmt::format(
+        "geometry_nodes_execution: {}, Node: {}, Output: {}, Hash: {}",
+        this->print_stack(),
+        node.idname,
+        lf_socket.debug_name,
+        this->hash(value));
+    printf("%s;\n", log_value.c_str());
+    // CLOG_TRACE(&LOG, log_value.c_str());
+
+    base.output_set(index);
+  }
+
+  bool output_was_set_impl(const int index) const override
+  {
+    return base.output_was_set(index);
+  }
+
+  lf::ValueUsage get_output_usage_impl(const int index) const override
+  {
+    return base.get_output_usage(index);
+  }
+
+  void set_input_unused_impl(const int index) override
+  {
+    base.set_input_unused(index);
+  }
+
+  bool try_enable_multi_threading_impl() override
+  {
+    return base.try_enable_multi_threading();
+  }
+};
 
 /**
  * Used for most normal geometry nodes like Subdivision Surface and Set Position.
@@ -183,8 +304,10 @@ class LazyFunctionForGeometryNode : public LazyFunction {
     }
   }
 
-  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  void execute_impl(lf::Params &base_params, const lf::Context &context) const override
   {
+    DebugLogingParams params(*this, base_params, context, outputs_, node_);
+
     const ScopedNodeTimer node_timer{context, node_};
 
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);

@@ -283,6 +283,13 @@ struct GeoNodesUserData : public fn::UserData {
    */
   bool verbose_log = true;
 
+  /**
+   * Log hash of every socket value with full context string into standard output.
+   * Used to diff execution process on different machines or in other scenarios where we need to
+   * find where difference in result comes from.
+   */
+  bool full_debug_value_log = false;
+
   destruct_ptr<fn::LocalUserData> get_local(LinearAllocator<> &allocator) override;
 
   bool is_stack_limit_reached() const

@@ -150,6 +150,11 @@ struct Global {
   bool randomize_geometry_element_order;
 
   /**
+   * Verbose logging of all parts of execution of geometry nodes for debugging purpose.
+   */
+  bool trace_geometry_nodes_execution;
+
+  /**
    * Control behavior of file reading/writing.
    *
    * This variable is written to / read from #FileGlobal.fileflags.

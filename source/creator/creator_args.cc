@@ -2046,6 +2046,17 @@ static int arg_handle_native_pixels_set(int /*argc*/, const char ** /*argv*/, vo
   return 0;
 }
 
+static const char arg_handle_enable_verbose_geometry_nodes_doc[] =
+    "\n\t"
+    "Verbose logging of all parts of execution of geometry nodes for debugging purpose.";
+static int arg_handle_enable_verbose_geometry_nodes(int /*argc*/,
+                                                    const char ** /*argv*/,
+                                                    void * /*data*/)
+{
+  G.trace_geometry_nodes_execution = true;
+  return 0;
+}
+
 static const char arg_handle_window_border_doc[] =
     "\n\t"
     "Force opening with borders, in a normal (non maximized) state.";
@@ -3364,6 +3375,12 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
   BLI_args_add(
       ba, nullptr, "--unregister-allusers", CB(arg_handle_unregister_extension_all), nullptr);
   BLI_args_add(ba, nullptr, "--no-native-pixels", CB(arg_handle_native_pixels_set), ba);
+
+  BLI_args_add(ba,
+               nullptr,
+               "--verbose-geometry-nodes",
+               CB(arg_handle_enable_verbose_geometry_nodes),
+               nullptr);
 
   /* Pass: Disabling Things & Forcing Settings. */
   BLI_args_pass_set(ba, ARG_PASS_SETTINGS_FORCE);

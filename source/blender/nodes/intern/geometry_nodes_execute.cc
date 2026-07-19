@@ -28,6 +28,7 @@
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node_enum.hh"
@@ -583,6 +584,7 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   call_data.root_ntree = &btree;
 
   user_data.compute_context = &base_compute_context;
+  user_data.full_debug_value_log = G.trace_geometry_nodes_execution;
 
   ResourceScope scope;
   LinearAllocator<> &allocator = scope.allocator();
