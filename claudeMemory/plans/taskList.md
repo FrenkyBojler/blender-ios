@@ -380,15 +380,21 @@ path. Deferral of modifier/GN/shape-key sculpting per
       Enter splits roughly evenly across gather (0.73 s, Blender RNA
       `foreach_get`) / fromArrays (0.89 s) / buildTree (1.78 s) / loadAttrs
       (0.97 s, dominated by the 4M-corner UV `foreach_get`) / draw (0.10 s).
-      Ruled out: flat-grid BVH degeneracy (a domed 200k mesh builds in the
-      same 353 ms as flat). **Prime suspect:** the litestl leak-tracking
-      allocator is compiled into the native/python DLL for *every* build type
-      (`NO_DEBUG_ALLOC` is only set for WASM+ASAN) — every alloc/free takes a
-      global mutex and links onto a per-thread list, a per-allocation tax that
-      would be off in a shipping build. Next step to quantify: rebuild the
-      python target with `-DNO_DEBUG_ALLOC` and re-measure; then the
-      Blender-side RNA `foreach_get` costs (gather + UV load) are the
-      addon-side lever.
+      Ruled out (both measured, not assumed): flat-grid BVH degeneracy (a
+      domed 200k mesh builds in the same 353 ms as flat), and — the surprise —
+      **the leak-tracking allocator**. A separate `-DNO_DEBUG_ALLOC` rebuild
+      (`build/python-nda`, pointed at via `SCULPTCORE_CAPI_PATH`) shaved only
+      ~6% off enter (4469→4194 ms; buildTree −13%, fromArrays 0%), so the
+      global-mutex-per-alloc tax is real but minor, not the bottleneck. The
+      engine DLL is already `-O2 -DNDEBUG` (RelWithDebInfo = optimized, asserts
+      off), so a pure Release build won't move it either. **Conclusion: the
+      cost is genuine work, split ~roughly in half.** ~40% is Blender-side RNA
+      `foreach_get` (gather 0.74 s + the 4M-corner UV load — inherent to bpy,
+      the addon-side lever is to defer/skip UV on enter and read positions off
+      the evaluated mesh in C); ~55% is engine compute (fromArrays 0.89 s +
+      buildTree 1.55 s — an engine-repo optimization, e.g. parallelizing the
+      tree build). Closing the gap is a real optimization project, not a
+      build-flag fix.
 - [ ] Dyntopo-stroke exit produces a valid Mesh with warned layer drops.
 - [ ] ASAN over enter/stroke/exit/undo cycles.
 
