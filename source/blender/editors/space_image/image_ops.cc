@@ -3502,7 +3502,6 @@ static bool image_pack_poll(bContext *C)
 
 static wmOperatorStatus image_pack_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
   Image *ima = image_from_context(C);
 
   const char *error_message = nullptr;
@@ -3517,7 +3516,8 @@ static wmOperatorStatus image_pack_exec(bContext *C, wmOperator *op)
     BKE_image_memorypack(ima);
   }
   else {
-    BKE_image_packfiles(op->reports, ima, ID_BLEND_PATH(bmain, &ima->id));
+    BKE_report(op->reports, RPT_WARNING, "Image is not edited yet");
+    return OPERATOR_CANCELLED;
   }
 
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
