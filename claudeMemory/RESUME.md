@@ -95,12 +95,17 @@ workspace mode memory transitions cleanly, addon disable force-exits, and
 the delete-while-in-mode session leak is fixed (reconcile now also runs on
 `depsgraph_update_post`).
 
+The `WITH_UNITY_BUILD=OFF` gate is CLOSED: full non-unity clang build
+(2187 targets) clean, binary passes `p8_session`. Lesson: run long builds
+DETACHED (`Start-Process` a batch wrapper; tool-timeout kills corrupt
+`.ninja_log` and restart the build) and watch the log with a Monitor.
+
 ## 3. The exact next tasks
 
-- Hardening gate still open: ASAN + `WITH_UNITY_BUILD=OFF` clean build
-  (unity-off build in progress at `../build_windows_x64_unityoff`; resume
-  with `bl_env.bat cmake --build ../build_windows_x64_unityoff --target
-  blender` — ninja is incremental).
+- ASAN refresh over the post-P6 C code (mask seam, cursor seam,
+  draw_external, undo poll): incremental MSVC ASAN rebuild at
+  `../build_windows_x64_msvc_Asan`; then re-run the test suites with the
+  P6-era suppressions (`claudeMemory/scripts/asan_suppressions.txt`).
 - Store-rewriting ops (down-refit, subdivide/delete) land with their
   features; their undo payload seam (`serializeStore` blobs) already exists.
 

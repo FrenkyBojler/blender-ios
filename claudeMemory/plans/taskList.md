@@ -270,8 +270,15 @@ refresh seams wired. No undo type (P6), no draw hook (P5).
       the reconcile on `depsgraph_update_post` too, so any real scene change
       sweeps stale sessions (verified live: the leak cleared on the next
       update).
-- [ ] ASAN + `WITH_UNITY_BUILD=OFF` clean build (run before the P2 work is
-      called done-done; new headers + DNA touched).
+- [~] ASAN + `WITH_UNITY_BUILD=OFF` clean build — **unity-off DONE**: full
+      clang non-unity build (2187 targets, separate dir
+      `../build_windows_x64_unityoff`) compiles and links with zero errors,
+      and its binary passes the full multires session harness — no hidden
+      include dependencies in any of the added headers. (Build note: run
+      long builds DETACHED — killed tool-timeout rounds corrupt `.ninja_log`
+      and restart the build from scratch each time.) ASAN: the P6-era MSVC
+      ASAN pass covered the undo/session paths; an incremental refresh over
+      the newer C code is building — rerun the suite when it lands.
 
 ---
 
