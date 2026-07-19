@@ -1,2 +1,3 @@
 Referenced by commit 622e3d47920f5fcbf9bd7b64d673bec2536d3f65, Fix: Potential issue with multires bake tangent handling
 Referenced by commit 33b430892cc87dfb26666145c05ca12156e42217, Fix #143218: Uninitialized VBO data using multiple UV tangents
+Referenced by issue #161651, EEVEE: Tangent node produces different result in edit mode while there is no UV map
