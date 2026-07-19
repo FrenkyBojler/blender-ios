@@ -37,6 +37,9 @@ class SculptCoreMode(bpy.types.ObjectModeType):
     # meshlog step id (see undo.py). The Mesh ID still stays authoritative
     # through flush for save/render; memfile remains the boundary fallback.
     bl_use_custom_undo = True
+    # The mode's tools use the shared sculpt brush, so paint-context lookups
+    # (brush texture user in the texture properties tab etc.) resolve to it.
+    bl_use_sculpt_paint = True
 
     def enter(self, context, ob):
         convert.enter(ob)

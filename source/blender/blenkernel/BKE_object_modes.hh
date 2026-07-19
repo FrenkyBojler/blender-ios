@@ -125,6 +125,13 @@ struct ObjectModeType {
 enum eObjectModeTypeFlag {
   /** The mode opts into the wrapped custom undo type instead of memfile. */
   OBJECT_MODE_TYPE_USE_CUSTOM_UNDO = (1 << 0),
+  /**
+   * The mode's tools use the sculpt paint settings (#ToolSettings.sculpt):
+   * paint-context lookups (#BKE_paint_get_active) resolve to it while the
+   * mode is active, so brush-driven UI (e.g. the texture properties tab's
+   * brush texture user) works as in sculpt mode.
+   */
+  OBJECT_MODE_TYPE_USE_SCULPT_PAINT = (1 << 1),
 };
 
 /**
@@ -154,6 +161,10 @@ bool BKE_object_mode_type_poll_object(const ObjectModeType *mt, const Object *ob
 
 /** True when `ob`'s active custom mode opts into the wrapped undo type. */
 bool BKE_object_custom_mode_uses_custom_undo(const Object *ob);
+
+/** True when `ob`'s active custom mode declares its tools use the sculpt
+ * paint settings (#OBJECT_MODE_TYPE_USE_SCULPT_PAINT). */
+bool BKE_object_custom_mode_uses_sculpt_paint(const Object *ob);
 
 /** Free every registered type (called from WM exit). */
 void BKE_object_mode_types_exit();

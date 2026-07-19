@@ -20,9 +20,16 @@ apply_brush field-name sweep), green on both builds. **Brush textures
 bindings-only (`setTexture`/`clearTexture`/`setRenderMatrix` + reflected
 coord_space/tex_repeat), addon `texture.py` bakes `Texture.evaluate` at
 128² with name-keyed caching, the stroke operator binds per stroke, gate
-`tests/brush_texture_test.py`. Still owed: an interactive check of the
-view-pinned mappings (VIEW_PLANE/TILED — headless covers Global), the
-real-pen feel test, and cavity automask (fields reflected, unwired).
+`tests/brush_texture_test.py`. Follow-up fix: the texture
+properties tab was hidden in-mode — paint-context lookups didn't resolve
+for OB_MODE_CUSTOM, so the brush was never a texture user. New capability
+flag `ObjectModeType.bl_use_sculpt_paint` (OBJECT_MODE_TYPE_USE_SCULPT_PAINT
++ `BKE_object_custom_mode_uses_sculpt_paint`); `BKE_paint_get_active`
+resolves `ts->sculpt` for flagged custom modes. Verified live (tab
+available in-mode; note: the tab list is pathflag, recomputed only on a
+properties-editor redraw — probe async). Still owed: an interactive check
+of the view-pinned mappings (VIEW_PLANE/TILED — headless covers Global),
+the real-pen feel test, and cavity automask (fields reflected, unwired).
 Next: cavity automask, store-rewriting ops, or the workspace mode nit.
 
 ---

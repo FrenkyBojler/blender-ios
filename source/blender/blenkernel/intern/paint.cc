@@ -63,6 +63,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
+#include "BKE_object_modes.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_types.hh"
@@ -467,6 +468,14 @@ Paint *BKE_paint_get_active(const Main &bmain, Scene *sce, ViewLayer *view_layer
           return &ts->gp_weightpaint->paint;
         case OB_MODE_SCULPT_CURVES:
           return &ts->curves_sculpt->paint;
+        case OB_MODE_CUSTOM:
+          /* Custom modes can declare their tools use the sculpt paint
+           * settings (shared brush), e.g. for the brush texture user in the
+           * texture properties tab. */
+          if (ts->sculpt && BKE_object_custom_mode_uses_sculpt_paint(actob)) {
+            return &ts->sculpt->paint;
+          }
+          break;
         default:
           break;
       }

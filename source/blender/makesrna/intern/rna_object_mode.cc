@@ -586,6 +586,15 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
       "Use Custom Undo",
       "Use the wrapped custom undo type instead of global (memfile) undo while in the mode");
 
+  prop = RNA_def_property(srna, "bl_use_sculpt_paint", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", OBJECT_MODE_TYPE_USE_SCULPT_PAINT);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Use Sculpt Paint Settings",
+      "Resolve paint-context lookups to the sculpt paint settings while in the mode, so "
+      "brush-driven UI such as the texture properties tab works as in sculpt mode");
+
   RNA_define_verify_sdna(true);
 }
 

@@ -61,6 +61,15 @@ bool BKE_object_custom_mode_uses_custom_undo(const Object *ob)
          mt->undo_decode != nullptr;
 }
 
+bool BKE_object_custom_mode_uses_sculpt_paint(const Object *ob)
+{
+  if (ob == nullptr || (ob->mode & OB_MODE_CUSTOM) == 0 || ob->custom_mode_id[0] == '\0') {
+    return false;
+  }
+  const ObjectModeType *mt = BKE_object_mode_type_find(ob->custom_mode_id);
+  return mt != nullptr && (mt->flag & OBJECT_MODE_TYPE_USE_SCULPT_PAINT) != 0;
+}
+
 bool BKE_object_mode_draw_provider_set(ObjectModeType *mt, const ExternalDrawProvider *provider)
 {
   if (provider == nullptr || provider->abi_version != BKE_EXTERNAL_DRAW_ABI_VERSION) {
