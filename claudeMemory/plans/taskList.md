@@ -21,6 +21,7 @@ See [README.md](./README.md) for plan conventions and
 | P6 | Undo integration (wrapped undo + meshlog) | Not started | [undo-integration.md](./undo-integration.md) | P2, P3, P4 |
 | P7 | Brush & settings mapping | Not started | [brush-mapping.md](./brush-mapping.md) | P1 (M1 feeds P4 early) |
 | P8 | Multires conversion (MDISPS ⇄ grids) | Not started | [multires-convert.md](./multires-convert.md) | P3, P4 |
+| P9 | Stroke quality & parity (reference-app insights) | Not started | [stroke-quality.md](./stroke-quality.md) | P4, P6, P7 (M1) |
 
 Research: [../research/sculpt-modifier-coupling.md](../research/sculpt-modifier-coupling.md)
 maps where Blender couples sculpt structures to the modifier stack / geometry
@@ -30,10 +31,11 @@ the multires modifier). `../research/grid-correspondence.md` (to be written,
 P8 P0) will pin the MDISPS ⇄ SculptCore grid-sample bijection.
 
 **Critical path:** P2 → P3 → P4 (v0 usable) → P5/P6/P8 in parallel.
-P1 gates P3/P4/P7 on the engine side. Strategy reminder: minimal
-modifications to Blender's addon/registration surface — Blender C work is
-confined to P2 (mode API), P5 (draw provider seam), P6 (wrapped undo type),
-plus one small reshape utility in P8.
+P1 gates P3/P4/P7 on the engine side. P9 (addon-only) follows once
+P4/P6/P7-M1 are in. Strategy reminder: minimal modifications to Blender's
+addon/registration surface — Blender C work is confined to P2 (mode API),
+P5 (draw provider seam), P6 (wrapped undo type), plus one small reshape
+utility in P8; P9 adds none.
 
 ---
 
@@ -757,7 +759,10 @@ auto-generated custom properties on `Brush.sculptcore` / `Scene.sculptcore`
       multiplane, topology rake, front-face, accumulate, tip shape,
       mtex RANDOM/STENCIL map modes + brightness/contrast/invert, and the
       non-cavity automasking modes — topology, face sets, boundary, view
-      normal, start normal).
+      normal, start normal). Symmetry, `stroke_method`
+      (ANCHORED/DRAG_DOT), and the SMOOTH/BSMOOTH kernel choice moved to
+      **P9**; AIRBRUSH/LINE/CURVE stroke methods and radial symmetry stay
+      on this checklist (deferred by P9).
 
 ---
 
@@ -907,3 +912,60 @@ writeback cascade; export via reshape-context bake back into `CD_MDISPS`.
       subdiv verts) round-trips at 6e-7, enter cost ~12 s (KD-tree map build
       dominates at ~7 s — `_nearest` swapped from O(N·M) brute force to
       `mathutils.kdtree`, without which production counts were unreachable).
+
+---
+
+## P9 — Stroke quality & parity (reference-app insights)
+
+Full plan → **[stroke-quality.md](./stroke-quality.md)**. The six high-value
+gaps from
+[../research/webgl-app-reports-insights.md](../research/webgl-app-reports-insights.md)
+(the reference TypeScript app's integration + stroke-driver reports).
+Addon-only — no engine or Blender C changes; all engine seams
+(`setNeighborMode`, preview-dab API, BSMOOTH) verified reflected.
+
+- [ ] Q1a `setNeighborMode(1)` (CSR ring-1 cache) on executor construction —
+      A/B timing + identical-result check first, then adopt in
+      `_ensure_executor`.
+- [ ] Q1b SMOOTH vs BSMOOTH A/B on an open-boundary mesh; switch the
+      SMOOTH mapping entry + Shift-smooth kernel + autosmooth chain if
+      BSMOOTH is the boundary-preserving parity match (the reference app
+      uses BSMOOTH for both); record the decision.
+- [ ] Q2 Dyntopo cadence: remesh at its own arc-length spacing
+      (`stroke_s - last_dyntopo_s >= dyntopo_spacing`), not every dab;
+      plain program path when not due; spacing knob in the Dyntopo panel.
+      Once Q4 lands, the due decision is made on the primary dab and
+      cached for mirror images.
+- [ ] Q3 Spline stroke smoothing: dependency-free `stroke_math.py`
+      (centripetal Catmull-Rom → Bezier, 32-chord arc-length walk,
+      sub-curve slice) + `StrokeSpacer` upgraded to the spline walk with
+      cross-segment carry, 1-segment lookahead, first-dab raw emission,
+      right-clamped trailing flush.
+- [ ] Q4 Plane-mirror symmetry: `symmetry.py` (`SymAxisMap` 8-combo
+      sign-flip table), applied in the operator above the spacer; mirrored
+      centers re-raycast (grab-class mirrors anchor+cursor directly);
+      per-mirror grab state; shared dyntopo-due; driven by the shared mesh
+      symmetry flags; N-panel Symmetry section. Radial symmetry deferred
+      (P7 checklist).
+- [ ] Q5 ANCHORED / DRAG_DOT stroke methods via the engine preview-dab
+      API (`beginPreviewDab`/`rollbackPreviewDab`/`commitPreviewDab`;
+      mirrors share one bracket via `extendPreviewDab`): one live dab at
+      any moment, commit before `endStep`, cancel rolls back and skips the
+      undo push. ANCHORED = surface-hit anchor + anchor-time view-plane
+      projection + drag-length radius; DRAG_DOT = one dab at the live
+      cursor. AIRBRUSH/LINE/CURVE deferred (P7 checklist).
+
+### Verification (per plan)
+- [ ] Q1a timing A/B, identical results; Q1b boundary-behavior A/B
+      recorded.
+- [ ] Q2 remesh-call count ~ `strokeLen / dyntopo_spacing`, not dab count.
+- [ ] Q3 `stroke_math.py` unit tests (arc-length accuracy, carry
+      continuity); jittery-input A/B; event-rate invariance gate extended.
+- [ ] Q4 symmetric-mesh strokes stay symmetric across axis combos; grab +
+      dyntopo under symmetry; undo exact.
+- [ ] Q5 `claudeMemory/tests/stroke_methods_test.py` — direct-vs-wander
+      no-compounding (|wander − direct| < 10 % of direct delta), undo
+      restores, anchored refuses empty-space start, cancel is a no-op;
+      full P6 suite re-run green.
+- [ ] Final GUI feel pass (symmetry + anchored) via
+      `--enable-event-simulate`.

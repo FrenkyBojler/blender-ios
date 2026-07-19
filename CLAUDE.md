@@ -30,6 +30,16 @@ points must change (and the proposed `bpy.types.ObjectModeType` +
 `OB_MODE_CUSTOM` + wrapped-undo design) lives in
 [claudeMemory/design/addon-custom-modes.md](./claudeMemory/design/addon-custom-modes.md).
 
+**Reference app.** `webgl-app-framework-reports/` (untracked) documents how a
+sister TypeScript/WASM app integrates the same engine — a map of
+battle-tested engine seams. The insights that transfer to this project are
+distilled in
+[claudeMemory/research/webgl-app-reports-insights.md](./claudeMemory/research/webgl-app-reports-insights.md)
+and planned as P9
+([claudeMemory/plans/stroke-quality.md](./claudeMemory/plans/stroke-quality.md));
+prefer the distilled note, and treat the reports' `file:line` references as
+belonging to the *other* codebase.
+
 ### Working conventions for Claude (this project only)
 
 - Put everything Claude generates under `claudeMemory/`:
@@ -85,6 +95,8 @@ This scaffolding is *not* part of the upstream contribution. Before opening
 the final PR:
 
 - **Delete `claudeMemory/`.**
+- **Delete `webgl-app-framework-reports/`** (reference material from the
+  sister app; untracked, never committed).
 - **Bring back the old documentation set (`claudeDocs/`) and `AGENTS.md`:**
   - `claudeDocs/` was committed to this branch's history before deletion
     (commit *"Preserve pre-project claudeDocs for later restoration"*).

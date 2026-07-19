@@ -81,6 +81,13 @@ Master tracker with dependencies and per-plan checklists:
 | P6 | [undo-integration.md](./plans/undo-integration.md) | Wrapped `CUSTOM_MODE` undo type coupled to SculptCore's meshlog. |
 | P7 | [brush-mapping.md](./plans/brush-mapping.md) | Reusing Blender `Brush` properties; engine-only params as addon custom props. |
 | P8 | [multires-convert.md](./plans/multires-convert.md) | MDISPS ⇄ SculptCore displacement grids (multires modifier ignored at runtime). |
+| P9 | [stroke-quality.md](./plans/stroke-quality.md) | Stroke quality & parity from the reference-app reports: neighbor cache, BSMOOTH, dyntopo cadence, spline smoothing, symmetry, anchored/drag-dot. Addon-only. |
+
+Dev tooling (outside the P1–P9 integration sequence):
+
+| Plan | Covers |
+|---|---|
+| [shared-sculptcore-checkout.md](./plans/shared-sculptcore-checkout.md) | NTFS-junction `webgl-app-framework/sculptcore` to our `extern/sculptcore` so the sister app's tests run against our (unpushed) engine changes. |
 
 When implementing a plan, mark scaffolding comments with `CLAUDENOTE:` and
 strip them (plus audit all touched comments) when the plan is complete — see
@@ -91,3 +98,5 @@ strip them (plus audit all touched comments) when the plan is complete — see
 | Doc | Covers |
 |---|---|
 | [sculpt-modifier-coupling.md](./research/sculpt-modifier-coupling.md) | Where Blender couples sculpt mode to the modifier stack / geometry nodes; what the v1 deferral (no sculpting through active modifiers) skips and for how long. |
+| [grid-correspondence.md](./research/grid-correspondence.md) | MDISPS ⇄ SculptCore grid-sample bijection (P8 P0): layouts, corner-anchor convention, discrete-vs-limit base offset. |
+| [webgl-app-reports-insights.md](./research/webgl-app-reports-insights.md) | What the reference TypeScript app's integration/stroke-driver reports (`webgl-app-framework-reports/`) teach the plans: symmetry recipe, preview-dab stroke methods, `setNeighborMode`, BSMOOTH, dyntopo cadence, Catmull-Rom spacing. |

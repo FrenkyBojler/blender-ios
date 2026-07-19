@@ -27,10 +27,17 @@ flag `ObjectModeType.bl_use_sculpt_paint` (OBJECT_MODE_TYPE_USE_SCULPT_PAINT
 + `BKE_object_custom_mode_uses_sculpt_paint`); `BKE_paint_get_active`
 resolves `ts->sculpt` for flagged custom modes. Verified live (tab
 available in-mode; note: the tab list is pathflag, recomputed only on a
-properties-editor redraw — probe async). Still owed: an interactive check
-of the view-pinned mappings (VIEW_PLANE/TILED — headless covers Global),
-the real-pen feel test, and cavity automask (fields reflected, unwired).
-Next: cavity automask, store-rewriting ops, or the workspace mode nit.
+properties-editor redraw — probe async). The user GUI-verified texture
+strokes (closing the view-pinned mapping check), and **cavity automask
+landed** (`mapping.cavity_settings` + curve LUT, gate
+`tests/cavity_automask_test.py`). Still owed: the real-pen feel test.
+**New: P9** — the reference-app reports in `webgl-app-framework-reports/`
+were distilled into
+[research/webgl-app-reports-insights.md](./research/webgl-app-reports-insights.md)
+and planned as **[plans/stroke-quality.md](./plans/stroke-quality.md)**
+(P9, addon-only): `setNeighborMode`, SMOOTH-vs-BSMOOTH, dyntopo cadence,
+spline stroke smoothing, symmetry, anchored/drag-dot via the engine
+preview-dab API. Next: P9, starting at Q1a/Q1b.
 
 ---
 
@@ -121,12 +128,16 @@ DETACHED (`Start-Process` a batch wrapper; tool-timeout kills corrupt
 
 ## 3. The exact next tasks
 
-- ASAN refresh over the post-P6 C code (mask seam, cursor seam,
-  draw_external, undo poll): incremental MSVC ASAN rebuild at
-  `../build_windows_x64_msvc_Asan`; then re-run the test suites with the
-  P6-era suppressions (`claudeMemory/scripts/asan_suppressions.txt`).
+- **P9 — stroke quality & parity** ([plans/stroke-quality.md](./plans/stroke-quality.md),
+  checkboxes in the taskList): Q1a `setNeighborMode(1)` A/B and Q1b
+  SMOOTH-vs-BSMOOTH A/B first (small, independent), then Q3 spline
+  smoothing → Q2 dyntopo cadence → Q4 symmetry → Q5 anchored/drag-dot.
+  Background: [research/webgl-app-reports-insights.md](./research/webgl-app-reports-insights.md).
 - Store-rewriting ops (down-refit, subdivide/delete) land with their
   features; their undo payload seam (`serializeStore` blobs) already exists.
+- P7 parity-checklist leftovers + the real-pen feel test as opportunities
+  arise. (The post-P6 ASAN refresh is DONE — see the P2 verification
+  section in the taskList.)
 
 Stroke-quality pass (after C4): dab spacing (2D screen-space StrokeSpacer,
 projected per point — never space along the 3D hit polyline, it couples
