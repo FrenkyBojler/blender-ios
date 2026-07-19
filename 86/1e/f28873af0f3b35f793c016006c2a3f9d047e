@@ -1,1 +1,2 @@
 Referenced by issue #158297, EEVEE plane probe - pink rendering glitch (could be related to temporal accumulation in denoising).
+Referenced by issue #161639, Screen Ghosting with Fast Gi disabled on every normal space
