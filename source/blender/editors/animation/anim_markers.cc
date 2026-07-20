@@ -2253,7 +2253,7 @@ wmOperatorStatus markers_clipboard_copy_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void MARKER_OT_clipboard_copy(wmOperatorType *ot)
+static void MARKER_OT_clipboard_copy(wmOperatorType *ot)
 {
   ot->name = "Copy to Clipboard";
   ot->description = "Copy the selected timeline markers to the internal clipboard";
@@ -2261,8 +2261,6 @@ void MARKER_OT_clipboard_copy(wmOperatorType *ot)
 
   ot->exec = markers_clipboard_copy_exec;
   ot->poll = operator_markers_region_active;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
@@ -2334,16 +2332,16 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
   }
 
   /* Compute frame offset. */
-  int ofs;
+  int offset;
   if (RNA_boolean_get(op->ptr, "keep_offset")) {
-    ofs = scene_dst->r.cfra - scene_src->r.cfra;
+    offset = scene_dst->r.cfra - scene_src->r.cfra;
   }
   else {
     int min_marker_frame = std::numeric_limits<int>::max();
     for (TimeMarker &marker : scene_src->markers) {
       min_marker_frame = std::min(marker.frame, min_marker_frame);
     }
-    ofs = scene_dst->r.cfra - min_marker_frame;
+    offset = scene_dst->r.cfra - min_marker_frame;
   }
 
   deselect_markers(&scene_dst->markers);
@@ -2357,7 +2355,7 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
   for (TimeMarker &marker : scene_src->markers) {
     marker_new = MEM_dupalloc(&marker);
     marker_new->prev = marker_new->next = nullptr;
-    marker_new->frame += ofs;
+    marker_new->frame += offset;
 
     /* For camera-bound markers, lookup same-named object in scene. */
     if (marker_new->camera) {
@@ -2414,7 +2412,7 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
   return OPERATOR_FINISHED;
 }
 
-void MARKER_OT_clipboard_paste(wmOperatorType *ot)
+static void MARKER_OT_clipboard_paste(wmOperatorType *ot)
 {
   ot->name = "Paste from Clipboard";
   ot->description =
