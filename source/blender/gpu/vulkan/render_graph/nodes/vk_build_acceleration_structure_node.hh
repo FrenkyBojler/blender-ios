@@ -25,6 +25,7 @@ struct VKBuildAccelerationStructureCreateInfo {
   VKBuildAccelerationStructureData node_data;
   Set<VKResourceWithHandle<VkBuffer>> src_buffers;
   VKResourceWithHandle<VkBuffer> dst_acceleration_structure;
+  VKResourceWithHandle<VkBuffer> scratch_buffer;
 };
 
 class VKBuildAccelerationStructureNode
@@ -65,6 +66,13 @@ class VKBuildAccelerationStructureNode
         create_info.dst_acceleration_structure);
     links.buffers.append(
         {dst_acceleration_structure, VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
+
+    /* TODO: Check with Jeroen if this is really needed. */
+    ResourceWithStamp scratch_buffer = resources.get_buffer_and_increase_stamp(
+        create_info.scratch_buffer);
+    links.buffers.append({scratch_buffer,
+                          VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
+                              VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR});
   }
 
   /**

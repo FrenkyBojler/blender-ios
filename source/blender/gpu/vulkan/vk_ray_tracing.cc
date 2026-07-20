@@ -306,6 +306,7 @@ void VKTopLevelAS::build()
   node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
       vk_acceleration_structure_;
   build_acceleration_structure_info_.dst_acceleration_structure = buffer_.resource();
+  build_acceleration_structure_info_.scratch_buffer = device_scratch_space.resource();
 
   render_graph::VKRenderGraph &render_graph = context.render_graph();
   render_graph.add_node(build_acceleration_structure_info_);
@@ -521,6 +522,7 @@ void VKBottomLevelAS::build()
   node_data.vk_acceleration_structure_build_geometry_info.dstAccelerationStructure =
       vk_acceleration_structure_;
   build_acceleration_structure_info_.dst_acceleration_structure = buffer_.resource();
+  build_acceleration_structure_info_.scratch_buffer = device_scratch_space.resource();
 
   VKContext &context = *VKContext::get();
   render_graph::VKRenderGraph &render_graph = context.render_graph();
