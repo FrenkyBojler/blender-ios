@@ -151,23 +151,17 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, eAnimvizCa
   /* set flag to force recalc, then grab the relevant bones to target */
   ob->pose->avs.recalc |= ANIMVIZ_RECALC_PATHS;
   animviz_build_motionpath_targets(ob, targets);
-
-/* recalculate paths, then free */
-#ifdef DEBUG_TIME
-  TIMEIT_START(pose_path_calc);
-#endif
-
-  Depsgraph *depsgraph = animviz_depsgraph_build(bmain, scene, view_layer, targets);
-  animviz_calc_motionpaths(depsgraph, scene, targets, range);
-
-#ifdef DEBUG_TIME
-  TIMEIT_END(pose_path_calc);
-#endif
-
-  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-
-  /* Free temporary depsgraph. */
-  DEG_graph_free(depsgraph);
+  for (MPathTarget &target : targets) {
+    StringRefNull bone_name = target.pchan ? target.pchan->name : "";
+    motionpath::register_motionpath_async(*bmain,
+                                          *CTX_wm_manager(C),
+                                          *CTX_wm_window(C),
+                                          *scene,
+                                          *view_layer,
+                                          *target.mpath,
+                                          *ob,
+                                          bone_name);
+  }
 }
 
 /* show popup to determine settings */

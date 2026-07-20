@@ -10,6 +10,7 @@
 
 #include "BKE_nla.hh"
 
+#include "BLI_bounds_types.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_sys_types.hh"
 
@@ -1300,15 +1301,17 @@ void animviz_calc_motionpaths(Depsgraph *depsgraph,
                               Scene *scene,
                               MutableSpan<MPathTarget> targets,
                               eAnimvizCalcRange range);
+namespace motionpath {
 
 void register_motionpath_async(Main &bmain,
                                wmWindowManager &wm,
                                wmWindow &window,
                                Scene &scene,
                                ViewLayer &view_layer,
+                               bMotionPath &motion_path,
                                Object &armature_object,
-                               bPoseChannel &pose_bone,
-                               bMotionPath &motion_path);
+                               std::optional<StringRefNull> bone_name);
+}
 
 /**
  * Update motion path computation range (in `ob.avs` or `armature.avs`) from user choice in

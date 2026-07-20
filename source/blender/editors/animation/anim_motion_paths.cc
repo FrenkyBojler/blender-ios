@@ -541,7 +541,7 @@ static bMotionPath *get_motion_path(Object &ob, StringRefNull bone_name)
   else {
     bPoseChannel *pchan = BKE_pose_channel_find_name(ob.pose, bone_name.c_str());
     if (!pchan) {
-      return;
+      return nullptr;
     }
     mpath = pchan->mpath;
   }
@@ -563,8 +563,8 @@ static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer
     return false;
   }
 
-  BLI_assert(GS(&id_eval) == ID_OB);
-  Object *ob_eval = id_cast<Object *>(&id_eval);
+  BLI_assert(GS(id_eval->name) == ID_OB);
+  Object *ob_eval = id_cast<Object *>(id_eval);
 
   float3 motion_path_point;
   if (buffer->bone_name.empty()) {
@@ -624,6 +624,10 @@ static void finish_callback(ID &id, void *buffer_data)
   MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
   Object *ob = id_cast<Object *>(&id);
   bMotionPath *mpath = get_motion_path(*ob, buffer->bone_name);
+  if (mpath == nullptr) {
+    BLI_assert_unreachable();
+    return;
+  }
   /* One last update to ensure everything is copied. */
   update_callback(id, buffer_data, {mpath->start_frame, mpath->start_frame + mpath->length});
   MEM_delete(buffer);
@@ -634,15 +638,15 @@ void register_motionpath_async(Main &bmain,
                                wmWindow &window,
                                Scene &scene,
                                ViewLayer &view_layer,
+                               bMotionPath &motion_path,
                                Object &armature_object,
-                               bPoseChannel &pose_bone,
-                               bMotionPath &motion_path)
+                               std::optional<StringRefNull> bone_name)
 {
   for (int i = 0; i < motion_path.length; i++) {
     motion_path.points[i].flag |= MOTIONPATH_VERT_STALE;
   }
   MotionPathBuffer *buffer = MEM_new<MotionPathBuffer>(__func__);
-  buffer->bone_name = pose_bone.name;
+  buffer->bone_name = bone_name.has_value() ? *bone_name : "";
   buffer->start_frame = motion_path.start_frame;
   buffer->points.reinitialize(motion_path.length);
   buffer->flags.reinitialize(motion_path.length);
@@ -651,7 +655,7 @@ void register_motionpath_async(Main &bmain,
                                     window,
                                     scene,
                                     view_layer,
-                                    {&armature_object.id, pose_bone.name},
+                                    {&armature_object.id, buffer->bone_name},
                                     buffer,
                                     buffer_callback,
                                     update_callback,
