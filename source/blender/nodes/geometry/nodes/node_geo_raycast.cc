@@ -144,7 +144,6 @@ static void raycast_to_mesh(const IndexMask &mask,
     bke::bvh::Ray ray{};
     ray.origin = ray_origins[i];
     ray.direction = ray_directions[i];
-    ray.dist_min = 0.0f;
     ray.dist_max = ray_lengths[i];
 
     if (const std::optional<bke::bvh::RayHit> hit = tree_data.ray_intersect(ray)) {

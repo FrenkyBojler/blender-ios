@@ -24,8 +24,6 @@ namespace bke::bvh {
 struct Ray {
   float3 origin;
   float3 direction;
-  /* Start of ray segment relative to ray length. */
-  float dist_min = 0.0f;
   /* End of ray segment relative to ray length. */
   float dist_max = std::numeric_limits<float>::max();
 

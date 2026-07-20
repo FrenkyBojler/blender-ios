@@ -355,7 +355,8 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   rtc_hit.ray.dir_x = ray.direction.x;
   rtc_hit.ray.dir_y = ray.direction.y;
   rtc_hit.ray.dir_z = ray.direction.z;
-  rtc_hit.ray.tnear = ray.dist_min;
+  /* TODO: BLI_kdopbvh fallback does not support a minimum distance. */
+  rtc_hit.ray.tnear = 0.0f;
   rtc_hit.ray.tfar = ray.dist_max;
   rtc_hit.ray.time = 0.0f;
   rtc_hit.ray.mask = 0xffffffff;
@@ -386,7 +387,6 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   BVHTreeRayHit bvh_hit;
   bvh_hit.index = -1;
   bvh_hit.dist = ray.dist_max;
-  /* TODO: #ray.dist_min is not supported by #BLI_bvhtree_ray_cast. */
   BLI_bvhtree_ray_cast(
       data->tree, ray.origin, ray.direction, 0.0f, &bvh_hit, data->raycast_callback, data);
   if (bvh_hit.index == -1) {
@@ -394,7 +394,6 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   }
 
   RayHit hit;
-  hit.position = float3(bvh_hit.co);
   hit.normal = float3(bvh_hit.no);
   const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
       data->vert_positions, data->corner_verts, data->corner_tris[bvh_hit.index], hit.position);
@@ -430,7 +429,7 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
   rtc_hit.ray.dir_x = ray.direction.x;
   rtc_hit.ray.dir_y = ray.direction.y;
   rtc_hit.ray.dir_z = ray.direction.z;
-  rtc_hit.ray.tnear = ray.dist_min;
+  rtc_hit.ray.tnear = 0.0f;
   rtc_hit.ray.tfar = ray.dist_max;
   rtc_hit.ray.time = 0.0f;
   rtc_hit.ray.mask = 0xffffffff;
