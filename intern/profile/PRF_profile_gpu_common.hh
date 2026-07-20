@@ -6,7 +6,7 @@
 
 #include "PRF_profile.hh"
 
-#if defined(WITH_TRACY)
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
 #  define _PRF_DEBUG_CONCAT_(prefix, suffix) prefix##suffix
 #  define _PRF_DEBUG_CONCAT(prefix, suffix) _PRF_DEBUG_CONCAT_(prefix, suffix)
 #  define PrfSourceLocationUnique(name, category) \

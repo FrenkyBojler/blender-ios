@@ -7,7 +7,7 @@
 #include "PRF_profile.hh"
 #include "PRF_profile_gpu_common.hh"
 
-#if defined(WITH_TRACY) & defined(WITH_OPENGL_BACKEND)
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU) && defined(WITH_OPENGL_BACKEND)
 #  include "tracy/TracyOpenGL.hpp"
 using GLProfileScope = tracy::GpuCtxScope;
 #else

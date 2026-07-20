@@ -923,6 +923,12 @@ Requires internet access."
 )
 mark_as_advanced(WITH_TRACY)
 
+option(WITH_TRACY_GPU "\
+Enable profiling of GPU API calls via the Tracy Frame Profiler. \
+Requires WITH_TRACY."
+  OFF
+)
+mark_as_advanced(WITH_TRACY_GPU)
 
 # OpenGL
 if(NOT APPLE)

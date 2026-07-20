@@ -124,8 +124,10 @@ class GLContext : public Context {
 
   /* Profiling data lives on a pointer stack; the underlying `GLProfileScope` is
    * not move constructible and must be alive between `profile_scope_begin()/end()`. */
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   bool profile_is_active_;
   Stack<std::unique_ptr<GLProfileScope>> profile_scopes_;
+#endif
 
   void process_frame_timings();
 

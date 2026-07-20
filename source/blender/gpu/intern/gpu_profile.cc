@@ -9,7 +9,7 @@ namespace blender::gpu {
 
 ProfileScope::ProfileScope(const PrfSourceLocation *location, bool is_transient)
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   /* No context active. */
   Context *ctx = Context::get();
   if (!ctx) {
@@ -26,7 +26,7 @@ ProfileScope::ProfileScope(const PrfSourceLocation *location, bool is_transient)
 
 ProfileScope::~ProfileScope()
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   /* No context active. */
   Context *ctx = Context::get();
   if (!ctx) {

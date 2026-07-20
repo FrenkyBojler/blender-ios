@@ -15,7 +15,7 @@ namespace blender::gpu {
 
 void GLContext::profile_context()
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   profile_is_active_ = true;
   TracyGpuContext;
 #endif
@@ -23,7 +23,7 @@ void GLContext::profile_context()
 
 void GLContext::profile_collect()
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   tracy::GpuCtx *ctx = tracy::GetGpuCtx().ptr;
   if (!ctx || !profile_is_active_) {
     return;
@@ -34,7 +34,7 @@ void GLContext::profile_collect()
 
 void GLContext::profile_scope_begin(const PrfSourceLocation *loc)
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   tracy::GpuCtx *ctx = tracy::GetGpuCtx().ptr;
   if (!ctx || !profile_is_active_) {
     return;
@@ -45,7 +45,7 @@ void GLContext::profile_scope_begin(const PrfSourceLocation *loc)
 
 void GLContext::profile_scope_begin_transient(const PrfSourceLocation *loc)
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   tracy::GpuCtx *ctx = tracy::GetGpuCtx().ptr;
   if (!ctx || !profile_is_active_) {
     return;
@@ -63,7 +63,7 @@ void GLContext::profile_scope_begin_transient(const PrfSourceLocation *loc)
 
 void GLContext::profile_scope_end()
 {
-#ifdef WITH_TRACY
+#if defined(WITH_TRACY) && defined(WITH_TRACY_GPU)
   tracy::GpuCtx *ctx = tracy::GetGpuCtx().ptr;
   if (!ctx || !profile_is_active_) {
     return;
