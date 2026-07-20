@@ -1298,8 +1298,9 @@ static void make_common_fallback_props(StructRNA &srna,
                         r_generated);
 }
 
-static void set_scene_compositor_effect_property_update_function(PropertyRNA *property)
+static void set_scene_compositor_effect_property_common_properties(PropertyRNA *property)
 {
+  RNA_def_property_override_flag(property, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update_runtime(
       property, [](Main * /*bmain*/, Scene *scene, PointerRNA * /*property_ptr*/) {
         DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
@@ -1370,7 +1371,7 @@ static bke::bNodeSocketType *make_socket_type_bool()
         const auto *data = static_cast<const bNodeSocketValueBoolean *>(socket.socket_data);
         PropertyRNA *property = RNA_def_boolean(
             &srna, "value", data->value, socket.name, socket.description);
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1451,7 +1452,7 @@ static bke::bNodeSocketType *make_socket_type_rotation()
                                                        socket.description,
                                                        -FLT_MAX,
                                                        FLT_MAX);
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1623,7 +1624,7 @@ static bke::bNodeSocketType *make_socket_type_float(PropertySubType subtype)
                                               data->min,
                                               data->max);
         RNA_def_property_subtype(property, PropertySubType(data->subtype));
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1701,7 +1702,7 @@ static bke::bNodeSocketType *make_socket_type_int(PropertySubType subtype)
                                             data->min,
                                             data->max);
         RNA_def_property_subtype(property, PropertySubType(data->subtype));
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1783,7 +1784,7 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
                                                      data->min,
                                                      data->max);
         RNA_def_property_subtype(property, PropertySubType(data->subtype));
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1838,7 +1839,7 @@ static bke::bNodeSocketType *make_socket_type_int_vector(PropertySubType subtype
                                                    data->min,
                                                    data->max);
         RNA_def_property_subtype(property, PropertySubType(data->subtype));
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1915,7 +1916,7 @@ static bke::bNodeSocketType *make_socket_type_rgba()
                                                     socket.description,
                                                     0.0f,
                                                     1.0f);
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -1993,7 +1994,7 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
         if (subtype == PROP_FILEPATH) {
           RNA_def_property_flag(property, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
         }
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
 
   return socktype;
@@ -2096,7 +2097,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                              default_value_found ? data->value : 0,
                                              socket.name,
                                              socket.description);
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -2161,7 +2162,7 @@ static bke::bNodeSocketType *make_socket_type_object()
         if (default_value->value) {
           RNA_def_property_pointer_default_runtime(property, default_value->value->id.session_uid);
         }
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
@@ -2421,7 +2422,7 @@ static bke::bNodeSocketType *make_socket_type_font()
         if (default_value->value) {
           RNA_def_property_pointer_default_runtime(property, default_value->value->id.session_uid);
         }
-        set_scene_compositor_effect_property_update_function(property);
+        set_scene_compositor_effect_property_common_properties(property);
       };
   return socktype;
 }
