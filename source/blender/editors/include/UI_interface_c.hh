@@ -736,17 +736,22 @@ void draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *slid
  *
  * \param clip_right_if_tight: In case this middle clipping would just remove a few chars, or there
  * are less than 10 characters before the clipping, it rather clips right, which is more readable.
+ *
+ * \param shorten_template_variables: abbreviates template variable names  when needed to fit the
+ * string in view.
+ *
+ * \param shorten_template_variables: When true, shortens template variables (e.g. "{blend_name}"
+ * -> "{bn}") as needed starting from the left. NOTE: this should only be set to true if the text
+ * field being clipped supports template variables!
  */
-float text_clip_middle_ex(
-    const uiFontStyle *fstyle,
-    char *str,
-    float okwidth,
-    float minwidth,
-    size_t max_len,
-    char rpart_sep,
-    bool clip_right_if_tight = true,
-    bool shorten_template_variables =
-        true);  // TODO: set to false.  Only true for initial experimentation.
+float text_clip_middle_ex(const uiFontStyle *fstyle,
+                          char *str,
+                          float okwidth,
+                          float minwidth,
+                          size_t max_len,
+                          char rpart_sep,
+                          bool clip_right_if_tight = true,
+                          bool shorten_template_variables = false);
 
 Vector<StringRef> text_clip_multiline_middle(const uiFontStyle *fstyle,
                                              const char *str,

@@ -1611,11 +1611,6 @@ static void text_clip_right_ex(const uiFontStyle *fstyle,
   }
 }
 
-/**
- * \param shorten_template_variables: If true, will shorten template variables
- * starting from the left. NOTE: this should only be set to true if the text
- * field being clipped supports template variables!
- */
 float text_clip_middle_ex(const uiFontStyle *fstyle,
                           char *str,
                           float okwidth,
@@ -1772,11 +1767,22 @@ static void text_clip_middle(const uiFontStyle *fstyle, Button *but, const rcti 
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
   const float minwidth = UI_ICON_SIZE / but->block->aspect * 2.0f;
 
+  const bool clip_right_if_tight = true;
+  const bool shorten_template_variables = but->rnaprop && (RNA_property_flag(but->rnaprop) &
+                                                           PROP_PATH_SUPPORTS_TEMPLATES) != 0;
+
   but->ofs = 0;
   char new_drawstr[UI_MAX_DRAW_STR];
   STRNCPY(new_drawstr, but->drawstr.c_str());
   const size_t max_len = sizeof(new_drawstr);
-  but->strwidth = text_clip_middle_ex(fstyle, new_drawstr, okwidth, minwidth, max_len, '\0');
+  but->strwidth = text_clip_middle_ex(fstyle,
+                                      new_drawstr,
+                                      okwidth,
+                                      minwidth,
+                                      max_len,
+                                      '\0',
+                                      clip_right_if_tight,
+                                      shorten_template_variables);
   but->drawstr = new_drawstr;
 }
 
