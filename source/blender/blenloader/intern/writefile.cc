@@ -222,8 +222,6 @@ bool RawWriteWrap::write(const void *buf, size_t buf_len)
 
 class ZstdWriteWrap : public WriteWrap {
   struct ZstdFrame {
-    ZstdWriteWrap *ww = nullptr;
-
     const void *uncompressed_data = nullptr;
     uint32_t uncompressed_size = 0;
 
