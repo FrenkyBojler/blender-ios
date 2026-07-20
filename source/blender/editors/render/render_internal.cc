@@ -627,60 +627,6 @@ static void render_image_restore_scene_and_layer(RenderJob *rj)
   }
 }
 
-static void render_engines_viewport_pause_resume(Main *bmain, const bool pause)
-{
-  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  if (!wm) {
-    return;
-  }
-  for (wmWindow &win : wm->windows) {
-    Scene *scene = WM_window_get_active_scene(&win);
-    const bScreen *screen = WM_window_get_active_screen(&win);
-    if (!screen) {
-      continue;
-    }
-    for (ScrArea &area : screen->areabase) {
-      if (area.spacetype != SPACE_VIEW3D) {
-        continue;
-      }
-      for (ARegion &region : area.regionbase) {
-        if (region.regiontype != RGN_TYPE_WINDOW) {
-          continue;
-        }
-        RegionView3D *rv3d = static_cast<RegionView3D *>(region.regiondata);
-        if (!rv3d) {
-          continue;
-        }
-        if (!rv3d->view_render) {
-          continue;
-        }
-        RenderEngine *engine = RE_view_engine_get(rv3d->view_render);
-        if (!engine) {
-          continue;
-        }
-
-        bContext *C = CTX_create();
-        CTX_data_main_set(C, bmain);
-        CTX_data_scene_set(C, scene);
-        CTX_wm_manager_set(C, wm);
-        CTX_wm_window_set(C, &win);
-        CTX_wm_screen_set(C, WM_window_get_active_screen(&win));
-        CTX_wm_area_set(C, &area);
-        CTX_wm_region_set(C, &region);
-
-        if (pause) {
-          RE_engine_view_pause(engine, C);
-        }
-        else {
-          RE_engine_view_resume(engine, C);
-        }
-
-        CTX_free(C);
-      }
-    }
-  }
-}
-
 static void render_endjob(void *rjv)
 {
   RenderJob *rj = static_cast<RenderJob *>(rjv);
@@ -737,7 +683,7 @@ static void render_endjob(void *rjv)
   }
 
   /* Resume viewport render engines now that the final render is complete. */
-  render_engines_viewport_pause_resume(G_MAIN, false);
+  ED_render_view3d_pause_resume(G_MAIN, false);
 }
 
 /* called by render, check job 'stop' value or the global */
@@ -1050,7 +996,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   op->customdata = scene;
 
   /* Pause viewport render engines for the duration of the final render. */
-  render_engines_viewport_pause_resume(bmain, true);
+  ED_render_view3d_pause_resume(bmain, true);
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 

@@ -108,13 +108,12 @@ class CyclesRender(bpy.types.RenderEngine):
     def view_pause(self, context):
         scene = context.scene
         cscene = scene.cycles
-        self._pre_render_pause_state = cscene.preview_pause
         cscene.preview_pause = True
 
     def view_resume(self, context):
         scene = context.scene
         cscene = scene.cycles
-        cscene.preview_pause = getattr(self, '_pre_render_pause_state', False)
+        cscene.preview_pause = False
 
     def update_script_node(self, node):
         if engine.with_osl():
