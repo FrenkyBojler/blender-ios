@@ -1081,7 +1081,7 @@ static void file_draw_indicator_icons(const FileList *files,
       /* This on-disk asset no longer matches the asset listing it was downloaded from. */
       ui::icon_draw_ex(icon_x,
                        icon_y,
-                       ICON_ERROR,
+                       ICON_STATUS_WARNING_FILLED,
                        1.0f / UI_SCALE_FAC,
                        1.0f,
                        0.0f,
@@ -1508,6 +1508,10 @@ void file_draw_list(const bContext *C, ARegion *region)
 
   BLF_batch_draw_begin();
 
+  /* Default text color, used for the empty/not-ready message and column headers when the
+   * per-file loop below does not run (empty directory, no search matches, still loading). */
+  ui::theme::get_color_4ubv(TH_TEXT, text_col);
+
   const bool filelist_loading = !filelist_is_ready(files);
 
   for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
@@ -1837,7 +1841,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
   sy -= line_height * 2.2f;
 
   {
-    ui::icon_draw(sx, sy - UI_UNIT_Y, ICON_INFO);
+    ui::icon_draw(sx, sy - UI_UNIT_Y, ICON_STATUS_INFO);
 
     const char *suggestion = RPT_(
         "Asset Libraries are local directories that can contain .blend files with assets inside.\n"
@@ -2034,7 +2038,7 @@ static void file_draw_asset_library_remote_loading_failed_hint(const bContext *C
   {
     uiDefIconTextBut(block,
                      ui::ButtonType::Label,
-                     ICON_CANCEL,
+                     ICON_STATUS_ERROR_FILLED,
                      "Asset Library Download Failed",
                      sx,
                      sy - heading_height,
@@ -2092,9 +2096,9 @@ static void file_draw_invalid_library_hint(const bContext * /*C*/,
       continue;
     }
 
-    int icon = ICON_INFO;
+    int icon = ICON_STATUS_INFO;
     if (report_type > RPT_WARNING) {
-      icon = ICON_ERROR;
+      icon = ICON_STATUS_WARNING_FILLED;
     }
     ui::icon_draw(sx, sy - UI_UNIT_Y, icon);
 
