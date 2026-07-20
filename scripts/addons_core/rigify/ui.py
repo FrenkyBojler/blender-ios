@@ -1315,6 +1315,18 @@ def draw_mesh_edit_menu(self, _context: bpy.types.Context):
     self.layout.operator(EncodeWidget.bl_idname)
     self.layout.separator()
 
+class VIEW3D_MT_rigify_mesh(bpy.types.Menu):
+    bl_label = "Rigify"
+    bl_idname = "VIEW3D_MT_rigify_mesh"
+
+    def draw(self, _context: bpy.types.Context):
+        self.layout.operator(EncodeWidget.bl_idname)
+
+
+def draw_rigify_mesh_menu(self, context):
+    if context.mode == 'EDIT_MESH':
+        self.layout.menu(VIEW3D_MT_rigify_mesh.bl_idname)
+
 
 def fk_to_ik(rig: ArmatureObject, window='ALL'):
     scn = bpy.context.scene
@@ -1791,6 +1803,7 @@ classes = (
     EncodeMetarig,
     EncodeMetarigSample,
     EncodeWidget,
+    VIEW3D_MT_rigify_mesh,
     OBJECT_OT_FK2IK,
     OBJECT_OT_IK2FK,
     OBJECT_OT_TransferFKtoIK,
@@ -1812,7 +1825,8 @@ def register():
         register_class(cls)
 
     bpy.types.VIEW3D_MT_editor_menus.append(draw_rigify_menu)
-    bpy.types.VIEW3D_MT_edit_mesh.prepend(draw_mesh_edit_menu)
+    bpy.types.VIEW3D_MT_editor_menus.append(draw_rigify_mesh_menu)
+
 
     # Sub-modules.
     rot_mode.register()
@@ -1829,6 +1843,6 @@ def unregister():
         unregister_class(cls)
 
     bpy.types.VIEW3D_MT_editor_menus.remove(draw_rigify_menu)
-    bpy.types.VIEW3D_MT_edit_mesh.remove(draw_mesh_edit_menu)
+    bpy.types.VIEW3D_MT_editor_menus.remove(draw_rigify_mesh_menu)
 
     animation_unregister()
