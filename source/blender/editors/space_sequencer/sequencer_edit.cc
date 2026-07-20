@@ -73,6 +73,7 @@
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
 
+#include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
@@ -3814,6 +3815,29 @@ static wmOperatorStatus sequencer_change_path_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
+static bool sequencer_change_path_draw_check_prop(PointerRNA * /*ptr*/,
+                                                  PropertyRNA *prop,
+                                                  void *user_data)
+{
+  wmOperator *op = static_cast<wmOperator *>(user_data);
+  const char *prop_id = RNA_property_identifier(prop);
+  if (prop_id == StringRef("use_placeholders")) {
+    return RNA_boolean_get(op->ptr, "use_sequence_detection");
+  }
+  return true;
+}
+
+static void sequencer_change_path_draw(bContext * /*C*/, wmOperator *op)
+{
+  uiDefAutoButsRNA(op->layout,
+                   op->ptr,
+                   sequencer_change_path_draw_check_prop,
+                   op,
+                   nullptr,
+                   ui::BUT_LABEL_ALIGN_NONE,
+                   false);
+}
+
 void SEQUENCER_OT_change_path(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -3824,6 +3848,7 @@ void SEQUENCER_OT_change_path(wmOperatorType *ot)
   ot->exec = sequencer_change_path_exec;
   ot->invoke = sequencer_change_path_invoke;
   ot->poll = sequencer_strip_has_path_poll;
+  ot->ui = sequencer_change_path_draw;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -3836,19 +3861,20 @@ void SEQUENCER_OT_change_path(wmOperatorType *ot)
                                      WM_FILESEL_FILES,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
-  RNA_def_boolean(ot->srna,
-                  "use_placeholders",
-                  false,
-                  "Use Placeholders",
-                  "Use placeholders for missing frames of the strip");
 
-  /* Required for `ED_image_filesel_detect_sequences`, but not shown in UI. */
+  /* Required for `ED_image_filesel_detect_sequences`. */
   RNA_def_boolean(
       ot->srna,
       "use_sequence_detection",
       true,
       "Detect Sequences",
       "Automatically detect animated sequences in selected images (based on file names)");
+
+  RNA_def_boolean(ot->srna,
+                  "use_placeholders",
+                  false,
+                  "Use Placeholders",
+                  "Use placeholders for missing frames of the strip");
 }
 
 /** \} */
