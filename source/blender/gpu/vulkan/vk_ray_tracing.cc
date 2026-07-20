@@ -287,7 +287,8 @@ void VKTopLevelAS::build()
       ceil_to_multiple_ul(
           do_update ? vk_acceleration_structure_build_sizes_info.updateScratchSize :
                       vk_acceleration_structure_build_sizes_info.buildScratchSize,
-          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment),
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment) +
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       VmaAllocationCreateFlags(0),
@@ -501,7 +502,8 @@ void VKBottomLevelAS::build()
   device_scratch_space.create(
       ceil_to_multiple_ul(
           vk_acceleration_structure_build_sizes_info.buildScratchSize,
-          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment),
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment) +
+          acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       0,
