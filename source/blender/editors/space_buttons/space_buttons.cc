@@ -958,6 +958,7 @@ static void buttons_id_remap(ScrArea * /*area*/,
 
   if (mappings.apply(&sbuts->pinid, ID_REMAP_APPLY_DEFAULT) == ID_REMAP_RESULT_SOURCE_UNASSIGNED) {
     sbuts->flag &= ~SB_PIN_CONTEXT;
+    sbuts->pin_bone_name[0] = '\0';
   }
 
   if (sbuts->path) {
@@ -1021,6 +1022,7 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
   if (!is_readonly) {
     if (sbuts->pinid == nullptr) {
       sbuts->flag &= ~SB_PIN_CONTEXT;
+      sbuts->pin_bone_name[0] = '\0';
     }
     /* NOTE: Restoring path pointers is complicated, if not impossible, because this contains
      * data pointers too, not just ID ones. See #40046. */
@@ -1065,6 +1067,7 @@ static void buttons_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
 
   if (sbuts->pinid == nullptr) {
     sbuts->flag &= ~SB_PIN_CONTEXT;
+    sbuts->pin_bone_name[0] = '\0';
   }
 }
 

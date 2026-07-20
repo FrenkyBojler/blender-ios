@@ -2330,6 +2330,7 @@ static void rna_SpaceProperties_pin_id_update(Main * /*bmain*/, Scene * /*scene*
 
   if (id == nullptr) {
     sbuts->flag &= ~SB_PIN_CONTEXT;
+    sbuts->pin_bone_name[0] = '\0';
     return;
   }
 
