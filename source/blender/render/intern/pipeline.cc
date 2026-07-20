@@ -1139,7 +1139,7 @@ static Scene *get_scene_referenced_by_node(const bNode *node,
  * be rendered. */
 static bool compositor_needs_render(Scene &scene)
 {
-  if ((scene.r.scemode & R_DOCOMP) == 0) {
+  if (!bke::compositor::is_enabled(scene, bke::compositor::ExecutionMode::Render)) {
     return true;
   }
 
