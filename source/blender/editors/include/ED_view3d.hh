@@ -140,8 +140,10 @@ Camera *ED_view3d_camera_data_get(View3D *v3d, RegionView3D *rv3d);
  * \param ofs: The view offset, normally from #RegionView3D.ofs.
  * \param quat: The view rotation, quaternion normally from #RegionView3D.viewquat.
  * \param dist: The view distance from ofs, normally from #RegionView3D.dist.
+ * \param roll: The view roll angle, normally from #RegionView3D.camroll.
  */
-void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], float dist);
+void ED_view3d_to_m4(
+    float mat[4][4], const float ofs[3], const float quat[4], float dist, float roll);
 /**
  * Set the view transformation from a 4x4 matrix.
  *
@@ -170,14 +172,14 @@ void ED_view3d_from_object(
  * \param ofs: The view offset, normally from #RegionView3D.ofs.
  * \param quat: The view rotation, quaternion normally from #RegionView3D.viewquat.
  * \param dist: The view distance from `ofs`, normally from #RegionView3D.dist.
- * \param camroll: The view roll angle, normally from #RegionView3D.camroll.
+ * \param roll: The view roll angle, normally from #RegionView3D.camroll.
  */
 void ED_view3d_to_object(const Depsgraph *depsgraph,
                          Object *ob,
                          const float ofs[3],
                          const float quat[4],
                          float dist,
-                         float camroll);
+                         float roll);
 
 bool ED_view3d_camera_to_view_selected(Main *bmain,
                                        Depsgraph *depsgraph,

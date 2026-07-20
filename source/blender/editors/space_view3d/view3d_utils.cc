@@ -676,7 +676,7 @@ bool ED_view3d_camera_lock_sync(const Depsgraph *depsgraph, View3D *v3d, RegionV
       Object *ob_camera_eval = DEG_get_evaluated(depsgraph, v3d->camera);
       Object *root_parent_eval = DEG_get_evaluated(depsgraph, root_parent);
 
-      ED_view3d_to_m4(view_mat, rv3d->ofs, rv3d->viewquat, rv3d->dist);
+      ED_view3d_to_m4(view_mat, rv3d->ofs, rv3d->viewquat, rv3d->dist, rv3d->camroll);
 
       normalize_m4_m4(tmat, ob_camera_eval->object_to_world().ptr());
 
@@ -1657,9 +1657,15 @@ void ED_view3d_from_m4(const float mat[4][4], float ofs[3], float quat[4], const
   }
 }
 
-void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], const float dist)
+void ED_view3d_to_m4(
+    float mat[4][4], const float ofs[3], const float quat[4], const float dist, const float roll)
 {
-  const float iviewquat[4] = {-quat[0], quat[1], quat[2], quat[3]};
+  float quat_result[4];
+  const float z_vec[3] = {0.0f, 0.0f, 1.0f};
+  axis_angle_normalized_to_quat(quat_result, z_vec, -roll);
+  mul_qt_qtqt(quat_result, quat_result, quat);
+
+  const float iviewquat[4] = {-quat_result[0], quat_result[1], quat_result[2], quat_result[3]};
   float dvec[3] = {0.0f, 0.0f, dist};
 
   quat_to_mat4(mat, iviewquat);
@@ -1686,15 +1692,10 @@ void ED_view3d_to_object(const Depsgraph *depsgraph,
                          const float ofs[3],
                          const float quat[4],
                          const float dist,
-                         const float camroll)
+                         const float roll)
 {
   float mat[4][4];
-  ED_view3d_to_m4(mat, ofs, quat, dist);
-
-  if (camroll != 0.0f) {
-    /* The view roll is already applied to `quat` so removed it here. */
-    rotate_m4(mat, 'Z', camroll);
-  }
+  ED_view3d_to_m4(mat, ofs, quat, dist, roll);
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   BKE_object_apply_mat4_ex(ob, mat, ob_eval->parent, ob_eval->parentinv, true);
