@@ -1311,10 +1311,6 @@ class EncodeWidget(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def draw_mesh_edit_menu(self, _context: bpy.types.Context):
-    self.layout.operator(EncodeWidget.bl_idname)
-    self.layout.separator()
-
 class VIEW3D_MT_rigify_mesh(bpy.types.Menu):
     bl_label = "Rigify"
     bl_idname = "VIEW3D_MT_rigify_mesh"
