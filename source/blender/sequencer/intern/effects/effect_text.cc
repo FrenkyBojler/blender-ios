@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "BKE_appdir.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -77,6 +78,7 @@ struct SeqFontMap {
 };
 
 static SeqFontMap g_font_map;
+static int g_fallback_font_id = -1;
 
 void fontmap_clear()
 {
@@ -88,6 +90,7 @@ void fontmap_clear()
     BLF_unload_id(item.value);
   }
   g_font_map.name_to_mem_font_id.clear();
+  g_fallback_font_id = -1;
 }
 
 static int strip_load_font_file(const std::string &path)
@@ -154,6 +157,25 @@ static void strip_unload_font(int fontid)
     g_font_map.path_to_file_font_id.remove_if([&](auto item) { return item.value == fontid; });
     g_font_map.name_to_mem_font_id.remove_if([&](auto item) { return item.value == fontid; });
   }
+}
+
+static void strip_load_fallback_font()
+{
+  const std::optional<std::string> dir = BKE_appdir_folder_id(BLENDER_DATAFILES,
+                                                              BLF_DATAFILES_FONTS_DIR);
+  if (!dir.has_value()) {
+    fprintf(stderr,
+            "%s: 'fonts' data path not found for '%s', will not be able to display strip default "
+            "font text\n",
+            __func__,
+            BLF_DEFAULT_MONOSPACED_FONT);
+    g_fallback_font_id = -1;
+    return;
+  }
+
+  char filepath[FILE_MAX];
+  BLI_path_join(filepath, sizeof(filepath), dir->c_str(), BLF_DEFAULT_MONOSPACED_FONT);
+  g_fallback_font_id = strip_load_font_file(filepath);
 }
 
 /* -------------------------------------------------------------------- */
@@ -800,7 +822,7 @@ static int text_effect_line_size_get(const RenderData *context, const TextVars &
 
 int text_effect_font_get(TextVars &text)
 {
-  int font = blf_mono_font_render;
+  int font = -1;
   /* In case font got unloaded behind our backs: mark it as needing a load. */
   if (text.text_blf_id >= 0 && !BLF_is_loaded_id(text.text_blf_id)) {
     text.text_blf_id = STRIP_FONT_NOT_LOADED;
@@ -813,6 +835,14 @@ int text_effect_font_get(TextVars &text)
 
   if (text.text_blf_id >= 0) {
     font = text.text_blf_id;
+  }
+
+  if (font < 0) {
+    /* Try to fallback to the default Blender monospaced font. */
+    if (g_fallback_font_id < 0) {
+      strip_load_fallback_font();
+    }
+    font = g_fallback_font_id;
   }
   return font;
 }
