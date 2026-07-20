@@ -44,8 +44,9 @@ struct WorkerData {
   std::atomic<bool> restart;
   /* The center frame around which to run the evaluation. */
   std::atomic<int> evaluation_center;
-  /* The range of frames that were already evaluated. Inclusive/Exclusive. */
-  Bounds<int> evaluated_range;
+  /* The range of frames that were already evaluated. Inclusive/Exclusive. Any frames in that range
+   * are safe to read in the main thread. */
+  std::atomic<Bounds<int>> evaluated_range;
 
   /* The depsgraph to evaluate in the background. All copy on eval nodes have to be
    * evaluated before it is sent to the thread. */
@@ -65,22 +66,22 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
   eval_data->restart.store(false, std::memory_order_release);
   const int center_frame = eval_data->evaluation_center.load(std::memory_order_acquire);
-  eval_data->evaluated_range = {center_frame, center_frame + 1};
+  Bounds<int> evaluated_range = {center_frame, center_frame + 1};
 
   while (true) {
     int frame;
     /* TODO what about frame skipping i.e. every second frame. Would be determined by the
      * evaluation targets. */
-    if (abs(eval_data->evaluated_range.min - center_frame) <
-        abs(eval_data->evaluated_range.max - center_frame))
-    {
-      frame = eval_data->evaluated_range.min - 1;
-      eval_data->evaluated_range.min -= 1;
+    /* TODO: only update into directions that are still required. */
+    if (abs(evaluated_range.min - center_frame) < abs(evaluated_range.max - center_frame)) {
+      frame = evaluated_range.min - 1;
+      evaluated_range.min -= 1;
     }
     else {
-      frame = eval_data->evaluated_range.max;
-      eval_data->evaluated_range.max += 1;
+      frame = evaluated_range.max;
+      evaluated_range.max += 1;
     }
+
     bool all_done = true;
     DEG_evaluate_on_framechange(eval_data->dg, frame);
     for (TargetData &target_data : eval_data->target_data) {
@@ -97,6 +98,7 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
       }
       all_done &= target_data.finished_left && target_data.finished_right;
     }
+    eval_data->evaluated_range.store(evaluated_range, std::memory_order_release);
     worker_status->do_update = true;
 
     if (all_done) {
@@ -110,14 +112,18 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
 static void update_job(void *job_data)
 {
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+  Bounds<int> evaluated_range = eval_data->evaluated_range.load(std::memory_order_acquire);
   for (TargetData &target_data : eval_data->target_data) {
-    target_data.update(*target_data.target.id, target_data.buffer, {});
+    target_data.update(*target_data.target.id, target_data.buffer, evaluated_range);
   }
 }
 
 static void finish_job(void *job_data)
 {
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+  for (TargetData &target_data : eval_data->target_data) {
+    target_data.finish(*target_data.target.id, target_data.buffer);
+  }
 }
 
 static void free_job_data(void *job_data)

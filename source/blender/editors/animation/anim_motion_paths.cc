@@ -616,7 +616,8 @@ static void update_callback(ID &id, void *buffer_data, Bounds<int> evaluated_ran
     copy_v3_v3(mpv.co, buffer->points[i]);
     mpv.flag &= ~MOTIONPATH_VERT_STALE;
   }
-  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+  DEG_id_tag_update(&ob->id, ID_RECALC_ANIMATION_NO_FLUSH);
+  WM_main_add_notifier(NC_OBJECT | ND_DRAW_ANIMVIZ, ob);
 }
 
 static void finish_callback(ID &id, void *buffer_data)
