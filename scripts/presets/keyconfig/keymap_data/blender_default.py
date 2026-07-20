@@ -4098,6 +4098,11 @@ def km_grease_pencil_paint_mode(params):
         *_template_items_context_panel("VIEW3D_PT_greasepencil_draw_context_menu", params.context_menu_event),
     ])
 
+    if params.select_mouse == 'LEFTMOUSE' and not params.legacy:
+        items.extend([
+                op_tool_cycle("builtin.select_lasso", {"type": 'W', "value": 'PRESS'}),
+            ])
+
     return keymap
 
 
