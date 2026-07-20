@@ -2894,6 +2894,17 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
 void DepsgraphRelationBuilder::build_object_data_empty(Object *object)
 {
   OperationKey obdata_ubereval_key(&object->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL);
+
+  /* If the Empty object instances a collection, link the collection's geometry to
+   * the Empty's modifier geometry evaluation operation. This ensures the geometry node
+   * modifier evaluates on file load. */
+  if (object->instance_collection != nullptr) {
+    ComponentKey collection_geom_key(&object->instance_collection->id, NodeType::GEOMETRY);
+    add_relation(collection_geom_key,
+                 obdata_ubereval_key,
+                 "Instance Collection Geometry -> Empty Geometry Eval");
+  }
+
   /* Special case: modifiers evaluation queries scene for various things like
    * data mask to be used. We add relation here to ensure object is never
    * evaluated prior to Scene's evaluated copy is ready. */
