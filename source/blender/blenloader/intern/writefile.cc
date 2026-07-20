@@ -229,13 +229,13 @@ class ZstdWriteWrap : public WriteWrap {
     const void *compressed_data = nullptr;
 
     /**
-     * Marker that the related compression task is don.
+     * Marker that the related compression task is done.
      *
      * Regardless of the status of `write_error`, it implies that:
      *   - `uncompressed_data` has been freed.
      *   - `compressed_data` has been set, and needs to be written (if no write error) and freed.
      */
-    std::atomic<bool> compressed_done = 0;
+    std::atomic<bool> compressed_done = false;
   };
 
   WriteWrap &base_wrap;
@@ -247,7 +247,7 @@ class ZstdWriteWrap : public WriteWrap {
    * ZSTD frames to compress and write, in order, while the write is in progress. See
    * #write_compressed_frames.
    *
-   * Used as a queue for compression tasks, and as an ordered array for writing the seeak table of
+   * Used as a queue for compression tasks, and as an ordered array for writing the seek table of
    * all frames at the end.
    *
    * `next_frame` is the queue head, frames before it have all been compressed and written.
@@ -319,9 +319,14 @@ void ZstdWriteWrap::compress_task_run(TaskPool *pool, void *taskdata)
   frame->uncompressed_data = nullptr;
 
   frame->compressed_data = out_buf;
-  frame->compressed_size = uint32_t(out_size);
-  if (ZSTD_isError(out_size)) {
+  /* Do not store 'error code' size, as its value will be out of uint32_t range. The size value
+   * is not used in case an error has occured anyway (compressed frames are not written, and
+   * neither is the final seek table). */
+  if (ZSTD_isError(out_size)) [[unlikely]] {
     ww->write_error = true;
+  }
+  else {
+    frame->compressed_size = uint32_t(out_size);
   }
   frame->compressed_done = true;
 }
@@ -335,8 +340,10 @@ void ZstdWriteWrap::write_compressed_frames()
       /* This frame has not yet been compressed, cannot write further data. */
       break;
     }
-    if (!write_error) {
-      if (!base_wrap.write(frame->compressed_data, frame->compressed_size)) {
+    if (!write_error) [[likely]] {
+      BLI_assert(frame->compressed_size > 0);
+      const bool has_error = !base_wrap.write(frame->compressed_data, frame->compressed_size);
+      if (has_error) [[unlikely]] {
         write_error = true;
       }
     }
@@ -367,10 +374,14 @@ void ZstdWriteWrap::write_u32_le(uint32_t val)
 
 void ZstdWriteWrap::write_seekable_frames()
 {
+  if (write_error) [[unlikely]] {
+    /* Do not write a seek table if the data itself could not be fully written. */
+    return;
+  }
+
   /* Write seek table header (magic number and frame size). */
   write_u32_le(0x184D2A5E);
 
-  /* The actual frame number might not match num_frames if there was a write error. */
   const uint32_t num_frames = uint32_t(frames.size());
   /* Each frame consists of two u32, so 8 bytes each.
    * After the frames, a footer containing two u32 and one byte (9 bytes total) is written. */
@@ -407,7 +418,7 @@ bool ZstdWriteWrap::close()
 
 bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 {
-  if (write_error) {
+  if (write_error) [[unlikely]] {
     return false;
   }
 
@@ -2099,15 +2110,21 @@ static bool BLO_write_file_impl(Main *mainvar,
   const bool err = write_file_handle(
       mainvar, &ww, nullptr, nullptr, write_flags, use_userdef, thumb, debug_dst);
 
-  ww.close();
+  const bool close_error = !ww.close();
 
   if (path_list_backup) [[unlikely]] {
     BKE_bpath_list_restore(mainvar, path_list_flag, path_list_backup);
     BKE_bpath_list_free(path_list_backup);
   }
 
-  if (err) {
-    BKE_report(reports, RPT_ERROR, strerror(errno));
+  if (err || close_error) {
+    if (err) {
+      /* Note: `errno` will often be meaningless in case of a zstd compression error. */
+      BKE_reportf(reports, RPT_ERROR, "Failed to write blendfile: %s", strerror(errno));
+    }
+    else {
+      BKE_report(reports, RPT_ERROR, "Failed to write blendfile");
+    }
     remove(tempname);
 
     return false;
