@@ -1,2 +1,3 @@
 Referenced by pull request #161403, Fix: Use-after-free in link/append code.
 Referenced by commit 74ac2de2727910870f38ebdf53f0d6fc66976a6c, Fix: Use-after-free in link/append code.
+Referenced by issue #161652, Regression: Linking to group input does not set default value
