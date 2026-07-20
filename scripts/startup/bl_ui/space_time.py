@@ -277,12 +277,11 @@ class TIME_PT_keyframing_settings(TimelinePanelButtons, Panel):
         # The keyframe settings are not exposed in the Timeline.
         st = context.space_data
         is_sequencer = st.type == 'SEQUENCE_EDITOR'
-        is_timeline = st.type == 'DOPESHEET_EDITOR' and st.mode == 'TIMELINE'
 
         scene = context.scene if not is_sequencer else context.sequencer_scene
         tool_settings = scene.tool_settings if scene else None
 
-        return tool_settings and not is_timeline
+        return tool_settings
 
     def draw(self, context):
         layout = self.layout

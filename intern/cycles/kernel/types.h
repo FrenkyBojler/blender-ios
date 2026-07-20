@@ -279,6 +279,9 @@ enum PathRayFlag : uint32_t {
 
   /* The current shadow ray is a light linking (forward) and not next-event shadow ray. */
   PATH_RAY_SHADOW_FOR_LIGHT_LINKING = (1U << 25U),
+
+  /* Path and shader is being evaluated for volume extinction. */
+  PATH_RAY_EXTINCTION = (1U << 26U),
 };
 
 // 8bit enum, just in case we need to move more variables in it
@@ -430,6 +433,7 @@ enum PassType {
   PASS_DENOISING_ROUGHNESS,
   PASS_DENOISING_DEPTH,
   PASS_DENOISING_BACKWARD_MOTION,
+  PASS_DENOISING_SPECULAR_MOTION,
   PASS_CATEGORY_DENOISING_END = 95,
 
   PASS_BAKE_PRIMITIVE,
