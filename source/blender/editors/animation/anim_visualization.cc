@@ -8,6 +8,8 @@
 #include "BLI_bounds.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_scene.hh"
+
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
@@ -44,7 +46,7 @@ struct WorkerData {
   std::atomic<bool> restart;
   /* The center frame around which to run the evaluation. */
   std::atomic<int> evaluation_center;
-  /* The range of frames that were already evaluated. Inclusive/Exclusive. Any frames in that range
+  /* The range of frames that were already evaluated. Inclusive/Inclusive. Any frames in that range
    * are safe to read in the main thread. */
   std::atomic<Bounds<int>> evaluated_range;
 
@@ -66,23 +68,35 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
   eval_data->restart.store(false, std::memory_order_release);
   const int center_frame = eval_data->evaluation_center.load(std::memory_order_acquire);
-  Bounds<int> evaluated_range = {center_frame, center_frame + 1};
 
+  DEG_evaluate_on_framechange(eval_data->dg, center_frame);
+  for (TargetData &target_data : eval_data->target_data) {
+    const EvaluationTarget &target = target_data.target;
+    void *target_buffer = target_data.buffer;
+    target_data.eval(eval_data->dg, *target.id, center_frame, target_buffer);
+  }
+
+  Bounds<int> evaluated_range = {center_frame, center_frame};
+
+  bool all_done_left = true;
+  bool all_done_right = true;
   while (true) {
     int frame;
     /* TODO what about frame skipping i.e. every second frame. Would be determined by the
      * evaluation targets. */
-    /* TODO: only update into directions that are still required. */
-    if (abs(evaluated_range.min - center_frame) < abs(evaluated_range.max - center_frame)) {
+    const bool update_left = abs(evaluated_range.min - center_frame) <
+                             abs(evaluated_range.max - center_frame);
+    if ((update_left && !all_done_left) || all_done_right) {
       frame = evaluated_range.min - 1;
       evaluated_range.min -= 1;
     }
     else {
-      frame = evaluated_range.max;
+      frame = evaluated_range.max + 1;
       evaluated_range.max += 1;
     }
 
-    bool all_done = true;
+    all_done_left = true;
+    all_done_right = true;
     DEG_evaluate_on_framechange(eval_data->dg, frame);
     for (TargetData &target_data : eval_data->target_data) {
       const EvaluationTarget &target = target_data.target;
@@ -91,17 +105,20 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
       if (!modified_data) {
         if (frame < center_frame) {
           target_data.finished_left = true;
+          printf("finished left on %d\n", frame);
         }
         else {
           target_data.finished_right = true;
+          printf("finished right on %d\n", frame);
         }
       }
-      all_done &= target_data.finished_left && target_data.finished_right;
+      all_done_left &= target_data.finished_left;
+      all_done_right &= target_data.finished_right;
     }
     eval_data->evaluated_range.store(evaluated_range, std::memory_order_release);
     worker_status->do_update = true;
 
-    if (all_done) {
+    if (all_done_left && all_done_right) {
       break;
     }
     /* TODO remove before flight. */
@@ -176,6 +193,10 @@ void background_eval_register(Main &bmain,
   /* Don't allow reading main from the worker thread. */
   DEG_set_allow_read_from_main(dg, false);
   eval_data->worker_data.dg = dg;
+  const int center_frame = BKE_scene_frame_get(&scene);
+  eval_data->worker_data.evaluation_center.store(center_frame, std::memory_order_release);
+  eval_data->worker_data.evaluated_range.store({center_frame, center_frame},
+                                               std::memory_order_release);
 
   WM_jobs_customdata_set(wm_job, eval_data, free_job_data);
   WM_jobs_callbacks(wm_job, run_job, nullptr, update_job, finish_job);
