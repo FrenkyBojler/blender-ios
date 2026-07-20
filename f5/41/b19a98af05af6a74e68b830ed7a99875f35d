@@ -1,2 +1,3 @@
 Referenced by pull request #161570, WIP: Fix: Saving with Zstd compression could hang
 Referenced by pull request #161569, Fix & Improve threaded zstd blendfile compression code.
+Referenced by commit fc8a33ad0902ec1670883d15bf5c3597d2a82ca9, Fix & Improve threaded zstd blendfile compression code.
