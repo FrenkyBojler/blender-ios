@@ -12,6 +12,9 @@ set(INC_SYS
 
 set(SRC
   PRF_profile.hh
+  PRF_profile_gpu_common.hh
+  PRF_profile_gpu_gl.hh
+  PRF_profile_gpu_vk.hh
 )
 
 set(LIB
