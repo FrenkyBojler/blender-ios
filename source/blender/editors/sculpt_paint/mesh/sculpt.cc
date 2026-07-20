@@ -3433,12 +3433,10 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
     float4x4 brush_local_mat_inv;
     calc_brush_local_mat(0, ob, tip_normal, brush_local_mat.ptr(), brush_local_mat_inv.ptr());
 
-    return {
-        pbvh_gather_generic_cube(ob, brush, brush_local_mat, use_original, memory),
-        std::nullopt,
-        brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE ? std::optional{tip_normal} :
-                                                            std::nullopt,
-    };
+    return {pbvh_gather_generic_cube(ob, brush, brush_local_mat, use_original, memory),
+            std::nullopt,
+            brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE ? std::optional{tip_normal} :
+                                                                std::nullopt};
   }
 
   return {pbvh_gather_generic(ob, brush, use_original, radius_scale, memory),
