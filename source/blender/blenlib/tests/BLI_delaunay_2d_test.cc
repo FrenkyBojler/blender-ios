@@ -4517,7 +4517,7 @@ TEST(delaunay_d, TextB10_20_20_inverted)
   text_test<double>(10, 20, 20, CDT_INSIDE_WITH_HOLES, 0, true);
 }
 
-#ifdef WITH_GMP
+#  ifdef WITH_GMP
 TEST(delaunay_m, TextB10)
 {
   text_test<mpq_class>(10, 1, 1, CDT_INSIDE_WITH_HOLES, need_vef_ids, false);
@@ -4537,7 +4537,7 @@ TEST(delaunay_m, TextB10_10_10_noids)
 {
   text_test<mpq_class>(10, 10, 10, CDT_INSIDE_WITH_HOLES, 0, false);
 }
-#endif
+#  endif
 #endif
 
 #if DO_RANDOM_TESTS
