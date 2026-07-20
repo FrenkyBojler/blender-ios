@@ -43,9 +43,10 @@ _MAP = {
     'PLANE': ("FILL", {"planeoff": lambda b: b.plane_offset}),
     'MULTIPLANE_SCRAPE': ("SCRAPE", {"planeoff": lambda b: b.plane_offset}),
     # BSMOOTH (boundary-aware smooth): identical to plain SMOOTH on meshes
-    # with no marked feature edges, and the right long-term kernel once
-    # feature-edge transfer lands (owner decision 2026-07-20, superseding the
-    # earlier plain-SMOOTH choice from Q1b).
+    # with no marked feature edges. Seam/sharp edge flags transfer to the
+    # engine on enter (convert._load_edge_flags), so marked features hold
+    # under smoothing (verified: a sharp-marked crest erodes 0% vs 66% of its
+    # height unmarked — claudeMemory/tests/bsmooth_boundary_test.py).
     'SMOOTH': ("BSMOOTH", {}),
     'PINCH': ("PINCH", {"pinch": lambda b: b.strength}),
     'MASK': ("MASK", {}),

@@ -111,6 +111,24 @@ class _CApi:
             ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
             ctypes.c_void_p]
         lib.Mesh_writeAttr.restype = ctypes.c_int
+        # Boundary edge flags (P11): seam/sharp migration keyed by vertex
+        # pairs (the engine derives its own edges, so there is no stable edge
+        # index correspondence), plus the boundary recompute and the
+        # named-target UV unwrap.
+        u8p = np.ctypeslib.ndpointer(dtype=np.uint8, flags="C_CONTIGUOUS")
+        lib.Mesh_edgeCount.argtypes = [ctypes.c_void_p]
+        lib.Mesh_edgeCount.restype = ctypes.c_int
+        lib.Mesh_writeEdgeFlagsByVerts.argtypes = [
+            ctypes.c_void_p, ctypes.c_char_p, i32p, u8p, ctypes.c_int]
+        lib.Mesh_writeEdgeFlagsByVerts.restype = ctypes.c_int
+        lib.Mesh_readEdgeFlags.argtypes = [
+            ctypes.c_void_p, ctypes.c_char_p, i32p, ctypes.c_int]
+        lib.Mesh_readEdgeFlags.restype = ctypes.c_int
+        lib.Mesh_recomputeBoundary.argtypes = [ctypes.c_void_p]
+        lib.Mesh_recomputeBoundary.restype = None
+        lib.Mesh_generateUVFromSeams.argtypes = [
+            ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        lib.Mesh_generateUVFromSeams.restype = ctypes.c_int
         lib.freeMesh.argtypes = [ctypes.c_void_p]
         lib.freeMesh.restype = None
         lib.Mesh_buildSpatialTree.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 3

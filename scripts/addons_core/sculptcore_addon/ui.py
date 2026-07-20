@@ -187,6 +187,35 @@ class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
         sub.prop(scene, "sculptcore_dyntopo_collapse_budget")
 
 
+class SCULPTCORE_PT_boundary_uv(bpy.types.Panel):
+    """Boundary/UV tools: project a UV map from the marked seam edges (the
+    engine unwrapper; seams/sharp edges migrate from the Mesh on enter and
+    constrain the boundary-aware smooth)."""
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = _CATEGORY
+    bl_context = _MODE_CONTEXT
+    bl_label = "Boundary"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        if not _in_mode(context):
+            return False
+        session = engine.sessions.get(context.active_object.name)
+        return session is not None and session.multires_ptr is None
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        col = layout.column()
+        col.prop(context.scene, "sculptcore_reproject_uvs")
+        col.separator()
+        col.prop(context.scene, "sculptcore_uv_margin")
+        props = col.operator("sculptcore.uv_project_from_seams")
+        props.margin = context.scene.sculptcore_uv_margin
+
+
 class SCULPTCORE_PT_multires(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -262,6 +291,7 @@ _classes = (
     SCULPTCORE_PT_automasking,
     SCULPTCORE_PT_symmetry,
     SCULPTCORE_PT_dyntopo,
+    SCULPTCORE_PT_boundary_uv,
     SCULPTCORE_PT_multires,
 )
 

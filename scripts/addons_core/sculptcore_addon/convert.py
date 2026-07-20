@@ -28,6 +28,14 @@ _SC_MASK = b".spatial.v.mask"
 _BL_FACE_SET = ".sculpt_face_set"
 _SC_GROUP = b"group"
 
+# Blender edge flags <-> the engine's boundary bool edge attrs (P11). The
+# engine derives its own edges, so both directions key edges by vertex pair,
+# never by index (see _load_edge_flags/_flush_edge_flags).
+_EDGE_FLAG_MAP = (
+    ("uv_seam", b".boundary.edge.seam"),
+    ("sharp_edge", b".boundary.edge.sharp"),
+)
+
 # Vertex colors <-> the engine's `color` float4 vertex attr. v1 handles the
 # active color attribute when it is POINT-domain FLOAT_COLOR (the exact match);
 # corner/byte colors are left untouched (a warning is logged on flush).
@@ -130,6 +138,7 @@ def enter(ob):
     _load_face_sets(ob.data, mesh_ptr)
     _load_color(ob.data, mesh_ptr, verts_num)
     _load_uv(ob.data, mesh_ptr)
+    _load_edge_flags(ob.data, mesh_ptr)
 
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
@@ -306,6 +315,84 @@ def _flush_color(mesh, mesh_ptr, verts_num, color_name=None):
     attr.data.foreach_set("color", values)
 
 
+def _load_edge_flags(mesh, mesh_ptr):
+    """Seed the engine boundary edge flags (seam/sharp) from the Blender edge
+    bool attributes. Engine vertex indices equal Blender indices at enter
+    (Mesh_fromArrays creates verts in order), so edges are keyed by their
+    vertex pair. Recomputes the boundary classification when anything was
+    seeded, so BSMOOTH/dyntopo see the features from the first stroke."""
+    import numpy as np
+
+    lib = engine.capi().lib
+    edges_num = len(mesh.edges)
+    if not edges_num:
+        return
+    edge_verts = None
+    seeded = False
+    for bl_name, sc_name in _EDGE_FLAG_MAP:
+        attr = mesh.attributes.get(bl_name)
+        if attr is None or attr.domain != 'EDGE' or attr.data_type != 'BOOLEAN':
+            continue
+        values = np.empty(edges_num, dtype=np.uint8)
+        attr.data.foreach_get("value", values.view(np.bool_))
+        if not values.any():
+            continue
+        if edge_verts is None:
+            edge_verts = np.empty(edges_num * 2, dtype=np.int32)
+            mesh.edges.foreach_get("vertices", edge_verts)
+        lib.Mesh_writeEdgeFlagsByVerts(mesh_ptr, sc_name, edge_verts, values, edges_num)
+        seeded = True
+    if seeded:
+        lib.Mesh_recomputeBoundary(mesh_ptr)
+
+
+def _flush_edge_flags(session, mesh, vert_map):
+    """Recreate the Blender seam/sharp edge attributes from the engine
+    boundary flags after a topology rebuild (`calc_edges=True` regenerated the
+    edges with all flags dropped). `vert_map` maps engine vertex index ->
+    rebuilt Blender index (Mesh_toArrays). Engine edges are matched to Blender
+    edges by sorted vertex pair; flags whose edge no longer exists are
+    silently dropped (dyntopo may have collapsed it)."""
+    import numpy as np
+
+    lib = engine.capi().lib
+    edges_num = len(mesh.edges)
+    engine_edges = lib.Mesh_edgeCount(session.mesh_ptr)
+    if not edges_num or not engine_edges:
+        return
+
+    def pair_keys(pairs):
+        lo = np.minimum(pairs[:, 0], pairs[:, 1]).astype(np.int64)
+        hi = np.maximum(pairs[:, 0], pairs[:, 1]).astype(np.int64)
+        return (lo << 32) | hi
+
+    bl_order = bl_keys = None
+    buf = np.empty(engine_edges * 2, dtype=np.int32)
+    for bl_name, sc_name in _EDGE_FLAG_MAP:
+        count = lib.Mesh_readEdgeFlags(session.mesh_ptr, sc_name, buf, engine_edges)
+        if count <= 0:
+            continue
+        if bl_keys is None:
+            bl_edge_verts = np.empty(edges_num * 2, dtype=np.int32)
+            mesh.edges.foreach_get("vertices", bl_edge_verts)
+            keys = pair_keys(bl_edge_verts.reshape(-1, 2))
+            bl_order = np.argsort(keys)
+            bl_keys = keys[bl_order]
+        pairs = vert_map[buf[:count * 2].reshape(-1, 2)]
+        keys = pair_keys(pairs[np.all(pairs >= 0, axis=1)])
+        idx = np.searchsorted(bl_keys, keys)
+        idx[idx >= edges_num] = edges_num - 1
+        matched = bl_order[idx[bl_keys[idx] == keys]]
+        if not len(matched):
+            continue
+        values = np.zeros(edges_num, dtype=np.bool_)
+        values[matched] = True
+        attr = mesh.attributes.get(bl_name)
+        if attr is None:
+            attr = mesh.attributes.new(bl_name, 'BOOLEAN', 'EDGE')
+        attr.data.foreach_set("value", values)
+
+
 def _load_uv(mesh, mesh_ptr):
     """Seed the engine `uv` corner attribute from the active UV map (per-loop
     float2, loop order = the engine's corner order). No-op with no UV map."""
@@ -324,6 +411,32 @@ def _load_uv(mesh, mesh_ptr):
     else:
         uv_layer.data.foreach_get("uv", values)
     engine.capi().lib.Mesh_writeCornerFloat2Attr(mesh_ptr, b"uv", values)
+
+
+def _flush_uv(mesh, mesh_ptr):
+    """Write the engine `uv` corner attr back into the active UV map, creating
+    one when the mesh has none. Only called when the engine UVs diverged from
+    the Mesh (session.uv_dirty — the UV-project operator / UV reprojection);
+    regular strokes never touch UVs, so the default flush skips this."""
+    import ctypes
+
+    import numpy as np
+
+    values = np.empty(len(mesh.loops) * 2, dtype=np.float32)
+    # Engine domain CORNER (4) / AttrType FLOAT2 (2); see _DOMAIN_TO_ENGINE.
+    if not engine.capi().lib.Mesh_readAttr(mesh_ptr, 4, b"uv", 2,
+                                           values.ctypes.data_as(ctypes.c_void_p)):
+        return
+    uv_layer = mesh.uv_layers.active
+    if uv_layer is None:
+        uv_layer = mesh.uv_layers.new(name="UVMap")
+        if uv_layer is None:
+            return
+    uv_attr = mesh.attributes.get(uv_layer.name)
+    if uv_attr is not None and uv_attr.domain == 'CORNER' and uv_attr.data_type == 'FLOAT2':
+        uv_attr.data.foreach_set("vector", values)
+    else:
+        uv_layer.data.foreach_set("uv", values)
 
 
 # Generic user-attribute bridge
@@ -552,6 +665,7 @@ def _flush_topology_rebuild(session, mesh):
     # Recreate the user attribute layers clear_geometry dropped, from their
     # engine copies (interpolated by dyntopo / reverted by the meshlog on undo).
     _flush_bridged_attrs(session, mesh)
+    _flush_edge_flags(session, mesh, vert_map)
 
 
 def _mesh_counts(mesh_ptr):
@@ -580,6 +694,11 @@ def mesh_vert_num(mesh_ptr):
 def mesh_face_num(mesh_ptr):
     """Live face count (public: see mesh_vert_num)."""
     return _mesh_counts(mesh_ptr)[2]
+
+
+def mesh_corner_num(mesh_ptr):
+    """Live corner (loop) count (public: see mesh_vert_num)."""
+    return _mesh_counts(mesh_ptr)[1]
 
 
 def mesh_positions(mesh_ptr):
@@ -751,6 +870,8 @@ def flush(ob):
     _flush_mask(mesh, session.mesh_ptr, session.verts_num)
     _flush_face_sets(mesh, session.mesh_ptr)
     _flush_color(mesh, session.mesh_ptr, session.verts_num, session.color_attr_name)
+    if session.uv_dirty:
+        _flush_uv(mesh, session.mesh_ptr)
     mesh.update()
     session.blender_verts_num = len(mesh.vertices)
 

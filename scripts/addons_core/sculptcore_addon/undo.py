@@ -62,6 +62,10 @@ _ATTR_KINDS = {
     'FACE_I32': ("int32",
                  lambda session: convert.mesh_face_num(session.mesh_ptr),
                  lambda lib: lib.Mesh_writeFaceIntAttr),
+    # Corner FLOAT2 (UV) columns: len(values) is floats, so 2 per corner.
+    'CORNER_F32x2': ("float32",
+                     lambda session: convert.mesh_corner_num(session.mesh_ptr) * 2,
+                     lambda lib: lib.Mesh_writeCornerFloat2Attr),
 }
 
 
@@ -137,8 +141,12 @@ def _decode_attr(context, ob, session, info, direction, is_final):
     if count_fn(session) != len(values):
         return
     writer_fn(engine.capi().lib)(session.mesh_ptr, attr, np.ascontiguousarray(values))
+    # Flush on the leave decode too, not only on the final one: an undo whose
+    # destination is a step this type never decodes (e.g. the mode-enter
+    # memfile boundary) would otherwise leave the restored column engine-only,
+    # with the Mesh still showing the undone state.
+    convert.flush(ob)
     if is_final:
-        convert.flush(ob)
         _tag_view3d_redraw(context)
 
 

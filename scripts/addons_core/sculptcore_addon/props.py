@@ -77,6 +77,22 @@ def register():
         min=0,
         soft_max=100000,
     )
+    bpy.types.Scene.sculptcore_reproject_uvs = bpy.props.BoolProperty(
+        name="Reproject UVs",
+        description="Re-anchor UVs when smoothing slides vertices along the "
+                    "surface (smooth brushes, autosmooth and the dyntopo "
+                    "tangential smooth), so textures do not swim",
+        default=True,
+    )
+    bpy.types.Scene.sculptcore_uv_margin = bpy.props.FloatProperty(
+        name="Chart Margin",
+        description="Padding added around each UV chart before packing "
+                    "(Project UVs from Seams)",
+        default=0.01,
+        min=0.0,
+        max=0.25,
+        subtype='FACTOR',
+    )
 
 
 def unregister():
@@ -88,3 +104,5 @@ def unregister():
     del bpy.types.Scene.sculptcore_dyntopo_max_rounds
     del bpy.types.Scene.sculptcore_dyntopo_split_budget
     del bpy.types.Scene.sculptcore_dyntopo_collapse_budget
+    del bpy.types.Scene.sculptcore_reproject_uvs
+    del bpy.types.Scene.sculptcore_uv_margin

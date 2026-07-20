@@ -74,6 +74,10 @@ class Session:
         # Name of the active POINT/FLOAT_COLOR color attribute at enter, so the
         # color write-back recreates it under its own name after a rebuild.
         "color_attr_name",
+        # Engine UVs diverged from the Blender mesh (UV-project op, UV
+        # reprojection): every flush writes the engine `uv` column back into
+        # the active UV map. Sticky for the session — undo decodes re-flush.
+        "uv_dirty",
         "_freed",
     )
 
@@ -104,6 +108,7 @@ class Session:
         self.multires_last_blob = None
         self.bridged_attrs = []
         self.color_attr_name = None
+        self.uv_dirty = False
         self._freed = False
 
     def mesh(self):

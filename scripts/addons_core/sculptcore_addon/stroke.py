@@ -176,6 +176,7 @@ def configure_dyntopo_params(params, scene, refine_method):
     params.do_flips = scene.sculptcore_dyntopo_flips
     params.do_smooth = scene.sculptcore_dyntopo_smooth
     params.smooth_lambda = scene.sculptcore_dyntopo_smooth_lambda
+    params.reproject_uvs = scene.sculptcore_reproject_uvs
     params.max_rounds = scene.sculptcore_dyntopo_max_rounds
     params.max_splits = scene.sculptcore_dyntopo_split_budget
     params.max_collapses = scene.sculptcore_dyntopo_collapse_budget
@@ -457,6 +458,13 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         paint = context.tool_settings.sculpt
         mapping.apply_brush_settings(
             self.brush, paint.unified_paint_settings, sc_brush, paint=paint)
+        # UV slide-reprojection (scene toggle): the executor re-anchors moved
+        # verts' UVs for the smooth-family kernels. Any stroke that may run
+        # one (smooth brush, Shift-smooth, autosmooth chain) diverges the
+        # engine UVs from the Mesh, so the flush must write them back.
+        sc_brush.reproject_uvs = context.scene.sculptcore_reproject_uvs
+        if sc_brush.reproject_uvs:
+            self.session.uv_dirty = True
         # "Adjust Strength for Spacing": constant for the stroke, folded into
         # every dab's strength write.
         self._overlap = mapping.overlap_attenuation(self.brush)

@@ -365,6 +365,76 @@ class SCULPTCORE_OT_dyntopo_detail_size_edit(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class SCULPTCORE_OT_uv_project_from_seams(bpy.types.Operator):
+    """Generate a UV map from the marked seam edges (planar projection per seam-bounded chart, packed into the 0-1 tile)"""
+    bl_idname = "sculptcore.uv_project_from_seams"
+    bl_label = "Project UVs from Seams"
+    # No 'UNDO': the op pushes its own attribute-snapshot step (undo.py).
+    bl_options = {'REGISTER'}
+
+    margin: bpy.props.FloatProperty(
+        name="Margin", default=0.01, min=0.0, max=0.25, subtype='FACTOR',
+        description="Padding added around each chart before packing",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return _session(context) is not None
+
+    def execute(self, context):
+        import ctypes
+
+        import numpy as np
+
+        session = _session(context)
+        ob = context.active_object
+        lib = engine.capi().lib
+        corners_num = convert.mesh_corner_num(session.mesh_ptr)
+        if not corners_num:
+            self.report({'ERROR'}, "Mesh has no faces to unwrap")
+            return {'CANCELLED'}
+
+        # Pre-state for undo. A mesh entered without a UV map has no engine
+        # `uv` column yet; its pre-state is the zero column (the layer itself
+        # is not removed on undo — only its values restore).
+        before = np.zeros(corners_num * 2, dtype=np.float32)
+        lib.Mesh_readAttr(session.mesh_ptr, 4, b"uv", 2,
+                          before.ctypes.data_as(ctypes.c_void_p))
+
+        charts = lib.Mesh_generateUVFromSeams(session.mesh_ptr, b"uv",
+                                              int(self.margin * 1000))
+        if charts <= 0:
+            self.report({'ERROR'}, "UV projection produced no charts")
+            return {'CANCELLED'}
+
+        after = np.empty(corners_num * 2, dtype=np.float32)
+        lib.Mesh_readAttr(session.mesh_ptr, 4, b"uv", 2,
+                          after.ctypes.data_as(ctypes.c_void_p))
+
+        # Keep the bridged engine copy of the active UV map in sync, so a
+        # later topology rebuild restores the projected UVs, not the stale
+        # pre-project layer. The visible layer always follows the engine `uv`
+        # column via the uv_dirty flush.
+        uv_layer = ob.data.uv_layers.active
+        if uv_layer is not None:
+            for desc in session.bridged_attrs:
+                if desc["name"] == uv_layer.name and desc["bl_domain"] == 'CORNER':
+                    lib.Mesh_writeAttr(session.mesh_ptr, desc["engine_domain"],
+                                       desc["name_bytes"], desc["engine_type"],
+                                       convert._USE_UV,
+                                       after.ctypes.data_as(ctypes.c_void_p))
+                    break
+
+        session.uv_dirty = True
+        undo.push_attr(context, ob, session, "Project UVs from Seams",
+                       'CORNER_F32x2', b"uv", before.tobytes(), after.tobytes())
+        convert.flush(ob)
+        convert.draw_refresh(ob)
+        self.report({'INFO'}, "Projected {:d} UV chart{:s}".format(
+            charts, "" if charts == 1 else "s"))
+        return {'FINISHED'}
+
+
 class SCULPTCORE_OT_subdivision_set(bpy.types.Operator):
     """Set the multires sculpt level"""
     bl_idname = "sculptcore.subdivision_set"
@@ -400,6 +470,7 @@ _classes = (
     SCULPTCORE_OT_face_sets_create,
     SCULPTCORE_OT_face_set_edit,
     SCULPTCORE_OT_dyntopo_detail_size_edit,
+    SCULPTCORE_OT_uv_project_from_seams,
     SCULPTCORE_OT_subdivision_set,
 )
 
