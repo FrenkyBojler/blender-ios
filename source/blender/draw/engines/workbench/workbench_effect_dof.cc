@@ -224,7 +224,7 @@ void DofPass::draw(Manager &manager, View &view, SceneResources &resources, int2
     return;
   }
 
-  GPU_debug_group_scope("Depth Of Field");
+  GPU_debug_group_scope("Depth Of Field", ProfileCategory::Draw);
 
   int2 half_res = {max_ii(resolution.x / 2, 1), max_ii(resolution.y / 2, 1)};
   blur_tx_.acquire_2d(half_res,

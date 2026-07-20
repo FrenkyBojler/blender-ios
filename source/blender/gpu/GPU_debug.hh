@@ -211,15 +211,30 @@ class DebugCapture {
 
 /**
  * Perform grouping of GPU API calls under the current scope by the given name, for display in a
- * GPU frame capture tool or profiling tool.
+ * GPU frame capture tool or profiling tool. Additionally, marks GPU API calls under the current
+ * scope for timing in a profiling tool.
  *
- * \param name: Unique group name displayed within capture tool.
+ * \param name: Group name displayed within capture tool.
+ * \param category: Type of ProfileCategory, used for color labeling.
  * \note This is equivalent to: ```
  *   gpu::DebugGroup group = name;
  *   const auto scope_guard = group.scope_guard();
  * ```
  */
-#define GPU_debug_group_scope(name) \
+#define GPU_debug_group_scope(name, category) \
+  static gpu::DebugGroup _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__)(name); \
+  const auto _GPU_DEBUG_CONCAT( \
+      gpu_debug_group_scope_guard_, \
+      __LINE__) = _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__).scope_guard(); \
+  GPU_profile_scope(name, category);
+
+/**
+ * Variant of `GPU_debug_group_scope` that supports runtime string names.
+ *
+ * \param name: Group name displayed within capture tool.
+ * ```
+ */
+#define GPU_debug_group_scope_transient(name) \
   static gpu::DebugGroup _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__)(name); \
   const auto _GPU_DEBUG_CONCAT( \
       gpu_debug_group_scope_guard_, \

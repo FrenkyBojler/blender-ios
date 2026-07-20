@@ -435,7 +435,7 @@ void VolumeModule::draw_prepass(View &main_view)
     return;
   }
 
-  GPU_debug_group_scope("Volumes");
+  GPU_debug_group_scope("Volumes", ProfileCategory::Draw);
   occupancy_fb_.bind();
   inst_.pipelines.world_volume.render(main_view);
 

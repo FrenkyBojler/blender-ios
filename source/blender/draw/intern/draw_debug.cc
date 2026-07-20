@@ -240,7 +240,7 @@ void DebugDraw::display_lines(View &view)
   GPU_shader_uniform_2f(shader, "size_viewport", viewport_size[2], viewport_size[3]);
 
   if (gpu_draw_buf_used) {
-    GPU_debug_group_scope("GPU");
+    GPU_debug_group_scope("GPU", ProfileCategory::Draw);
 
     /* Reset buffer. */
     gpu_draw_buf_.next()->command.array().vertex_len = 0;
@@ -255,7 +255,7 @@ void DebugDraw::display_lines(View &view)
 
   {
 
-    GPU_debug_group_scope("CPU");
+    GPU_debug_group_scope("CPU", ProfileCategory::Draw);
 
     /* We might have race condition here (a writer thread might still be outputting vertices).
      * But that is ok. At worse, we will be missing some vertex data and show 1 corrupted line. */
@@ -285,7 +285,7 @@ void DebugDraw::display_to_view(View &view)
 {
   /* Display only on the main thread. Avoid concurrent usage of the resource. */
   BLI_assert(BLI_thread_is_main());
-  GPU_debug_group_scope("DebugDraw");
+  GPU_debug_group_scope("DebugDraw", ProfileCategory::Draw);
   display_lines(view);
 }
 

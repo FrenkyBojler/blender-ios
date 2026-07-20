@@ -457,7 +457,7 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
   device.resources.add_swapchain_image(swap_chain_data.image, "SwapchainImage");
 
   {
-    GPU_debug_group_scope("BackBuffer.Blit");
+    GPU_debug_group_scope("BackBuffer.Blit", ProfileCategory::GPU);
     if (use_shader) {
       VKTexture swap_chain_texture("swap_chain_texture");
       swap_chain_texture.init_swapchain(swap_chain_data.image,

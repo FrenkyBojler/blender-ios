@@ -79,7 +79,7 @@ void NodeOperation::evaluate()
 {
   const ScopedNodeTimer node_timer{
       this->node(), this->get_compute_context(), this->context().nodes_evaluation_log()};
-  GPU_debug_group_scope(this->node().typeinfo->idname.c_str());
+  GPU_debug_group_scope_transient(this->node().typeinfo->idname.c_str());
   Operation::evaluate();
 }
 

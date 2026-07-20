@@ -592,7 +592,7 @@ void DepthOfField::render(View &view,
     GPU_flush();
   }
 
-  GPU_debug_group_scope("Depth of Field");
+  GPU_debug_group_scope("Depth of Field", ProfileCategory::Draw);
 
   Manager &drw = *inst_.manager;
 
@@ -601,7 +601,7 @@ void DepthOfField::render(View &view,
   constexpr eGPUTextureUsage usage_readwrite_attach = usage_readwrite |
                                                       GPU_TEXTURE_USAGE_ATTACHMENT;
   {
-    GPU_debug_group_scope("Setup");
+    GPU_debug_group_scope("Setup", ProfileCategory::Draw);
 
     {
       bokeh_gather_lut_tx_.acquire_2d(int2(DOF_BOKEH_LUT_SIZE), gpu::TextureFormat::SFLOAT_16_16);
@@ -643,7 +643,7 @@ void DepthOfField::render(View &view,
       setup_color_tx_.release();
     }
     {
-      GPU_debug_group_scope("Tile Prepare");
+      GPU_debug_group_scope("Tile Prepare", ProfileCategory::Draw);
 
       /* WARNING: If format changes, make sure dof_tile_* GLSL constants are properly encoded. */
       tiles_fg_tx_.previous().acquire_2d(
@@ -707,7 +707,8 @@ void DepthOfField::render(View &view,
   }
 
   for (int is_background = 0; is_background < 2; is_background++) {
-    GPU_debug_group_scope(is_background ? "Background Convolution" : "Foreground Convolution");
+    GPU_debug_group_scope_transient(is_background ? "Background Convolution" :
+                                                    "Foreground Convolution");
 
     SwapChain<TextureFromPool, 2> &color_tx = is_background ? color_bg_tx_ : color_fg_tx_;
     SwapChain<TextureFromPool, 2> &weight_tx = is_background ? weight_bg_tx_ : weight_fg_tx_;
@@ -757,7 +758,7 @@ void DepthOfField::render(View &view,
     occlusion_tx_.release();
   }
   {
-    GPU_debug_group_scope("Hole Fill");
+    GPU_debug_group_scope("Hole Fill", ProfileCategory::Draw);
 
     bokeh_gather_lut_tx_.release();
     bokeh_scatter_lut_tx_.release();
@@ -774,7 +775,7 @@ void DepthOfField::render(View &view,
     reduced_coc_tx_.release();
   }
   {
-    GPU_debug_group_scope("Resolve");
+    GPU_debug_group_scope("Resolve", ProfileCategory::Draw);
 
     resolve_stable_color_tx_ = dof_buffer.stabilize_history_tx_;
 

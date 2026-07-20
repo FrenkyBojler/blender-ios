@@ -61,7 +61,7 @@ ShaderOperation::~ShaderOperation()
 
 void ShaderOperation::execute()
 {
-  GPU_debug_group_scope("ShaderOperation");
+  GPU_debug_group_scope("ShaderOperation", ProfileCategory::Draw);
   const Domain domain = compute_domain();
   for (StringRef identifier : output_sockets_to_output_identifiers_map_.values()) {
     Result &result = get_result(identifier);

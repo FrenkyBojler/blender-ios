@@ -1112,7 +1112,7 @@ void DRWContext::engines_draw_scene()
       GPU_flush();
     }
 #endif
-    GPU_debug_group_scope(instance.name_get().c_str());
+    GPU_debug_group_scope_transient(instance.name_get().c_str());
     instance.draw(*DRW_manager_get());
   });
 

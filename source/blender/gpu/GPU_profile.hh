@@ -21,7 +21,7 @@ struct ProfileScope {
  * \param category: Type of ProfileCategory, used for color labeling.
  */
 #define GPU_profile_scope(name, category) \
-  static constexpr PrfSourceLocationUnique(name, category); \
+  static PrfSourceLocationUnique(name, category); \
   const gpu::ProfileScope _PRF_DEBUG_CONCAT(gpu_profile_scope_, __LINE__)( \
       &_GPU_DEBUG_CONCAT(gpu_profile_loc_, __LINE__), false);
 

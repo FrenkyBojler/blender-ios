@@ -1260,7 +1260,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
                                                   uint resource_len,
                                                   bool /*debug_freeze*/)
 {
-  GPU_debug_group_scope("View.compute_visibility");
+  GPU_debug_group_scope("View.compute_visibility", ProfileCategory::Draw);
 
   uint word_per_draw = this->visibility_word_per_draw();
   /* Switch between tightly packed and set of whole word per instance. */
@@ -1320,7 +1320,7 @@ void ShadowModule::render(View &view, int2 extent)
 
   int loop_count = 0;
   do {
-    GPU_debug_group_scope("Shadow");
+    GPU_debug_group_scope("Shadow", ProfileCategory::Draw);
     {
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());
 

@@ -36,7 +36,7 @@ enum class ProfileCategory : uint32_t {
   Core = 0x0088FE,
   Draw = 0x00C49F,
   Editor = 0xFFBB28,
-  Unused_1 = 0xFF8042,
+  GPU = 0xFF8042,
   Unused_2 = 0x8884D8,
 };
 

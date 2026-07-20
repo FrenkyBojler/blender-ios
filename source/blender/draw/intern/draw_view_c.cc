@@ -36,7 +36,7 @@ namespace blender {
 
 void DRW_draw_region_info(const bContext *C, ARegion *region)
 {
-  GPU_debug_group_scope("RegionInfo");
+  GPU_debug_group_scope("RegionInfo", ProfileCategory::Draw);
   view3d_draw_region_info(C, region);
 }
 

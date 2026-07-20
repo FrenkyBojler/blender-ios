@@ -212,7 +212,7 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
                                                 bool /*debug_freeze*/)
 {
   /* TODO (Miguel Pozo): Add debug_freeze support */
-  GPU_debug_group_scope("ShadowView.compute_visibility");
+  GPU_debug_group_scope("ShadowView.compute_visibility", ProfileCategory::Draw);
 
   uint word_per_draw = this->visibility_word_per_draw();
   /* Switch between tightly packed and set of whole word per instance. */

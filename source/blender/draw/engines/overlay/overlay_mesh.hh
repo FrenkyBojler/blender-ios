@@ -385,7 +385,7 @@ class Meshes : Overlay {
       return;
     }
 
-    GPU_debug_group_scope("Mesh Edit");
+    GPU_debug_group_scope("Mesh Edit", ProfileCategory::Draw);
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(edit_mesh_prepass_ps_, view);
@@ -416,7 +416,7 @@ class Meshes : Overlay {
       return;
     }
 
-    GPU_debug_group_scope("Mesh Edit Line Only");
+    GPU_debug_group_scope("Mesh Edit Line Only", ProfileCategory::Draw);
 
     if (xray_enabled_) {
       /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
@@ -1036,7 +1036,7 @@ class MeshUVs : Overlay {
       return;
     }
 
-    GPU_debug_group_scope("Mesh Edit UVs");
+    GPU_debug_group_scope("Mesh Edit UVs", ProfileCategory::Draw);
 
     GPU_framebuffer_bind(framebuffer);
     if (show_mask_ && (mask_mode_ != MASK_OVERLAY_COMBINED)) {
