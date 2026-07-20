@@ -17,6 +17,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_string_utf8.hh"
 #include "BLI_utildefines.hh"
@@ -33,7 +34,6 @@
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
 #include "BKE_workspace.hh"
-#include "BLI_math_base_c.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
