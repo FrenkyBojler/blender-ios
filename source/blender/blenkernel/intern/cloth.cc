@@ -1397,7 +1397,6 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
                                                int *r_tar_v_idx)
 {
   float co[3], no[3], new_co[3];
-  float radius;
 
   copy_v3_v3(co, vert_positions[v_idx]);
   negate_v3_v3(no, vert_normals[v_idx]);
@@ -1419,7 +1418,6 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
   mul_v3_fl(new_co, FLT_EPSILON);
   add_v3_v3(new_co, co);
 
-  radius = 0.0f;
   if (max_length == 0.0f) {
     max_length = FLT_MAX;
   }
