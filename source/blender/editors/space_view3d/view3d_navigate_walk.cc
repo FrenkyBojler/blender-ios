@@ -363,18 +363,9 @@ static void drawWalkPixel(const bContext * /*C*/, ARegion *region, void *arg)
 
   if (ED_view3d_cameracontrol_object_get(walk->v3d_camera_control)) {
     ED_view3d_calc_camera_border(
-        walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, false, true, &viewborder);
+        walk->scene, walk->depsgraph, region, walk->v3d, walk->rv3d, false, false, &viewborder);
     xoff = viewborder.xmin + BLI_rctf_size_x(&viewborder) * 0.5f;
     yoff = viewborder.ymin + BLI_rctf_size_y(&viewborder) * 0.5f;
-
-    if (walk->rv3d->camroll != 0.0f) {
-      const float2 view_center(walk->region->winx / 2.0f, walk->region->winy / 2.0f);
-      const float2 xyoff = rotate_around_point_2d(
-          float2(xoff, yoff), view_center, math::AngleRadian(walk->rv3d->camroll));
-
-      xoff = xyoff.x;
-      yoff = xyoff.y;
-    }
   }
   else {
     xoff = float(walk->region->winx) / 2.0f;
