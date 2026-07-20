@@ -91,7 +91,7 @@ static void draw_effect_panel_header(const bContext * /*C*/, Panel *panel)
   ui::Layout &icon_row = layout.row(true);
   icon_row.emboss_set(ui::EmbossType::None);
   PointerRNA set_active_operator_ptr = icon_row.op(
-      "SCENE_OT_set_active_compositor_effect", "", RNA_struct_ui_icon(effect_ptr->type));
+      "SCENE_OT_set_active_compositor_effect", "", ICON_NODE_COMPOSITING);
   RNA_string_set(&set_active_operator_ptr, "name", effect->name);
 
   ui::Layout &buttons_row = layout.row(true);
