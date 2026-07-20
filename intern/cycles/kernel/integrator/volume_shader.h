@@ -226,6 +226,25 @@ ccl_device float volume_shader_phase_eval(const ccl_private ShaderData *sd,
   return phase_pdf;
 }
 
+ccl_device_inline float volume_shader_phase_mixture_pdf(
+    const ccl_private ShaderData *sd,
+    const ccl_private ShaderVolumePhases *phases,
+    const float3 wo)
+{
+  float sum_pdf = 0.0f;
+  float sum_sample_weight = 0.0f;
+
+  for (int i = 0; i < phases->num_closure; i++) {
+    const ccl_private ShaderVolumeClosure *svc = &phases->closure[i];
+    float phase_pdf = 0.0f;
+    volume_phase_eval(sd, svc, wo, &phase_pdf);
+    sum_pdf += phase_pdf * svc->sample_weight;
+    sum_sample_weight += svc->sample_weight;
+  }
+
+  return (sum_sample_weight > 0.0f) ? sum_pdf / sum_sample_weight : 0.0f;
+}
+
 ccl_device float volume_shader_phase_eval(ccl_attr_maybe_unused KernelGlobals kg,
                                           ccl_attr_maybe_unused IntegratorState state,
                                           const ccl_private ShaderData *sd,
