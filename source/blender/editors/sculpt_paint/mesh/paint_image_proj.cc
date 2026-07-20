@@ -13,27 +13,28 @@
 #include <cmath>
 #include <cstring>
 
+#include "IMB_imbuf_types.hh"
 #include "MEM_guardedalloc.h"
 
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_math_base_safe.h"
-#include "BLI_math_bits.h"
-#include "BLI_math_color.h"
-#include "BLI_math_color_blend.h"
-#include "BLI_math_geom.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_safe.hh"
+#include "BLI_math_bits.hh"
+#include "BLI_math_color_blend.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_vector.hh"
-#include "BLI_memarena.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_task.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
+#include "BLI_memarena.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_task_c.hh"
+#include "BLI_threads.hh"
+#include "BLI_utildefines.hh"
 
 #include "atomic_ops.h"
 
@@ -41,6 +42,7 @@
 
 #include "IMB_imbuf.hh"
 #include "IMB_interp.hh"
+#include "IMB_partial_update.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_customdata_types.h"
@@ -66,6 +68,7 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_image.hh"
+#include "BKE_image_gpu.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -218,7 +221,7 @@ struct ProjPaintImage {
   ImBuf *ibuf;
   ImagePaintPartialRedraw *partRedrawRect;
   /** Only used to build undo tiles during painting. */
-  volatile void **undoRect;
+  volatile const void **undoRect;
   /** The mask accumulation must happen on canvas, not on space screen bucket.
    * Here we store the mask rectangle. */
   ushort **maskRect;
@@ -1752,7 +1755,7 @@ static float project_paint_uvpixel_mask(const ProjPaintState *ps,
       normalize_v3(no);
     }
 
-    if (UNLIKELY(ps->is_flip_object)) {
+    if (ps->is_flip_object) [[unlikely]] {
       negate_v3(no);
     }
 
@@ -1773,7 +1776,7 @@ static float project_paint_uvpixel_mask(const ProjPaintState *ps,
       viewDirPersp[1] = (ps->viewPos[1] - (w[0] * co1[1] + w[1] * co2[1] + w[2] * co3[1]));
       viewDirPersp[2] = (ps->viewPos[2] - (w[0] * co1[2] + w[1] * co2[2] + w[2] * co3[2]));
       normalize_v3(viewDirPersp);
-      if (UNLIKELY(ps->is_flip_object)) {
+      if (ps->is_flip_object) [[unlikely]] {
         negate_v3(viewDirPersp);
       }
 
@@ -1816,11 +1819,11 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
   bool generate_tile = false;
 
   /* double check lock to avoid locking */
-  if (UNLIKELY(!pjIma->undoRect[tile_index])) {
+  if (!pjIma->undoRect[tile_index]) [[unlikely]] {
     if (tinf->lock) {
       BLI_spin_lock(tinf->lock);
     }
-    if (LIKELY(!pjIma->undoRect[tile_index])) {
+    if (!pjIma->undoRect[tile_index]) [[likely]] {
       pjIma->undoRect[tile_index] = TILE_PENDING;
       generate_tile = true;
     }
@@ -1831,33 +1834,45 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
   if (generate_tile) {
     PaintTileMap *undo_tiles = ED_image_paint_tile_map_get();
-    volatile void *undorect;
+    volatile const void *undorect = nullptr;
     if (tinf->masked) {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          &pjIma->maskRect[tile_index],
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false);
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       &pjIma->maskRect[tile_index],
+                                                       &pjIma->valid[tile_index]))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
     else {
-      undorect = ED_image_paint_tile_push(undo_tiles,
-                                          pjIma->ima,
-                                          pjIma->ibuf,
-                                          &pjIma->iuser,
-                                          tx,
-                                          ty,
-                                          nullptr,
-                                          &pjIma->valid[tile_index],
-                                          true,
-                                          false);
+      if (const ImBuf *ibuf = ED_image_paint_tile_push(undo_tiles,
+                                                       pjIma->ima,
+                                                       pjIma->ibuf,
+                                                       &pjIma->iuser,
+                                                       tx,
+                                                       ty,
+                                                       nullptr,
+                                                       &pjIma->valid[tile_index]))
+      {
+        if (ibuf->float_data()) {
+          undorect = ibuf->float_data();
+        }
+        else {
+          undorect = ibuf->byte_data();
+        }
+      }
     }
 
-    BKE_image_mark_dirty(pjIma->ima, pjIma->ibuf);
+    IMB_mark_dirty(pjIma->ibuf);
     /* tile ready, publish */
     if (tinf->lock) {
       BLI_spin_lock(tinf->lock);
@@ -2537,9 +2552,9 @@ static void project_bucket_clip_face(const bool is_ortho,
   /* detect pathological case where face the three vertices are almost collinear in screen space.
    * mostly those will be culled but when flood filling or with
    * smooth shading it's a possibility */
-  if (min_fff(dist_squared_to_line_v2(v1coSS, v2coSS, v3coSS),
-              dist_squared_to_line_v2(v2coSS, v3coSS, v1coSS),
-              dist_squared_to_line_v2(v3coSS, v1coSS, v2coSS)) < PROJ_PIXEL_TOLERANCE)
+  if (std::min({dist_squared_to_line_v2(v1coSS, v2coSS, v3coSS),
+                dist_squared_to_line_v2(v2coSS, v3coSS, v1coSS),
+                dist_squared_to_line_v2(v3coSS, v1coSS, v2coSS)}) < PROJ_PIXEL_TOLERANCE)
   {
     collinear = true;
   }
@@ -3816,7 +3831,7 @@ static void proj_paint_state_viewport_init(ProjPaintState *ps, const char symmet
   mul_m3_v3(mat, ps->viewDir);
   normalize_v3(ps->viewDir);
 
-  if (UNLIKELY(ps->is_flip_object)) {
+  if (ps->is_flip_object) [[unlikely]] {
     negate_v3(ps->viewDir);
   }
 
@@ -3978,8 +3993,6 @@ static void proj_paint_state_thread_init(ProjPaintState *ps, const bool reset_th
       ps->tile_lock = MEM_new_uninitialized<SpinLock>("projpaint_tile_lock");
       BLI_spin_init(ps->tile_lock);
     }
-
-    ED_image_paint_tile_lock_init();
   }
 
   for (int a = 0; a < ps->thread_tot; a++) {
@@ -3998,7 +4011,7 @@ static void proj_paint_state_vert_flags_init(ProjPaintState *ps)
 
     for (a = 0; a < ps->totvert_eval; a++) {
       copy_v3_v3(no, ps->vert_normals[a]);
-      if (UNLIKELY(ps->is_flip_object)) {
+      if (ps->is_flip_object) [[unlikely]] {
         negate_v3(no);
       }
 
@@ -4011,7 +4024,7 @@ static void proj_paint_state_vert_flags_init(ProjPaintState *ps)
       else {
         sub_v3_v3v3(viewDirPersp, ps->viewPos, ps->vert_positions_eval[a]);
         normalize_v3(viewDirPersp);
-        if (UNLIKELY(ps->is_flip_object)) {
+        if (ps->is_flip_object) [[unlikely]] {
           negate_v3(viewDirPersp);
         }
         if (dot_v3v3(viewDirPersp, no) <= ps->normal_angle__cos) {
@@ -4348,14 +4361,13 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
 {
   ProjPaintImage *projIma;
   PrepareImageEntry *entry;
-  int i;
 
   /* build an array of images we use */
   projIma = ps->projImages = static_cast<ProjPaintImage *>(
       BLI_memarena_alloc(arena, sizeof(ProjPaintImage) * ps->image_tot));
 
-  for (entry = static_cast<PrepareImageEntry *>(used_images->first), i = 0; entry;
-       entry = entry->next, i++, projIma++)
+  for (entry = static_cast<PrepareImageEntry *>(used_images->first); entry;
+       entry = entry->next, projIma++)
   {
     projIma->iuser = entry->iuser;
     int size;
@@ -4372,7 +4384,7 @@ static void project_paint_build_proj_ima(ProjPaintState *ps,
     projIma->partRedrawRect = static_cast<ImagePaintPartialRedraw *>(
         BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED));
     partial_redraw_array_init(projIma->partRedrawRect);
-    projIma->undoRect = static_cast<volatile void **>(BLI_memarena_alloc(arena, size));
+    projIma->undoRect = static_cast<volatile const void **>(BLI_memarena_alloc(arena, size));
     memset(static_cast<void *>(projIma->undoRect), 0, size);
     projIma->maskRect = static_cast<ushort **>(BLI_memarena_alloc(arena, size));
     memset(projIma->maskRect, 0, size);
@@ -4577,7 +4589,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
   }
 
   /* we have built the array, discard the linked list */
-  BLI_freelistN(&used_images);
+  used_images.free_no_destruct();
 }
 
 /* run once per stroke before projection painting */
@@ -4757,8 +4769,6 @@ static void project_paint_end(ProjPaintState *ps)
       MEM_delete_void((void *)ps->tile_lock);
     }
 
-    ED_image_paint_tile_lock_end();
-
 #ifndef PROJ_DEBUG_NOSEAMBLEED
     if (ps->seam_bleed_px > 0.0f) {
       MEM_delete(ps->vertFaces);
@@ -4838,7 +4848,7 @@ static bool project_image_refresh_tagged(ProjPaintState *ps)
         pr = &(projIma->partRedrawRect[i]);
         if (BLI_rcti_is_valid(&pr->dirty_region)) {
           set_imapaintpartial(pr);
-          imapaint_image_update(nullptr, projIma->ima, projIma->ibuf, &projIma->iuser, true);
+          imapaint_image_update(projIma->ibuf);
           redraw = true;
         }
 
@@ -5066,7 +5076,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps,
     }
   }
 
-  if (LIKELY(accum_tot != 0)) {
+  if (accum_tot != 0) [[likely]] {
     mul_v4_fl(rgba, 1.0f / accum_tot);
 
     if (ps->mode == BrushStrokeMode::Invert) {
@@ -5127,7 +5137,7 @@ static void do_projectpaint_soften(ProjPaintState *ps,
     }
   }
 
-  if (LIKELY(accum_tot != 0)) {
+  if (accum_tot != 0) [[likely]] {
     uchar *rgba_ub = projPixel->newColor.ch;
 
     mul_v4_fl(rgba, 1.0f / accum_tot);
@@ -5904,7 +5914,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
       img->is_data = false;
       img->is_srgb = false;
 
-      if (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) {
+      if (ibuf->colorspace_is_data()) {
         img->is_data = true;
       }
       else if (ibuf->byte_data() && ibuf->byte_buffer.colorspace) {
@@ -6357,7 +6367,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   project_image_refresh_tagged(&ps);
 
   for (a = 0; a < ps.image_tot; a++) {
-    BKE_image_free_gputextures(ps.projImages[a].ima);
+    IMB_partial_update_mark_full(ps.projImages[a].ibuf);
     WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ps.projImages[a].ima);
   }
 
@@ -6445,8 +6455,8 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
    * texture paint overlay opacity */
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   View3D v3d_copy = dna::shallow_copy(*v3d);
-  v3d_copy.gridflag = 0;
-  v3d_copy.flag2 = 0;
+  v3d_copy.gridflag = eView3D_GridFlag{};
+  v3d_copy.flag2 = eView3D_Flag2{};
   v3d_copy.flag = V3D_HIDE_HELPLINES;
   v3d_copy.gizmo_flag = V3D_GIZMO_HIDE;
 
@@ -6463,7 +6473,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
                                         region,
                                         w,
                                         h,
-                                        IB_byte_data,
+                                        ImBufFlags::ByteData,
                                         R_ALPHAPREMUL,
                                         nullptr,
                                         false,
@@ -6557,7 +6567,7 @@ bool ED_paint_proj_mesh_data_check(Scene &scene,
   bool has_stencil = true;
   bool has_uvs = true;
 
-  imapaint.missing_data = 0;
+  imapaint.missing_data = eImagePaint_MissingData{};
 
   BLI_assert(ob.type == OB_MESH);
 
@@ -6741,9 +6751,11 @@ static std::optional<std::string> proj_paint_color_attribute_create(wmOperator *
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  bke::GSpanAttributeWriter attr = attributes.lookup_or_add_for_write_span(
-      unique_name, domain, *bke::custom_data_type_to_attr_type(type));
-  if (!attr) {
+  if (!attributes.add(unique_name,
+                      domain,
+                      *bke::custom_data_type_to_attr_type(type),
+                      bke::AttributeInitDefaultValue()))
+  {
     return std::nullopt;
   }
 
@@ -6786,7 +6798,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
         in_node = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
       }
       bNodeSocket *in_sock = bke::node_find_socket(
-          *in_node, SOCK_IN, layer_type_items[layer_type].name);
+          *in_node, SOCK_IN, UString(layer_type_items[layer_type].name));
       switch (in_sock->type) {
         case SOCK_FLOAT: {
           bNodeSocketValueFloat *socket_data = static_cast<bNodeSocketValueFloat *>(
@@ -6887,21 +6899,21 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNode *out_node = new_node;
 
     if (in_node != nullptr) {
-      bNodeSocket *out_sock = bke::node_find_socket(*out_node, SOCK_OUT, "Color");
+      bNodeSocket *out_sock = bke::node_find_socket(*out_node, SOCK_OUT, "Color"_ustr);
       bNodeSocket *in_sock = nullptr;
 
       if (type >= LAYER_BASE_COLOR && type < LAYER_NORMAL) {
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, UString(layer_type_items[type].name));
       }
       else if (type == LAYER_NORMAL) {
         bNode *nor_node;
         nor_node = bke::node_add_static_node(C, *ntree, SH_NODE_NORMAL_MAP);
 
-        in_sock = bke::node_find_socket(*nor_node, SOCK_IN, "Color");
+        in_sock = bke::node_find_socket(*nor_node, SOCK_IN, "Color"_ustr);
         bke::node_add_link(*ntree, *out_node, *out_sock, *nor_node, *in_sock);
 
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal");
-        out_sock = bke::node_find_socket(*nor_node, SOCK_OUT, "Normal");
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal"_ustr);
+        out_sock = bke::node_find_socket(*nor_node, SOCK_OUT, "Normal"_ustr);
 
         out_node = nor_node;
       }
@@ -6909,11 +6921,11 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         bNode *bump_node;
         bump_node = bke::node_add_static_node(C, *ntree, SH_NODE_BUMP);
 
-        in_sock = bke::node_find_socket(*bump_node, SOCK_IN, "Height");
+        in_sock = bke::node_find_socket(*bump_node, SOCK_IN, "Height"_ustr);
         bke::node_add_link(*ntree, *out_node, *out_sock, *bump_node, *in_sock);
 
-        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal");
-        out_sock = bke::node_find_socket(*bump_node, SOCK_OUT, "Normal");
+        in_sock = bke::node_find_socket(*in_node, SOCK_IN, "Normal"_ustr);
+        out_sock = bke::node_find_socket(*bump_node, SOCK_OUT, "Normal"_ustr);
 
         out_node = bump_node;
       }
@@ -6923,7 +6935,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
         in_node = output_nodes.is_empty() ? nullptr : output_nodes.first();
 
         if (in_node != nullptr) {
-          in_sock = bke::node_find_socket(*in_node, SOCK_IN, layer_type_items[type].name);
+          in_sock = bke::node_find_socket(*in_node, SOCK_IN, UString(layer_type_items[type].name));
         }
         else {
           in_sock = nullptr;
