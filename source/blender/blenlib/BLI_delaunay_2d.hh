@@ -5,6 +5,7 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_vector.hh"
@@ -95,21 +96,24 @@ enum CDT_output_type {
 };
 
 /** What original ids do we need to track and return? Use this in a flags bitmask.  */
-enum CDT_ids_needed_type : unsigned int {
+enum CDT_ids_needed_type {
+  /** Do not require original id maps at all. */
+  CDT_NO_ORIG_IDS = 0,
   /** Require  new vertces -> original ones. */
-  CDT_ORIG_VERTS = 0x1,
+  CDT_ORIG_VERTS = (1 << 0),
   /** Require new vertices that result from edge intersections -> intersecting edgs.  */
-  CDT_INTERSECTED_EDGES = 0x2,
+  CDT_INTERSECTED_EDGES = (1 << 1),
   /** Require new edges -> original ones (maybe part of original faces). */
-  CDT_ORIG_EDGES = 0x4,
+  CDT_ORIG_EDGES = (1 << 2),
   /** Require new faces -> original ones. */
-  CDT_ORIG_FACES = 0x8,
+  CDT_ORIG_FACES = (1 << 3),
   /** If set, include CW faces (going outward) when CDT_ORIG_FACES is set, else don't. */
-  CDT_CW_ORIG_FACES = 0x10,
+  CDT_CW_ORIG_FACES = (1 << 4),
   /** If set, in any of the previous requirements that produce lists, we only need one
      representative value in the list. */
-  CDT_ONLY_ONE_ORIG = 0x20
+  CDT_ONLY_ONE_ORIG = (1 << 5)
 };
+ENUM_OPERATORS(CDT_ids_needed_type)
 
 namespace meshintersect {
 
@@ -171,7 +175,7 @@ template<typename T> class CDT_input {
   OffsetIndices<int> face_offsets;
   Span<int> face_vert_indices;
   T epsilon{0};
-  unsigned int needed_ids{0};
+  CDT_ids_needed_type needed_ids{CDT_NO_ORIG_IDS};
 };
 
 /**

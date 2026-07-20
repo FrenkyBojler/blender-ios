@@ -1962,7 +1962,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   in.face_offsets = face_offsets.as_span();
   in.face_vert_indices = face_vert_indices;
   in.epsilon = epsilon;
-  in.needed_ids = needed_ids;
+  in.needed_ids = static_cast<CDT_ids_needed_type>(needed_ids);
 
   const meshintersect::CDT_result<double> res = meshintersect::delaunay_2d_calc(
       in, CDT_output_type(output_type));

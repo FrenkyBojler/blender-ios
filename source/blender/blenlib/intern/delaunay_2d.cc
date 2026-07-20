@@ -356,7 +356,7 @@ template<typename T> class CDT_state {
   /** How close before coords considered equal. */
   T epsilon;
   /** Which ids do we need to track? Bitmask of values of CDT_ids_needed_type. */
-  unsigned int needed_ids;
+  CDT_ids_needed_type needed_ids;
   /**
    * Maps edge to net winding contribution for non-zero winding rule.
    * Only populated when non-zero winding is used. Sum of +1/-1 for each
@@ -401,7 +401,7 @@ template<typename T> class CDT_state {
                      int input_edges_num,
                      int input_faces_num,
                      T epsilon,
-                     unsigned int needed_ids);
+                     CDT_ids_needed_type needed_ids);
 };
 
 template<typename T> CDTArrangement<T>::~CDTArrangement()
@@ -951,7 +951,7 @@ CDT_state<T>::CDT_state(int input_verts_num,
                         int input_edges_num,
                         int input_faces_num,
                         T epsilon,
-                        unsigned int needed_ids)
+                        CDT_ids_needed_type needed_ids)
 {
   this->input_vert_num = input_verts_num;
   this->cdt.reserve(input_verts_num, input_edges_num, input_faces_num);
@@ -2175,7 +2175,7 @@ void add_edge_constraint(
       cd->vert = edge->symedges[0].vert;
 
       /* Keep track of original edges for the intersection point. */
-      if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_INTERSECTED_EDGES) {
+      if (cdt_state->needed_ids & CDT_INTERSECTED_EDGES) {
         uint32_t edge1_id = -1;
         if (!cd->in->edge->input_ids.is_empty()) {
           /* Use the first original edge. */
@@ -2285,7 +2285,7 @@ template<typename T> void add_edge_constraints(CDT_state<T> *cdt_state, const CD
     CDTVert<T> *v2 = cdt_state->cdt.get_vert_resolve_merge(iv2);
     /* Safe to drop to 0 here (unlike in `add_face_constraints`): loose-edge ids
      * stay below any face's id range, so `add_face_ids` doesn't depend on them. */
-    uint32_t id = (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_EDGES) ? i : 0;
+    uint32_t id = (cdt_state->needed_ids & CDT_ORIG_EDGES) ? i : 0;
     add_edge_constraint(cdt_state, v1, v2, id, nullptr);
   }
   cdt_state->face_edge_offset = ne;
@@ -2414,12 +2414,11 @@ int add_face_constraints(CDT_state<T> *cdt_state,
 
   /* A later optimization will skip propagating face_ids if `need_orig_face_ids` is `false`,
    * or will use a CW test to skip CW edges if `skip_cw_ids` is `true`. */
-  const bool need_orig_face_ids = (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_FACES) ||
+  const bool need_orig_face_ids = (cdt_state->needed_ids & CDT_ORIG_FACES) ||
                                   ELEM(output_type,
                                        CDT_CONSTRAINTS_VALID_BMESH,
                                        CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
-  const bool skip_cw_ids = need_orig_face_ids &&
-                           !(cdt_state->needed_ids & CDT_ids_needed_type::CDT_CW_ORIG_FACES);
+  const bool skip_cw_ids = need_orig_face_ids && !(cdt_state->needed_ids & CDT_CW_ORIG_FACES);
 
   for (const int f : input_faces.index_range()) {
     const Span<int> face = input_faces[f];
@@ -2513,8 +2512,7 @@ int add_face_constraints(CDT_state<T> *cdt_state,
        * Only if the user added CDT_CW_ORIG_FACES to needed_ids will we flood-fill such faces.
        */
       if (need_orig_face_ids && (!skip_cw_ids || signed_area >= 0.0)) {
-        uint32_t id = (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_FACES) ? uint32_t(f) :
-                                                                                      0;
+        uint32_t id = (cdt_state->needed_ids & CDT_ORIG_FACES) ? uint32_t(f) : 0;
         add_face_ids(cdt_state, face_symedge0, uint32_t(id), fedge_start, fedge_end);
       }
     }
@@ -3270,7 +3268,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
     for (int i = 0; i < verts_size; ++i) {
       CDTVert<T> *v = cdt->verts[i];
       if (v->merge_to_index != -1) {
-        if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_VERTS) {
+        if (cdt_state->needed_ids & CDT_ORIG_VERTS) {
           if (i < cdt_state->input_vert_num) {
             add_to_input_ids(cdt->verts[v->merge_to_index]->input_ids, uint32_t(i));
           }
@@ -3280,10 +3278,10 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
     }
   }
   result.vert = Array<VecBase<T, 2>>(nv);
-  if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_VERTS) {
+  if (cdt_state->needed_ids & CDT_ORIG_VERTS) {
     result.vert_orig = Array<Vector<uint32_t>>(nv);
   }
-  if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_INTERSECTED_EDGES) {
+  if (cdt_state->needed_ids & CDT_INTERSECTED_EDGES) {
     result.intersected_edges_orig = Array<int2>(nv, {-1, -1});
   }
   int i_out = 0;
@@ -3291,13 +3289,13 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
     CDTVert<T> *v = cdt->verts[i];
     if (v->merge_to_index == -1) {
       result.vert[i_out] = v->co.exact;
-      if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_VERTS) {
+      if (cdt_state->needed_ids & CDT_ORIG_VERTS) {
         if (i < cdt_state->input_vert_num) {
           result.vert_orig[i_out].append(uint32_t(i));
         }
         result.vert_orig[i_out].extend(v->input_ids.as_span());
       }
-      if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_INTERSECTED_EDGES) {
+      if (cdt_state->needed_ids & CDT_INTERSECTED_EDGES) {
         result.intersected_edges_orig[i_out] = v->intersected_edges;
       }
       ++i_out;
@@ -3309,7 +3307,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
     return !is_deleted_edge(e);
   });
   result.edge = Array<int2>(ne);
-  if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_EDGES) {
+  if (cdt_state->needed_ids & CDT_ORIG_EDGES) {
     result.edge_orig = Array<Vector<uint32_t>>(ne);
   }
   int e_out = 0;
@@ -3318,7 +3316,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
       int vo1 = vert_to_output_map[e->symedges[0].vert->index];
       int vo2 = vert_to_output_map[e->symedges[1].vert->index];
       result.edge[e_out] = int2(vo1, vo2);
-      if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_EDGES) {
+      if (cdt_state->needed_ids & CDT_ORIG_EDGES) {
         result.edge_orig[e_out].extend(e->input_ids.as_span());
       }
       ++e_out;
@@ -3330,7 +3328,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
     return !f->deleted && f != cdt->outer_face;
   });
   result.face = Array<Vector<int>>(nf);
-  if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_FACES) {
+  if (cdt_state->needed_ids & CDT_ORIG_FACES) {
     result.face_orig = Array<Vector<uint32_t>>(nf);
   }
   int f_out = 0;
@@ -3343,7 +3341,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state, CDT_output_type output_typ
         result.face[f_out].append(vert_to_output_map[se->vert->index]);
         se = se->next;
       } while (se != se_start);
-      if (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_FACES) {
+      if (cdt_state->needed_ids & CDT_ORIG_FACES) {
         result.face_orig[f_out].extend(f->input_ids.as_span());
       }
       ++f_out;
