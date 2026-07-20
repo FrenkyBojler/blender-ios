@@ -491,7 +491,7 @@ void convert_to_rotation_mode(bContext &C,
     return;
   }
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
-  Map<std::pair<animrig::Action *, int32_t>, ChannelbagFCurveMap> data_map;
+  Map<std::pair<animrig::Action *, animrig::slot_handle_t>, ChannelbagFCurveMap> data_map;
 
   bool converted_actions = false;
   animrig::foreach_action_slot_use(

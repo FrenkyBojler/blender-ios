@@ -1767,7 +1767,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
           return true;
         });
 
-    /* No animation, just convert the values. */
+    /* Convert the property values themselves, regardless of whether they're animated or not. */
     ed::Rotation current_rotation = transformable.get_rotation();
     transformable.set_rotation_mode(mode);
     transformable.set_rotation(current_rotation.converted_to_mode(mode));
@@ -1797,7 +1797,7 @@ static wmOperatorStatus rotation_mode_convert_exec(bContext *C, wmOperator *op)
   if (skipped_actions.size() > 0) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "Skipped actions because they cannot be edited: %d",
+                "Skipped actions because they cannot be edited: %ld",
                 skipped_actions.size());
   }
 

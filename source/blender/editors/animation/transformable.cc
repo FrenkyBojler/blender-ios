@@ -298,18 +298,18 @@ std::string AnimTransformable::rna_path_to_property(const PropertyType prop_type
       property_name = "scale";
       break;
   }
-  return rna_path_to_property(property_name);
+  return this->rna_path_to_property(property_name);
 }
 
 std::string AnimTransformable::rna_path_to_rotation(const eRotationModes rotation_mode) const
 {
   StringRefNull property_name = animrig::get_rotation_mode_path(rotation_mode);
-  return rna_path_to_property(property_name);
+  return this->rna_path_to_property(property_name);
 }
 
 std::string AnimTransformable::rna_path_to_rotation_mode() const
 {
-  return rna_path_to_property("rotation_mode");
+  return this->rna_path_to_property("rotation_mode");
 }
 
 std::string AnimTransformable::rna_path_to_property(const StringRef property_name) const
