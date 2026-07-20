@@ -16,10 +16,10 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
@@ -259,23 +259,6 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           }
           else {
             cp = ts->text_hi;
-          }
-          break;
-        case TH_TITLE:
-          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_CHANNELS) ||
-              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
-          {
-            cp = btheme->tui.panel_title;
-          }
-          else if (ELEM(g_theme_state.regionid,
-                        RGN_TYPE_HEADER,
-                        RGN_TYPE_FOOTER,
-                        RGN_TYPE_ASSET_SHELF_HEADER))
-          {
-            cp = ts->header_title;
-          }
-          else {
-            cp = ts->title;
           }
           break;
 
