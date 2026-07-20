@@ -950,7 +950,6 @@ const char *buttons_context_dir[] = {
     "volume",
     "strip",
     "strip_modifier",
-    "compositor",
     nullptr,
 };
 
@@ -1280,10 +1279,6 @@ int /*eContextResult*/ buttons_context(const bContext *C,
   }
   if (CTX_data_equals(member, "strip_modifier")) {
     set_pointer_type(path, result, RNA_StripModifier);
-    return CTX_RESULT_OK;
-  }
-  if (CTX_data_equals(member, "compositor")) {
-    set_pointer_type(path, result, RNA_SceneCompositorEffect);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_MEMBER_NOT_FOUND;
