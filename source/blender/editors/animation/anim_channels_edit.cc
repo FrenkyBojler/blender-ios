@@ -2070,9 +2070,8 @@ static void rearrange_grease_pencil_channels(bAnimContext *ac, eRearrangeAnimCha
         case REARRANGE_ANIMCHAN_TOP:
           if (layer->is_selected()) {
             grease_pencil.move_node_top(layer->as_node());
-            DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-            break;
           }
+          break;
         case REARRANGE_ANIMCHAN_DOWN: {
           if (layer->is_selected()) {
             grease_pencil.move_node_down(layer->as_node());
@@ -2083,6 +2082,7 @@ static void rearrange_grease_pencil_channels(bAnimContext *ac, eRearrangeAnimCha
           BLI_assert_unreachable();
           break;
       }
+      DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
     }
   }
   else {
