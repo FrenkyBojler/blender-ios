@@ -296,6 +296,10 @@ def build_program(session, main_kernel, smooth_factor=0.0):
     if smooth_factor > 0.0:
         smooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["BSMOOTH"])
         idx = prog.addCommand(smooth)
+        # Pin the chained smooth to non-inverted: it shares the Brush with the
+        # main command, so a Ctrl-inverted dab would otherwise negate the
+        # smooth strength too — an anti-Laplacian that explodes the mesh.
+        prog.setCommandInvert(idx, False)
         # BrushProp::Strength == 0. The runtime can't marshal a string arg into
         # a util::string method param, so the smooth strength is overridden by
         # propId, not by name (setCommandFloatByName).
@@ -683,9 +687,12 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                 strength *= pressure
             self.session.brush_obj.clearDeviceInputs()
             for pass_strength in smooth_iteration_strengths(strength * self._overlap):
+                # Smoothing has no inverse (see apply_dab_state): ignore Ctrl
+                # and the brush direction for the smooth passes.
                 mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
-                                        world_radius=world_radius, invert=invert,
-                                        strength_override=pass_strength)
+                                        world_radius=world_radius, invert=False,
+                                        strength_override=pass_strength,
+                                        allow_invert=False)
                 self._apply_one_image(position, normal, world_radius, due)
                 for sign in self._mirror_signs:
                     self._apply_one_image(symmetry.reflect(position, sign),
@@ -793,7 +800,8 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             executor.rollbackPreviewDab()
         unified = context.tool_settings.sculpt.unified_paint_settings
         mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
-                                world_radius=world_radius, invert=invert, strength_scale=self._overlap)
+                                world_radius=world_radius, invert=invert, strength_scale=self._overlap,
+                                allow_invert=not self._smooth_stroke)
         if self._use_pressure:
             sc = self.session.brush_obj
             sc.clearDeviceInputs()

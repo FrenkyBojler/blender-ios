@@ -278,11 +278,16 @@ def overlap_attenuation(bl_brush):
 
 
 def apply_dab_state(bl_brush, unified, sc_brush, *, world_radius, invert,
-                    strength_scale=1.0, strength_override=None):
+                    strength_scale=1.0, strength_override=None,
+                    allow_invert=True):
     """Write the per-dab brush state: strength, radius and the invert flag
     (a live Ctrl toggles it mid-stroke), folded with the brush direction.
     Assumes ``apply_brush_settings`` ran at stroke start. ``strength_scale``
-    folds per-stroke factors in (overlap attenuation).
+    folds per-stroke factors in (overlap attenuation). ``allow_invert=False``
+    forces the invert flag off regardless of Ctrl/direction — smoothing has no
+    inverse (the engine negates kernel strength on invert, and an inverted
+    Laplacian moves verts away from their ring average, diverging within a few
+    dabs), matching vanilla, where smooth ignores the direction.
 
     Strength and radius must be rewritten every dab, not only at stroke
     start: the engine's per-dab ``loadProps`` assigns the post-dynamics
@@ -302,7 +307,10 @@ def apply_dab_state(bl_brush, unified, sc_brush, *, world_radius, invert,
 
     sc_brush.strength = strength
     sc_brush.radius = world_radius
-    sc_brush.invert = bool(invert) ^ bool(bl_brush.direction == 'SUBTRACT')
+    if allow_invert:
+        sc_brush.invert = bool(invert) ^ bool(bl_brush.direction == 'SUBTRACT')
+    else:
+        sc_brush.invert = False
 
     # writeProps() bakes the scalar fields into the kernel's uniform block.
     sc_brush.writeProps()
