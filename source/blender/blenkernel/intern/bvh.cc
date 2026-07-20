@@ -116,6 +116,16 @@ static bool rtc_progress_func(void * /*user_ptr*/, const double /*n*/)
   return true;
 }
 
+/**
+ * Embree and Blender use different barycentric coordinate conventions:
+ * Embree: `(1 - u - v) * P[0] + u * P[1] + v * P[2]`
+ * Blender: `u * P[0] + v * P[1] + (1 - u - v) * P[2]`
+ */
+static float2 bary_coord_embree_to_blender(const float u, const float v)
+{
+  return float2(1.0f - u - v, u);
+}
+
 #endif /* WITH_EMBREE */
 
 void Tree::free()
@@ -371,10 +381,7 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
 
   RayHit hit;
   hit.normal = float3(rtc_hit.hit.Ng_x, rtc_hit.hit.Ng_y, rtc_hit.hit.Ng_z);
-  /* Embree and Blender use different barycentric coordinate conventions:
-   * Embree: `(1 - u - v) * P[0] + u * P[1] + v * P[2]`
-   * Blender: `u * P[0] + v * P[1] + (1 - u - v) * P[2]` */
-  hit.bary_coord = float2(1.0f - rtc_hit.hit.u - rtc_hit.hit.v, rtc_hit.hit.u);
+  hit.bary_coord = bary_coord_embree_to_blender(rtc_hit.hit.u, rtc_hit.hit.v);
   hit.index = rtc_hit.hit.primID;
   if (!index_map_by_geom_[rtc_hit.hit.geomID].is_empty()) {
     hit.index = index_map_by_geom_[rtc_hit.hit.geomID][hit.index];
@@ -451,8 +458,7 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
 
     RayHit hit;
     hit.normal = float3(rtc_hit.Ng_x, rtc_hit.Ng_y, rtc_hit.Ng_z);
-    /* Embree and Blender use different barycentric coordinate conventions, see comment above. */
-    hit.bary_coord = float2(1.0f - rtc_hit.u - rtc_hit.v, rtc_hit.u);
+    hit.bary_coord = bary_coord_embree_to_blender(rtc_hit.u, rtc_hit.v);
     hit.index = int(rtc_hit.primID);
     if (!ctx->index_map_by_geom[rtc_hit.geomID].is_empty()) {
       hit.index = ctx->index_map_by_geom[rtc_hit.geomID][hit.index];
