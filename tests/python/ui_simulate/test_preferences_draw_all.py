@@ -30,14 +30,14 @@ def test_preferences_draw_all():
     # Open Preferences window.
     with bpy.context.temp_override(window=window):
         bpy.ops.screen.userpref_show()
-    
+
     yield
-    
+
     prefs_window, prefs_area = _find_preferences_window()
-    
+
     t.assertIsNotNone(prefs_window, "Preferences window was not opened")
     t.assertIsNotNone(prefs_area, "Preferences area was not found")
-    
+
     prefs = bpy.context.preferences
     original_section = prefs.active_section
 
