@@ -4,3 +4,4 @@ Referenced by commit 3a29d756911d974d4097f2ce1103557aa11fc5db, Fix #157813: Segf
 Referenced by issue #158282, draw_handle.hh:315 - Code marked as unreachable has been executed.
 Referenced by issue #159205, Duplicate edge length overlays with instanced vertices from geometry nodes
 Referenced by issue #160332, EEVEE: Render motion blur with particles in 5.2 beta
+Referenced by pull request #161669, Fix #161627: EEVEE: Shadow Terminator lost on HandleRange objects
