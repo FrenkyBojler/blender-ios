@@ -284,7 +284,7 @@ SceneCompositorEffect &duplicate_effect(Scene &scene, SceneCompositorEffect &sou
   return new_effect;
 }
 
-void free_effect(SceneCompositorEffect &effect)
+static void free_effect(SceneCompositorEffect &effect)
 {
   if (effect.system_properties) {
     IDP_FreeProperty_ex(effect.system_properties, false);

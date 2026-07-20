@@ -14,6 +14,7 @@
 
 #include "BKE_compositor.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "COM_node_group_operation.hh"
 #include "COM_scene_compositor_effects_operation.hh"
@@ -38,9 +39,9 @@ static bke::compositor::ExecutionMode get_execution_mode(const Context &context)
   return bke::compositor::ExecutionMode::Preview;
 }
 
-Result *get_effect_input(Context &context,
-                         PointerRNA &effect_inputs_ptr,
-                         const bNodeTreeInterfaceSocket &input_socket)
+static Result *get_effect_input(Context &context,
+                                PointerRNA &effect_inputs_ptr,
+                                const bNodeTreeInterfaceSocket &input_socket)
 {
   PointerRNA input_ptr = RNA_pointer_get(&effect_inputs_ptr, input_socket.identifier);
   compositor::Result *result = new compositor::Result(

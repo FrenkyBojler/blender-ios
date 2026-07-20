@@ -49,6 +49,7 @@
 #include "ED_asset_import.hh"
 #include "ED_asset_menu_utils.hh"
 #include "ED_object.hh"
+#include "ED_scene.hh"
 
 namespace blender {
 

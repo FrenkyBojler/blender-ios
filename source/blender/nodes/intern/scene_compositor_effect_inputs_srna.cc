@@ -8,6 +8,7 @@
 #include "BLI_string.hh"
 
 #include "NOD_compositor_nodes_srna.hh"
+#include "NOD_scene_compositor_effect_inputs_srna.hh"
 #include "NOD_socket.hh"
 
 #include "DNA_node_types.h"
