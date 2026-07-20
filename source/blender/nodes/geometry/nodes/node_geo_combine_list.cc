@@ -102,7 +102,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   data->data_type = SOCK_FLOAT;
   data->next_identifier = 0;
 
-  const int default_items_num = 2;
+  const int default_items_num = 1;
   data->items = MEM_new_array<CombineListItem>(default_items_num, __func__);
   for (const int i : IndexRange(default_items_num)) {
     data->items[i].identifier = data->next_identifier++;
