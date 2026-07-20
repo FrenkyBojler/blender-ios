@@ -1033,7 +1033,7 @@ template<typename T> void even_odd_self_doubled_polygon_with_hole_test()
 
   InputStorage<T> store;
   CDT_input<T> in = fill_input_from_string<T>(spec, store);
-  in.needed_ids = CDT_ids_needed_type::CDT_ORIG_FACES;
+  in.needed_ids = CDT_ids_needed_type::CDT_ORIG_FACES | CDT_ids_needed_type::CDT_CW_ORIG_FACES;
 
   CDT_result<T> out = delaunay_2d_calc(in, CDT_CONSTRAINTS_VALID_BMESH_WITH_HOLES);
   if (DO_DRAW) {

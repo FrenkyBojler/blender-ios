@@ -2512,11 +2512,10 @@ int add_face_constraints(CDT_state<T> *cdt_state,
        * However we don't need this for hole-making faces (i.e., CW or mostly-CW ones), usually.
        * Only if the user added CDT_CW_ORIG_FACES to needed_ids will we flood-fill such faces.
        */
-      uint32_t id = (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_FACES) ? uint32_t(f) :
-                                                                                    0;
-      add_face_ids(cdt_state, face_symedge0, id, fedge_start, fedge_end);
       if (need_orig_face_ids && (!skip_cw_ids || signed_area >= 0.0)) {
-        add_face_ids(cdt_state, face_symedge0, uint32_t(f), fedge_start, fedge_end);
+        uint32_t id = (cdt_state->needed_ids & CDT_ids_needed_type::CDT_ORIG_FACES) ? uint32_t(f) :
+                                                                                      0;
+        add_face_ids(cdt_state, face_symedge0, uint32_t(id), fedge_start, fedge_end);
       }
     }
   }
