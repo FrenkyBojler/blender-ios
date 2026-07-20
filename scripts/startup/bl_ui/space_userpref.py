@@ -1111,52 +1111,34 @@ class PreferenceThemeWidgetColorPanel:
         ui = theme.user_interface
         widget_style = getattr(ui, self.wcol)
         layout = self.layout
-
         layout.use_property_split = True
 
-        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+        split = layout.split()
+        col = split.column()
+        row = col.row(align=True)
+        row.prop(widget_style, "text")
+        row.prop(widget_style, "text_sel", text="")
 
-        col = flow.column(align=True)
-        col.prop(widget_style, "text")
-        col.prop(widget_style, "text_sel", text="Selected")
-        col.prop(widget_style, "item", slider=True)
+        row = col.row()
+        row.prop(widget_style, "inner")
+        row.prop(widget_style, "inner_sel", text="")
 
-        col = flow.column(align=True)
-        col.prop(widget_style, "inner", slider=True)
-        col.prop(widget_style, "inner_sel", text="Selected", slider=True)
+        row = col.row(heading="Shaded")
+        row.prop(widget_style, "show_shaded", text="")
+        subrow = row.row(align=True)
+        subrow.active = widget_style.show_shaded
+        subrow.prop(widget_style, "shadetop", text="Top")
+        subrow.prop(widget_style, "shadedown", text="Bottom")
 
-        col = flow.column(align=True)
-        col.prop(widget_style, "outline")
-        col.prop(widget_style, "outline_sel", text="Selected", slider=True)
+        split = split.split()
+        col = split.column()
+        col.prop(widget_style, "item")
 
-        col.separator()
+        row = col.row(align=True)
+        row.prop(widget_style, "outline")
+        row.prop(widget_style, "outline_sel", text="")
 
         col.prop(widget_style, "roundness")
-
-
-# Base class for dynamically defined widget color panels.
-# This is not registered.
-class PreferenceThemeWidgetShadePanel:
-
-    def draw(self, context):
-        theme = context.preferences.themes[0]
-        ui = theme.user_interface
-        widget_style = getattr(ui, self.wcol)
-        layout = self.layout
-
-        layout.use_property_split = True
-
-        col = layout.column(align=True)
-        col.active = widget_style.show_shaded
-        col.prop(widget_style, "shadetop", text="Shade Top")
-        col.prop(widget_style, "shadedown", text="Down")
-
-    def draw_header(self, context):
-        theme = context.preferences.themes[0]
-        ui = theme.user_interface
-        widget_style = getattr(ui, self.wcol)
-
-        self.layout.prop(widget_style, "show_shaded", text="")
 
 
 class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
@@ -1505,15 +1487,6 @@ class ThemeGenericClassGenerator:
                 "bl_label": name,
                 "bl_options": {'DEFAULT_CLOSED'},
                 "draw": PreferenceThemeWidgetColorPanel.draw,
-                "wcol": wcol,
-            })
-
-            panel_shade_id = "USERPREF_PT_theme_interface_shade_" + wcol
-            yield type(panel_shade_id, (PreferenceThemeWidgetShadePanel, ThemePanel, Panel), {
-                "bl_label": "Shaded",
-                "bl_options": {'DEFAULT_CLOSED'},
-                "bl_parent_id": panel_id,
-                "draw": PreferenceThemeWidgetShadePanel.draw,
                 "wcol": wcol,
             })
 
