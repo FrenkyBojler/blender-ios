@@ -1,2 +1,3 @@
 Referenced by issue #159476, UI: File/Asset Browser refreshes when tweaking header color
 Referenced by pull request #161553, Fix #161550: Crash displaying file info with an incorrect modified date
+Referenced by commit ecf38b6c312edacec64889263749567080362980, Fix #161550: Crash displaying file info with an incorrect modified date
