@@ -1,1 +1,2 @@
 Referenced by pull request #161682, Fix #161407: Cycles texture cache HDRI broken with CPU + GPU render
+Referenced by commit c13a6d450389896d0ab7a2361b9531a11651fe0e, Fix #161407: Cycles texture cache HDRI broken with CPU + GPU render
