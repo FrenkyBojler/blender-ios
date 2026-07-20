@@ -6883,23 +6883,22 @@ wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode)
   return start_playback(C, sync, mode);
 }
 
-/* If any screen is currently playing back, stops playback and returns its flags as a
- * #PreScrubbingState to resume later. always sets `screen.scrubbing` to true before returning,
+/* If any screen playbacks, stops playback and returns its flags as a
+ * #PreScrubbingState to resume later. always sets `screen.scrubbing` to true
  * regardless of whether playback was active. */
 std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen &screen)
 {
-  /* Note: `screen.scrubbing` can't be set beofre grabbing all data about `animtimer`, doing so
-   * breaks stopping playback from another window.*/
   BLI_assert_msg(!screen.scrubbing, "scrubbing should not be active yet");
+  screen.scrubbing = true;
 
-  bScreen *play_screen = ED_screen_animation_playing(CTX_wm_manager(&C));
+  wmWindowManager *wm = CTX_wm_manager(&C);
+  bScreen *play_screen = ED_screen_animation_no_scrub(wm);
+
   if (!play_screen || !play_screen->animtimer) {
-    screen.scrubbing = true;
     return std::nullopt;
   }
   const ScreenAnimData *sad = static_cast<ScreenAnimData *>(play_screen->animtimer->customdata);
   if (sad == nullptr) {
-    screen.scrubbing = true;
     return std::nullopt;
   }
 
@@ -6910,8 +6909,8 @@ std::optional<PreScrubbingState> ED_screen_scrubbing_enable(bContext &C, bScreen
                          PlaySyncMode::ON :
                          ((sad->flag & ANIMPLAY_FLAG_NO_SYNC) ? PlaySyncMode::OFF :
                                                                 PlaySyncMode::UNCHANGED);
-  stop_playback(&C);
-  screen.scrubbing = true;
+
+  screen_stop_playback(CTX_data_main(&C), wm, CTX_wm_window(&C), play_screen);
 
   return resume;
 }
@@ -6921,8 +6920,8 @@ void ED_screen_scrubbing_disable(bContext &C,
                                  const std::optional<PreScrubbingState> &resume)
 {
   BLI_assert_msg(screen.scrubbing, "scrubbing should be active");
-
   screen.scrubbing = false;
+
   if (resume.has_value()) {
     ED_screen_animation_play(&C, int(resume->play_sync), int(resume->play_mode));
   }
