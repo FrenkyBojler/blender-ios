@@ -2245,7 +2245,7 @@ class _defs_grease_pencil_paint:
             idname="builtin.select_lasso",
             label="Select Lasso",
             icon="ops.generic.select_lasso",
-            widget="VIEW3D_GGT_grease_pencil_edit",
+            # widget="VIEW3D_GGT_grease_pencil_edit",
             keymap="3D View Tool: Select Lasso",
         )
 
