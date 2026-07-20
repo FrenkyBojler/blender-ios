@@ -20,10 +20,10 @@
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
@@ -379,7 +379,8 @@ static ui::Block *wm_block_splash_create(bContext *C, ARegion *region, void * /*
     ui::Layout &row1 = split.row(true);
     ui::Layout &row2 = split.row(true);
 
-    row1.label(RPT_("Intel binary detected. Expect reduced performance."), ICON_ERROR);
+    row1.label(RPT_("Intel binary detected. Expect reduced performance."),
+               ICON_STATUS_WARNING_FILLED);
 
     PointerRNA op_ptr = row2.op("WM_OT_url_open",
                                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Learn More"),

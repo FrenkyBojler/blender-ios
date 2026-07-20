@@ -12,11 +12,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -576,7 +576,7 @@ void ED_slider_status_get(const tSlider *slider, WorkspaceStatus &status)
     status.item_bool(IFACE_("Overshoot"), slider->overshoot, ICON_EVENT_E);
   }
   else {
-    status.item(IFACE_("Overshoot Disabled"), ICON_INFO);
+    status.item(IFACE_("Overshoot Disabled"), ICON_STATUS_INFO);
   }
 
   status.item_bool(IFACE_("Precision"), slider->precision, ICON_EVENT_SHIFT);
