@@ -1430,7 +1430,7 @@ static bool find_internal_spring_target_vertex(const bke::bvh::Tree &treedata,
 
   int vert_idx = -1;
 
-  if (rayhit->index != -1 && rayhit->distance <= max_length) {
+  if (rayhit->distance <= max_length) {
     if (check_normal && dot_v3v3(math::normalize(rayhit->normal), no) < 0.0f) {
       /* We hit a point that points in the same direction as our starting point. */
       return false;
