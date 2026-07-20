@@ -88,6 +88,7 @@ Dev tooling (outside the P1–P9 integration sequence):
 | Plan | Covers |
 |---|---|
 | [shared-sculptcore-checkout.md](./plans/shared-sculptcore-checkout.md) | NTFS-junction `webgl-app-framework/sculptcore` to our `extern/sculptcore` so the sister app's tests run against our (unpushed) engine changes. |
+| [ui-parity-tooling.md](./plans/ui-parity-tooling.md) | Debug tooling for the UI-parity effort: poll-matrix dump, layout introspection capture, keymap diff, screenshot harness, event-simulate hotkey runner. |
 
 When implementing a plan, mark scaffolding comments with `CLAUDENOTE:` and
 strip them (plus audit all touched comments) when the plan is complete — see

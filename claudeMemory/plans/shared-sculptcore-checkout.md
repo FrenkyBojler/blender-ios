@@ -114,37 +114,97 @@ win), use the **junction**.
      tools) if those aren't already fetched in our tree.
    - `pnpm test` (turbo → jest across workspace packages).
 
-## Verification
+## Verification (results — executed 2026-07-19)
 
-- `git -C C:\dev\webgl-app-framework\sculptcore rev-parse HEAD` == `9c33f9f`
-  (webgl sees our tree, not its own gitlink).
-- Nested: `.../sculptcore/source/litestl` HEAD == `e1642e9`.
-- webgl's `git status` shows `sculptcore` gitlink dirty — **expected and
-  cosmetic** (it points at our unpushed commits); never commit that bump.
-- `pnpm test` in webgl runs; integration tests that load built WASM/native
-  (`tests/integration/litemesh_attr_render.test.ts`,
-  `litemesh_quad_remesh.test.ts`, `native_testprint.test.ts`) pass against our
-  engine.
-- Our own sculptcore native suite, re-run with WGSL=ON, drops from 6→2
-  pre-existing failures (the 2 residual: `test_debug_script`,
-  `test_spatial_update_split`; `test_multires` remains an upstream exit-time
-  flake).
+- `git -C C:\dev\webgl-app-framework\sculptcore rev-parse HEAD` == `cf12bd5`
+  (our tree; HEAD moved past `9c33f9f` when `brushWgsl.ts` was committed).
+  Nested `source/litestl` == `e1642e9`. **Both confirmed through the junction.**
+- webgl's superproject `git status` shows ` M sculptcore` — the **expected,
+  cosmetic** dirty gitlink (junction points at our commit, not webgl's recorded
+  `7249743`). Never commit that bump. *This only works after the absolute-gitdir
+  fix below.*
+- **pnpm: no thrash.** `pnpm install` at webgl root was a 1.5 s no-op
+  ("Lockfile up to date"), recognizing all 13 workspace projects including our
+  tree's via the junction. The unknown is resolved.
+- **Resolution proven:** `scripts/node_modules/@sculptcore/api` →
+  `webgl/sculptcore/typescript/` → (junction) → our tree's `typescript/`.
+- **webgl tests run against our engine:** `pnpm --filter
+  @webgl-app-framework/tests test` → **155 passed**, 155 failed, 28 skipped
+  (338 total; 23/43 suites green). The failures are integration tests
+  (`sculptcore_multires.test.ts` et al.) that boot NW.js and need built
+  native/node/WASM artifacts our tree hasn't produced — a *build* gap, not a
+  junction gap.
 
-## Teardown / revert
+### Remaining to green the integration tests (heavy — not yet done)
+
+Our tree has **no** emsdk, WASM build, node-addon, or wgpu-native. Needs:
+`pnpm run setup-sculptcore` (large emsdk + wgpu-native downloads) then
+`pnpm run build-all` (codegen + wasm + native + node-addon + esbuild). Budget
+30–60+ min plus its own failure surface (nwjs runtime fetch, emsdk).
+
+## What actually happened (deviations from the steps above)
+
+- **Step 2 went wrong:** PowerShell `Move-Item` did a recursive copy+delete (not
+  an atomic rename) and aborted on a read-only `.git` inside
+  `build/native/_deps/dtl-src`, **splitting** webgl's tree across
+  `sculptcore` (remnant: everything alphabetically ≥ `build`) and
+  `sculptcore.parked` (dotfiles, top-level files, untracked `assets/`,
+  `cube_draw.json`, `.codex/`). Their union = the original; no committed data
+  lost (object store intact).
+- **The path was then locked** against any move/rename/delete. Root cause:
+  **Git `fsmonitor--daemon` processes** (from `core.fsmonitor=true`) held open
+  handles on `source/` (litestl daemon), `extern/` (imgui + sculptcore-deps
+  embedded-repo daemons), and `build/` (dtl-src `_deps` daemons). Stopping those
+  specific daemons (`git --git-dir=… --work-tree=… fsmonitor--daemon stop`)
+  released the handles. **Closing Explorer/editor windows does nothing here** —
+  it's a git daemon, not a window.
+- Only after the daemons were down could the remnant be renamed
+  (`[System.IO.Directory]::Move` → `sculptcore.remnant`) and the junction created.
+- **Absolute-gitdir fix (required):** our `extern/sculptcore/.git` used a
+  *relative* pointer (`gitdir: ../../.git/modules/extern/sculptcore`) that only
+  resolves from blender's depth; webgl's superproject computed
+  `sculptcore/../../.git/…` and failed (`not a git repository`). Rewrote it to
+  absolute `gitdir: C:/dev/blender/main/.git/modules/extern/sculptcore`, which
+  resolves correctly from **both** superprojects. (`core.worktree` stays
+  relative — it always lands on blender's real worktree, which is fine.)
+
+## Current on-disk state (webgl root)
+
+- `sculptcore` → **junction** to `C:\dev\blender\main\extern\sculptcore`.
+- `sculptcore.remnant` — half the original tree (source/, typescript/, build/,
+  node_modules/, emsdk/, extern/, …).
+- `sculptcore.parked` — the other half (dotfiles, top-level files, untracked
+  scratch). **Neither half alone is a valid tree.**
+
+## Teardown / revert (corrected)
 
 1. Remove the junction (deletes the link, **not** the target):
    `(Get-Item C:\dev\webgl-app-framework\sculptcore).Delete()`.
-2. Restore webgl's own tree: `mv sculptcore.parked sculptcore`.
-3. `git -C C:\dev\webgl-app-framework config --unset submodule.sculptcore.update`.
+2. **Do NOT `mv sculptcore.parked sculptcore`** — parked is only half the tree.
+   Restore webgl's own working tree from its intact object store instead:
+   `git -C C:\dev\webgl-app-framework submodule update --init --force sculptcore`
+   (checks out the recorded gitlink `7249743`), then copy back the untracked
+   scratch from `sculptcore.parked` (`assets/` logos, `cube_draw.json`,
+   `.codex/`) and, if wanted, the modified generated `brushWgsl.ts` from
+   `sculptcore.remnant`.
+3. Delete `sculptcore.remnant` and `sculptcore.parked` once satisfied (stop any
+   fsmonitor daemons first, or the read-only `_deps/.git` will block removal).
+4. `git -C C:\dev\webgl-app-framework config --unset submodule.sculptcore.update`.
+5. Optional: revert our `extern/sculptcore/.git` to the relative pointer if the
+   absolute path is undesirable (it is harmless to leave).
 
 ## Risks
 
+- **`Move-Item`/rename of the shared tree fails while any git `fsmonitor--daemon`
+  watches a subtree** — stop the relevant daemons first. This is the single
+  biggest gotcha (cost most of the setup time).
 - **Accidental `git submodule update` / `git checkout` in webgl** overwriting
-  our working tree — mitigated by step 4, but a `--force` or a recursive
-  superproject checkout can still bite. Our unpushed commits are the only
-  copy; keep them backed by a branch.
-- **pnpm node_modules contention** between the two workspace roots (unproven).
+  our working tree — mitigated by `submodule.sculptcore.update none`, but a
+  `--force` or recursive superproject checkout can still bite. Our commits are
+  now **pushed** (`cf12bd5` / litestl `e1642e9`), so they are no longer the only
+  copy — the earlier "unpushed" caveat is retired.
 - **Shared `local-build-options.mjs` / `build/`** — a config change for one
-  repo's run silently affects the other.
-- **Absolute-path CMake caches** — moving/renaming either repo root
-  invalidates the shared `build/`.
+  repo's run silently affects the other. (WGSL is **not** set by this file; it is
+  a cmake configure option chosen per-target by `make.mjs`.)
+- **Absolute-path CMake caches** — moving/renaming either repo root invalidates
+  the shared `build/`.
