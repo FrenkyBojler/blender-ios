@@ -1029,7 +1029,7 @@ BLI_NOINLINE static void fill_uvs_grids(const Object &object,
         BLI_assert(!use_flat_layout[i]);
         Vector<float2> &tls = all_tls.local();
 
-        const int uv_channel = mat_index_to_uv_index.is_empty() ?
+        const int uv_channel = mat_index_to_uv_index.is_empty() || material_indices.is_empty() ?
                                    orig_mesh_data.active_uv_map_index :
                                    mat_index_to_uv_index[material_indices[i]];
         if (uv_channel == -1) [[unlikely]] {
@@ -2131,9 +2131,11 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
 Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  if (material_indices_.size() != pbvh.nodes_num()) {
-    const Object &object_orig = *DEG_get_original(&object);
-    const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
+  const Object &object_orig = *DEG_get_original(&object);
+  const OrigMeshData orig_mesh_data(*id_cast<const Mesh *>(object_orig.data));
+  if (orig_mesh_data.attributes.contains("material_index") &&
+      material_indices_.size() != pbvh.nodes_num())
+  {
     material_indices_ = calc_material_indices(object, orig_mesh_data);
   }
   return material_indices_;
