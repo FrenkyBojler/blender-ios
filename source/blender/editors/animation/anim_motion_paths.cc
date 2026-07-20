@@ -606,11 +606,15 @@ static void update_callback(ID &id, void *buffer_data, Bounds<int> evaluated_ran
 
   for (int i = 0; i < mpath->length; i++) {
     const int frame = mpath->start_frame + i;
-    /* TODO skip copy if already done. Has to be a new flag on the mpv. */
     if (!evaluated_range.contains(frame)) {
       continue;
     }
-    copy_v3_v3(mpath->points[i].co, buffer->points[i]);
+    bMotionPathVert &mpv = mpath->points[i];
+    if (!(mpv.flag & MOTIONPATH_VERT_STALE)) {
+      continue;
+    }
+    copy_v3_v3(mpv.co, buffer->points[i]);
+    mpv.flag &= ~MOTIONPATH_VERT_STALE;
   }
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 }
@@ -634,6 +638,9 @@ void register_motionpath_async(Main &bmain,
                                bPoseChannel &pose_bone,
                                bMotionPath &motion_path)
 {
+  for (int i = 0; i < motion_path.length; i++) {
+    motion_path.points[i].flag |= MOTIONPATH_VERT_STALE;
+  }
   MotionPathBuffer *buffer = MEM_new<MotionPathBuffer>(__func__);
   buffer->bone_name = pose_bone.name;
   buffer->start_frame = motion_path.start_frame;
