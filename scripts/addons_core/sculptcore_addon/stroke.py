@@ -383,6 +383,12 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         texture.apply_texture(self.brush, sc_brush)
         if texture.needs_render_matrix(self.brush):
             texture.apply_render_matrix(context, _ensure_executor(self.session))
+        # Stroke-constant brush settings, including the falloff/cavity curve
+        # bakes (256 engine calls each): once per stroke. The dab paths write
+        # only the radius/invert state on top (mapping.apply_dab_state).
+        paint = context.tool_settings.sculpt
+        mapping.apply_brush_settings(
+            self.brush, paint.unified_paint_settings, sc_brush, paint=paint)
         self._anchor = None
         self._anchor_normal = None
         # Dab spacing along the stroke path (engine StrokeSpacer semantics:
@@ -467,9 +473,8 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                 return
             position, normal, _face = hit
             world_radius = _world_radius(context, self.brush, position)
-            mapping.apply_brush(
-                self.brush, unified, self.session.brush_obj,
-                world_radius=world_radius, invert=invert, paint=paint)
+            mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                    world_radius=world_radius, invert=invert)
             if self._anchor is None:
                 # Anchor the region at the stroke-start surface point.
                 self._anchor = position
@@ -536,17 +541,15 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
     def _apply_spaced_dab(self, context, point, invert, pressure):
         """Project one spacer-emitted 2D point onto the surface and apply the
         primary dab plus one reflected dab per symmetry mirror."""
-        paint = context.tool_settings.sculpt
-        unified = paint.unified_paint_settings
         origin, direction = _ray_origin_dir(context, point)
         hit = raycast(self.session, origin, direction)
         if hit is None:
             return
         position, normal, _face = hit
         world_radius = _world_radius(context, self.brush, position)
-        mapping.apply_brush(
-            self.brush, unified, self.session.brush_obj,
-            world_radius=world_radius, invert=invert, paint=paint)
+        unified = context.tool_settings.sculpt.unified_paint_settings
+        mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                world_radius=world_radius, invert=invert)
         if self._use_pressure:
             # The executor consumes the device samples in loadProps; refill per
             # dab (engine bridge convention).
@@ -621,8 +624,6 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         """Anchored / Drag-Dot: one live dab (plus mirrors) inside a preview
         bracket so successive inputs never compound. Resolve the new dab first,
         then roll back the previous provisional group and apply the new one."""
-        paint = context.tool_settings.sculpt
-        unified = paint.unified_paint_settings
         invert = event.ctrl or self.mode == 'INVERT'
         executor = _ensure_executor(self.session)
         coord = (event.mouse_region_x, event.mouse_region_y)
@@ -652,9 +653,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         # resolved (a drag-dot miss above leaves the last dab intact).
         if executor.previewActive():
             executor.rollbackPreviewDab()
-        mapping.apply_brush(
-            self.brush, unified, self.session.brush_obj,
-            world_radius=world_radius, invert=invert, paint=paint)
+        unified = context.tool_settings.sculpt.unified_paint_settings
+        mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                world_radius=world_radius, invert=invert)
         if self._use_pressure:
             sc = self.session.brush_obj
             sc.clearDeviceInputs()

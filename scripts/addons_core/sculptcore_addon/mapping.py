@@ -209,24 +209,25 @@ def kernel_enum(mgr, bl_brush):
     return int(mgr.get("sculptcore::brush::SculptBrushes").items[entry[0]])
 
 
-def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert, paint=None):
-    """Configure a SculptCore Brush from a Blender Brush for a stroke.
+def apply_brush_settings(bl_brush, unified, sc_brush, *, paint=None):
+    """Configure the stroke-constant part of a SculptCore Brush from a
+    Blender Brush: the scalar settings, per-type extras, and the falloff /
+    cavity curve bakes. The bakes are 256 engine calls each (~3-5 ms), far
+    too slow for the per-dab path, and none of their inputs can change while
+    a stroke is running — so this runs once at stroke start and
+    ``apply_dab_state`` writes the per-dab values on top.
 
-    ``world_radius`` is the object-space dab radius; ``invert`` folds a live
-    modifier (e.g. Ctrl) with the brush direction flag; ``unified`` is the
-    per-Paint ``UnifiedPaintSettings`` (may be None). ``paint`` is the owning
-    ``Paint`` (``tool_settings.sculpt``), consulted for automasking settings
-    the brush itself does not override; without it only the brush's own
-    settings apply.
+    ``unified`` is the per-Paint ``UnifiedPaintSettings`` (may be None).
+    ``paint`` is the owning ``Paint`` (``tool_settings.sculpt``), consulted
+    for automasking settings the brush itself does not override; without it
+    only the brush's own settings apply.
     """
     strength = bl_brush.strength
     if unified is not None and unified.use_unified_strength:
         strength = unified.strength
 
     sc_brush.strength = strength
-    sc_brush.radius = world_radius
     sc_brush.spacing = max(bl_brush.spacing, 1) / 100.0  # percent -> fraction
-    sc_brush.invert = bool(invert) ^ bool(bl_brush.direction == 'SUBTRACT')
 
     entry = _MAP.get(bl_brush.sculpt_brush_type)
     if entry is not None:
@@ -246,5 +247,35 @@ def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert, paint=None
     from . import engine_props
     engine_props.apply(bl_brush, sc_brush)
 
+
+def apply_dab_state(bl_brush, unified, sc_brush, *, world_radius, invert):
+    """Write the per-dab brush state: strength, radius and the invert flag
+    (a live Ctrl toggles it mid-stroke), folded with the brush direction.
+    Assumes ``apply_brush_settings`` ran at stroke start.
+
+    Strength and radius must be rewritten every dab, not only at stroke
+    start: the engine's per-dab ``loadProps`` assigns the post-dynamics
+    values (e.g. strength x pen pressure) back into the Brush *fields*, so
+    the ``writeProps`` below would otherwise persist the decayed field into
+    the prop store and a pressure stroke would fade to nothing after the
+    first dab. Radius varies per dab anyway (depth-dependent unproject)."""
+    strength = bl_brush.strength
+    if unified is not None and unified.use_unified_strength:
+        strength = unified.strength
+
+    sc_brush.strength = strength
+    sc_brush.radius = world_radius
+    sc_brush.invert = bool(invert) ^ bool(bl_brush.direction == 'SUBTRACT')
+
     # writeProps() bakes the scalar fields into the kernel's uniform block.
     sc_brush.writeProps()
+
+
+def apply_brush(bl_brush, unified, sc_brush, *, world_radius, invert, paint=None):
+    """Configure a SculptCore Brush from a Blender Brush in one call —
+    ``apply_brush_settings`` plus ``apply_dab_state``. Single-dab convenience
+    for the headless tests; the stroke operator calls the two parts itself so
+    the curve bakes run once per stroke, not per dab."""
+    apply_brush_settings(bl_brush, unified, sc_brush, paint=paint)
+    apply_dab_state(bl_brush, unified, sc_brush,
+                    world_radius=world_radius, invert=invert)
