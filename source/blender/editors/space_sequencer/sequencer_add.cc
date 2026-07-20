@@ -784,7 +784,7 @@ static wmOperatorStatus sequencer_add_scene_strip_invoke(bContext *C,
 
   sequencer_add_init(C, op);
   sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_SCENE, event);
-  
+
   return sequencer_add_scene_strip_exec(C, op);
 }
 
@@ -1127,7 +1127,7 @@ static wmOperatorStatus sequencer_add_mask_strip_invoke(bContext *C,
 
   sequencer_add_init(C, op);
   sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MASK, event);
-  
+
   return sequencer_add_mask_strip_exec(C, op);
 }
 

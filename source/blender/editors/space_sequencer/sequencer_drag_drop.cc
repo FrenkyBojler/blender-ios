@@ -23,8 +23,8 @@
 #include "BKE_file_handler.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.hh"
 #include "BKE_mask.hh"
+#include "BKE_movieclip.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
@@ -563,17 +563,18 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_NAME) {
-      if(id_name[0] != '\0') {
+      if (id_name[0] != '\0') {
         text_array[len_text_arr++] = id_name;
-      } else {
-      BLI_path_split_file_part(path, filename, FILE_MAX);
-      text_array[len_text_arr++] = filename;
+      }
+      else {
+        BLI_path_split_file_part(path, filename, FILE_MAX);
+        text_array[len_text_arr++] = filename;
       }
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_SOURCE) {
       text_array[len_text_arr++] = text_sep;
-      if(id_name[0] != '\0') {
+      if (id_name[0] != '\0') {
         text_array[len_text_arr++] = id_name;
       }
       else {
@@ -750,11 +751,11 @@ static void movieclip_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 
   wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
   ID *id = drag_id->id;
-  
+
   if (GS(id->name) == ID_MC) {
     MovieClip *clip = reinterpret_cast<MovieClip *>(id);
     len = BKE_movieclip_get_duration(clip);
-    }
+  }
 
   coords->strip_length = len;
   coords->playback_rate = 0.0f;
@@ -780,7 +781,7 @@ static void mask_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 
   wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
   ID *id = drag_id->id;
-  
+
   if (GS(id->name) == ID_MSK) {
     Mask *mask = reinterpret_cast<Mask *>(id);
     len = BKE_mask_get_duration(mask);
@@ -803,7 +804,7 @@ static void scene_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 
   wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
   ID *id = drag_id->id;
-  
+
   if (GS(id->name) == ID_SCE) {
     Scene *scene = reinterpret_cast<Scene *>(id);
     len = scene->r.efra - scene->r.sfra + 1;
@@ -887,23 +888,15 @@ static void sequencer_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
   drop->on_enter = sound_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 
-  drop = WM_dropbox_add(lb,
-                      "SEQUENCER_OT_mask_strip_add",
-                      mask_drop_poll,
-                      sequencer_drop_copy,
-                      nullptr,
-                      nullptr);
+  drop = WM_dropbox_add(
+      lb, "SEQUENCER_OT_mask_strip_add", mask_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
   drop->draw_in_view = draw_strip_in_view;
   drop->on_enter = mask_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 
-  drop = WM_dropbox_add(lb,
-                      "SEQUENCER_OT_scene_strip_add",
-                      scene_drop_poll,
-                      sequencer_drop_copy,
-                      nullptr,
-                      nullptr);
+  drop = WM_dropbox_add(
+      lb, "SEQUENCER_OT_scene_strip_add", scene_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
   drop->draw_in_view = draw_strip_in_view;
   drop->on_enter = scene_drop_on_enter;
@@ -997,7 +990,7 @@ static void sequencer_preview_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
                  sequencer_drop_copy,
                  nullptr,
                  nullptr);
-  
+
   WM_dropbox_add(lb,
                  "SEQUENCER_OT_scene_strip_add",
                  scene_drop_preview_poll,
