@@ -531,6 +531,23 @@ struct MotionPathBuffer {
   Array<eMotionPathVert_Flag> flags;
 };
 
+static bMotionPath *get_motion_path(Object &ob, StringRefNull bone_name)
+{
+  bMotionPath *mpath;
+
+  if (bone_name.is_empty()) {
+    mpath = ob.mpath;
+  }
+  else {
+    bPoseChannel *pchan = BKE_pose_channel_find_name(ob.pose, bone_name.c_str());
+    if (!pchan) {
+      return;
+    }
+    mpath = pchan->mpath;
+  }
+  return mpath;
+}
+
 /* Runs on the worker thread. */
 static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer_data)
 {
@@ -546,8 +563,8 @@ static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer
     return false;
   }
 
-  BLI_assert(GS(&id) == ID_OB);
-  Object *ob_eval = id_cast<Object *>(&id);
+  BLI_assert(GS(&id_eval) == ID_OB);
+  Object *ob_eval = id_cast<Object *>(&id_eval);
 
   float3 motion_path_point;
   if (buffer->bone_name.empty()) {
@@ -576,14 +593,35 @@ static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer
 }
 
 /* Runs on main thread. */
-static void update_callback(ID &id, void *buffer_data)
+static void update_callback(ID &id, void *buffer_data, Bounds<int> evaluated_range)
 {
   MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
+  Object *ob = id_cast<Object *>(&id);
+  bMotionPath *mpath = get_motion_path(*ob, buffer->bone_name);
+
+  if (mpath == nullptr) {
+    BLI_assert_unreachable();
+    return;
+  }
+
+  for (int i = 0; i < mpath->length; i++) {
+    const int frame = mpath->start_frame + i;
+    /* TODO skip copy if already done. Has to be a new flag on the mpv. */
+    if (!evaluated_range.contains(frame)) {
+      continue;
+    }
+    copy_v3_v3(mpath->points[i].co, buffer->points[i]);
+  }
+  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 static void finish_callback(ID &id, void *buffer_data)
 {
   MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
+  Object *ob = id_cast<Object *>(&id);
+  bMotionPath *mpath = get_motion_path(*ob, buffer->bone_name);
+  /* One last update to ensure everything is copied. */
+  update_callback(id, buffer_data, {mpath->start_frame, mpath->start_frame + mpath->length});
   MEM_delete(buffer);
 }
 

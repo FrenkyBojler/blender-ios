@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <chrono>
+#include <thread>
+
 #include "BLI_bounds.hh"
 #include "BLI_vector.hh"
 
@@ -99,12 +102,17 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
     if (all_done) {
       break;
     }
+    /* TODO remove before flight. */
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
 }
 
 static void update_job(void *job_data)
 {
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+  for (TargetData &target_data : eval_data->target_data) {
+    target_data.update(*target_data.target.id, target_data.buffer, {});
+  }
 }
 
 static void finish_job(void *job_data)
@@ -132,6 +140,8 @@ void background_eval_register(Main &bmain,
                               UpdateCallback update_cb,
                               FinishCallback finish_cb)
 {
+  /* TODO dont rebuild DG every time. Keep data around for a while before ending worker. This will
+   * mean regular updates to the same data are more efficient. */
   wmJob *wm_job = WM_jobs_get(
       &wm, &window, &scene, job_name, eWM_JobFlag(0), WM_JOB_TYPE_MOTION_PATH_EVAL);
 

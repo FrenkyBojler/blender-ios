@@ -1338,8 +1338,8 @@ namespace animviz {
  */
 using EvalCallback = FunctionRef<bool(Depsgraph *dg, ID &id, int frame, void *buffer_data)>;
 /* Callback that runs on the main thread periodically. Can be used to copy back data from the
- * buffer. */
-using UpdateCallback = FunctionRef<void(ID &id, void *buffer_data)>;
+ * buffer. The given range is guaranteed to be evaluated and can be read in a thread safe way. */
+using UpdateCallback = FunctionRef<void(ID &id, void *buffer_data, Bounds<int> evaluated_range)>;
 /* Called when the given target is done with the evaluation. Use to free any heap allocated data
  * passed into the system. */
 using FinishCallback = FunctionRef<void(ID &id, void *buffer_data)>;
@@ -1380,6 +1380,10 @@ void background_eval_register(Main &bmain,
                               UpdateCallback update_cb,
                               FinishCallback finish_cb);
 
+/**
+ * Manually deregister a target from background evaluation. This is a no-op if the target is not
+ * registered. Needs to be called in case the target is deleted mid evaluation.
+ */
 void background_eval_deregister(wmWindowManager &wm,
                                 wmWindow &window,
                                 Scene &scene,
