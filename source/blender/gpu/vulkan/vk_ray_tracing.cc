@@ -416,7 +416,10 @@ void VKBottomLevelAS::add_geometry(IndexBuf &index_buffer_, VertBuf &vertex_buff
        VK_GEOMETRY_OPAQUE_BIT_KHR});
   const uint32_t num_primitives = uint32_t(index_buffer.index_len_get() / 3);
   build_acceleration_structure_info_.node_data.vk_acceleration_structure_build_range_infos.append(
-      {num_primitives, 0, index_buffer.index_base_get(), 0});
+      {num_primitives,
+       index_buffer.index_start_get() * (index_buffer.is_32bit() ? 4u : 2u),
+       index_buffer.index_base_get(),
+       0});
   max_primitive_count_per_geometry_.append(num_primitives);
 
   build_acceleration_structure_info_.src_buffers.add(index_buffer.resource());
