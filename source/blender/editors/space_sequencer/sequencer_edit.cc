@@ -3680,27 +3680,19 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
   Strip *strip = seq::select_active_get(scene);
   const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
   const bool use_placeholders = RNA_boolean_get(op->ptr, "use_placeholders");
-  int minext_frameme, numdigits;
 
   if (strip->type == STRIP_TYPE_IMAGE) {
     char directory[FILE_MAX];
-    int len;
+    int len = 0;
     StripElem *se;
 
-    ListBaseT<ImageFrameRange> ranges;
+    const char *blendfile_path = BKE_main_blendfile_path(bmain);
+    ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
+        blendfile_path, blendfile_path, op, false);
+    for (ImageFrameRange &range : ranges) {
+      len += use_placeholders ? range.max_framenr - range.offset + 1 : range.frames.count();
+    }
 
-    /* Need to find min/max frame for placeholders. */
-    if (use_placeholders) {
-      len = sequencer_image_strip_get_minmax_frame(op, strip->sfra, &minext_frameme, &numdigits);
-    }
-    else {
-      const char *blendfile_path = BKE_main_blendfile_path(bmain);
-      ranges = ED_image_filesel_detect_sequences(blendfile_path, blendfile_path, op, false);
-      len = 0;
-      for (ImageFrameRange &range : ranges) {
-        len += range.frames.count();
-      }
-    }
     if (len == 0) {
       return OPERATOR_CANCELLED;
     }
@@ -3719,27 +3711,37 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
     }
     strip->data->stripdata = se = MEM_new_array<StripElem>(len, "stripelem");
 
-    if (use_placeholders) {
-      sequencer_image_strip_reserve_frames(op, se, len, minext_frameme, numdigits);
-    }
-    else {
+    for (ImageFrameRange &range : ranges) {
+      int framenr, numdigits;
+      if (!BLI_path_frame_get(range.filepath, &framenr, &numdigits)) {
+        numdigits = 0;
+      }
       char ext[FILE_MAX];
       char filename_stripped[FILE_MAX];
-      char filename[FILE_MAX];
-      for (ImageFrameRange &range : ranges) {
-        BLI_path_split_file_part(range.filepath, filename_stripped, sizeof(filename_stripped));
-        BLI_path_frame_strip(filename_stripped, ext, sizeof(ext));
-        for (ImageFrame &frame : range.frames) {
-          frame_filename_set(
-              filename, sizeof(filename), filename_stripped, frame.framenr, numdigits, ext);
+      BLI_path_split_file_part(range.filepath, filename_stripped, sizeof(filename_stripped));
+      BLI_path_frame_strip(filename_stripped, ext, sizeof(ext));
 
-          STRNCPY(se->filename, filename);
+      if (use_placeholders) {
+        for (const int i : IndexRange::from_begin_end(range.offset, range.max_framenr + 1)) {
+          frame_filename_set(
+              se->filename, sizeof(se->filename), filename_stripped, i, numdigits, ext);
           se++;
         }
-        range.frames.free_no_destruct();
       }
-      ranges.free_no_destruct();
+      else {
+        for (ImageFrame &frame : range.frames) {
+          frame_filename_set(se->filename,
+                             sizeof(se->filename),
+                             filename_stripped,
+                             frame.framenr,
+                             numdigits,
+                             ext);
+          se++;
+        }
+      }
+      range.frames.free_no_destruct();
     }
+    ranges.free_no_destruct();
 
     if (len == 1) {
       strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
