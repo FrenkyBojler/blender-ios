@@ -549,7 +549,7 @@ static bMotionPath *get_motion_path(Object &ob, StringRefNull bone_name)
 }
 
 /* Runs on the worker thread. */
-static bool buffer_callback(Depsgraph *dg, ID &id, const int frame, void *buffer_data)
+static bool eval_callback(Depsgraph *dg, ID &id, const int frame, void *buffer_data)
 {
   MotionPathBuffer *buffer = static_cast<MotionPathBuffer *>(buffer_data);
   if (frame < buffer->start_frame || frame >= buffer->start_frame + buffer->points.size()) {
@@ -659,7 +659,7 @@ void register_motionpath_async(Main &bmain,
                                     view_layer,
                                     {&armature_object.id, buffer->bone_name},
                                     buffer,
-                                    buffer_callback,
+                                    eval_callback,
                                     update_callback,
                                     finish_callback);
 }
