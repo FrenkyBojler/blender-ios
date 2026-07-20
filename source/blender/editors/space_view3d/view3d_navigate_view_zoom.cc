@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_matrix.hh"
+#include "BLI_math_rotation.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
 #include "BLI_time.hh"
@@ -85,14 +86,10 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
     if (rv3d->camroll != 0.0f) {
       const float2 center(region->winx / 2, region->winy / 2);
 
-      float2 pt_src_2 = pt_src;
+      const float2 pt_src_rotated = rotate_around_point_2d(
+          pt_src, center, math::AngleRadian(-rv3d->camroll));
 
-      const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(rv3d->camroll));
-      const float2x2 rot_invert = math::transpose(rot);
-
-      pt_src_2 -= center;
-      pt_src_2 = rot_invert * pt_src_2;
-      pt_src_2 += center;
+      const float2x2 rot_invert = math::from_rotation<float2x2>(math::AngleRadian(-rv3d->camroll));
 
       ED_view3d_calc_camera_border(
           scene, depsgraph, region, v3d, rv3d, false, true, &camera_frame_old);
@@ -103,11 +100,8 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
       ED_view3d_calc_camera_border(
           scene, depsgraph, region, v3d, rv3d, false, true, &camera_frame_new);
 
-      BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src_2);
-
-      pt_dst -= center;
-      pt_dst = rot * pt_dst;
-      pt_dst += center;
+      BLI_rctf_transform_pt_v(&camera_frame_new, &camera_frame_old, pt_dst, pt_src_rotated);
+      pt_dst = rotate_around_point_2d(pt_dst, center, math::AngleRadian(rv3d->camroll));
 
       delta_px = pt_dst - pt_src;
       delta_px = rot_invert * delta_px;

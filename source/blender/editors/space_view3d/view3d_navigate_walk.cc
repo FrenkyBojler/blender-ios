@@ -22,6 +22,7 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation.hh"
 #include "BLI_math_rotation_c.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_rect.hh"
@@ -368,12 +369,8 @@ static void drawWalkPixel(const bContext * /*C*/, ARegion *region, void *arg)
 
     if (walk->rv3d->camroll != 0.0f) {
       const float2 view_center(walk->region->winx / 2.0f, walk->region->winy / 2.0f);
-      const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(walk->rv3d->camroll));
-      float2 xyoff(xoff, yoff);
-
-      xyoff -= view_center;
-      xyoff = rot * xyoff;
-      xyoff += view_center;
+      const float2 xyoff = rotate_around_point_2d(
+          float2(xoff, yoff), view_center, math::AngleRadian(walk->rv3d->camroll));
 
       xoff = xyoff.x;
       yoff = xyoff.y;
