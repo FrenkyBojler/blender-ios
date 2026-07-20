@@ -42,6 +42,14 @@ _MAP = {
     'CLAY_STRIPS': ("CLAY", {"planeoff": lambda b: b.plane_offset}),
     'PLANE': ("FILL", {"planeoff": lambda b: b.plane_offset}),
     'MULTIPLANE_SCRAPE': ("SCRAPE", {"planeoff": lambda b: b.plane_offset}),
+    # SMOOTH (plain Laplacian), not BSMOOTH: BSMOOTH's boundary awareness only
+    # preserves *marked* feature edges (sharp/seam/poly-group/UV-chart); open
+    # mesh boundaries (1-face edges) are handled topologically elsewhere, so on
+    # an open-boundary grid BSMOOTH and SMOOTH collapse the boundary identically
+    # (Q1b A/B). With no marked features (the common case, and edge-flag transfer
+    # to the engine boundary attrs is not wired yet) BSMOOTH only adds a
+    # per-stroke boundary refresh with no parity gain. Revisit once feature-edge
+    # transfer lands.
     'SMOOTH': ("SMOOTH", {}),
     'PINCH': ("PINCH", {"pinch": lambda b: b.strength}),
     'MASK': ("MASK", {}),

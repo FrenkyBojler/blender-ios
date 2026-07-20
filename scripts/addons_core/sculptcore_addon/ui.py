@@ -126,6 +126,28 @@ class SCULPTCORE_PT_automasking(bpy.types.Panel):
         layout.label(text="Other automasking modes are not mapped", icon='INFO')
 
 
+class SCULPTCORE_PT_symmetry(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = _CATEGORY
+    bl_label = "Symmetry"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return _in_mode(context)
+
+    def draw(self, context):
+        layout = self.layout
+        # Plane-mirror symmetry across the object's local axes — the same mesh
+        # flags vanilla sculpt mirrors across, read by the stroke operator.
+        mesh = context.active_object.data
+        row = layout.row(align=True)
+        row.prop(mesh, "use_mirror_x", text="X", toggle=True)
+        row.prop(mesh, "use_mirror_y", text="Y", toggle=True)
+        row.prop(mesh, "use_mirror_z", text="Z", toggle=True)
+
+
 class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -145,6 +167,7 @@ class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
         col.use_property_split = True
         col.active = scene.sculptcore_dyntopo
         col.prop(scene, "sculptcore_detail")
+        col.prop(scene, "sculptcore_dyntopo_spacing")
 
 
 class SCULPTCORE_PT_multires(bpy.types.Panel):
@@ -177,6 +200,7 @@ class SCULPTCORE_PT_multires(bpy.types.Panel):
 _classes = (
     SCULPTCORE_PT_brush,
     SCULPTCORE_PT_automasking,
+    SCULPTCORE_PT_symmetry,
     SCULPTCORE_PT_dyntopo,
     SCULPTCORE_PT_multires,
 )

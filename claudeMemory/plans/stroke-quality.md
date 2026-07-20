@@ -72,3 +72,40 @@ All landed.
 - All of the above headless via `run_sync.py` conventions (NaN-proof
   guards); final GUI pass for feel (symmetry + anchored under real mouse
   input via `--enable-event-simulate`).
+
+---
+
+## Outcome (implemented)
+
+All six items landed, addon-only, and are verified headless. New modules:
+`stroke_math.py` (Q3), `symmetry.py` (Q4). New tests under `claudeMemory/tests/`:
+`stroke_math_test.py`, `stroke_spacer_test.py`, `dyntopo_cadence_test.py`,
+`symmetry_test.py`, `stroke_methods_test.py` (all green; the full P6 undo suite
+and `addon_regression.py` 12/12 stay green).
+
+Two deviations from the plan, both forced by engine behavior:
+
+- **Q1b — kept SMOOTH (did not switch to BSMOOTH).** BSMOOTH's boundary
+  awareness only preserves *marked* feature edges (sharp/seam/poly-group/
+  UV-chart); open mesh boundaries (1-face edges) are "handled topologically
+  elsewhere," so on the open-boundary grid the A/B specified, BSMOOTH and SMOOTH
+  collapse the boundary identically (0.17786 both). With no marked features (and
+  no edge-flag transfer to the engine boundary attrs yet) BSMOOTH only adds a
+  per-stroke boundary refresh with no parity gain. Q1a *was* adopted
+  (`setNeighborMode(1)`: bit-identical, marginally faster).
+
+- **Q4 — mirror by reflecting the resolved primary hit, not by re-raycasting.**
+  The plan (following the reference app) called for re-raycasting the mirrored
+  view ray. Our engine's `spatial::castRay` reconstructs the hit position
+  imprecisely — a vertical ray down the sphere's center returns `(0, -0.195,
+  0.98)` instead of the pole — so re-raycasting the mirrored ray is *not*
+  reflection-equivariant (0.258 asymmetry on a unit sphere). Reflecting the
+  resolved primary center+normal directly is exact (1.3e-6, the mesh's own
+  symmetry floor) and matches vanilla Blender's "mirror the operation" model.
+  The grab path already mirrors anchor/cursor directly, so it was unaffected.
+
+Known follow-ups (parity checklist): dyntopo is not remeshed inside the
+anchored/drag-dot preview path (deform only); AIRBRUSH/LINE/CURVE fall back to
+the spacer path; radial symmetry deferred; the engine `castRay` position
+imprecision affects dab-center accuracy generally (engine-side fix, out of scope
+for this addon-only plan).

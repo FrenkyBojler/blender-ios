@@ -20,7 +20,7 @@ is scriptable end-to-end.
 
 import bpy
 
-from . import convert, engine, mapping, texture, undo
+from . import convert, engine, mapping, stroke_math, symmetry, texture, undo
 
 
 def _float3(mgr, x, y, z):
@@ -32,41 +32,59 @@ def _float3(mgr, x, y, z):
 
 
 class StrokeSpacer:
-    """Port of the engine's ``brush/stroke_spacing.h`` StrokeSpacer: walks a
-    stroke polyline and emits dab points at constant intervals, carrying a
-    residual across segments so dabs stay evenly spaced regardless of the
-    mouse event rate. The operator drives it in 2D screen space (interval =
-    pixel radius x spacing fraction) and projects each emitted point onto the
-    surface — spacing along the 3D hit polyline would couple dab density to
-    the surface deforming under the stroke. A non-positive interval emits
-    every input point (no spacing)."""
+    """Screen-space dab spacer: buffers the 2D mouse path and emits evenly
+    spaced points along a centripetal Catmull-Rom spline (``stroke_math``),
+    carrying the walk position across segments so cadence never clusters at a
+    joint. Compared to the old linear-polyline walk this smooths jittery input
+    (the parity route to Blender's stabilized stroke) without changing dab
+    density: the same interval (pixel radius x spacing fraction) is walked, and
+    each emitted point is still projected onto the surface by the operator.
+
+    The first control point emits one raw dab immediately; a 1-segment lookahead
+    holds each interior segment until its right neighbor arrives (the
+    centripetal tangent needs the next point), so spline dabs lag input by one
+    move; the trailing segment is flushed with a right-clamp on release
+    (``flush``). A non-positive interval bypasses the spline and emits every
+    input point. Emitted points are ``(x, y)`` tuples."""
 
     def __init__(self):
-        self.last_pos = None
-        self.residual = 0.0
+        self.points = []
+        self.walk_carry = 0.0
 
-    def advance(self, p, spacing):
-        """Dab points for the segment from the previous input point to `p`
-        (the first call emits `p` itself). `p` is a mathutils.Vector (any
-        dimension)."""
-        if self.last_pos is None:
-            self.last_pos = p.copy()
-            return [p.copy()]
-        if spacing <= 0.0:
-            self.last_pos = p.copy()
-            return [p.copy()]
-        delta = p - self.last_pos
-        length = delta.length
-        if length < 1e-7:
+    def add(self, p, spacing):
+        """Dab points for the newly arrived control point ``p`` (an ``(x, y)``
+        pair). The first call emits ``p`` itself (raw); later calls emit the
+        spaced points of the segment whose right neighbor ``p`` just
+        completed."""
+        p = (float(p[0]), float(p[1]))
+        self.points.append(p)
+        n = len(self.points)
+        if n == 1 or spacing <= 0.0:
+            return [p]
+        if n < 3:
+            # The first segment still lacks the right neighbor its tangent needs.
             return []
-        direction = delta / length
-        emitted = []
-        walked = spacing - self.residual
-        while walked <= length:
-            emitted.append(self.last_pos + direction * walked)
-            walked += spacing
-        self.residual = length - (walked - spacing)
-        self.last_pos = p.copy()
+        # points[n-3] -> points[n-2], with right neighbor points[n-1] = p.
+        return self._walk_segment(n - 3, right_clamp=False, spacing=spacing)
+
+    def flush(self, spacing):
+        """Emit the trailing segment (the last two points) with a right-clamp,
+        on stroke release. No-op for a single-point stroke or non-positive
+        spacing."""
+        n = len(self.points)
+        if n < 2 or spacing <= 0.0:
+            return []
+        return self._walk_segment(n - 2, right_clamp=True, spacing=spacing)
+
+    def _walk_segment(self, i, right_clamp, spacing):
+        """Arc-length-walk the Catmull-Rom segment ``points[i] -> points[i+1]``,
+        clamping the outer control points at the path ends."""
+        pts = self.points
+        p1, p2 = pts[i], pts[i + 1]
+        p0 = pts[i - 1] if i >= 1 else p1
+        p3 = p2 if right_clamp else pts[i + 2]
+        bez = stroke_math.cr_to_bezier(p0, p1, p2, p3)
+        emitted, self.walk_carry = stroke_math.arc_length_walk(bez, spacing, self.walk_carry)
         return emitted
 
 
@@ -87,6 +105,11 @@ def _ensure_executor(session):
         session.executor = mgr.construct_with(ctor, session.tree(), _ensure_brush(session))
         session.meshlog = mgr.construct("sculptcore::meshlog::MeshLog")
         session.executor.meshLog = session.meshlog
+        # Csr (ring-1 CSR adjacency) for the smooth family's for_neighbor source,
+        # matching the engine's other sculpt consumer. Bit-identical to the
+        # LiveDisk default on our freshly built meshes and marginally faster (Q1a
+        # A/B); a dyntopo step overrides it back to LiveDisk internally.
+        session.executor.setNeighborMode(1)
     return session.executor
 
 
@@ -112,9 +135,18 @@ def build_dyntopo_params(session, l_max, l_min):
     return p
 
 
+def dyntopo_due(stroke_s, last_dyntopo_s, spacing):
+    """Whether a remesh is due at stroke arc-length ``stroke_s``: true once the
+    stroke has travelled ``spacing`` since the last remesh at ``last_dyntopo_s``.
+    A ``spacing`` of 0 is due on every dab (the every-dab baseline)."""
+    return stroke_s - last_dyntopo_s >= spacing
+
+
 def apply_dyntopo_dab(session, program, center, normal, radius, params, seed):
-    """One dab that also remeshes: applyDab runs the dyntopo pass, node filter
-    and the program together (it filters internally)."""
+    """One program dab through ``applyDab``. With ``params`` set it also runs the
+    dyntopo remesh pass; with ``params`` None it is a plain deforming dab (no
+    remesh) — the reference's ``params ?? 0`` path for the off-cadence dabs
+    between remeshes."""
     mgr = engine.manager()
     executor = _ensure_executor(session)
     center_v = _float3(mgr, *center)
@@ -154,11 +186,16 @@ def apply_dab(session, brush_type, center, normal, radius):
             obj.dispose()
 
 
-def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius):
+def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius, accum_add=False):
     """Grab-class dab: deform the fixed region under `anchor` by the
     cumulative cursor delta (`brush.grabTo`/`grabFrom`). The dab centers on the
     anchor and the node filter widens by the drag distance so the anchored
-    region stays covered as the cursor moves away."""
+    region stays covered as the cursor moves away.
+
+    `accum_add` marks a later symmetry image of the same logical dab: False
+    (the primary) begins a new logical dab and re-bases every touched vert from
+    its stroke-start position; True adds this image's delta on top, so a vertex
+    on a symmetry plane touched by two images sums both reflections."""
     mgr = engine.manager()
     executor = _ensure_executor(session)
     brush = session.brush_obj
@@ -179,7 +216,7 @@ def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius):
     try:
         if not tree.filterNodes(anchor_v, radius + drag, nodes):
             return 0
-        executor.setGrabAccumAdd(False)
+        executor.setGrabAccumAdd(accum_add)
         executor.execBrush(session.mesh(), brush_type, nodes, anchor_v, normal_v)
         import sculptcore
         return len(sculptcore.BoundVector(mgr, nodes.ptr, nodes.bind_type))
@@ -314,6 +351,13 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self._dab_count = 0
         smoothing = self.mode == 'SMOOTH'
         self._grab_class = not smoothing and mapping.is_grab_class(self.brush)
+        # Anchored / Drag-Dot stroke methods drive the engine preview-dab API
+        # (one live, non-compounding dab per input) instead of the spacer. DOTS/
+        # SPACE (and, for now, AIRBRUSH/LINE/CURVE) use the spacer path; grab
+        # anchors via its own kernel, so it keeps the grab path.
+        self._stroke_method = self.brush.stroke_method
+        self._preview_method = (not self._grab_class
+                                and self._stroke_method in {'ANCHORED', 'DRAG_DOT'})
         # Tablet pressure (M4): configure the engine's per-stroke device
         # dynamics (identity response curve + multiply = linear, the vanilla
         # semantics); each dab refills the device samples with the event
@@ -344,6 +388,18 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         # Dab spacing along the stroke path (engine StrokeSpacer semantics:
         # interval = world radius x spacing fraction). Grab-class ignores it.
         self._spacer = StrokeSpacer()
+        # Trailing-flush state, refreshed on every move (see _dab_at); defaults
+        # cover a commit with no intervening move.
+        self._last_invert = False
+        self._last_pressure = 1.0
+        self._last_spacing = 0.0
+        # Dyntopo cadence bookkeeping: accumulated stroke arc length and the
+        # arc length of the last remesh. -inf so the first dab always remeshes.
+        self._stroke_s = 0.0
+        self._last_dyntopo_s = float("-inf")
+        self._dyntopo_spacing = 0.0
+        # Plane-mirror symmetry: one sign vector per reflection (empty = off).
+        self._mirror_signs = symmetry.mirror_signs(symmetry.axes_from_mesh(ob.data))
         # Face-set brushes paint a fresh group id per stroke.
         if not smoothing and self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
             brush = _ensure_brush(self.session)
@@ -365,13 +421,37 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             detail = scene.sculptcore_detail
             self._program = build_program(self.session, self.kernel, smooth_factor)
             self._dyntopo = build_dyntopo_params(self.session, detail, detail * 0.5)
+            # Remesh cadence in the same (pixel) units stroke_s accumulates: a
+            # fraction of the brush diameter of stroke travel per remesh pass.
+            unified = context.tool_settings.sculpt.unified_paint_settings
+            pixel_size = unified.size if unified.use_unified_size else self.brush.size
+            frac = max(getattr(scene, "sculptcore_dyntopo_spacing", 0.5), 0.0)
+            self._dyntopo_spacing = frac * 2.0 * pixel_size
         elif smooth_factor > 0.0:
             self._program = build_program(self.session, self.kernel, smooth_factor)
+
+        # Anchored refuses a stroke that starts off the surface — checked before
+        # opening the undo step, so a refusal leaves no empty step behind.
+        if self._preview_method and self._stroke_method == 'ANCHORED':
+            a_origin, a_dir = _ray_origin_dir(
+                context, (event.mouse_region_x, event.mouse_region_y))
+            a_hit = raycast(self.session, a_origin, a_dir)
+            if a_hit is None:
+                self.report({'WARNING'},
+                            "SculptCore: anchored stroke must start on the surface")
+                return {'CANCELLED'}
+            self._anchor = a_hit[0]
+            self._anchor_normal = a_hit[1]
+            self._anchor_screen = (event.mouse_region_x, event.mouse_region_y)
+            self._anchor_radius = _world_radius(context, self.brush, a_hit[0])
 
         stroke_begin(self.session, has_dyntopo=self._dyntopo is not None)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.
-        self._dab_at(context, event)
+        if self._preview_method:
+            self._dab_preview(context, event)
+        else:
+            self._dab_at(context, event)
         return {'RUNNING_MODAL'}
 
     def _dab_at(self, context, event):
@@ -400,40 +480,34 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             cursor = _cursor_on_anchor_plane(context, event, self._anchor)
             apply_grab_dab(self.session, self.kernel, self._anchor, cursor,
                            self._anchor_normal, self._anchor_radius)
+            # Symmetry: reflect the anchor, cursor and normal directly (no
+            # re-raycast for grab — the resolved plane point is used as-is).
+            for sign in self._mirror_signs:
+                apply_grab_dab(
+                    self.session, self.kernel,
+                    symmetry.reflect(self._anchor, sign),
+                    symmetry.reflect(cursor, sign),
+                    symmetry.reflect(self._anchor_normal, sign),
+                    self._anchor_radius, accum_add=True)
         else:
-            import mathutils
             pixel_size = unified.size if unified.use_unified_size else self.brush.size
             step = max(self.brush.spacing, 1) / 100.0 * pixel_size
-            coord = mathutils.Vector((event.mouse_region_x, event.mouse_region_y))
-            for point in self._spacer.advance(coord, step):
-                hit = _ray_from_coord(context, (point.x, point.y), self.session)
-                if hit is None:
-                    continue
-                position, normal, _face = hit
-                world_radius = _world_radius(context, self.brush, position)
-                mapping.apply_brush(
-                    self.brush, unified, self.session.brush_obj,
-                    world_radius=world_radius, invert=invert, paint=paint)
-                if self._use_pressure:
-                    # The executor consumes the device samples in loadProps;
-                    # refill per dab (engine bridge convention).
-                    sc = self.session.brush_obj
-                    sc.clearDeviceInputs()
-                    sc.pushDeviceInput(mapping.DEVICE_PRESSURE, event.pressure)
-                if self._dyntopo is not None:
-                    apply_dyntopo_dab(self.session, self._program, position, normal,
-                                      world_radius, self._dyntopo, self._dab_count + 1)
-                elif self._program is not None:
-                    apply_dab_program(self.session, self._program, position, normal,
-                                      world_radius)
-                else:
-                    apply_dab(self.session, self.kernel, position, normal, world_radius)
-                self._dab_count += 1
+            coord = (event.mouse_region_x, event.mouse_region_y)
+            # Remember the last-move state so the trailing spline segment can be
+            # flushed on release (the release event carries no spline context).
+            self._last_invert = invert
+            self._last_pressure = event.pressure
+            self._last_spacing = step
+            for point in self._spacer.add(coord, step):
+                self._apply_spaced_dab(context, point, invert, event.pressure)
 
-        # Mid-stroke draw: the provider needs only its GPU buffers refreshed;
-        # the Mesh write-back is deferred to the mode's flush callback. The
-        # throttled full flush remains only for the no-provider fallback,
-        # where the viewport draws the Mesh itself.
+        self._mid_redraw(context)
+
+    def _mid_redraw(self, context):
+        """Throttled mid-stroke refresh: the draw provider needs only its GPU
+        buffers refreshed; the Mesh write-back is deferred to the mode's flush
+        callback. The full flush remains only for the no-provider fallback,
+        where the viewport draws the Mesh itself."""
         import time
         now = time.monotonic()
         if now - self._last_flush > 1.0 / 30.0:
@@ -444,8 +518,70 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             self._last_flush = now
         context.area.tag_redraw()
 
+    def _apply_one_image(self, position, normal, world_radius, due):
+        """Apply one dab image (primary or a symmetry mirror) through the active
+        path — plain, autosmooth-program, or dyntopo. Each image gets a unique
+        monotonic seed (dyntopo independent-set selection)."""
+        self._dab_count += 1
+        seed = self._dab_count
+        if self._dyntopo is not None:
+            apply_dyntopo_dab(self.session, self._program, position, normal,
+                              world_radius, self._dyntopo if due else None, seed)
+        elif self._program is not None:
+            apply_dab_program(self.session, self._program, position, normal,
+                              world_radius)
+        else:
+            apply_dab(self.session, self.kernel, position, normal, world_radius)
+
+    def _apply_spaced_dab(self, context, point, invert, pressure):
+        """Project one spacer-emitted 2D point onto the surface and apply the
+        primary dab plus one reflected dab per symmetry mirror."""
+        paint = context.tool_settings.sculpt
+        unified = paint.unified_paint_settings
+        origin, direction = _ray_origin_dir(context, point)
+        hit = raycast(self.session, origin, direction)
+        if hit is None:
+            return
+        position, normal, _face = hit
+        world_radius = _world_radius(context, self.brush, position)
+        mapping.apply_brush(
+            self.brush, unified, self.session.brush_obj,
+            world_radius=world_radius, invert=invert, paint=paint)
+        if self._use_pressure:
+            # The executor consumes the device samples in loadProps; refill per
+            # dab (engine bridge convention).
+            sc = self.session.brush_obj
+            sc.clearDeviceInputs()
+            sc.pushDeviceInput(mapping.DEVICE_PRESSURE, pressure)
+        # Advance the stroke arc length and decide the dyntopo cadence once per
+        # logical dab, so every mirror image remeshes on the same samples
+        # (a per-image decision would let the primary starve the mirrors).
+        self._stroke_s += self._last_spacing
+        due = (self._dyntopo is not None
+               and dyntopo_due(self._stroke_s, self._last_dyntopo_s, self._dyntopo_spacing))
+        if due:
+            self._last_dyntopo_s = self._stroke_s
+        self._apply_one_image(position, normal, world_radius, due)
+        # Symmetry mirror images: reflect the resolved primary center and normal
+        # directly (mirror the operation, as vanilla sculpt does), reusing the
+        # primary's world radius. Re-raycasting the mirrored view ray instead —
+        # as the reference app does — is not reflection-equivariant here: the
+        # engine's castRay reconstructs the hit position imprecisely (off the
+        # ray by ~tessellation scale), which leaves visible asymmetry. Reflecting
+        # the resolved hit is exact.
+        for sign in self._mirror_signs:
+            self._apply_one_image(symmetry.reflect(position, sign),
+                                  symmetry.reflect(normal, sign),
+                                  world_radius, due)
+
     def _finish(self, context, status):
         ob = context.active_object
+        # On commit, flush the trailing spline segment held back by the
+        # 1-segment lookahead (right-clamped); cancel drops it.
+        if status == 'FINISHED' and not self._grab_class:
+            for point in self._spacer.flush(self._last_spacing):
+                self._apply_spaced_dab(context, point, self._last_invert,
+                                       self._last_pressure)
         stroke_end(self.session)
         # Deferred write-back: with the draw provider active the viewport only
         # needs its GPU buffers; the Mesh ID syncs on demand through the
@@ -461,20 +597,120 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         context.area.tag_redraw()
         return {status}
 
+    def _preview_apply_image(self, center, normal, world_radius, extend):
+        """Snapshot one dab image's region into the open preview session
+        (``begin`` for the primary, ``extend`` for each mirror), then deform it.
+        Snapshotting before the deform lets the whole group roll back together.
+        No dyntopo in the preview path (anchored/drag-dot deform only)."""
+        mgr = engine.manager()
+        executor = _ensure_executor(self.session)
+        center_v = _float3(mgr, *center)
+        try:
+            if extend:
+                executor.extendPreviewDab(center_v, world_radius)
+            else:
+                executor.beginPreviewDab(center_v, world_radius)
+        finally:
+            center_v.dispose()
+        if self._program is not None:
+            apply_dab_program(self.session, self._program, center, normal, world_radius)
+        else:
+            apply_dab(self.session, self.kernel, center, normal, world_radius)
+
+    def _dab_preview(self, context, event):
+        """Anchored / Drag-Dot: one live dab (plus mirrors) inside a preview
+        bracket so successive inputs never compound. Resolve the new dab first,
+        then roll back the previous provisional group and apply the new one."""
+        paint = context.tool_settings.sculpt
+        unified = paint.unified_paint_settings
+        invert = event.ctrl or self.mode == 'INVERT'
+        executor = _ensure_executor(self.session)
+        coord = (event.mouse_region_x, event.mouse_region_y)
+
+        if self._stroke_method == 'ANCHORED':
+            # Dab pinned at the anchor; radius grows with screen-space drag.
+            center = self._anchor
+            normal = self._anchor_normal
+            import mathutils
+            drag_px = (mathutils.Vector(coord)
+                       - mathutils.Vector(self._anchor_screen)).length
+            # Radius is the unprojected drag length (0 at the anchor, growing as
+            # the cursor pulls away); check `is None` so a genuine 0 is kept.
+            world_radius = _pixel_to_world_length(context, center, drag_px)
+            if world_radius is None:
+                world_radius = self._anchor_radius
+        else:  # DRAG_DOT: one dab at the live cursor.
+            origin, direction = _ray_origin_dir(context, coord)
+            hit = raycast(self.session, origin, direction)
+            if hit is None:
+                # Cursor off the surface: keep the previous provisional dab.
+                return
+            center, normal, _ = hit
+            world_radius = _world_radius(context, self.brush, center)
+
+        # Roll back the previous provisional group only now that a new dab is
+        # resolved (a drag-dot miss above leaves the last dab intact).
+        if executor.previewActive():
+            executor.rollbackPreviewDab()
+        mapping.apply_brush(
+            self.brush, unified, self.session.brush_obj,
+            world_radius=world_radius, invert=invert, paint=paint)
+        if self._use_pressure:
+            sc = self.session.brush_obj
+            sc.clearDeviceInputs()
+            sc.pushDeviceInput(mapping.DEVICE_PRESSURE, event.pressure)
+        self._preview_apply_image(center, normal, world_radius, extend=False)
+        # Mirror images share the one preview bracket, so one rollback reverts
+        # the whole group.
+        for sign in self._mirror_signs:
+            self._preview_apply_image(symmetry.reflect(center, sign),
+                                      symmetry.reflect(normal, sign),
+                                      world_radius, extend=True)
+        self._mid_redraw(context)
+
+    def _finish_preview(self, context, commit):
+        """End an anchored / drag-dot stroke: commit keeps the one live dab and
+        pushes an undo step; cancel rolls it back and pushes nothing (the mesh
+        is left exactly as the stroke began)."""
+        ob = context.active_object
+        executor = _ensure_executor(self.session)
+        if executor.previewActive():
+            if commit:
+                executor.commitPreviewDab()
+            else:
+                executor.rollbackPreviewDab()
+        stroke_end(self.session)
+        if self.session.draw_key:
+            convert.draw_refresh(ob)
+        else:
+            convert.flush(ob)
+        if commit:
+            undo.push(context, ob, self.session)
+        context.area.tag_redraw()
+        return {'FINISHED' if commit else 'CANCELLED'}
+
     def modal(self, context, event):
         if event.type == 'MOUSEMOVE':
-            self._dab_at(context, event)
+            if self._preview_method:
+                self._dab_preview(context, event)
+            else:
+                self._dab_at(context, event)
             return {'RUNNING_MODAL'}
         if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
+            if self._preview_method:
+                return self._finish_preview(context, commit=True)
             return self._finish(context, 'FINISHED')
         if event.type in {'RIGHTMOUSE', 'ESC'}:
+            if self._preview_method:
+                return self._finish_preview(context, commit=False)
             return self._finish(context, 'CANCELLED')
         return {'RUNNING_MODAL'}
 
 
-def _ray_from_coord(context, coord, session):
-    """Unproject a 2D region coordinate to an object-space ray and cast it
-    against the engine tree."""
+def _ray_origin_dir(context, coord):
+    """Object-space ``(origin, direction)`` of the view ray through a 2D region
+    coordinate (both 3-tuples). Split out so symmetry can reflect the ray and
+    re-cast it."""
     from bpy_extras import view3d_utils
 
     region = context.region
@@ -487,7 +723,14 @@ def _ray_from_coord(context, coord, session):
     matrix_inv = ob.matrix_world.inverted()
     origin = matrix_inv @ origin_world
     direction = (matrix_inv.to_3x3() @ direction_world).normalized()
-    return raycast(session, tuple(origin), tuple(direction))
+    return tuple(origin), tuple(direction)
+
+
+def _ray_from_coord(context, coord, session):
+    """Unproject a 2D region coordinate to an object-space ray and cast it
+    against the engine tree."""
+    origin, direction = _ray_origin_dir(context, coord)
+    return raycast(session, origin, direction)
 
 
 def _ray_from_event(context, event, session):
@@ -513,32 +756,38 @@ def _cursor_on_anchor_plane(context, event, anchor_obj):
     return tuple(ob.matrix_world.inverted() @ loc_world)
 
 
-def _world_radius(context, brush, position):
-    """Object-space dab radius from the brush's pixel size at the dab
-    location (vanilla paint_calc_object_space_radius semantics)."""
+def _pixel_to_world_length(context, position, pixel_len):
+    """Object-space length spanning ``pixel_len`` screen pixels at
+    ``position``'s depth (vanilla paint_calc_object_space_radius semantics).
+    Returns None when the point projects off-screen."""
+    import mathutils
     from bpy_extras import view3d_utils
 
     region = context.region
     rv3d = context.region_data
     ob = context.active_object
-    unified = context.tool_settings.sculpt.unified_paint_settings
-    pixel_size = unified.size if unified.use_unified_size else brush.size
 
-    center_world = ob.matrix_world @ __import__("mathutils").Vector(position)
+    center_world = ob.matrix_world @ mathutils.Vector(position)
     offset_2d = view3d_utils.location_3d_to_region_2d(region, rv3d, center_world)
     if offset_2d is None:
-        return brush.unprojected_size or 1.0
+        return None
     offset_2d = offset_2d.copy()
-    offset_2d.x += pixel_size
+    offset_2d.x += pixel_len
     ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, offset_2d)
     ray_dir = view3d_utils.region_2d_to_vector_3d(region, rv3d, offset_2d)
-    # Object-space distance from the dab center to the unprojected edge point
-    # at the dab's depth.
-    import mathutils
+    # Object-space distance from the point to the unprojected offset at its depth.
     edge_world = ray_origin + ray_dir * (center_world - ray_origin).length
     matrix_inv = ob.matrix_world.inverted()
-    radius = (matrix_inv @ edge_world - matrix_inv @ center_world).length
-    return radius or (brush.unprojected_size or 1.0)
+    return (matrix_inv @ edge_world - matrix_inv @ center_world).length
+
+
+def _world_radius(context, brush, position):
+    """Object-space dab radius from the brush's pixel size at the dab
+    location."""
+    unified = context.tool_settings.sculpt.unified_paint_settings
+    pixel_size = unified.size if unified.use_unified_size else brush.size
+    length = _pixel_to_world_length(context, position, pixel_size)
+    return length or (brush.unprojected_size or 1.0)
 
 
 def register():

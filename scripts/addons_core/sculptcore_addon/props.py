@@ -26,8 +26,18 @@ def register():
         max=1.0,
         soft_max=0.5,
     )
+    bpy.types.Scene.sculptcore_dyntopo_spacing = bpy.props.FloatProperty(
+        name="Detail Spacing",
+        description="Stroke travel between remesh passes, in brush diameters "
+                    "(0 remeshes on every dab). Higher values remesh less often "
+                    "for cheaper strokes",
+        default=0.5,
+        min=0.0,
+        soft_max=2.0,
+    )
 
 
 def unregister():
     del bpy.types.Scene.sculptcore_dyntopo
     del bpy.types.Scene.sculptcore_detail
+    del bpy.types.Scene.sculptcore_dyntopo_spacing
