@@ -1,2 +1,3 @@
 Referenced by pull request #157127, IO: add option how to eval (Viewport vs. Render) during STL export
 Referenced by commit d221b37c56bb3fbaee66a899147be8fbbef24437, IO: add option how to eval (Viewport vs. Render) during STL export
+Referenced by issue #161658, Regression: Invalid STL export
