@@ -1990,7 +1990,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
   }
 }
 
-static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
+static void v3d_transform_butsR(const bContext *C, ui::Layout &layout, PointerRNA *ptr)
 {
   ui::Layout *split = &layout.split(0.8f, false);
 
@@ -2070,7 +2070,10 @@ static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
                    ICON_DECORATE_UNLOCKED);
       break;
   }
-  layout.prop(ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
+
+  split = &layout.split(0.8f, false);
+  split->prop(ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
+  split->op_menu_enum(C, "ANIM_OT_rotation_mode_convert", "mode", "", ICON_DOWNARROW_HLT);
 
   split = &layout.split(0.8f, false);
   colsub = &split->column(true);
@@ -2082,7 +2085,7 @@ static void v3d_transform_butsR(ui::Layout &layout, PointerRNA *ptr)
       ptr, "lock_scale", ui::ITEM_R_TOGGLE | ui::ITEM_R_ICON_ONLY, "", ICON_DECORATE_UNLOCKED);
 }
 
-static void v3d_posearmature_buts(ui::Layout &layout, Object *ob)
+static void v3d_posearmature_buts(const bContext *C, ui::Layout &layout, Object *ob)
 {
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
 
@@ -2098,7 +2101,7 @@ static void v3d_posearmature_buts(ui::Layout &layout, Object *ob)
   /* XXX: RNA buts show data in native types (i.e. quaternion, 4-component axis/angle, etc.)
    * but old-school UI shows in eulers always. Do we want to be able to still display in Eulers?
    * Maybe needs RNA/UI options to display rotations as different types. */
-  v3d_transform_butsR(col, &pchanptr);
+  v3d_transform_butsR(C, col, &pchanptr);
 }
 
 static void v3d_editarmature_buts(ui::Layout &layout, Object *ob)
@@ -2242,11 +2245,11 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
     }
   }
   else if (ob->mode & OB_MODE_POSE) {
-    v3d_posearmature_buts(col, ob);
+    v3d_posearmature_buts(C, col, ob);
   }
   else {
     PointerRNA obptr = RNA_id_pointer_create(&ob->id);
-    v3d_transform_butsR(col, &obptr);
+    v3d_transform_butsR(C, col, &obptr);
 
     /* Dimensions and editmode are mostly the same check. */
     if (OB_TYPE_SUPPORT_EDITMODE(ob->type) || ELEM(ob->type, OB_VOLUME, OB_CURVES, OB_POINTCLOUD))
