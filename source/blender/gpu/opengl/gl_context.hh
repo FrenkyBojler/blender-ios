@@ -14,9 +14,12 @@
 
 #include "BKE_global.hh"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_vector.hh"
 
 #include "gl_state.hh"
+
+#include "PRF_profile_gpu_gl.hh"
 
 #include <mutex>
 
@@ -119,6 +122,11 @@ class GLContext : public Context {
   };
   Vector<FrameQueries> frame_timings;
 
+  /* Profiling data lives on a pointer stack; the underlying `GLProfileScope` is
+   * not move constructible and must be alive between `profile_scope_begin()/end()`. */
+  bool profile_is_active_;
+  Stack<std::unique_ptr<GLProfileScope>> profile_scopes_;
+
   void process_frame_timings();
 
   class GHOST_IContext *ghost_context_;
@@ -163,6 +171,12 @@ class GLContext : public Context {
 
   void vao_cache_register(GLVaoCache *cache);
   void vao_cache_unregister(GLVaoCache *cache);
+
+  void profile_context() override;
+  void profile_scope_begin(const PrfSourceLocation *loc) override;
+  void profile_scope_begin_transient(const PrfSourceLocation *loc) override;
+  void profile_scope_end() override;
+  void profile_collect() override;
 
   void debug_group_begin(const char *name, int index) override;
   void debug_group_end() override;

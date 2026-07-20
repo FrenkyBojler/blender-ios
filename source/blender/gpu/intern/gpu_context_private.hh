@@ -14,6 +14,7 @@
 
 #include "GPU_batch.hh"
 #include "GPU_context.hh"
+#include "GPU_profile.hh"
 #include "GPU_texture_pool.hh"
 
 #include "gpu_debug_private.hh"
@@ -23,6 +24,7 @@
 #include "gpu_state_private.hh"
 
 #include <pthread.h>
+#include <source_location>
 
 class GHOST_IWindow;
 
@@ -107,6 +109,13 @@ class Context {
   virtual void finish() = 0;
 
   virtual void memory_statistics_get(int *r_total_mem, int *r_free_mem) = 0;
+
+  virtual void profile_context() {};
+  virtual void profile_set_active_context() {};
+  virtual void profile_scope_begin(const PrfSourceLocation * /* loc */) {};
+  virtual void profile_scope_begin_transient(const PrfSourceLocation * /* loc */) {};
+  virtual void profile_scope_end() {};
+  virtual void profile_collect() {};
 
   virtual void debug_group_begin(const char * /*name*/, int /*index*/) {};
   virtual void debug_group_end() {};

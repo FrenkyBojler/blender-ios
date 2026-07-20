@@ -84,6 +84,7 @@ set(SRC
   intern/gpu_node_graph.cc
   intern/gpu_pass.cc
   intern/gpu_platform.cc
+  intern/gpu_profile.cc
   intern/gpu_query.cc
   intern/gpu_ray_tracing.cc
   intern/gpu_select.cc
@@ -149,6 +150,7 @@ set(SRC
   GPU_platform.hh
   GPU_platform_backend_enum.h
   GPU_primitive.hh
+  GPU_profile.hh
   GPU_ray_tracing.hh
   GPU_select.hh
   GPU_shader.hh
@@ -212,6 +214,7 @@ set(OPENGL_SRC
   opengl/gl_framebuffer.cc
   opengl/gl_immediate.cc
   opengl/gl_index_buffer.cc
+  opengl/gl_profile.cc
   opengl/gl_query.cc
   opengl/gl_shader.cc
   opengl/gl_shader_interface.cc

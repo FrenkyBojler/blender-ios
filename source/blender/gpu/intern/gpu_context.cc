@@ -225,6 +225,7 @@ void GPU_context_discard(GPUContext *ctx_)
   /* Flush any remaining printf while making sure we are inside render boundaries. */
   backend->render_begin();
   printf_end(ctx);
+  ctx->profile_collect();
   backend->render_end();
 
   delete ctx;
@@ -247,12 +248,16 @@ void GPU_context_active_set(GPUContext *ctx_)
 
   if (active_ctx) {
     GPU_shader_unbind();
+    active_ctx->profile_collect();
     active_ctx->deactivate();
   }
 
   active_ctx = ctx;
 
   if (ctx) {
+    /* ... */
+    ctx->profile_set_active_context();
+
     ctx->activate();
     /* It can happen that the previous context drew with a different color-space.
      * In the case where the new context is drawing with the same shader that was previously bound
@@ -290,6 +295,14 @@ void GPU_context_debug_pipeline_creation(GPUContext *ctx, bool enable)
   gpu::Context *_ctx = unwrap(ctx);
   if (_ctx) {
     _ctx->debug_pipeline_creation = enable;
+  }
+}
+
+void GPU_context_profiling_enable(GPUContext *ctx)
+{
+  gpu::Context *_ctx = unwrap(ctx);
+  if (_ctx) {
+    _ctx->profile_context();
   }
 }
 

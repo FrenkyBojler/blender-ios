@@ -78,6 +78,7 @@
 #pragma once
 
 #include "BLI_index_range.hh"
+#include "GPU_profile.hh"
 #include <source_location>
 #include <string>
 
@@ -222,7 +223,8 @@ class DebugCapture {
   static gpu::DebugGroup _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__)(name); \
   const auto _GPU_DEBUG_CONCAT( \
       gpu_debug_group_scope_guard_, \
-      __LINE__) = _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__).scope_guard();
+      __LINE__) = _GPU_DEBUG_CONCAT(gpu_debug_group_, __LINE__).scope_guard(); \
+  GPU_profile_scope_transient(name);
 
 /**
  * Perform deferrred capture of GPU API calls under the current scope within an external GPU frame

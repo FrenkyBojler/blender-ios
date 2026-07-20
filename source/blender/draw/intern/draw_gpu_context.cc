@@ -175,6 +175,7 @@ void DRW_gpu_context_create()
   preview_context = MEM_new<ContextShared>(__func__);
 
   viewport_context->enable();
+  GPU_context_profiling_enable(viewport_context->blender_gpu_context_);
 }
 
 void DRW_gpu_context_destroy()

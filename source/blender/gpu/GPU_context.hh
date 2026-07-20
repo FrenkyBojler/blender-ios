@@ -143,7 +143,15 @@ void GPU_context_main_unlock();
  */
 void GPU_context_debug_pipeline_creation(GPUContext *ctx, bool enable);
 
-/** GPU Begin/end work blocks */
+/**
+ * Enable GPU API profiling support for this context.
+ *
+ * \param ctx: Context where to activate GPU API profiling support.
+ * \note Currently only one context per thread can support profiling.
+ */
+void GPU_context_profiling_enable(GPUContext *ctx);
+
+/** GPU Begin/end w ork blocks */
 void GPU_render_begin();
 void GPU_render_end();
 
