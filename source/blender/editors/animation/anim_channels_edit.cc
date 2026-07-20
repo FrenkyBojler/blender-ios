@@ -2059,13 +2059,29 @@ static void rearrange_grease_pencil_channels(bAnimContext *ac, eRearrangeAnimCha
   ANIM_animdata_filter(
       ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
-  if (mode == REARRANGE_ANIMCHAN_TOP) {
+  if (ELEM(mode, REARRANGE_ANIMCHAN_TOP, REARRANGE_ANIMCHAN_DOWN)) {
+    /* For these two rearrange modes, we need to reverse iterate so nodes end up in correct places.
+     */
     for (bAnimListElem &ale : anim_data.items_reversed()) {
       GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(ale.id);
       Layer *layer = static_cast<Layer *>(ale.data);
-      if (layer->is_selected()) {
-        grease_pencil.move_node_top(layer->as_node());
-        DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+
+      switch (mode) {
+        case REARRANGE_ANIMCHAN_TOP:
+          if (layer->is_selected()) {
+            grease_pencil.move_node_top(layer->as_node());
+            DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+            break;
+          }
+        case REARRANGE_ANIMCHAN_DOWN: {
+          if (layer->is_selected()) {
+            grease_pencil.move_node_down(layer->as_node());
+          }
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
       }
     }
   }
@@ -2081,20 +2097,14 @@ static void rearrange_grease_pencil_channels(bAnimContext *ac, eRearrangeAnimCha
           }
           break;
         }
-        case REARRANGE_ANIMCHAN_DOWN: {
-          if (layer->is_selected()) {
-            grease_pencil.move_node_down(layer->as_node());
-          }
-          break;
-        }
         case REARRANGE_ANIMCHAN_BOTTOM: {
           if (layer->is_selected()) {
             grease_pencil.move_node_bottom(layer->as_node());
           }
           break;
         }
-        case REARRANGE_ANIMCHAN_TOP:
-          /* Handled separately before the switch case. */
+        default:
+          BLI_assert_unreachable();
           break;
       }
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
