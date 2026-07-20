@@ -1523,19 +1523,44 @@ static void text_clip_give_next_off(Button *but, const char *str, const char *st
  */
 static int text_shorten_next_template_var(char *str, int byte_position)
 {
+  auto is_alphabetic = [](char c) -> bool {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+  };
+
   const std::optional<bke::path_templates::ExpressionInfo> info =
       bke::path_templates::next_template_variable_expression(str, byte_position);
   if (!info.has_value()) {
     return -1;
   }
 
-  /* TODO: make this take the first letter of each word in the variable. */
+  /* The strategy for abbreviating variable names is to take all alphabetic
+   * characters that follow a non-alphabetic character. Additionally, the first
+   * character is always unconditionally included, to ensure no empty
+   * abbreviations in cases like all-underscore names.
+   *
+   * This approach is simple, but effective for snake-case variable names.
+   *
+   * In the future we could expand this to also handle camel-case names if
+   * desired. But all built-in variables are snake-case, and hopefully most
+   * user-defined variables will follow that example. */
   char short_name[64];
   short_name[0] = '{';
   short_name[1] = info->variable_name[0];
-  short_name[2] = '}';
-  short_name[3] = '\0';
-  const int short_name_len = strlen(short_name);
+  int from_i = 1;
+  int to_i = 2;
+  while (from_i < info->variable_name.size() && to_i <= (sizeof(short_name) - 2)) {
+    if (!is_alphabetic(info->variable_name[from_i - 1]) &&
+        is_alphabetic(info->variable_name[from_i]))
+    {
+      short_name[to_i] = info->variable_name[from_i];
+      to_i++;
+    }
+    from_i++;
+  }
+  short_name[to_i++] = '}';
+  short_name[to_i] = '\0';
+
+  const int short_name_len = to_i;
 
   if (short_name_len >= info->byte_range.size() - 2) {
     return info->byte_range.one_after_last();
