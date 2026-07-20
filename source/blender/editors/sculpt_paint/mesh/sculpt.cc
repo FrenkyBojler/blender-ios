@@ -2880,8 +2880,7 @@ static void calc_local_from_screen(const ViewContext &vc,
 
 static void calc_brush_local_mat(const float rotation,
                                  const Object &ob,
-                                 const eBrushFalloffShape falloff_shape,
-                                 const float3 &sculpt_normal,
+                                 const float3 &tip_normal,
                                  float local_mat[4][4],
                                  float local_mat_inv[4][4])
 {
@@ -2922,11 +2921,11 @@ static void calc_brush_local_mat(const float rotation,
    * apparent to the user).
    * The Y-axis of the brush-local frame has to lie in the intersection of the tangent plane
    * and the motion plane. */
-  cross_v3_v3v3(v, sculpt_normal, motion_normal_local);
+  cross_v3_v3v3(v, tip_normal, motion_normal_local);
   normalize_v3_v3(mat[1], v);
   /* Get other axes. */
-  cross_v3_v3v3(mat[0], mat[1], sculpt_normal);
-  copy_v3_v3(mat[2], sculpt_normal);
+  cross_v3_v3v3(mat[0], mat[1], tip_normal);
+  copy_v3_v3(mat[2], tip_normal);
 
   /* Set location. */
   copy_v3_v3(mat[3], cache->location_symm);
@@ -2987,8 +2986,9 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
     const MTex *mask_tex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
     calc_brush_local_mat(mask_tex->rot,
                          ob,
-                         eBrushFalloffShape(brush->falloff_shape),
-                         cache->sculpt_normal_symm,
+                         eBrushFalloffShape(brush->falloff_shape) == PAINT_FALLOFF_SHAPE_SPHERE ?
+                             cache->sculpt_normal_symm :
+                             cache->view_normal_symm,
                          cache->brush_local_mat.ptr(),
                          cache->brush_local_mat_inv.ptr());
   }
@@ -3400,7 +3400,9 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   /* TODO: Test if gather_generic_cube is good enough for the case above. If true, move the
    * following above radius_scale definition. */
   else if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    float3 sculpt_normal = ss.cache->view_normal_symm;
+    /* Tip normal is the scupt normal under spherical falloff, but when under projected falloff, it
+     * is the view normal. */
+    float3 tip_normal = ss.cache->view_normal_symm;
 
     if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
       /* Calculate sculpt normal from a estimate of the surface normal. */
@@ -3412,9 +3414,9 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
                                                        initial_radius_squared,
                                                        ss.cache->view_normal_symm,
                                                        memory);
-      sculpt_normal = calc_sculpt_normal(depsgraph, sd, ob, initial_node_mask);
+      tip_normal = calc_sculpt_normal(depsgraph, sd, ob, initial_node_mask);
 
-      if (math::is_zero(sculpt_normal)) {
+      if (math::is_zero(tip_normal)) {
         /* The brush local matrix is degenerate: return an empty index mask. */
         return {IndexMask(), std::nullopt, std::nullopt};
       }
@@ -3425,21 +3427,22 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
       return {IndexMask(), std::nullopt, std::nullopt};
     }
 
-    tilt_apply_to_normal(sculpt_normal, *ss.cache, brush.tilt_strength_factor);
+    tilt_apply_to_normal(tip_normal, *ss.cache, brush.tilt_strength_factor);
 
     float4x4 brush_local_mat;
     float4x4 brush_local_mat_inv;
     calc_brush_local_mat(0,
                          ob,
-                         eBrushFalloffShape(brush.falloff_shape),
-                         sculpt_normal,
+                         eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_SPHERE ?
+                             ss.cache->sculpt_normal_symm :
+                             ss.cache->view_normal_symm,
                          brush_local_mat.ptr(),
                          brush_local_mat_inv.ptr());
 
     return {
         pbvh_gather_generic_cube(ob, brush, brush_local_mat, use_original, memory),
         std::nullopt,
-        brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE ? std::optional{sculpt_normal} :
+        brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE ? std::optional{tip_normal} :
                                                             std::nullopt,
     };
   }
@@ -6905,8 +6908,13 @@ void cube_tip_init(const Sculpt & /*sd*/, const Object &ob, const Brush &brush, 
   float unused[4][4];
 
   zero_m4(mat);
-  calc_brush_local_mat(
-      0.0, ob, eBrushFalloffShape(brush.falloff_shape), ss.cache->sculpt_normal_symm, unused, mat);
+  calc_brush_local_mat(0.0,
+                       ob,
+                       eBrushFalloffShape(brush.falloff_shape) == PAINT_FALLOFF_SHAPE_SPHERE ?
+                           ss.cache->sculpt_normal_symm :
+                           ss.cache->view_normal_symm,
+                       unused,
+                       mat);
 
   /* NOTE: we ignore the radius scaling done inside of calc_brush_local_mat to
    * duplicate prior behavior.
