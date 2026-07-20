@@ -842,6 +842,86 @@ void BM_mesh_calc_uvs_grid(BMesh *bm,
   }
 }
 
+void bmo_create_quadsphere_exec(BMesh *bm, BMOperator *op)
+{
+  BMVert *verts[8];
+  float mat[4][4];
+  float off = 0.5f;
+
+  const float rad = BMO_slot_float_get(op->slots_in, "radius");
+  const int subdiv = BMO_slot_int_get(op->slots_in, "subdivisions");
+  const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
+  const bool calc_uvs = (cd_loop_uv_offset != -1) && BMO_slot_bool_get(op->slots_in, "calc_uvs");
+
+  /* rotation order set to match 'BM_mesh_calc_uvs_cube' */
+  const char faces[6][4] = {
+      {0, 1, 3, 2},
+      {2, 3, 7, 6},
+      {6, 7, 5, 4},
+      {4, 5, 1, 0},
+      {2, 6, 4, 0},
+      {7, 3, 1, 5},
+  };
+
+  BMO_slot_mat4_get(op->slots_in, "matrix", mat);
+
+  int i = 0;
+
+  for (int x = -1; x < 2; x += 2) {
+    for (int y = -1; y < 2; y += 2) {
+      for (int z = -1; z < 2; z += 2) {
+        float vec[3] = {float(x) * off, float(y) * off, float(z) * off};
+        mul_m4_v3(mat, vec);
+        verts[i] = BM_vert_create(bm, vec, nullptr, BM_CREATE_NOP);
+        BMO_vert_flag_enable(bm, verts[i], VERT_MARK);
+        i++;
+      }
+    }
+  }
+
+  for (i = 0; i < ARRAY_SIZE(faces); i++) {
+    BMFace *f;
+    BMVert *quad[4] = {
+        verts[faces[i][0]],
+        verts[faces[i][1]],
+        verts[faces[i][2]],
+        verts[faces[i][3]],
+    };
+
+    f = BM_face_create_verts(bm, quad, 4, nullptr, BM_CREATE_NOP, true);
+    BMIter liter;
+    BMLoop *l;
+    BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+    BMO_edge_flag_enable(bm, l->e, EDGE_MARK);
+    }
+
+    if (calc_uvs) {
+      BMO_face_flag_enable(bm, f, FACE_MARK);
+    }
+  }
+  if (calc_uvs) {
+    BM_mesh_calc_uvs_cube(bm, FACE_MARK);
+  }
+    BMOperator bmop;
+    BMO_op_initf(bm,
+                 &bmop,
+                 op->flag,
+                 "subdivide_edges edges=%fe "
+                 "smooth=% f "
+                 "cuts=%i "
+                 "use_grid_fill=%b use_sphere=%b",
+                 EDGE_MARK,
+                 rad,
+                 (1 << (subdiv - 1)) - 1,
+                 true,
+                 true);
+    BMO_op_exec(bm, &bmop);
+    BMO_slot_buffer_flag_enable(bm, bmop.slots_out, "geom.out", BM_VERT, VERT_MARK);
+    BMO_slot_buffer_flag_enable(bm, bmop.slots_out, "geom.out", BM_EDGE, EDGE_MARK);
+    BMO_op_finish(bm, &bmop);
+    BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "verts.out", BM_VERT, VERT_MARK);
+}
+
 void bmo_create_uvsphere_exec(BMesh *bm, BMOperator *op)
 {
   const float rad = BMO_slot_float_get(op->slots_in, "radius");

@@ -43,6 +43,7 @@
 namespace blender {
 
 #define MESH_ADD_VERTS_MAXI 10000000
+#define MESH_ADD_SUBD_MAXI 500
 
 /* ********* add primitive operators ************* */
 
@@ -699,6 +700,66 @@ void MESH_OT_primitive_monkey_add(wmOperatorType *ot)
 
   /* props */
   ed::object::add_unit_props_size(ot);
+  ed::object::add_mesh_props(ot);
+  ed::object::add_generic_props(ot, true);
+}
+
+static wmOperatorStatus add_primitive_quadsphere_exec(bContext *C, wmOperator *op) {
+  MakePrimitiveData creation_data;
+  Object *obedit;
+  float loc[3], rot[3], scale[3];
+  bool enter_editmode;
+  ushort local_view_bits;
+  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+
+  WM_operator_view3d_unit_defaults(C, op);
+  ed::object::add_generic_get_opts(
+      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(C,
+                          op,
+                          CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cube"),
+                          loc,
+                          rot,
+                          scale,
+                          local_view_bits,
+                          &creation_data);
+
+  if (!make_prim_from_bmo_args(C,
+                               op,
+                               obedit,
+                               &creation_data,
+                               calc_uvs,
+                               "create_quadsphere subdivisions=%i radius=%f matrix=%m4 calc_uvs=%b",
+                               RNA_int_get(op->ptr, "subdivisions"),
+                               RNA_float_get(op->ptr, "radius"),
+                               creation_data.mat,
+                               calc_uvs))
+  {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* BMESH_TODO make plane side this: M_SQRT2 - plane (diameter of 1.41 makes it unit size) */
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+
+  return OPERATOR_FINISHED;
+}
+
+void MESH_OT_primitive_quad_sphere_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add quadsphere";
+  ot->description = "Construct a spherical mesh made by a Subdivided Cube and consists entirely out of quads";
+  ot->idname = "MESH_OT_primitive_quad_sphere_add";
+  /* API callbacks. */
+  ot->exec = add_primitive_quadsphere_exec;
+  ot->poll = ED_operator_scene_editable;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* props */
+  RNA_def_int(ot->srna, "subdivisions", 3, 1, MESH_ADD_SUBD_MAXI, "Subdivisions", "", 2, 16);
+  ed::object::add_unit_props_radius(ot);
   ed::object::add_mesh_props(ot);
   ed::object::add_generic_props(ot, true);
 }

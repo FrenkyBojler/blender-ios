@@ -2217,6 +2217,31 @@ static BMOpDefine bmo_create_grid_def = {
  *
  * Creates a UV sphere with a variable number of subdivisions.
  */
+static BMOpDefine bmo_create_quadsphere_def = {
+    /*opname*/ "create_quadsphere",
+    /*slot_types_in*/
+    {
+        /* How many times to recursively subdivide the sphere. */
+        {"subdivisions", BMO_OP_SLOT_INT},
+        /* Radius. */
+        {"radius", BMO_OP_SLOT_FLT},
+        /* Matrix to multiply the new geometry with. */
+        {"matrix", BMO_OP_SLOT_MAT},
+        /* Calculate default UVs. */
+        {"calc_uvs", BMO_OP_SLOT_BOOL},
+        {{'\0'}},
+    },
+    /*slot_types_out*/
+    {
+        /* Output verts. */
+        {"verts.out", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT}},
+        {{'\0'}},
+    },
+    /*init*/ nullptr,
+    /*exec*/ bmo_create_quadsphere_exec,
+    /*type_flag*/ (BMO_OPTYPE_FLAG_NORMALS_CALC | BMO_OPTYPE_FLAG_SELECT_FLUSH),
+};
+
 static BMOpDefine bmo_create_uvsphere_def = {
     /*opname*/ "create_uvsphere",
     /*slot_types_in*/
@@ -2968,6 +2993,7 @@ const BMOpDefine *bmo_opdefines[] = {
     &bmo_create_grid_def,
     &bmo_create_icosphere_def,
     &bmo_create_monkey_def,
+    &bmo_create_quadsphere_def,
     &bmo_create_uvsphere_def,
     &bmo_create_vert_def,
     &bmo_delete_def,
