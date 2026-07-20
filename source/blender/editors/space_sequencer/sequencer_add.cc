@@ -416,13 +416,14 @@ static bool have_free_channels(bContext *C,
 
 /* Sets `channel` and `frame_start` properties when the operator is likely to have been invoked
  * with drag-and-drop data. */
-static void sequencer_file_drop_channel_frame_set(bContext *C,
-                                                  wmOperator *op,
-                                                  const wmEvent *event)
+static void sequencer_drop_channel_frame_set(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  BLI_assert((RNA_struct_property_is_set(op->ptr, "files") &&
-              !RNA_collection_is_empty(op->ptr, "files")) ||
-             RNA_struct_property_is_set(op->ptr, "filepath"));
+  BLI_assert(((RNA_struct_property_is_set(op->ptr, "files") &&
+               !RNA_collection_is_empty(op->ptr, "files")) ||
+              RNA_struct_property_is_set(op->ptr, "filepath")) ||
+             RNA_struct_property_is_set(op->ptr, "clip") ||
+             RNA_struct_property_is_set(op->ptr, "mask") ||
+             RNA_struct_property_is_set(op->ptr, "scene"));
 
   if (RNA_struct_property_is_set(op->ptr, "channel") ||
       RNA_struct_property_is_set(op->ptr, "frame_start"))
@@ -467,7 +468,7 @@ static void sequencer_generic_invoke_xy__internal(
   if (event && (flag & SEQPROP_NOPATHS)) {
     SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
     sad->is_drop_event = true;
-    sequencer_file_drop_channel_frame_set(C, op, event);
+    sequencer_drop_channel_frame_set(C, op, event);
   }
 
   /* Effect strips shouldn't have their channel guessed. Instead,
@@ -781,7 +782,9 @@ static wmOperatorStatus sequencer_add_scene_strip_invoke(bContext *C,
     return WM_enum_search_invoke(C, op, event);
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_SCENE, event);
+  sequencer_add_init(C, op);
+  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_SCENE, event);
+  
   return sequencer_add_scene_strip_exec(C, op);
 }
 
@@ -1049,7 +1052,8 @@ static wmOperatorStatus sequencer_add_movieclip_strip_invoke(bContext *C,
     return WM_enum_search_invoke(C, op, event);
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_MOVIECLIP, event);
+  sequencer_add_init(C, op);
+  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MOVIECLIP, event);
   return sequencer_add_movieclip_strip_exec(C, op);
 }
 
@@ -1121,7 +1125,9 @@ static wmOperatorStatus sequencer_add_mask_strip_invoke(bContext *C,
     return WM_enum_search_invoke(C, op, event);
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_MASK, event);
+  sequencer_add_init(C, op);
+  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MASK, event);
+  
   return sequencer_add_mask_strip_exec(C, op);
 }
 

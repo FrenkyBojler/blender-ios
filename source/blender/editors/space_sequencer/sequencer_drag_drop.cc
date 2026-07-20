@@ -11,6 +11,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_listbase.hh"
 #include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
@@ -22,6 +23,8 @@
 #include "BKE_file_handler.hh"
 #include "BKE_image.hh"
 #include "BKE_main.hh"
+#include "BKE_movieclip.hh"
+#include "BKE_mask.hh"
 
 #include "SEQ_channels.hh"
 #include "SEQ_iterator.hh"
@@ -134,9 +137,6 @@ static bool is_movie(wmDrag *drag)
       return true;
     }
   }
-  if (WM_drag_is_ID_type(drag, ID_MC)) {
-    return true;
-  }
   return false;
 }
 
@@ -146,6 +146,36 @@ static bool movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
                          test_single_file_handler_poll(C, drag, "SEQUENCER_FH_movie_strip")))
   {
     generic_poll_operations(C, event, TH_SEQ_MOVIE);
+    return true;
+  }
+
+  return false;
+}
+
+static bool movieclip_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  if (WM_drag_is_ID_type(drag, ID_MC)) {
+    generic_poll_operations(C, event, TH_SEQ_MOVIECLIP);
+    return true;
+  }
+
+  return false;
+}
+
+static bool mask_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  if (WM_drag_is_ID_type(drag, ID_MSK)) {
+    generic_poll_operations(C, event, TH_SEQ_MASK);
+    return true;
+  }
+
+  return false;
+}
+
+static bool scene_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  if (WM_drag_is_ID_type(drag, ID_SCE)) {
+    generic_poll_operations(C, event, TH_SEQ_SCENE);
     return true;
   }
 
@@ -253,6 +283,32 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   return strip_len;
 }
 
+template<typename T> static int find_datablock_index(bContext *C, const T *datablock)
+{
+  if (!datablock || !C) {
+    return -1;
+  }
+
+  const ID *id = reinterpret_cast<const ID *>(datablock);
+  const short id_type = GS(id->name);
+
+  Main *bmain = CTX_data_main(C);
+  const ListBaseT<ID> *lb = which_libbase(bmain, id_type);
+  if (!lb) {
+    return -1;
+  }
+
+  int index = 0;
+  for (ID &iter_id : *lb) {
+    if (&iter_id == id) {
+      return index;
+    }
+    index++;
+  }
+
+  return -1;
+}
+
 static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   if (g_drop_coords.in_use) {
@@ -316,13 +372,29 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     }
     else if (id_type == ID_MC) {
       MovieClip *clip = id_cast<MovieClip *>(id);
-      RNA_string_set(drop->ptr, "filepath", clip->filepath);
-      RNA_struct_property_unset(drop->ptr, "name");
+      int index = find_datablock_index(C, clip);
+      if (RNA_struct_find_property(drop->ptr, "clip") && index >= 0) {
+        RNA_enum_set(drop->ptr, "clip", index);
+      }
     }
     else if (id_type == ID_SO) {
       bSound *sound = id_cast<bSound *>(id);
       RNA_string_set(drop->ptr, "filepath", sound->filepath);
       RNA_struct_property_unset(drop->ptr, "name");
+    }
+    else if (id_type == ID_MSK) {
+      Mask *mask = id_cast<Mask *>(id);
+      int index = find_datablock_index(C, mask);
+      if (RNA_struct_find_property(drop->ptr, "mask") && index >= 0) {
+        RNA_enum_set(drop->ptr, "mask", index);
+      }
+    }
+    else if (id_type == ID_SCE) {
+      Scene *scene = id_cast<Scene *>(id);
+      int index = find_datablock_index(C, scene);
+      if (RNA_struct_find_property(drop->ptr, "scene") && index >= 0) {
+        RNA_enum_set(drop->ptr, "scene", index);
+      }
     }
 
     return;
@@ -355,13 +427,10 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
   /* ID dropped. */
   if (id != nullptr) {
     const ID_Type id_type = GS(id->name);
+
     if (id_type == ID_IM) {
       Image *ima = id_cast<Image *>(id);
       BLI_strncpy(r_path, ima->filepath, FILE_MAX);
-    }
-    else if (id_type == ID_MC) {
-      MovieClip *clip = id_cast<MovieClip *>(id);
-      BLI_strncpy(r_path, clip->filepath, FILE_MAX);
     }
     else if (id_type == ID_SO) {
       bSound *sound = id_cast<bSound *>(id);
@@ -483,19 +552,35 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     char path[FILE_MAX];
     char strip_duration_text[16];
     int len_text_arr = 0;
+    char id_name[/*MAX_ID_NAME*/ 258] = "";
 
-    get_drag_path(C, drag, path);
+    ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
+    if (id != nullptr) {
+      BLI_strncpy(id_name, id->name + 2, 258);
+    }
+    else {
+      get_drag_path(C, drag, path);
+    }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_NAME) {
+      if(id_name[0] != '\0') {
+        text_array[len_text_arr++] = id_name;
+      } else {
       BLI_path_split_file_part(path, filename, FILE_MAX);
       text_array[len_text_arr++] = filename;
+      }
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_SOURCE) {
-      Main *bmain = CTX_data_main(C);
-      BLI_path_rel(path, BKE_main_blendfile_path(bmain));
       text_array[len_text_arr++] = text_sep;
-      text_array[len_text_arr++] = path;
+      if(id_name[0] != '\0') {
+        text_array[len_text_arr++] = id_name;
+      }
+      else {
+        Main *bmain = CTX_data_main(C);
+        BLI_path_rel(path, BKE_main_blendfile_path(bmain));
+        text_array[len_text_arr++] = path;
+      }
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_DURATION) {
@@ -653,11 +738,80 @@ static void movie_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
   }
 }
 
+static void movieclip_drop_on_enter(wmDropBox *drop, wmDrag *drag)
+{
+  if (generic_drop_draw_handling(drop)) {
+    return;
+  }
+
+  int len = DEFAULT_IMG_STRIP_LENGTH;
+
+  SeqDropCoords *coords = static_cast<SeqDropCoords *>(drop->draw_data);
+
+  wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
+  ID *id = drag_id->id;
+  
+  if (GS(id->name) == ID_MC) {
+    MovieClip *clip = reinterpret_cast<MovieClip *>(id);
+    len = BKE_movieclip_get_duration(clip);
+    }
+
+  coords->strip_length = len;
+  coords->playback_rate = 0.0f;
+  coords->num_channels = 1;
+}
+
 static void sound_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
 {
   if (generic_drop_draw_handling(drop)) {
     return;
   }
+}
+
+static void mask_drop_on_enter(wmDropBox *drop, wmDrag *drag)
+{
+  if (generic_drop_draw_handling(drop)) {
+    return;
+  }
+
+  int len = DEFAULT_IMG_STRIP_LENGTH;
+
+  SeqDropCoords *coords = static_cast<SeqDropCoords *>(drop->draw_data);
+
+  wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
+  ID *id = drag_id->id;
+  
+  if (GS(id->name) == ID_MSK) {
+    Mask *mask = reinterpret_cast<Mask *>(id);
+    len = BKE_mask_get_duration(mask);
+  }
+
+  coords->strip_length = len;
+  coords->playback_rate = 0.0f;
+  coords->num_channels = 1;
+}
+
+static void scene_drop_on_enter(wmDropBox *drop, wmDrag *drag)
+{
+  if (generic_drop_draw_handling(drop)) {
+    return;
+  }
+
+  int len = DEFAULT_IMG_STRIP_LENGTH;
+
+  SeqDropCoords *coords = static_cast<SeqDropCoords *>(drop->draw_data);
+
+  wmDragID *drag_id = static_cast<wmDragID *>(drag->ids.first);
+  ID *id = drag_id->id;
+  
+  if (GS(id->name) == ID_SCE) {
+    Scene *scene = reinterpret_cast<Scene *>(id);
+    len = scene->r.efra - scene->r.sfra + 1;
+  }
+
+  coords->strip_length = len;
+  coords->playback_rate = 0.0f;
+  coords->num_channels = 1;
 }
 
 static void image_drop_on_enter(wmDropBox *drop, wmDrag * /*drag*/)
@@ -713,11 +867,46 @@ static void sequencer_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
 
   drop->on_drag_start = video_prefetch;
 
+  drop = WM_dropbox_add(lb,
+                        "SEQUENCER_OT_movieclip_strip_add",
+                        movieclip_drop_poll,
+                        sequencer_drop_copy,
+                        nullptr,
+                        nullptr);
+  drop->draw_droptip = nop_draw_droptip_fn;
+  drop->draw_in_view = draw_strip_in_view;
+  drop->on_enter = movieclip_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
+
+  drop->on_drag_start = video_prefetch;
+
   drop = WM_dropbox_add(
       lb, "SEQUENCER_OT_sound_strip_add", sound_drop_poll, sequencer_drop_copy, nullptr, nullptr);
   drop->draw_droptip = nop_draw_droptip_fn;
   drop->draw_in_view = draw_strip_in_view;
   drop->on_enter = sound_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
+
+  drop = WM_dropbox_add(lb,
+                      "SEQUENCER_OT_mask_strip_add",
+                      mask_drop_poll,
+                      sequencer_drop_copy,
+                      nullptr,
+                      nullptr);
+  drop->draw_droptip = nop_draw_droptip_fn;
+  drop->draw_in_view = draw_strip_in_view;
+  drop->on_enter = mask_drop_on_enter;
+  drop->on_exit = sequencer_drop_on_exit;
+
+  drop = WM_dropbox_add(lb,
+                      "SEQUENCER_OT_scene_strip_add",
+                      scene_drop_poll,
+                      sequencer_drop_copy,
+                      nullptr,
+                      nullptr);
+  drop->draw_droptip = nop_draw_droptip_fn;
+  drop->draw_in_view = draw_strip_in_view;
+  drop->on_enter = scene_drop_on_enter;
   drop->on_exit = sequencer_drop_on_exit;
 }
 
@@ -742,7 +931,22 @@ static bool movie_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEven
     }
   }
 
+  return false;
+}
+
+static bool movieclip_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
   return WM_drag_is_ID_type(drag, ID_MC);
+}
+
+static bool mask_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
+  return WM_drag_is_ID_type(drag, ID_MSK);
+}
+
+static bool scene_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
+  return WM_drag_is_ID_type(drag, ID_SCE);
 }
 
 static bool sound_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
@@ -774,8 +978,29 @@ static void sequencer_preview_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
                  nullptr);
 
   WM_dropbox_add(lb,
+                 "SEQUENCER_OT_movieclip_strip_add",
+                 movieclip_drop_preview_poll,
+                 sequencer_drop_copy,
+                 nullptr,
+                 nullptr);
+
+  WM_dropbox_add(lb,
                  "SEQUENCER_OT_sound_strip_add",
                  sound_drop_preview_poll,
+                 sequencer_drop_copy,
+                 nullptr,
+                 nullptr);
+
+  WM_dropbox_add(lb,
+                 "SEQUENCER_OT_mask_strip_add",
+                 mask_drop_preview_poll,
+                 sequencer_drop_copy,
+                 nullptr,
+                 nullptr);
+  
+  WM_dropbox_add(lb,
+                 "SEQUENCER_OT_scene_strip_add",
+                 scene_drop_preview_poll,
                  sequencer_drop_copy,
                  nullptr,
                  nullptr);
