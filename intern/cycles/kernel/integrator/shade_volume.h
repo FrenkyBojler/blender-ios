@@ -2604,6 +2604,7 @@ ccl_device_forceinline bool integrate_volume_phase_scatter(
     label = volume_shader_phase_guided_sample(kg,
                                               state,
                                               sd,
+                                              phases,
                                               svc,
                                               rand_phase,
                                               &phase_eval,
@@ -2622,7 +2623,7 @@ ccl_device_forceinline bool integrate_volume_phase_scatter(
 #  endif
   {
     label = volume_shader_phase_sample(
-        sd, svc, rand_phase, &phase_eval, &phase_wo, &phase_pdf, &sampled_roughness);
+        sd, phases, svc, rand_phase, &phase_eval, &phase_wo, &phase_pdf, &sampled_roughness);
 
     if (phase_pdf == 0.0f || bsdf_eval_is_zero(&phase_eval)) {
       return false;
@@ -2668,25 +2669,8 @@ ccl_device_forceinline bool integrate_volume_phase_scatter(
     }
   }
 
-  float mis_ray_pdf = phase_pdf;
-  if (phases->num_closure > 1) {
-    /* Use the marginal PDF over phase closures for forward MIS. */
-    mis_ray_pdf = volume_shader_phase_mixture_pdf(sd, phases, phase_wo);
-#  if defined(__PATH_GUIDING__) && PATH_GUIDING_LEVEL >= 4
-    if ((kernel_data.kernel_features & KERNEL_FEATURE_PATH_GUIDING) &&
-        INTEGRATOR_STATE(state, guiding, use_volume_guiding))
-    {
-      const float guiding_sampling_prob = INTEGRATOR_STATE(
-          state, guiding, volume_guiding_sampling_prob);
-      const float guide_pdf = guiding_phase_pdf(kg, phase_wo);
-      mis_ray_pdf = guiding_sampling_prob * guide_pdf +
-                    (1.0f - guiding_sampling_prob) * mis_ray_pdf;
-    }
-#  endif
-  }
-
   /* Update path state */
-  INTEGRATOR_STATE_WRITE(state, path, mis_ray_pdf) = mis_ray_pdf;
+  INTEGRATOR_STATE_WRITE(state, path, mis_ray_pdf) = phase_pdf;
   const float3 previous_P = ray->P + ray->D * ray->tmin;
   INTEGRATOR_STATE_WRITE(state, path, mis_origin_n) = sd->P - previous_P;
   INTEGRATOR_STATE_WRITE(state, path, min_ray_pdf) = fminf(
