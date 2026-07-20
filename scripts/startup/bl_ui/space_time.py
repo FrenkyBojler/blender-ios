@@ -262,6 +262,7 @@ class TIME_PT_keyframing(TimelinePanelButtons, Panel):
     bl_region_type = 'HEADER'
     bl_ui_units_x = 13
 
+    # The actual content is within child sub-panels.
     def draw(self, _context):
         pass
 
