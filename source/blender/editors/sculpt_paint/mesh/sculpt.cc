@@ -2604,16 +2604,29 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
 bool node_in_box(const float4x4 &mat,
                  const Bounds<float3> &bounds,
                  const float3 &brush_center,
-                 const float3 &brush_half_lengths)
+                 const float3 &brush_half_lengths,
+                 const bool test_z_axis)
 {
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
   const float3 center_diff = brush_center - node_center;
 
   const float3 node_half_lengths = (bounds.max - bounds.min) * 0.5f;
 
+  /* Gets the axes of object space described in brush space. */
   const float3 &node_x_axis = mat.x_axis();
   const float3 &node_y_axis = mat.y_axis();
   const float3 &node_z_axis = mat.z_axis();
+
+  if (!test_z_axis) {
+    /* The brush is treated as a half-infinite cuboid along the view direction. This returns false
+     * when the node is "behind" the brush.  */
+    const float length_z = math::abs(node_x_axis.z) * node_half_lengths.x +
+                           math::abs(node_y_axis.z) * node_half_lengths.y +
+                           math::abs(node_z_axis.z) * node_half_lengths.z;
+    if (!(node_center.z - length_z < 0.0f)) {
+      return false;
+    }
+  }
 
   auto axis_separates_boxes = [&](const float3 &axis) {
     const float radius1 = math::dot(math::abs(axis), brush_half_lengths);
@@ -2625,8 +2638,13 @@ bool node_in_box(const float4x4 &mat,
     return projection > radius1 + radius2;
   };
 
-  const std::array<float3, 3> brush_axes = {
-      float3{1.0f, 0.0f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, float3{0.0f, 0.0f, 1.0f}};
+  const std::vector<float3> brush_axes = test_z_axis ?
+                                             std::vector<float3>{float3{1.0f, 0.0f, 0.0f},
+                                                                 float3{0.0f, 1.0f, 0.0f},
+                                                                 float3{0.0f, 0.0f, 1.0f}} :
+                                             std::vector<float3>{float3{1.0f, 0.0f, 0.0f},
+                                                                 float3{0.0f, 1.0f, 0.0f}};
+
   const std::array<float3, 3> node_axes = {node_x_axis, node_y_axis, node_z_axis};
 
   /**
@@ -2644,16 +2662,18 @@ bool node_in_box(const float4x4 &mat,
 
   /* 2. Test axes aligned with the node bounds. */
   for (const float3 &axis : node_axes) {
-    if (axis_separates_boxes(axis)) {
+    if (axis_separates_boxes(float3(axis.x, axis.y, axis.z * test_z_axis))) {
       return false;
     }
   }
 
   /* 3. Test all their cross products. */
-  for (const float3 &brush_axis : brush_axes) {
-    for (const float3 &node_axis : node_axes) {
-      if (axis_separates_boxes(math::cross(brush_axis, node_axis))) {
-        return false;
+  if (test_z_axis) {
+    for (const float3 &brush_axis : brush_axes) {
+      for (const float3 &node_axis : node_axes) {
+        if (axis_separates_boxes(math::cross(brush_axis, node_axis))) {
+          return false;
+        }
       }
     }
   }
@@ -2664,7 +2684,7 @@ bool node_in_box(const float4x4 &mat,
 
 bool node_in_box_positive_z(const float4x4 &mat, const Bounds<float3> &bounds)
 {
-  return node_in_box(mat, bounds, float3(0.0f, 0.0f, 0.5f), float3(1.0f, 1.0f, 0.5f));
+  return node_in_box(mat, bounds, float3(0.0f, 0.0f, 0.5f), float3(1.0f, 1.0f, 0.5f), true);
 }
 
 static IndexMask pbvh_gather_cursor_update(Object &ob, bool use_original, IndexMaskMemory &memory)
@@ -2744,9 +2764,8 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
           return false;
         }
         const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
-        /* Use a large value for the Z axis to ensure that the cylinder extends infinitely in that
-         * direction. */
-        return node_in_box(brush_local_mat, bounds, float3(0.0f), float3(1.0f, 1.0f, FLT_MAX));
+        /* The brush is treated as a half-infinite cylinder along the view direction. */
+        return node_in_box(brush_local_mat, bounds, float3(0.0f), float3(1.0f, 1.0f, 1.0f), false);
       });
   }
 

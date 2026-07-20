@@ -774,11 +774,14 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
  * Calculates whether the node intersects a local-space volume.
  * By default, this is the [-1, 1] x [-1, 1] x [-1, 1] cube centered at the origin, but the
  * dimensions can be specified.
+ * If test_z_axis is false, then the brush is treated as a half-infinite cuboid along the view
+ * direction.
  */
 bool node_in_box(const float4x4 &mat,
                  const Bounds<float3> &bounds,
                  const float3 &brush_center = float3(0.0f, 0.0f, 0.0f),
-                 const float3 &brush_half_lengths = float3(1.0f, 1.0f, 1.0f));
+                 const float3 &brush_half_lengths = float3(1.0f, 1.0f, 1.0f),
+                 const bool test_z_axis = true);
 /**
  * Calculates whether node intersects the [-1,1] x [-1,1] x [0,1] volume in local space.
  *
