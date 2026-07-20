@@ -224,23 +224,51 @@ class ZstdWriteWrap : public WriteWrap {
   struct ZstdFrame {
     ZstdWriteWrap *ww = nullptr;
 
-    void *uncompressed_data = nullptr;
+    const void *uncompressed_data = nullptr;
     uint32_t uncompressed_size = 0;
 
-    std::atomic<uint32_t> compressed_size = 0;
-    void *compressed_data = nullptr;
+    uint32_t compressed_size = 0;
+    const void *compressed_data = nullptr;
+
+    /**
+     * Marker that the related compression task is don.
+     *
+     * Regardless of the status of `write_error`, it implies that:
+     *   - `uncompressed_data` has been freed.
+     *   - `compressed_data` has been set, and needs to be written (if no write error) and freed.
+     */
+    std::atomic<bool> compressed_done = 0;
   };
 
   WriteWrap &base_wrap;
 
+  /** Workers pool for compression tasks. */
   TaskPool *pool = nullptr;
 
-  std::mutex mutex;
-  int next_frame = 0;
-  int num_frames = 0;
-
+  /**
+   * ZSTD frames to compress and write, in order, while the write is in progress. See
+   * #write_compressed_frames.
+   *
+   * Used as a queue for compression tasks, and as an ordered array for writing the seeak table of
+   * all frames at the end.
+   *
+   * `next_frame` is the queue head, frames before it have all been compressed and written.
+   *
+   * \note On average frames hold around #ZSTD_CHUNK_SIZE of uncompressed data:
+   * Large writes are split into chunk-sized pieces, the trailing piece of each being smaller.
+   * So the array stays small, in practice ~220 frames per 200MB written,
+   * and a multi-GB file still only holds a few thousand frames.
+   *
+   * \note Only manipulated from the main thread, tasks access their own frame only.
+   */
   Vector<std::unique_ptr<ZstdFrame>> frames = {};
+  int next_frame = 0;
 
+  /**
+   * Set in case of compression error.
+   *
+   * Will prevent any further data to be written in blendfile, and starting new compression tasks.
+   */
   std::atomic<bool> write_error = false;
 
  public:
@@ -251,36 +279,53 @@ class ZstdWriteWrap : public WriteWrap {
   bool write(const void *buf, size_t buf_len) override;
 
  private:
-  /* Multiple async tasks, compress each frame's data. */
+  /** Multiple async tasks, compress each frame's data. */
   static void compress_task_run(TaskPool *pool, void *taskdata);
-  /* Write the compressed data of available frames into the blendfile. */
+  /**
+   * Write the compressed data of available frames into the blendfile.
+   *
+   * Running both as part of every #write call, to limit the amount of pending compressed frames
+   * to write (and free memory faster), and in the #close function after waiting for all
+   * compression tasks to be done, to ensure that all frames have been compressed and written.
+   */
   void write_compressed_frames();
+  /** Utils to write uint32_t little endian values.  */
   void write_u32_le(uint32_t val);
+  /**
+   * In order to implement efficient seeking when reading the .blend, a skippable frame that
+   * encodes information about the other frames present in the file is added at the end.
+   *
+   * The format here follows the upstream spec for seekable files:
+   * https://github.com/facebook/zstd/blob/master/contrib/seekable_format/zstd_seekable_compression_format.md
+   *
+   * If this information is not present in a file (e.g. if it was compressed with external tools),
+   * it can still be opened in Blender, but seeking will not be supported, so more memory might be
+   * needed to read it.
+   */
   void write_seekable_frames();
 };
 
-void ZstdWriteWrap::compress_task_run(TaskPool * /*pool*/, void *taskdata)
+void ZstdWriteWrap::compress_task_run(TaskPool *pool, void *taskdata)
 {
-  ZstdFrame *frame = static_cast<ZstdFrame *>(taskdata);
-  ZstdWriteWrap *ww = frame->ww;
+  auto *frame = static_cast<ZstdFrame *>(taskdata);
+  auto *ww = static_cast<ZstdWriteWrap *>(BLI_task_pool_user_data(pool));
 
   size_t out_buf_len = ZSTD_compressBound(frame->uncompressed_size);
   void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
-  size_t out_size = ZSTD_compress(out_buf,
-                                  out_buf_len,
-                                  frame->uncompressed_data,
-                                  frame->uncompressed_size,
-                                  ZSTD_COMPRESSION_LEVEL);
+  const size_t out_size = ZSTD_compress(out_buf,
+                                        out_buf_len,
+                                        frame->uncompressed_data,
+                                        frame->uncompressed_size,
+                                        ZSTD_COMPRESSION_LEVEL);
   MEM_delete_void(frame->uncompressed_data);
   frame->uncompressed_data = nullptr;
 
+  frame->compressed_data = out_buf;
+  frame->compressed_size = uint32_t(out_size);
   if (ZSTD_isError(out_size)) {
     ww->write_error = true;
   }
-  else {
-    frame->compressed_data = out_buf;
-    frame->compressed_size = uint32_t(out_size);
-  }
+  frame->compressed_done = true;
 }
 
 void ZstdWriteWrap::write_compressed_frames()
@@ -288,7 +333,7 @@ void ZstdWriteWrap::write_compressed_frames()
   /* Loop over all pending frames in the correct ascendant order, and write them on disk until we
    * reach one which has not yet available compressed data. */
   for (const std::unique_ptr<ZstdFrame> &frame : frames.as_span().drop_front(next_frame)) {
-    if (frame->compressed_size == 0) {
+    if (!frame->compressed_done) {
       /* This frame has not yet been compressed, cannot write further data. */
       break;
     }
@@ -299,7 +344,7 @@ void ZstdWriteWrap::write_compressed_frames()
     }
     next_frame++;
     BLI_assert(frame->uncompressed_data == nullptr);
-    MEM_delete_void(frame->compressed_data);
+    MEM_SAFE_DELETE_VOID(frame->compressed_data);
   }
 }
 
@@ -309,7 +354,7 @@ bool ZstdWriteWrap::open(const char *filepath)
     return false;
   }
 
-  pool = BLI_task_pool_create_background(nullptr, TASK_PRIORITY_HIGH);
+  pool = BLI_task_pool_create_background(this, TASK_PRIORITY_HIGH);
 
   return true;
 }
@@ -322,14 +367,6 @@ void ZstdWriteWrap::write_u32_le(uint32_t val)
   base_wrap.write(&val, sizeof(uint32_t));
 }
 
-/* In order to implement efficient seeking when reading the .blend, we append
- * a skippable frame that encodes information about the other frames present
- * in the file.
- * The format here follows the upstream spec for seekable files:
- * https://github.com/facebook/zstd/blob/master/contrib/seekable_format/zstd_seekable_compression_format.md
- * If this information is not present in a file (e.g. if it was compressed
- * with external tools), it can still be opened in Blender, but seeking will
- * not be supported, so more memory might be needed. */
 void ZstdWriteWrap::write_seekable_frames()
 {
   /* Write seek table header (magic number and frame size). */
@@ -362,7 +399,7 @@ bool ZstdWriteWrap::close()
   pool = nullptr;
 
   write_compressed_frames();
-  BLI_assert(next_frame == num_frames);
+  BLI_assert(next_frame == frames.size());
 
   write_seekable_frames();
   frames.clear();
@@ -380,13 +417,11 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
   memcpy(uncompressed_data, buf, buf_len);
 
   auto task = std::make_unique<ZstdFrame>();
-  task->ww = this;
   task->uncompressed_data = uncompressed_data;
   task->uncompressed_size = uint32_t(buf_len);
   ZstdFrame *frame_p = task.get();
 
   frames.append(std::move(task));
-  num_frames++;
   BLI_task_pool_push(pool, compress_task_run, frame_p, false, nullptr);
 
   write_compressed_frames();
