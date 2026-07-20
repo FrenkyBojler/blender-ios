@@ -229,6 +229,11 @@ class VIEW3D_HT_tool_header(Header):
             layout.popover_group(context=".particlemode", **popover_kw)
         elif mode_string == 'OBJECT':
             layout.popover_group(context=".objectmode", **popover_kw)
+        elif mode_string == 'CUSTOM' and context.object is not None:
+            # Addon-registered mode: its context string is the registered
+            # idname (see #CTX_data_mode_string), so the mode's Tool-tab
+            # panels become header popovers like every built-in mode.
+            layout.popover_group(context=context.object.custom_mode, **popover_kw)
 
         if mode_string in {
             'EDIT_GREASE_PENCIL',
@@ -847,16 +852,24 @@ class VIEW3D_HT_header(Header):
         act_mode_i18n_context = bpy.types.Object.bl_rna.properties["mode"].translation_context
 
         mode_text = iface_(act_mode_item.name, act_mode_i18n_context)
+        mode_icon = act_mode_item.icon
         if object_mode == 'CUSTOM' and obj is not None and obj.custom_mode:
             # Addon-registered mode: the generic item only says "Custom",
-            # show the registered idname instead.
-            mode_text = obj.custom_mode
+            # show the registered type's label and icon instead. The type is
+            # in the `bpy.types` namespace under the idname with dots
+            # replaced (see #rna_ObjectModeType_register).
+            mode_type = getattr(bpy.types, obj.custom_mode.replace(".", "_"), None)
+            if mode_type is not None:
+                mode_text = iface_(mode_type.bl_label)
+                mode_icon = getattr(mode_type, "bl_icon", '') or mode_icon
+            else:
+                mode_text = obj.custom_mode
 
         sub = row.row(align=True)
         sub.operator_menu_enum(
             "object.mode_set", "mode",
             text=mode_text,
-            icon=act_mode_item.icon,
+            icon=mode_icon,
         )
         del act_mode_item
 

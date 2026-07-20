@@ -425,10 +425,268 @@ def test_tool_and_panels():
         VIEW3D_PT_tools_active._tools.get('CUSTOM', ())) if t is not None}
     assert "sculptcore.brush" in ids, ids
     ob = fresh_sphere("UI")
-    assert not ui.SCULPTCORE_PT_brush.poll(bpy.context)
+    assert not ui.SCULPTCORE_PT_brush_engine.poll(bpy.context)
+    # The vanilla brush-panel subclasses registered (P10 Phase B).
+    settings_panel = getattr(bpy.types, "SCULPTCORE_PT_tools_brush_settings")
+    assert not settings_panel.poll(bpy.context)
     enter("UI")
-    assert ui.SCULPTCORE_PT_brush.poll(bpy.context)
+    assert ui.SCULPTCORE_PT_brush_engine.poll(bpy.context)
     assert ui.SCULPTCORE_PT_dyntopo.poll(bpy.context)
+    assert settings_panel.poll(bpy.context)
+    exit_mode()
+
+
+def test_mask_flood_fill():
+    import ctypes
+    import sculptcore_addon.convert as convert
+    import sculptcore_addon.engine as engine
+
+    def engine_mask(session):
+        lib = engine.capi().lib
+        nv = ctypes.c_int(0); nc = ctypes.c_int(0); ne = ctypes.c_int(0); nf = ctypes.c_int(0)
+        lib.Mesh_arraySizes(session.mesh_ptr, ctypes.byref(nv), ctypes.byref(nc),
+                            ctypes.byref(ne), ctypes.byref(nf))
+        values = np.zeros(nv.value, dtype=np.float32)
+        lib.Mesh_readVertFloatAttr(session.mesh_ptr, convert._SC_MASK, values)
+        return values
+
+    ob = fresh_sphere("MFF")
+    bpy.ops.ed.undo_push(message="Base")
+    session = enter("MFF")
+    assert bpy.ops.sculptcore.mask_flood_fill.poll()
+
+    bpy.ops.sculptcore.mask_flood_fill(mode='VALUE', value=1.0)
+    assert np.allclose(engine_mask(session), 1.0), "fill did not reach the engine"
+    bpy.ops.sculptcore.mask_flood_fill(mode='INVERT')
+    assert np.allclose(engine_mask(session), 0.0), "invert did not flip the fill"
+
+    # The attribute-snapshot undo steps restore each state in turn.
+    bpy.ops.ed.undo()
+    assert np.allclose(engine_mask(session), 1.0), "undo did not restore the fill"
+    bpy.ops.ed.redo()
+    assert np.allclose(engine_mask(session), 0.0), "redo did not re-apply the invert"
+    bpy.ops.ed.undo()
+    assert np.allclose(engine_mask(session), 1.0)
+
+    # Exit flushes the engine mask into the Blender attribute.
+    exit_mode()
+    attr = ob.data.attributes.get(".sculpt_mask")
+    assert attr is not None, "exit did not create the mask attribute"
+    flushed = np.zeros(len(ob.data.vertices), dtype=np.float32)
+    attr.data.foreach_get("value", flushed)
+    assert np.allclose(flushed, 1.0), "flushed mask does not match engine state"
+
+
+def test_mask_filter():
+    import sculptcore_addon.convert as convert
+    import sculptcore_addon.engine as engine
+
+    def engine_mask(session):
+        values = np.zeros(convert.mesh_vert_num(session.mesh_ptr), dtype=np.float32)
+        engine.capi().lib.Mesh_readVertFloatAttr(session.mesh_ptr, convert._SC_MASK, values)
+        return values
+
+    ob = fresh_sphere("MFL")
+    bpy.ops.ed.undo_push(message="Base")
+    session = enter("MFL")
+
+    # Seed: mask only the upper hemisphere (hard edge at the equator).
+    verts = positions(ob)
+    seed = (verts[:, 2] > 0.0).astype(np.float32)
+    engine.capi().lib.Mesh_writeVertFloatAttr(
+        session.mesh_ptr, convert._SC_MASK, np.ascontiguousarray(seed))
+    masked_before = int((engine_mask(session) > 0.5).sum())
+
+    bpy.ops.sculptcore.mask_filter(filter_type='GROW', auto_iteration_count=False)
+    grown = engine_mask(session)
+    assert (grown >= seed - 1e-6).all(), "grow lowered a mask value"
+    assert (grown > 0.5).sum() > masked_before, "grow did not extend the boundary"
+
+    bpy.ops.sculptcore.mask_filter(filter_type='SHRINK', auto_iteration_count=False)
+    bpy.ops.sculptcore.mask_filter(filter_type='SHRINK', auto_iteration_count=False)
+    shrunk = engine_mask(session)
+    assert (shrunk > 0.5).sum() < masked_before, "two shrinks did not pull inside the seed"
+
+    bpy.ops.sculptcore.mask_filter(filter_type='SMOOTH', auto_iteration_count=False)
+    smoothed = engine_mask(session)
+    boundary = (smoothed > 0.05) & (smoothed < 0.95)
+    assert boundary.any(), "smooth left no intermediate values at the edge"
+
+    # Undo unwinds the filter chain (snapshot steps).
+    bpy.ops.ed.undo()  # smooth
+    bpy.ops.ed.undo()  # shrink 2
+    bpy.ops.ed.undo()  # shrink 1
+    assert np.allclose(engine_mask(session), grown), "undo chain did not restore the grow state"
+    exit_mode()
+
+
+def test_face_sets_create():
+    import sculptcore_addon.convert as convert
+    import sculptcore_addon.engine as engine
+
+    def engine_groups(session):
+        values = np.zeros(convert.mesh_face_num(session.mesh_ptr), dtype=np.int32)
+        engine.capi().lib.Mesh_readFaceIntAttr(session.mesh_ptr, convert._SC_GROUP, values)
+        return values
+
+    ob = fresh_sphere("FSC")
+    bpy.ops.ed.undo_push(message="Base")
+    session = enter("FSC")
+
+    # No mask -> nothing to create.
+    result = bpy.ops.sculptcore.face_sets_create(mode='MASKED')
+    assert result == {'CANCELLED'}
+
+    bpy.ops.sculptcore.mask_flood_fill(mode='VALUE', value=1.0)
+    result = bpy.ops.sculptcore.face_sets_create(mode='MASKED')
+    assert result == {'FINISHED'}
+    groups = engine_groups(session)
+    new_id = groups.max()
+    assert new_id >= 1 and (groups == new_id).all(), "fully-masked mesh -> one face set"
+
+    bpy.ops.ed.undo()
+    assert engine_groups(session).max() < new_id, "undo did not restore the groups"
+    bpy.ops.ed.redo()
+    assert (engine_groups(session) == new_id).all()
+
+    # Exit flushes into the Blender face-set attribute.
+    exit_mode()
+    attr = ob.data.attributes.get(".sculpt_face_set")
+    assert attr is not None
+    flushed = np.zeros(len(ob.data.polygons), dtype=np.int32)
+    attr.data.foreach_get("value", flushed)
+    assert (flushed == new_id).all()
+
+
+def test_face_set_edit():
+    import sculptcore_addon.convert as convert
+    import sculptcore_addon.engine as engine
+
+    def engine_groups(session):
+        values = np.zeros(convert.mesh_face_num(session.mesh_ptr), dtype=np.int32)
+        engine.capi().lib.Mesh_readFaceIntAttr(session.mesh_ptr, convert._SC_GROUP, values)
+        return values
+
+    ob = fresh_sphere("FSE")
+    bpy.ops.ed.undo_push(message="Base")
+    session = enter("FSE")
+
+    # Upper-hemisphere face set (via mask), rest unset (0).
+    verts = positions(ob)
+    seed = (verts[:, 2] > 0.3).astype(np.float32)
+    engine.capi().lib.Mesh_writeVertFloatAttr(
+        session.mesh_ptr, convert._SC_MASK, np.ascontiguousarray(seed))
+    bpy.ops.sculptcore.face_sets_create(mode='MASKED')
+    groups = engine_groups(session)
+    target = groups.max()
+    count0 = int((groups == target).sum())
+    assert 0 < count0 < len(groups), "seed set should cover part of the sphere"
+
+    # Headless execute has no cursor pick; the fallback edits the highest set.
+    bpy.ops.sculptcore.face_set_edit(mode='GROW')
+    count_grow = int((engine_groups(session) == target).sum())
+    assert count_grow > count0, "grow did not extend the set"
+
+    bpy.ops.sculptcore.face_set_edit(mode='SHRINK')
+    bpy.ops.sculptcore.face_set_edit(mode='SHRINK')
+    count_shrink = int((engine_groups(session) == target).sum())
+    assert count_shrink < count0, "two shrinks did not pull inside the seed set"
+
+    bpy.ops.ed.undo()  # shrink 2
+    bpy.ops.ed.undo()  # shrink 1
+    assert int((engine_groups(session) == target).sum()) == count_grow
+    exit_mode()
+
+
+def test_smooth_semantics():
+    import sculptcore_addon.stroke as stroke
+    import sculptcore_addon.engine as engine_mod
+    import sculptcore_addon.mapping as mapping
+
+    # Vanilla iteration_strengths shapes.
+    assert stroke.smooth_iteration_strengths(1.0) == [1.0] * 4
+    assert stroke.smooth_iteration_strengths(0.5) == [1.0, 1.0]
+    passes = stroke.smooth_iteration_strengths(0.3)
+    assert len(passes) == 2 and passes[0] == 1.0 and abs(passes[1] - 0.2) < 1e-6
+    assert stroke.smooth_iteration_strengths(0.0) == []
+    assert stroke.smooth_iteration_strengths(2.0) == [1.0] * 4, "strength clamps to 1"
+
+    # Smoothing maps to the boundary-aware kernel.
+    ob = fresh_sphere("SMS")
+    enter("SMS")
+    brush = bpy.context.tool_settings.sculpt.brush
+    prev = brush.sculpt_brush_type
+    brush.sculpt_brush_type = 'SMOOTH'
+    mgr = engine_mod.manager()
+    bsmooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["BSMOOTH"])
+    assert mapping.kernel_enum(mgr, brush) == bsmooth
+    brush.sculpt_brush_type = prev
+    exit_mode()
+
+
+def test_dyntopo_detail_settings():
+    import sculptcore_addon.stroke as stroke
+
+    ob = fresh_sphere("DTD")
+    ob.scale = (2.0, 2.0, 2.0)  # exercises the object scale in CONSTANT
+    bpy.context.view_layer.update()
+    sd = bpy.context.scene.tool_settings.sculpt
+    px = 1.0
+
+    sd.detail_type_method = 'BRUSH'
+    sd.detail_percent = 25.0
+    assert abs(stroke.dyntopo_max_edge(sd, ob, 0.4, 100, px) - 0.1) < 1e-6
+
+    sd.detail_type_method = 'RELATIVE'
+    sd.detail_size = 12.0
+    expect = (0.4 / 100) * 12.0 * px / 0.4
+    assert abs(stroke.dyntopo_max_edge(sd, ob, 0.4, 100, px) - expect) < 1e-6
+
+    sd.detail_type_method = 'CONSTANT'
+    sd.constant_detail_resolution = 5.0
+    expect = 1.0 / (5.0 * 2.0)
+    assert abs(stroke.dyntopo_max_edge(sd, ob, 0.0, 100, px) - expect) < 1e-6
+
+    # Refine-method mapping covers every enum item.
+    items = sd.bl_rna.properties["detail_refine_method"].enum_items
+    for item in items:
+        assert item.identifier in stroke._DYNTOPO_REFINE_MODES, item.identifier
+
+    # Engine remesher tuning flows into DynTopoParams; an unset refine
+    # method (older files: DNA flags 0 -> RNA '') falls back to Both.
+    scene = bpy.context.scene
+    session = enter("DTD")
+    params = stroke.build_dyntopo_params(session, 0.1, 0.04)
+    scene.sculptcore_dyntopo_flips = False
+    scene.sculptcore_dyntopo_smooth = True
+    scene.sculptcore_dyntopo_smooth_lambda = 0.25
+    scene.sculptcore_dyntopo_max_rounds = 7
+    scene.sculptcore_dyntopo_split_budget = 1234
+    scene.sculptcore_dyntopo_collapse_budget = 55
+    stroke.configure_dyntopo_params(params, scene, 'COLLAPSE')
+    assert int(params.mode) == 1 and params.do_flips is False
+    assert params.do_smooth is True and abs(params.smooth_lambda - 0.25) < 1e-6
+    assert params.max_rounds == 7 and params.max_splits == 1234
+    assert params.max_collapses == 55
+    stroke.configure_dyntopo_params(params, scene, '')
+    assert int(params.mode) == 2, "unset refine method must fall back to Both"
+    exit_mode()
+
+
+def test_subdivision_set_op():
+    ob = fresh_sphere("SDS")
+    md = ob.modifiers.new("Multires", 'MULTIRES')
+    for _ in range(3):
+        bpy.ops.object.multires_subdivide(modifier="Multires")
+    md.sculpt_levels = 2
+    enter("SDS")
+    assert bpy.ops.sculptcore.subdivision_set.poll()
+    bpy.ops.sculptcore.subdivision_set(level=1, relative=False)
+    assert md.sculpt_levels == 1
+    bpy.ops.sculptcore.subdivision_set(level=1, relative=True)
+    assert md.sculpt_levels == 2
+    bpy.ops.sculptcore.subdivision_set(level=99, relative=False)
+    assert md.sculpt_levels == md.total_levels, "level clamps to the stack top"
     exit_mode()
 
 
@@ -467,6 +725,13 @@ SECTIONS = [
     ("autosmooth program", test_autosmooth),
     ("dyntopo + slow flush", test_dyntopo),
     ("tool + panels", test_tool_and_panels),
+    ("mask flood fill", test_mask_flood_fill),
+    ("mask filter", test_mask_filter),
+    ("face sets create", test_face_sets_create),
+    ("face set edit", test_face_set_edit),
+    ("smooth semantics", test_smooth_semantics),
+    ("dyntopo detail settings", test_dyntopo_detail_settings),
+    ("subdivision set", test_subdivision_set_op),
     ("lifecycle handlers", test_lifecycle_handlers),
 ]
 

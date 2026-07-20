@@ -18,14 +18,9 @@ def register():
         description="Dynamically remesh under the brush while sculpting",
         default=False,
     )
-    bpy.types.Scene.sculptcore_detail = bpy.props.FloatProperty(
-        name="Detail Size",
-        description="Target edge length for dynamic topology, in object space",
-        default=0.05,
-        min=0.005,
-        max=1.0,
-        soft_max=0.5,
-    )
+    # Detail size/mode come from Blender's own dyntopo settings
+    # (tool_settings.sculpt.detail_*, see stroke.dyntopo_max_edge); only the
+    # enable flag and the engine's remesh cadence are addon state.
     bpy.types.Scene.sculptcore_dyntopo_spacing = bpy.props.FloatProperty(
         name="Detail Spacing",
         description="Stroke travel between remesh passes, in brush diameters "
@@ -35,9 +30,61 @@ def register():
         min=0.0,
         soft_max=2.0,
     )
+    # Engine remesher tuning (DynTopoParams; defaults mirror the engine's).
+    bpy.types.Scene.sculptcore_dyntopo_flips = bpy.props.BoolProperty(
+        name="Edge Flips",
+        description="Flip interior edges to the shorter diagonal each round, "
+                    "keeping triangles well-shaped and refinement convergent "
+                    "(disable for the pre-flip baseline behavior)",
+        default=True,
+    )
+    bpy.types.Scene.sculptcore_dyntopo_smooth = bpy.props.BoolProperty(
+        name="Tangential Smooth",
+        description="Slide remeshed vertices toward their neighborhood "
+                    "centroid in the tangent plane, equalizing triangle sizes "
+                    "without shrinking the surface or eroding sculpted detail",
+        default=False,
+    )
+    bpy.types.Scene.sculptcore_dyntopo_smooth_lambda = bpy.props.FloatProperty(
+        name="Smooth Factor",
+        description="Relaxation step for the tangential smoothing",
+        default=0.5,
+        min=0.0,
+        max=1.0,
+    )
+    bpy.types.Scene.sculptcore_dyntopo_max_rounds = bpy.props.IntProperty(
+        name="Max Rounds",
+        description="Refinement rounds per remesh pass before giving up "
+                    "(later dabs finish any remaining work)",
+        default=50,
+        min=1,
+        soft_max=100,
+    )
+    bpy.types.Scene.sculptcore_dyntopo_split_budget = bpy.props.IntProperty(
+        name="Split Budget",
+        description="Maximum edge splits per remesh pass, bounding the cost "
+                    "of a first touch on coarse geometry (0 = unlimited; "
+                    "later dabs finish the refinement)",
+        default=0,
+        min=0,
+        soft_max=100000,
+    )
+    bpy.types.Scene.sculptcore_dyntopo_collapse_budget = bpy.props.IntProperty(
+        name="Collapse Budget",
+        description="Maximum edge collapses per remesh pass, bounding the "
+                    "cost of decimating dense geometry (0 = unlimited)",
+        default=0,
+        min=0,
+        soft_max=100000,
+    )
 
 
 def unregister():
     del bpy.types.Scene.sculptcore_dyntopo
-    del bpy.types.Scene.sculptcore_detail
     del bpy.types.Scene.sculptcore_dyntopo_spacing
+    del bpy.types.Scene.sculptcore_dyntopo_flips
+    del bpy.types.Scene.sculptcore_dyntopo_smooth
+    del bpy.types.Scene.sculptcore_dyntopo_smooth_lambda
+    del bpy.types.Scene.sculptcore_dyntopo_max_rounds
+    del bpy.types.Scene.sculptcore_dyntopo_split_budget
+    del bpy.types.Scene.sculptcore_dyntopo_collapse_budget

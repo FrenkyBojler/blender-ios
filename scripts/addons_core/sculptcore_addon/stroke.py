@@ -7,9 +7,10 @@ The interactive stroke: a modal operator plus the reusable dab core the
 operator and headless tests both drive.
 
 Dabs are spaced along the 2D mouse path (StrokeSpacer, interval = pixel
-radius x spacing fraction, residual carried across segments) and each spaced
-point is projected onto the surface, so stroke density is independent of
-both the mouse event rate and the surface deforming under the stroke.
+radius x spacing / 50 — vanilla's percentage-of-diameter semantics, residual
+carried across segments) and each spaced point is projected onto the
+surface, so stroke density is independent of both the mouse event rate and
+the surface deforming under the stroke.
 The viewport updates through the external draw provider; the Mesh ID is
 written back lazily by the mode's flush callback (memfile encode / save /
 render), keeping dabs and stroke release free of the full Mesh write. The
@@ -37,8 +38,9 @@ class StrokeSpacer:
     carrying the walk position across segments so cadence never clusters at a
     joint. Compared to the old linear-polyline walk this smooths jittery input
     (the parity route to Blender's stabilized stroke) without changing dab
-    density: the same interval (pixel radius x spacing fraction) is walked, and
-    each emitted point is still projected onto the surface by the operator.
+    density: the same interval (the operator's vanilla-matched spacing) is
+    walked, and each emitted point is still projected onto the surface by the
+    operator.
 
     The first control point emits one raw dab immediately; a 1-segment lookahead
     holds each interior segment until its right neighbor arrives (the
@@ -113,7 +115,7 @@ def _ensure_executor(session):
     return session.executor
 
 
-def stroke_begin(session, *, has_dyntopo=False):
+def stroke_begin(session, *, has_dyntopo=False, accumulate=True):
     executor = _ensure_executor(session)
     executor.beginStep(has_dyntopo)
     session.dyntopo_active = has_dyntopo
@@ -121,7 +123,62 @@ def stroke_begin(session, *, has_dyntopo=False):
     # (they orig-stamp against it); harmless for the rest.
     session.stroke_gen += 1
     executor.setStrokeGen(session.stroke_gen)
-    executor.setNonAccum(False)
+    # Vanilla's per-brush "Accumulate": with it off, the engine measures each
+    # accumulable command from a stroke-start snapshot (nonAccum mode) so
+    # repeated passes within one stroke don't build up.
+    executor.setNonAccum(not accumulate)
+
+
+def smooth_iteration_strengths(strength):
+    """Vanilla smooth-brush semantics (#iteration_strengths): the strength
+    (clamped to 1) maps to `int(strength * 4)` full-strength relaxation
+    passes per dab plus one remainder pass, so higher strength iterates more
+    instead of overshooting a single pass."""
+    clamped = min(max(strength, 0.0), 1.0)
+    count = int(clamped * 4)
+    last = 4.0 * (clamped - count / 4.0)
+    passes = [1.0] * count
+    if last > 1e-4:
+        passes.append(last)
+    return passes
+
+
+# Vanilla dyntopo detail constants (sculpt_dyntopo.hh).
+DYNTOPO_EDGE_MIN_FACTOR = 0.4       # EDGE_LENGTH_MIN_FACTOR
+_DYNTOPO_RELATIVE_SCALE = 0.4       # RELATIVE_SCALE_FACTOR
+
+# Blender detail_refine_method -> engine DynTopoMode value.
+_DYNTOPO_REFINE_MODES = {'SUBDIVIDE': 0, 'COLLAPSE': 1, 'SUBDIVIDE_COLLAPSE': 2}
+
+
+def dyntopo_max_edge(sculpt, ob, world_radius, pixel_radius, pixel_size):
+    """Object-space max edge length from Blender's dyntopo detail settings
+    (ports #constant_to_detail_size / #brush_to_detail_size /
+    #relative_to_detail_size). RELATIVE and BRUSH scale with the dab's world
+    radius; CONSTANT/MANUAL are view-independent."""
+    method = sculpt.detail_type_method
+    if method in {'CONSTANT', 'MANUAL'}:
+        # mat4_to_scale equivalent: the mean axis scale of the object matrix.
+        scale_vector = ob.matrix_world.to_scale()
+        scale = (abs(scale_vector[0]) + abs(scale_vector[1]) + abs(scale_vector[2])) / 3.0
+        return 1.0 / (max(sculpt.constant_detail_resolution, 0.0001) * max(scale, 1e-8))
+    if method == 'BRUSH':
+        return world_radius * sculpt.detail_percent / 100.0
+    return ((world_radius / max(pixel_radius, 1.0))
+            * (sculpt.detail_size * pixel_size) / _DYNTOPO_RELATIVE_SCALE)
+
+
+def configure_dyntopo_params(params, scene, refine_method):
+    """Apply the per-scene remesher tuning (props.py) plus the refine method
+    onto a DynTopoParams. An unset refine method (older files carry DNA
+    flags 0, which RNA reads as '') falls back to the default Both."""
+    params.mode = _DYNTOPO_REFINE_MODES.get(refine_method, 2)
+    params.do_flips = scene.sculptcore_dyntopo_flips
+    params.do_smooth = scene.sculptcore_dyntopo_smooth
+    params.smooth_lambda = scene.sculptcore_dyntopo_smooth_lambda
+    params.max_rounds = scene.sculptcore_dyntopo_max_rounds
+    params.max_splits = scene.sculptcore_dyntopo_split_budget
+    params.max_collapses = scene.sculptcore_dyntopo_collapse_budget
 
 
 def build_dyntopo_params(session, l_max, l_min):
@@ -226,7 +283,7 @@ def apply_grab_dab(session, brush_type, anchor, cursor, normal, radius, accum_ad
 
 
 def build_program(session, main_kernel, smooth_factor=0.0):
-    """Build a program `[main]`, or `[main, SMOOTH]` when `smooth_factor > 0`
+    """Build a program `[main]`, or `[main, BSMOOTH]` when `smooth_factor > 0`
     (autosmooth). Owned by the session and reused across dabs; also the dab
     unit for the dyntopo path (applyDab takes a program)."""
     mgr = engine.manager()
@@ -236,7 +293,7 @@ def build_program(session, main_kernel, smooth_factor=0.0):
     prog.clear()
     prog.addCommand(main_kernel)
     if smooth_factor > 0.0:
-        smooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["SMOOTH"])
+        smooth = int(mgr.get("sculptcore::brush::SculptBrushes").items["BSMOOTH"])
         idx = prog.addCommand(smooth)
         # BrushProp::Strength == 0. The runtime can't marshal a string arg into
         # a util::string method param, so the smooth strength is overridden by
@@ -246,7 +303,7 @@ def build_program(session, main_kernel, smooth_factor=0.0):
 
 
 def apply_dab_program(session, program, center, normal, radius):
-    """Run a BrushProgram (e.g. [main, SMOOTH]) for one dab."""
+    """Run a BrushProgram (e.g. [main, BSMOOTH]) for one dab."""
     import sculptcore
 
     mgr = engine.manager()
@@ -313,6 +370,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             ('NORMAL', "Regular", "Apply brush normally"),
             ('INVERT', "Invert", "Invert action of brush for duration of stroke"),
             ('SMOOTH', "Smooth", "Switch brush to smooth mode for duration of stroke"),
+            ('MASK', "Mask", "Switch brush to the mask brush for duration of stroke"),
         ),
         default='NORMAL',
         options={'SKIP_SAVE'},
@@ -337,9 +395,11 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self.session = engine.sessions[ob.name]
         self.brush = context.tool_settings.sculpt.brush
         mgr = engine.manager()
-        if self.mode == 'SMOOTH':
-            # Shift-stroke: smooth with the active brush's radius/strength.
-            self.kernel = (int(mgr.get("sculptcore::brush::SculptBrushes").items["SMOOTH"])
+        if self.mode in {'SMOOTH', 'MASK'}:
+            # Shift-stroke smooths, Alt-stroke masks — both with the active
+            # brush's radius/strength (vanilla brush_toggle semantics).
+            kernel_name = "BSMOOTH" if self.mode == 'SMOOTH' else 'MASK'
+            self.kernel = (int(mgr.get("sculptcore::brush::SculptBrushes").items[kernel_name])
                            if self.brush else None)
         else:
             self.kernel = mapping.kernel_enum(mgr, self.brush) if self.brush else None
@@ -349,8 +409,16 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
 
         self._last_flush = 0.0
         self._dab_count = 0
-        smoothing = self.mode == 'SMOOTH'
-        self._grab_class = not smoothing and mapping.is_grab_class(self.brush)
+        # A kernel toggle (smooth/mask) replaces the brush's own kernel, so
+        # brush-type-derived behavior (grab anchoring, face-set group
+        # assignment, autosmooth chaining) is bypassed for the stroke.
+        kernel_toggle = self.mode in {'SMOOTH', 'MASK'}
+        self._grab_class = not kernel_toggle and mapping.is_grab_class(self.brush)
+        # Smoothing strokes (Shift-toggle or the Smooth brush itself) iterate
+        # per dab by strength, vanilla-style (see smooth_iteration_strengths).
+        self._smooth_stroke = (
+            self.mode == 'SMOOTH'
+            or (not kernel_toggle and self.brush.sculpt_brush_type == 'SMOOTH'))
         # Anchored / Drag-Dot stroke methods drive the engine preview-dab API
         # (one live, non-compounding dab per input) instead of the spacer. DOTS/
         # SPACE (and, for now, AIRBRUSH/LINE/CURVE) use the spacer path; grab
@@ -389,6 +457,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         paint = context.tool_settings.sculpt
         mapping.apply_brush_settings(
             self.brush, paint.unified_paint_settings, sc_brush, paint=paint)
+        # "Adjust Strength for Spacing": constant for the stroke, folded into
+        # every dab's strength write.
+        self._overlap = mapping.overlap_attenuation(self.brush)
         self._anchor = None
         self._anchor_normal = None
         # Dab spacing along the stroke path (engine StrokeSpacer semantics:
@@ -407,7 +478,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         # Plane-mirror symmetry: one sign vector per reflection (empty = off).
         self._mirror_signs = symmetry.mirror_signs(symmetry.axes_from_mesh(ob.data))
         # Face-set brushes paint a fresh group id per stroke.
-        if not smoothing and self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
+        if not kernel_toggle and self.brush.sculpt_brush_type in mapping.FACE_SET_TYPES:
             brush = _ensure_brush(self.session)
             brush.activeGroup = int(self.session.mesh().maxFaceGroup()) + 1
         # Dyntopo (scene toggle) and autosmooth both run through a program;
@@ -415,24 +486,41 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         # Autosmooth also skips the smooth brush itself.
         scene = context.scene
         smooth_factor = 0.0
-        if (not self._grab_class and not smoothing
+        if (not self._grab_class and not kernel_toggle
                 and self.brush.sculpt_brush_type != 'SMOOTH'
                 and self.brush.auto_smooth_factor > 0.0):
             smooth_factor = self.brush.auto_smooth_factor
 
         self._dyntopo = None
         self._program = None
-        if (not self._grab_class and not smoothing
+        self._detail_factor = None
+        if (not self._grab_class and not kernel_toggle
                 and getattr(scene, "sculptcore_dyntopo", False)):
-            detail = scene.sculptcore_detail
             self._program = build_program(self.session, self.kernel, smooth_factor)
-            self._dyntopo = build_dyntopo_params(self.session, detail, detail * 0.5)
+            # Detail size from Blender's dyntopo settings (see
+            # dyntopo_max_edge). CONSTANT/MANUAL fix the edge length for the
+            # stroke; RELATIVE/BRUSH reduce to `factor * world_radius`,
+            # re-applied per remesh dab (the radius is depth-dependent).
+            sculpt_settings = context.tool_settings.sculpt
+            unified = sculpt_settings.unified_paint_settings
+            pixel_radius = unified.size if unified.use_unified_size else self.brush.size
+            if sculpt_settings.detail_type_method in {'CONSTANT', 'MANUAL'}:
+                l_max = dyntopo_max_edge(sculpt_settings, ob, 0.0, pixel_radius,
+                                         context.preferences.system.pixel_size)
+            else:
+                # Factor per unit world radius (formulas are linear in it).
+                self._detail_factor = dyntopo_max_edge(
+                    sculpt_settings, ob, 1.0, pixel_radius,
+                    context.preferences.system.pixel_size)
+                l_max = self._detail_factor  # placeholder; set per remesh dab
+            self._dyntopo = build_dyntopo_params(
+                self.session, l_max, l_max * DYNTOPO_EDGE_MIN_FACTOR)
+            configure_dyntopo_params(self._dyntopo, scene,
+                                     sculpt_settings.detail_refine_method)
             # Remesh cadence in the same (pixel) units stroke_s accumulates: a
             # fraction of the brush diameter of stroke travel per remesh pass.
-            unified = context.tool_settings.sculpt.unified_paint_settings
-            pixel_size = unified.size if unified.use_unified_size else self.brush.size
             frac = max(getattr(scene, "sculptcore_dyntopo_spacing", 0.5), 0.0)
-            self._dyntopo_spacing = frac * 2.0 * pixel_size
+            self._dyntopo_spacing = frac * 2.0 * pixel_radius
         elif smooth_factor > 0.0:
             self._program = build_program(self.session, self.kernel, smooth_factor)
 
@@ -451,7 +539,17 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             self._anchor_screen = (event.mouse_region_x, event.mouse_region_y)
             self._anchor_radius = _world_radius(context, self.brush, a_hit[0])
 
-        stroke_begin(self.session, has_dyntopo=self._dyntopo is not None)
+        # Kernel toggles (smooth/mask) accumulate inherently, like vanilla,
+        # and non-accumulate only exists where vanilla shows the option
+        # (has_accumulate): for kernels without the concept — smooth is a
+        # relaxation, not a displacement — the engine's snapshot re-basing
+        # (nonAccum) is nonsense and blows the geometry up.
+        accumulate = (self.mode in {'SMOOTH', 'MASK'}
+                      or self._grab_class
+                      or not self.brush.sculpt_capabilities.has_accumulate
+                      or self.brush.use_accumulate)
+        stroke_begin(self.session, has_dyntopo=self._dyntopo is not None,
+                     accumulate=accumulate)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.
         if self._preview_method:
@@ -474,7 +572,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             position, normal, _face = hit
             world_radius = _world_radius(context, self.brush, position)
             mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
-                                    world_radius=world_radius, invert=invert)
+                                    world_radius=world_radius, invert=invert, strength_scale=self._overlap)
             if self._anchor is None:
                 # Anchor the region at the stroke-start surface point.
                 self._anchor = position
@@ -496,7 +594,9 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                     self._anchor_radius, accum_add=True)
         else:
             pixel_size = unified.size if unified.use_unified_size else self.brush.size
-            step = max(self.brush.spacing, 1) / 100.0 * pixel_size
+            # Vanilla spacing is a percentage of the brush *diameter*:
+            # radius * spacing / 50 (#paint_space_stroke_spacing).
+            step = max(self.brush.spacing, 1) / 50.0 * pixel_size
             coord = (event.mouse_region_x, event.mouse_region_y)
             # Remember the last-move state so the trailing spline segment can be
             # flushed on release (the release event carries no spline context).
@@ -548,14 +648,6 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         position, normal, _face = hit
         world_radius = _world_radius(context, self.brush, position)
         unified = context.tool_settings.sculpt.unified_paint_settings
-        mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
-                                world_radius=world_radius, invert=invert)
-        if self._use_pressure:
-            # The executor consumes the device samples in loadProps; refill per
-            # dab (engine bridge convention).
-            sc = self.session.brush_obj
-            sc.clearDeviceInputs()
-            sc.pushDeviceInput(mapping.DEVICE_PRESSURE, pressure)
         # Advance the stroke arc length and decide the dyntopo cadence once per
         # logical dab, so every mirror image remeshes on the same samples
         # (a per-image decision would let the primary starve the mirrors).
@@ -564,6 +656,44 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                and dyntopo_due(self._stroke_s, self._last_dyntopo_s, self._dyntopo_spacing))
         if due:
             self._last_dyntopo_s = self._stroke_s
+            if self._detail_factor is not None:
+                # RELATIVE/BRUSH detail scales with the (depth-dependent)
+                # world radius; refresh the bounds for this remesh pass.
+                l_max = self._detail_factor * world_radius
+                build_dyntopo_params(self.session, l_max,
+                                     l_max * DYNTOPO_EDGE_MIN_FACTOR)
+
+        if self._smooth_stroke:
+            # Multi-pass smooth (vanilla semantics): strength maps to N
+            # relaxation passes at explicit per-pass strengths. Pressure and
+            # the overlap factor fold into the base python-side — the engine
+            # device stack would re-consume the pressure sample every pass.
+            strength = self.brush.strength
+            if unified.use_unified_strength:
+                strength = unified.strength
+            if self._use_pressure and self.brush.use_pressure_strength:
+                strength *= pressure
+            self.session.brush_obj.clearDeviceInputs()
+            for pass_strength in smooth_iteration_strengths(strength * self._overlap):
+                mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                        world_radius=world_radius, invert=invert,
+                                        strength_override=pass_strength)
+                self._apply_one_image(position, normal, world_radius, due)
+                for sign in self._mirror_signs:
+                    self._apply_one_image(symmetry.reflect(position, sign),
+                                          symmetry.reflect(normal, sign),
+                                          world_radius, due)
+                due = False  # remesh at most once per logical dab
+            return
+
+        mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                world_radius=world_radius, invert=invert, strength_scale=self._overlap)
+        if self._use_pressure:
+            # The executor consumes the device samples in loadProps; refill per
+            # dab (engine bridge convention).
+            sc = self.session.brush_obj
+            sc.clearDeviceInputs()
+            sc.pushDeviceInput(mapping.DEVICE_PRESSURE, pressure)
         self._apply_one_image(position, normal, world_radius, due)
         # Symmetry mirror images: reflect the resolved primary center and normal
         # directly (mirror the operation, as vanilla sculpt does), reusing the
@@ -655,7 +785,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
             executor.rollbackPreviewDab()
         unified = context.tool_settings.sculpt.unified_paint_settings
         mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
-                                world_radius=world_radius, invert=invert)
+                                world_radius=world_radius, invert=invert, strength_scale=self._overlap)
         if self._use_pressure:
             sc = self.session.brush_obj
             sc.clearDeviceInputs()

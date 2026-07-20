@@ -42,15 +42,11 @@ _MAP = {
     'CLAY_STRIPS': ("CLAY", {"planeoff": lambda b: b.plane_offset}),
     'PLANE': ("FILL", {"planeoff": lambda b: b.plane_offset}),
     'MULTIPLANE_SCRAPE': ("SCRAPE", {"planeoff": lambda b: b.plane_offset}),
-    # SMOOTH (plain Laplacian), not BSMOOTH: BSMOOTH's boundary awareness only
-    # preserves *marked* feature edges (sharp/seam/poly-group/UV-chart); open
-    # mesh boundaries (1-face edges) are handled topologically elsewhere, so on
-    # an open-boundary grid BSMOOTH and SMOOTH collapse the boundary identically
-    # (Q1b A/B). With no marked features (the common case, and edge-flag transfer
-    # to the engine boundary attrs is not wired yet) BSMOOTH only adds a
-    # per-stroke boundary refresh with no parity gain. Revisit once feature-edge
-    # transfer lands.
-    'SMOOTH': ("SMOOTH", {}),
+    # BSMOOTH (boundary-aware smooth): identical to plain SMOOTH on meshes
+    # with no marked feature edges, and the right long-term kernel once
+    # feature-edge transfer lands (owner decision 2026-07-20, superseding the
+    # earlier plain-SMOOTH choice from Q1b).
+    'SMOOTH': ("BSMOOTH", {}),
     'PINCH': ("PINCH", {"pinch": lambda b: b.strength}),
     'MASK': ("MASK", {}),
     # Vertex paint: brushColor synced from the Blender brush color (see
@@ -248,10 +244,44 @@ def apply_brush_settings(bl_brush, unified, sc_brush, *, paint=None):
     engine_props.apply(bl_brush, sc_brush)
 
 
-def apply_dab_state(bl_brush, unified, sc_brush, *, world_radius, invert):
+def overlap_attenuation(bl_brush):
+    """Vanilla's "Adjust Strength for Spacing"
+    (#paint_stroke_integrate_overlap): normalize the strength by the
+    worst-case sum of overlapping falloff dabs along the stroke line,
+    sampled at 10 phase offsets. 1.0 when the flag is off or spacing has no
+    overlap (>= 100%)."""
+    if not (bl_brush.use_space_attenuation and bl_brush.spacing < 100):
+        return 1.0
+    fn = _PRESET_FALLOFF.get(bl_brush.curve_distance_falloff_preset)
+    if fn is None:  # CUSTOM: strength(p) = curve(1 - p), matching BKE.
+        cumap = bl_brush.curve_distance_falloff
+        cumap.update()
+        curve = cumap.curves[0]
+
+        def fn(t, _c=cumap, _cv=curve):
+            return _c.evaluate(_cv, 1.0 - t)
+
+    spacing = max(bl_brush.spacing, 0.1)
+    count = int(100 / spacing)
+    h = spacing / 50.0
+    peak = 0.0
+    for i in range(10):
+        x0 = i / 10.0 - 1.0
+        total = 0.0
+        for j in range(count):
+            xx = abs(x0 + j * h)
+            if xx < 1.0:
+                total += fn(1.0 - xx)
+        peak = max(peak, abs(total))
+    return 1.0 / peak if peak > 0.0 else 1.0
+
+
+def apply_dab_state(bl_brush, unified, sc_brush, *, world_radius, invert,
+                    strength_scale=1.0, strength_override=None):
     """Write the per-dab brush state: strength, radius and the invert flag
     (a live Ctrl toggles it mid-stroke), folded with the brush direction.
-    Assumes ``apply_brush_settings`` ran at stroke start.
+    Assumes ``apply_brush_settings`` ran at stroke start. ``strength_scale``
+    folds per-stroke factors in (overlap attenuation).
 
     Strength and radius must be rewritten every dab, not only at stroke
     start: the engine's per-dab ``loadProps`` assigns the post-dynamics
@@ -259,9 +289,15 @@ def apply_dab_state(bl_brush, unified, sc_brush, *, world_radius, invert):
     the ``writeProps`` below would otherwise persist the decayed field into
     the prop store and a pressure stroke would fade to nothing after the
     first dab. Radius varies per dab anyway (depth-dependent unproject)."""
-    strength = bl_brush.strength
-    if unified is not None and unified.use_unified_strength:
-        strength = unified.strength
+    if strength_override is not None:
+        # Caller-computed strength (multi-pass smooth); scale/unified already
+        # folded in.
+        strength = strength_override
+    else:
+        strength = bl_brush.strength
+        if unified is not None and unified.use_unified_strength:
+            strength = unified.strength
+        strength *= strength_scale
 
     sc_brush.strength = strength
     sc_brush.radius = world_radius

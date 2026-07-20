@@ -435,6 +435,9 @@ static void rna_def_object_mode_type(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "ObjectModeType");
   RNA_def_struct_ui_text(
       srna, "Object Mode Type", "Addon-registered object mode (custom interactive mode)");
+  /* Registered subclasses live in the `bpy.types` namespace (like Panel or
+   * Operator subclasses), so lookups such as `bl_rna_get_subclass_py` work. */
+  RNA_def_struct_flag(srna, STRUCT_PUBLIC_NAMESPACE_INHERIT);
   RNA_def_struct_refine_func(srna, "rna_ObjectModeType_refine");
   RNA_def_struct_register_funcs(srna,
                                 "rna_ObjectModeType_register",

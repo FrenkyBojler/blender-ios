@@ -82,6 +82,7 @@ Master tracker with dependencies and per-plan checklists:
 | P7 | [brush-mapping.md](./plans/brush-mapping.md) | Reusing Blender `Brush` properties; engine-only params as addon custom props. |
 | P8 | [multires-convert.md](./plans/multires-convert.md) | MDISPS ⇄ SculptCore displacement grids (multires modifier ignored at runtime). |
 | P9 | [stroke-quality.md](./plans/stroke-quality.md) | Stroke quality & parity from the reference-app reports: neighbor cache, BSMOOTH, dyntopo cadence, spline smoothing, symmetry, anchored/drag-dot. Addon-only. |
+| P10 | [ui-parity.md](./plans/ui-parity.md) | UI parity with vanilla sculpt mode: reuse vanilla panels via subclasses, engine-op mapping for menus/keymap, toolbar/asset shelf/properties, allowlist + regression lock-in. |
 
 Dev tooling (outside the P1–P9 integration sequence):
 

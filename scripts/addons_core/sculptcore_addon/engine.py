@@ -101,6 +101,16 @@ class _CApi:
         lib.Mesh_writeVertFloat4Attr.restype = ctypes.c_int
         lib.Mesh_writeCornerFloat2Attr.argtypes = [ctypes.c_void_p, ctypes.c_char_p, f32p]
         lib.Mesh_writeCornerFloat2Attr.restype = ctypes.c_int
+        # Generic attribute bridge: read/write a named layer of arbitrary type on
+        # any domain. The buffer is typed by `type` (an engine AttrType), so it is
+        # passed as a raw void pointer (the numpy array carries the real dtype).
+        lib.Mesh_readAttr.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p]
+        lib.Mesh_readAttr.restype = ctypes.c_int
+        lib.Mesh_writeAttr.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
+            ctypes.c_void_p]
+        lib.Mesh_writeAttr.restype = ctypes.c_int
         lib.freeMesh.argtypes = [ctypes.c_void_p]
         lib.freeMesh.restype = None
         lib.Mesh_buildSpatialTree.argtypes = [ctypes.c_void_p] + [ctypes.c_int] * 3

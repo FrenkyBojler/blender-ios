@@ -29,21 +29,44 @@ class SculptCoreBrushTool(bpy.types.WorkSpaceTool):
     bl_widget = None
     # Stroke input is handled by the "SculptCore Mode" keymap.
     bl_keymap = None
+    # The tool drives brush assets on the shared sculpt Paint; without this
+    # flag UnifiedPaintPanel.get_brush_mode returns None and every brush
+    # panel hides.
+    bl_options = {'USE_BRUSHES'}
 
     def draw_settings(context, layout, _tool):
-        sculpt = context.tool_settings.sculpt
-        brush = sculpt.brush
+        # Mirrors _draw_tool_settings_context_mode.SCULPT: brush popup
+        # selector, then unified-aware size/strength with their unified and
+        # pen-pressure toggles.
+        from bl_ui.properties_paint_common import BrushAssetShelf, UnifiedPaintPanel
+
+        paint = context.tool_settings.sculpt
+        brush = paint.brush
+        BrushAssetShelf.draw_popup_selector(layout, context, brush)
         if brush is None:
             return
-        # Route size/strength to the unified settings when they own the value
-        # (what the stroke and cursor read) — a slider bound to the brush's
-        # own field would be inert then.
-        unified = sculpt.unified_paint_settings
-        layout.prop(brush, "sculpt_brush_type", text="")
-        layout.prop(unified if unified.use_unified_size else brush,
-                    "size", text="Size", slider=True)
-        layout.prop(unified if unified.use_unified_strength else brush,
-                    "strength", text="Strength")
+        capabilities = brush.sculpt_capabilities
+        ups = paint.unified_paint_settings
+
+        size = "size"
+        size_owner = ups if ups.use_unified_size else brush
+        if size_owner.use_locked_size == 'SCENE':
+            size = "unprojected_size"
+        UnifiedPaintPanel.prop_unified(
+            layout, context, brush, size,
+            pressure_name="use_pressure_size",
+            unified_name="use_unified_size",
+            text="Size", slider=True, header=True,
+        )
+        pressure_name = "use_pressure_strength" if capabilities.has_strength_pressure else None
+        UnifiedPaintPanel.prop_unified(
+            layout, context, brush, "strength",
+            pressure_name=pressure_name,
+            unified_name="use_unified_strength",
+            text="Strength", header=True,
+        )
+        if capabilities.has_direction:
+            layout.row().prop(brush, "direction", expand=True, text="")
 
 
 def register():

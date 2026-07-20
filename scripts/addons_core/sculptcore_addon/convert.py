@@ -134,6 +134,10 @@ def enter(ob):
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
 
+    # Seed the remaining user attribute layers so they ride the engine through
+    # dyntopo + undo and can be rebuilt after a topology change.
+    _load_bridged_attrs(ob.data, mesh_ptr, session)
+
     # Register the tree for external-provider viewport draw, keyed by the
     # object's session_uid (the key Blender's draw path passes). Switch it to the
     # dynamic per-attribute layout (color@0, uv@1) so the provider exposes them,
@@ -280,10 +284,11 @@ def _load_color(mesh, mesh_ptr, verts_num):
     engine.capi().lib.Mesh_writeVertFloat4Attr(mesh_ptr, _SC_COLOR, values)
 
 
-def _flush_color(mesh, mesh_ptr, verts_num):
+def _flush_color(mesh, mesh_ptr, verts_num, color_name=None):
     """Write the engine `color` attr back into the active POINT/FLOAT_COLOR
-    color attribute, creating one when none exists. Leaves corner/byte color
-    attributes untouched (logs a warning)."""
+    color attribute, creating one when none exists (under `color_name`, the name
+    recorded at enter, so a rebuild keeps the layer's identity). Leaves
+    corner/byte color attributes untouched (logs a warning)."""
     import numpy as np
 
     values = np.empty(verts_num * 4, dtype=np.float32)
@@ -295,7 +300,8 @@ def _flush_color(mesh, mesh_ptr, verts_num):
             print("SculptCore: active color attribute is not POINT/FLOAT_COLOR; "
                   "painted colors not written back")
             return
-        attr = mesh.color_attributes.new(_DEFAULT_COLOR_NAME, 'FLOAT_COLOR', 'POINT')
+        attr = mesh.color_attributes.new(color_name or _DEFAULT_COLOR_NAME,
+                                         'FLOAT_COLOR', 'POINT')
         mesh.color_attributes.active_color = attr
     attr.data.foreach_set("color", values)
 
@@ -318,6 +324,141 @@ def _load_uv(mesh, mesh_ptr):
     else:
         uv_layer.data.foreach_get("uv", values)
     engine.capi().lib.Mesh_writeCornerFloat2Attr(mesh_ptr, b"uv", values)
+
+
+# Generic user-attribute bridge
+#
+# User attribute layers (extra UV maps, color layers, custom vertex/face
+# attributes, material indices, ...) are seeded into the engine on enter, so
+# dyntopo interpolates them onto new geometry and the meshlog reverts them on
+# undo. The topology-rebuild path drops all Blender customdata (clear_geometry),
+# so these layers are recreated from the engine afterwards. Positions, topology
+# builtins, and the dedicated brush-target layers (mask/face-set/active color)
+# have their own paths and are skipped here.
+
+# Blender attribute domain -> engine ElemType flag. The engine edge domain has
+# no stable correspondence to Blender's derived edges, so edge attributes
+# (creases/seams/sharp) are not bridged yet.
+_DOMAIN_TO_ENGINE = {'POINT': 1, 'CORNER': 4, 'FACE': 16}
+
+# Engine AttrType values (extern/sculptcore/source/mesh/attribute_enums.h).
+_AT_FLOAT, _AT_FLOAT2, _AT_FLOAT3, _AT_FLOAT4 = 1, 2, 4, 8
+_AT_BOOL, _AT_INT, _AT_INT2 = 16, 32, 64
+# Engine AttrUse values (semantic tag; UV/COLOR keep a re-imported layer typed).
+_USE_NONE, _USE_COLOR, _USE_UV = 0, 2, 4
+
+# Blender data_type -> (engine AttrType, component count, numpy dtype, the
+# `foreach_get`/`foreach_set` property on the layer's data). The engine type may
+# be wider than the Blender one (a byte color rides the engine's FLOAT4); the
+# Blender type is recreated exactly from the stored descriptor on read-back.
+_ATTR_TYPE_MAP = {
+    'FLOAT':        (_AT_FLOAT,  1, "float32", "value"),
+    'FLOAT2':       (_AT_FLOAT2, 2, "float32", "vector"),
+    'FLOAT_VECTOR': (_AT_FLOAT3, 3, "float32", "vector"),
+    'FLOAT_COLOR':  (_AT_FLOAT4, 4, "float32", "color"),
+    'BYTE_COLOR':   (_AT_FLOAT4, 4, "float32", "color"),
+    'INT':          (_AT_INT,    1, "int32",   "value"),
+    'INT32_2D':     (_AT_INT2,   2, "int32",   "value"),
+    'BOOLEAN':      (_AT_BOOL,   1, "uint8",   "value"),
+    'QUATERNION':   (_AT_FLOAT4, 4, "float32", "value"),
+}
+
+# Never bridged: "position" (its own path), and every "."-prefixed layer —
+# Blender's convention for internal/managed data (topology links `.corner_vert`,
+# selections `.select_vert`, and the dedicated `.sculpt_mask`/`.sculpt_face_set`).
+# User-created attributes never start with a dot. (The active color name is added
+# dynamically in _load_bridged_attrs.)
+_SKIP_ATTR_NAMES = {"position"}
+
+
+def _bridge_use(data_type, domain, engine_type):
+    """The engine AttrUse tag for a bridged layer, so a re-imported UV map or
+    color layer keeps its semantic type."""
+    if data_type in {'FLOAT_COLOR', 'BYTE_COLOR'}:
+        return _USE_COLOR
+    if engine_type == _AT_FLOAT2 and domain == 'CORNER':
+        return _USE_UV
+    return _USE_NONE
+
+
+def _load_bridged_attrs(mesh, mesh_ptr, session):
+    """Seed every user attribute layer into the engine and record a descriptor
+    so :func:`_flush_bridged_attrs` can recreate it after a topology rebuild.
+    Skips positions/topology builtins, the dedicated mask/face-set/color layers,
+    the engine edge domain, and unsupported Blender types (logged)."""
+    import ctypes
+
+    import numpy as np
+
+    lib = engine.capi().lib
+    skip = set(_SKIP_ATTR_NAMES)
+    color = _point_float_color(mesh)
+    if color is not None:
+        skip.add(color.name)
+        session.color_attr_name = color.name
+
+    session.bridged_attrs = []
+    for attr in mesh.attributes:
+        if attr.name in skip or attr.name.startswith("."):
+            continue
+        engine_domain = _DOMAIN_TO_ENGINE.get(attr.domain)
+        if engine_domain is None:
+            continue
+        mapping = _ATTR_TYPE_MAP.get(attr.data_type)
+        if mapping is None:
+            print("SculptCore: attribute {!r} ({:s}/{:s}) is unsupported and "
+                  "will be dropped on topology change".format(
+                      attr.name, attr.domain, attr.data_type))
+            continue
+        engine_type, ncomp, dtype, prop = mapping
+        values = np.empty(len(attr.data) * ncomp, dtype=dtype)
+        attr.data.foreach_get(prop, values)
+        name_bytes = attr.name.encode("utf-8")
+        use = _bridge_use(attr.data_type, attr.domain, engine_type)
+        lib.Mesh_writeAttr(mesh_ptr, engine_domain, name_bytes, engine_type, use,
+                           values.ctypes.data_as(ctypes.c_void_p))
+        session.bridged_attrs.append({
+            "name": attr.name,
+            "name_bytes": name_bytes,
+            "bl_domain": attr.domain,
+            "bl_type": attr.data_type,
+            "engine_domain": engine_domain,
+            "engine_type": engine_type,
+            "ncomp": ncomp,
+            "dtype": dtype,
+            "prop": prop,
+        })
+
+
+def _flush_bridged_attrs(session, mesh):
+    """Recreate every bridged user attribute layer on the rebuilt Blender mesh
+    from the engine's (interpolated / undo-reverted) values. Called on the
+    topology-rebuild path only — the fast path leaves Blender customdata intact.
+    A layer the engine no longer carries is skipped (leaves no stale data)."""
+    import ctypes
+
+    import numpy as np
+
+    lib = engine.capi().lib
+    domain_len = {'POINT': len(mesh.vertices), 'CORNER': len(mesh.loops),
+                  'FACE': len(mesh.polygons)}
+    for desc in session.bridged_attrs:
+        count = domain_len[desc["bl_domain"]]
+        values = np.empty(count * desc["ncomp"], dtype=desc["dtype"])
+        if not lib.Mesh_readAttr(session.mesh_ptr, desc["engine_domain"],
+                                 desc["name_bytes"], desc["engine_type"],
+                                 values.ctypes.data_as(ctypes.c_void_p)):
+            continue
+        try:
+            attr = mesh.attributes.get(desc["name"])
+            if attr is None:
+                attr = mesh.attributes.new(desc["name"], desc["bl_type"], desc["bl_domain"])
+            attr.data.foreach_set(desc["prop"], values)
+        except (RuntimeError, TypeError) as error:
+            # A reserved/builtin name Blender refuses to recreate, or a
+            # domain-size mismatch; skip rather than abort the whole flush.
+            print("SculptCore: could not restore attribute {!r}: {:s}".format(
+                desc["name"], str(error)))
 
 
 def _load_mask(mesh, mesh_ptr, verts_num):
@@ -374,9 +515,10 @@ def _flush_positions_fast(session, mesh):
 def _flush_topology_rebuild(session, mesh):
     """Slow path — topology changed (dyntopo/remesh), so rebuild the Blender
     mesh geometry from a full engine export. Customdata is dropped by
-    clear_geometry (matches vanilla dyntopo); the engine-owned v1 layers
-    (mask/face-set/color) are re-flushed afterwards onto the new topology.
-    Updates the session's sizes/stamp so the next flush is fast again."""
+    clear_geometry; the dedicated mask/face-set/color layers are re-flushed by
+    the caller, and the bridged user attributes (UV maps, colors, custom attrs)
+    are recreated here onto the new topology from their engine copies. Updates
+    the session's sizes/stamp so the next flush is fast again."""
     import ctypes
 
     import numpy as np
@@ -407,16 +549,67 @@ def _flush_topology_rebuild(session, mesh):
     session.verts_num = nv.value
     session.topo_stamp = lib.Mesh_topoStamp(session.mesh_ptr)
 
+    # Recreate the user attribute layers clear_geometry dropped, from their
+    # engine copies (interpolated by dyntopo / reverted by the meshlog on undo).
+    _flush_bridged_attrs(session, mesh)
 
-def _mesh_vert_num(mesh_ptr):
-    """Live vertex count of an engine mesh (may differ from the session's
-    cached size after a topology change, e.g. an undo that reverted dyntopo)."""
+
+def _mesh_counts(mesh_ptr):
+    """Live (verts, corners, faces, capacity) of an engine mesh. Counts may
+    differ from the session's cached sizes after a topology change (e.g. an
+    undo that reverted dyntopo); capacity sizes Mesh_toArrays' vert_map
+    output (the engine index space including freelist gaps)."""
     import ctypes
 
     nv, nc, nf, cap = (ctypes.c_int(0) for _ in range(4))
     engine.capi().lib.Mesh_arraySizes(mesh_ptr, ctypes.byref(nv), ctypes.byref(nc),
                                       ctypes.byref(nf), ctypes.byref(cap))
-    return nv.value
+    return nv.value, nc.value, nf.value, cap.value
+
+
+def _mesh_vert_num(mesh_ptr):
+    return _mesh_counts(mesh_ptr)[0]
+
+
+def mesh_vert_num(mesh_ptr):
+    """Live vertex count (public: the attribute ops/undo size their columns
+    with this)."""
+    return _mesh_counts(mesh_ptr)[0]
+
+
+def mesh_face_num(mesh_ptr):
+    """Live face count (public: see mesh_vert_num)."""
+    return _mesh_counts(mesh_ptr)[2]
+
+
+def mesh_positions(mesh_ptr):
+    """Live vertex positions (float32, flat xyz) in live-iteration order."""
+    import numpy as np
+
+    verts_num, corners_num, faces_num, capacity = _mesh_counts(mesh_ptr)
+    positions = np.empty(verts_num * 3, dtype=np.float32)
+    corner_verts = np.empty(corners_num, dtype=np.int32)
+    face_offsets = np.empty(faces_num + 1, dtype=np.int32)
+    vert_map = np.empty(max(capacity, 1), dtype=np.int32)
+    engine.capi().lib.Mesh_toArrays(mesh_ptr, positions, corner_verts,
+                                    face_offsets, vert_map)
+    return positions
+
+
+def mesh_topo_arrays(mesh_ptr):
+    """Dump the engine topology in live-iteration order: (corner_verts,
+    face_offsets) as int32 arrays, matching the order of the attribute
+    columns (see _flush_positions_fast on why the order lines up)."""
+    import numpy as np
+
+    verts_num, corners_num, faces_num, capacity = _mesh_counts(mesh_ptr)
+    positions = np.empty(verts_num * 3, dtype=np.float32)
+    corner_verts = np.empty(corners_num, dtype=np.int32)
+    face_offsets = np.empty(faces_num + 1, dtype=np.int32)
+    vert_map = np.empty(max(capacity, 1), dtype=np.int32)
+    engine.capi().lib.Mesh_toArrays(mesh_ptr, positions, corner_verts,
+                                    face_offsets, vert_map)
+    return corner_verts, face_offsets
 
 
 def _rebind_multires_views(session, active_level):
@@ -557,7 +750,7 @@ def flush(ob):
 
     _flush_mask(mesh, session.mesh_ptr, session.verts_num)
     _flush_face_sets(mesh, session.mesh_ptr)
-    _flush_color(mesh, session.mesh_ptr, session.verts_num)
+    _flush_color(mesh, session.mesh_ptr, session.verts_num, session.color_attr_name)
     mesh.update()
     session.blender_verts_num = len(mesh.vertices)
 

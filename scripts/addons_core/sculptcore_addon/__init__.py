@@ -23,7 +23,7 @@ bl_info = {
 
 import bpy
 
-from . import convert, cursor, engine, engine_props, handlers, keymap, props, stroke, tools, ui, undo
+from . import convert, cursor, engine, engine_props, gestures, handlers, keymap, menus, ops, props, stroke, tools, ui, undo, vanilla_panels
 
 
 class SculptCoreMode(bpy.types.ObjectModeType):
@@ -33,6 +33,10 @@ class SculptCoreMode(bpy.types.ObjectModeType):
     bl_object_types = {'MESH'}
     bl_keymap = "SculptCore Mode"
     bl_default_tool = "sculptcore.brush"
+    # The brush-asset shelf that polls this mode (ui.py registers it); the
+    # header popup selector resolves it via
+    # #BrushAssetShelf.get_shelf_name_from_context.
+    bl_brush_asset_shelf = "SCULPTCORE_AST_brush_sculpt"
     # Tier-2 delta undo: each stroke pushes a CUSTOM_MODE step wrapping a
     # meshlog step id (see undo.py). The Mesh ID still stays authoritative
     # through flush for save/render; memfile remains the boundary fallback.
@@ -67,6 +71,8 @@ def register():
     props.register()
     engine_props.register()
     stroke.register()
+    ops.register()
+    gestures.register()
     # Hand the mode the native external draw provider so custom-mode objects
     # draw their per-node geometry from the engine (P5 D6). Best-effort: if the
     # engine is unavailable the mode still registers and falls back to the
@@ -79,7 +85,11 @@ def register():
     bpy.utils.register_class(SculptCoreMode)
     keymap.register()
     tools.register()
+    # The vanilla brush-panel subclasses first: ui.py parents its engine
+    # panel under SCULPTCORE_PT_tools_brush_settings.
+    vanilla_panels.register()
     ui.register()
+    menus.register()
     handlers.register()
 
 
@@ -88,10 +98,14 @@ def unregister():
     # mode (exit -> flush -> free) before the class goes away; this only
     # catches sessions those exits left behind.
     handlers.unregister()
+    menus.unregister()
     ui.unregister()
+    vanilla_panels.unregister()
     tools.unregister()
     keymap.unregister()
     bpy.utils.unregister_class(SculptCoreMode)
+    gestures.unregister()
+    ops.unregister()
     stroke.unregister()
     engine_props.unregister()
     props.unregister()

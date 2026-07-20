@@ -47,6 +47,23 @@ from . import convert, engine
 _pending = {}
 _next_key = 1
 
+# Sentinel tagging attribute-snapshot steps in _pending (identity-compared, so
+# an object named "ATTR" can't collide). Attr steps: (tag, object_name,
+# generation, kind, attr_name_bytes, blob_before, blob_after) — the op wrote
+# an engine column directly (no meshlog entry), so decode restores the right
+# snapshot instead of seeking (see push_attr). ``kind`` selects the column
+# domain/type; each entry is (numpy dtype, count-getter, writer-getter).
+_ATTR_TAG = ("attr",)
+
+_ATTR_KINDS = {
+    'VERT_F32': ("float32",
+                 lambda session: convert.mesh_vert_num(session.mesh_ptr),
+                 lambda lib: lib.Mesh_writeVertFloatAttr),
+    'FACE_I32': ("int32",
+                 lambda session: convert.mesh_face_num(session.mesh_ptr),
+                 lambda lib: lib.Mesh_writeFaceIntAttr),
+}
+
 
 def _tag_view3d_redraw(context):
     window_manager = (context or bpy.context).window_manager
@@ -87,6 +104,44 @@ def push(context, ob, session):
         'EXEC_DEFAULT', message="Sculpt Stroke", state_id=key, size=size)
 
 
+def push_attr(context, ob, session, message, kind, attr, blob_before, blob_after):
+    """Record one undo step for a whole-column attribute write (e.g. mask
+    flood fill). The engine meshlog never sees such writes, so the step
+    carries before/after snapshots; decode restores them. ``kind`` is an
+    _ATTR_KINDS key, ``attr`` the engine column name (bytes), blobs the raw
+    column bytes."""
+    global _next_key
+    key = _next_key
+    _next_key += 1
+    _pending[key] = (_ATTR_TAG, ob.name, session.generation,
+                     kind, attr, blob_before, blob_after)
+    bpy.ops.object.custom_mode_undo_push(
+        'EXEC_DEFAULT', message=message, state_id=key,
+        size=len(blob_before) + len(blob_after))
+
+
+def _decode_attr(context, ob, session, info, direction, is_final):
+    """Restore an attribute snapshot. Leaving a step on undo restores its
+    pre-state; landing on one (or entering on redo) restores its post-state.
+    A length mismatch (topology diverged from this step's state, e.g. an
+    out-of-order decode around dyntopo steps) skips the restore rather than
+    corrupting the column."""
+    import numpy as np
+
+    _tag, _name, generation, kind, attr, blob_before, blob_after = info
+    if generation != session.generation:
+        return
+    blob = blob_before if (direction < 0 and not is_final) else blob_after
+    dtype, count_fn, writer_fn = _ATTR_KINDS[kind]
+    values = np.frombuffer(blob, dtype=dtype)
+    if count_fn(session) != len(values):
+        return
+    writer_fn(engine.capi().lib)(session.mesh_ptr, attr, np.ascontiguousarray(values))
+    if is_final:
+        convert.flush(ob)
+        _tag_view3d_redraw(context)
+
+
 def _decode_multires_blob(context, ob, session, info, direction, is_final):
     """C4 fallback: the step's meshlog is gone (level switch / blob restore),
     so restore its store snapshot. Leaving a step on undo restores its
@@ -114,6 +169,9 @@ def decode(context, ob, state_id, direction, is_final):
         return
     info = _pending.get(state_id)
     if info is None:
+        return
+    if info[0] is _ATTR_TAG:
+        _decode_attr(context, ob, session, info, direction, is_final)
         return
     _object_name, _step_id, target, generation, _blob_before, blob_after, _level = info
     if session.multires_ptr and blob_after is not None and (
@@ -167,6 +225,9 @@ def free(state_id):
     with the popped registry entry)."""
     info = _pending.pop(state_id, None)
     if info is None:
+        return
+    if info[0] is _ATTR_TAG:
+        # No meshlog entry to free; the snapshots go with the popped entry.
         return
     object_name, step_id, _target, generation, _bb, _ba, _level = info
     session = engine.sessions.get(object_name)

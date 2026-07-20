@@ -3,18 +3,26 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-N-panel UI for the mode (Brush + Dyntopo + Multires). Panels poll on the mode
-being active so they never fight vanilla sculpt panels; they read the shared
-``tool_settings.sculpt`` brush (brush-mapping decision 1). The Multires panel
-exposes the modifier's ``sculpt_levels``, which the depsgraph handler mirrors
-into the engine's active level (P8 C2).
+Sidebar Tool-tab UI for the mode (Brush/Automasking/Symmetry/Dyntopo/
+Multires). Panels are gated by bl_context (the mode's idname, so they never
+fight vanilla sculpt panels, whose context is ".sculpt_mode") and double as
+tool-header popovers through the custom-mode popover_group. They read the
+shared ``tool_settings.sculpt`` brush (brush-mapping decision 1). The
+Multires panel exposes the modifier's ``sculpt_levels``, which the depsgraph
+handler mirrors into the engine's active level (P8 C2).
 """
 
 import bpy
 
 from . import engine, engine_props, mapping, multires
 
-_CATEGORY = "SculptCore"
+# The standard category + the mode's context string: panels land in the
+# sidebar "Tool" tab (where vanilla sculpt panels live) and are gated by
+# bl_context matching, which for a custom mode is the registered idname
+# (see view3d_sidebar_contexts / CTX_data_mode_string). The tool header's
+# popover_group picks the same panels up as popovers.
+_CATEGORY = "Tool"
+_MODE_CONTEXT = "sculptcore.sculpt"
 
 
 def _in_mode(context):
@@ -26,72 +34,49 @@ def _in_mode(context):
     )
 
 
-class SCULPTCORE_PT_brush(bpy.types.Panel):
+class SCULPTCORE_PT_brush_engine(bpy.types.Panel):
+    """Engine-side brush state the vanilla panels don't cover: support
+    warnings and the kernel's engine-only uniforms (generated group, M2).
+    The standard brush UI (type/size/strength/stroke/falloff/texture) comes
+    from the vanilla subclasses in vanilla_panels.py."""
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = _CATEGORY
-    bl_label = "Brush"
+    bl_context = _MODE_CONTEXT
+    bl_parent_id = "SCULPTCORE_PT_tools_brush_settings"
+    bl_label = "Engine"
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
-        return _in_mode(context)
+        return _in_mode(context) and context.tool_settings.sculpt.brush is not None
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         brush = context.tool_settings.sculpt.brush
-        if brush is None:
-            layout.label(text="No active brush", icon='INFO')
-            return
 
-        supported = brush.sculpt_brush_type in mapping.KERNEL_BY_TYPE
-        row = layout.row()
-        row.prop(brush, "sculpt_brush_type", text="Type")
-        if not supported:
-            box = layout.box()
-            box.label(text="Brush type not yet mapped", icon='ERROR')
+        if brush.sculpt_brush_type not in mapping.KERNEL_BY_TYPE:
+            layout.label(text="Brush type not yet mapped", icon='ERROR')
 
-        # Size/strength route to the unified settings when those own the
-        # value (what the stroke and cursor read); the lock toggles switch
-        # ownership like vanilla paint panels.
-        unified = context.tool_settings.sculpt.unified_paint_settings
-        col = layout.column()
-        col.active = supported
-        row = col.row(align=True)
-        row.prop(unified if unified.use_unified_size else brush,
-                 "size", text="Radius", slider=True)
-        row.prop(unified, "use_unified_size", text="", icon='WORLD')
-        row = col.row(align=True)
-        row.prop(unified if unified.use_unified_strength else brush,
-                 "strength")
-        row.prop(unified, "use_unified_strength", text="", icon='WORLD')
-        col.prop(brush, "spacing")
-        col.prop(brush, "direction", expand=True)
-
-        # Engine-only uniforms for this brush's kernel (generated group, M2).
         names = engine_props.props_for_type(brush.sculpt_brush_type)
         group = getattr(brush, "sculptcore", None)
         if names and group is not None:
-            col.separator()
-            col.label(text="Engine")
+            col = layout.column()
             for name in names:
                 col.prop(group, name)
 
-        # Brush texture (Phase 2). Unmapped map modes sculpt untextured.
-        col.separator()
-        col.label(text="Texture")
-        col.template_ID(brush, "texture", new="texture.new")
         if brush.texture is not None:
-            col.prop(brush.texture_slot, "map_mode", text="Mapping")
             from . import texture as texture_mod
             if brush.texture_slot.map_mode not in texture_mod._COORD_SPACE:
-                col.label(text="Mapping not supported by the engine", icon='INFO')
+                layout.label(text="Texture mapping not supported by the engine", icon='INFO')
 
 
 class SCULPTCORE_PT_automasking(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = _CATEGORY
+    bl_context = _MODE_CONTEXT
     bl_label = "Automasking"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -130,6 +115,7 @@ class SCULPTCORE_PT_symmetry(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = _CATEGORY
+    bl_context = _MODE_CONTEXT
     bl_label = "Symmetry"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -149,31 +135,63 @@ class SCULPTCORE_PT_symmetry(bpy.types.Panel):
 
 
 class SCULPTCORE_PT_dyntopo(bpy.types.Panel):
+    """Vanilla VIEW3D_PT_sculpt_dyntopo's shape over Blender's own detail
+    settings (which the stroke consumes via stroke.dyntopo_max_edge), plus
+    the engine's remesh-cadence property. Omitted vs vanilla (allowlisted):
+    the sample-detail eyedropper and detail flood fill."""
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = _CATEGORY
+    bl_context = _MODE_CONTEXT
     bl_label = "Dyntopo"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_ui_units_x = 12
 
     @classmethod
     def poll(cls, context):
         return _in_mode(context)
 
+    def draw_header(self, context):
+        self.layout.prop(context.scene, "sculptcore_dyntopo", text="")
+
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-        layout.prop(scene, "sculptcore_dyntopo", text="Dynamic Topology")
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        sculpt = context.tool_settings.sculpt
+
         col = layout.column()
-        col.use_property_split = True
-        col.active = scene.sculptcore_dyntopo
-        col.prop(scene, "sculptcore_detail")
-        col.prop(scene, "sculptcore_dyntopo_spacing")
+        col.active = context.scene.sculptcore_dyntopo
+        if sculpt.detail_type_method in {'CONSTANT', 'MANUAL'}:
+            col.prop(sculpt, "constant_detail_resolution")
+        elif sculpt.detail_type_method == 'BRUSH':
+            col.prop(sculpt, "detail_percent")
+        else:
+            col.prop(sculpt, "detail_size")
+        col.prop(sculpt, "detail_refine_method", text="Refine Method")
+        col.prop(sculpt, "detail_type_method", text="Detailing")
+        col.prop(context.scene, "sculptcore_dyntopo_spacing")
+
+        # Engine remesher tuning (DynTopoParams).
+        scene = context.scene
+        col.separator()
+        sub = col.column(heading="Remesher")
+        sub.prop(scene, "sculptcore_dyntopo_flips")
+        sub.prop(scene, "sculptcore_dyntopo_smooth")
+        row = sub.row()
+        row.active = scene.sculptcore_dyntopo_smooth
+        row.prop(scene, "sculptcore_dyntopo_smooth_lambda")
+        sub = col.column()
+        sub.prop(scene, "sculptcore_dyntopo_max_rounds")
+        sub.prop(scene, "sculptcore_dyntopo_split_budget")
+        sub.prop(scene, "sculptcore_dyntopo_collapse_budget")
 
 
 class SCULPTCORE_PT_multires(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = _CATEGORY
+    bl_context = _MODE_CONTEXT
     bl_label = "Multires"
 
     @classmethod
@@ -197,8 +215,50 @@ class SCULPTCORE_PT_multires(bpy.types.Panel):
             layout.label(text="Level 0 sculpts at level 1", icon='INFO')
 
 
+def _make_asset_shelf():
+    """The brush asset shelf, from the same (unregistered) mixins vanilla's
+    VIEW3D_AST_brush_sculpt uses. Brushes are shared assets; only the poll
+    differs (this mode instead of the built-in sculpt mode)."""
+    from bl_ui.space_view3d import View3DAssetShelf
+
+    class SCULPTCORE_AST_brush_sculpt(View3DAssetShelf, bpy.types.AssetShelf):
+        mode = 'CUSTOM'
+        mode_prop = "use_paint_sculpt"
+        brush_type_prop = "sculpt_brush_type"
+
+        @classmethod
+        def poll(cls, context):
+            return _in_mode(context)
+
+    return SCULPTCORE_AST_brush_sculpt
+
+
+def _tool_header_mode_settings(self, context):
+    """Tool-header extras, like vanilla sculpt's: the brush child-panel
+    popovers (registered child panels never render inside their parent's
+    popover, so vanilla exposes them individually — draw_3d_brush_settings)
+    and the mirror-axis row. Top-level Tool panels become popovers via the
+    generic custom-mode popover_group in VIEW3D_HT_tool_header."""
+    if not _in_mode(context):
+        return
+    layout = self.layout
+    if context.tool_settings.sculpt.brush is not None:
+        layout.popover("SCULPTCORE_PT_tools_brush_settings_advanced", text="Brush")
+        layout.popover("SCULPTCORE_PT_tools_brush_texture")
+        layout.popover("SCULPTCORE_PT_tools_brush_stroke")
+        layout.popover("SCULPTCORE_PT_tools_brush_falloff")
+        layout.popover("SCULPTCORE_PT_tools_brush_display")
+    row = layout.row(align=True)
+    row.label(text="Mirror")
+    mesh = context.active_object.data
+    sub = row.row(align=True)
+    sub.prop(mesh, "use_mirror_x", text="X", toggle=True)
+    sub.prop(mesh, "use_mirror_y", text="Y", toggle=True)
+    sub.prop(mesh, "use_mirror_z", text="Z", toggle=True)
+
+
 _classes = (
-    SCULPTCORE_PT_brush,
+    SCULPTCORE_PT_brush_engine,
     SCULPTCORE_PT_automasking,
     SCULPTCORE_PT_symmetry,
     SCULPTCORE_PT_dyntopo,
@@ -206,11 +266,23 @@ _classes = (
 )
 
 
+_asset_shelf_cls = None
+
+
 def register():
+    global _asset_shelf_cls
     for cls in _classes:
         bpy.utils.register_class(cls)
+    _asset_shelf_cls = _make_asset_shelf()
+    bpy.utils.register_class(_asset_shelf_cls)
+    bpy.types.VIEW3D_HT_tool_header.append(_tool_header_mode_settings)
 
 
 def unregister():
+    global _asset_shelf_cls
+    bpy.types.VIEW3D_HT_tool_header.remove(_tool_header_mode_settings)
+    if _asset_shelf_cls is not None:
+        bpy.utils.unregister_class(_asset_shelf_cls)
+        _asset_shelf_cls = None
     for cls in reversed(_classes):
         bpy.utils.unregister_class(cls)

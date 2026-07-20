@@ -59,13 +59,21 @@ float/int buffers, zero-copy compatible with the bindings' numpy views).
    Mesh. SculptCore state that has no Mesh representation (e.g. its spatial
    tree) is rebuilt on `refresh()`/re-enter, never serialized into the file
    in v1.
-3. **Attribute round-trip policy, v1:** convert positions always; plus these
-   named layers when present: `.sculpt_mask` (float, point) ⇄ mask,
-   `.sculpt_face_set` (int, face) ⇄ POLYGROUP, color attributes ⇄ COLOR
-   (respecting active color name), UV maps ⇄ UV. All other attributes are
-   **preserved untouched in the Mesh** and re-associated on exit *if topology
-   is unchanged*; after topology-changing sculpting (dyntopo/remesh) they are
-   dropped with a warning (matches vanilla dyntopo behavior).
+3. **Attribute round-trip policy.** Convert positions always. The brush-target
+   layers keep dedicated engine-name paths: `.sculpt_mask` (float, point) ⇄ the
+   engine mask, `.sculpt_face_set` (int, face) ⇄ POLYGROUP, the active
+   POINT/FLOAT_COLOR color ⇄ the engine `color` attr (name preserved via
+   `session.color_attr_name`). **v2 — all other user attributes are carried
+   through the engine** (`convert._load_bridged_attrs` → `Mesh_writeAttr` on
+   enter): dyntopo interpolates every non-TOPO/NOINTERP layer and the meshlog's
+   topology channel reverts them on undo, so the topology-rebuild flush recreates
+   them (`_flush_bridged_attrs` → `Mesh_readAttr`) instead of dropping them.
+   Covers vert/corner/face domains for the common types (float/float2/float3/
+   float4, int/int2, bool, and byte/quaternion colors via the engine FLOAT4).
+   Skipped: the engine edge domain (no stable Blender-edge correspondence — see
+   §6) and every `.`-prefixed internal layer (topology/selection/mask). The
+   fast (positions-only) path leaves Blender customdata untouched, so the bridge
+   read-back runs on the rebuild path only.
 4. **Topology-unchanged fast path.** If the session never ran a topology op
    (query SculptCore: dyntopo disabled and no topo meshlog chunks), exit =
    positions/attribute write-back only — no face rebuild, original indices
@@ -124,7 +132,9 @@ float/int buffers, zero-copy compatible with the bindings' numpy views).
   multires-convert (creases affect subdivision).
 - **Vertex ordering after compaction** (A2 map) must flow through *every*
   layer copy and the undo coupling — single source of truth in the session.
-- `mesh.clear_geometry()` on the slow path nukes all customdata — acceptable
-  (matches dyntopo) but must be clearly warned in the UI.
+- `mesh.clear_geometry()` on the slow path nukes all customdata; the v2 bridge
+  (§3) recreates every carried user layer from the engine afterwards, so this is
+  no longer lossy for vert/corner/face attributes. Edge-domain layers
+  (creases/seams/sharp) remain dropped until an edge correspondence exists.
 - Very large meshes: `foreach_get` into numpy is fine, but per-layer Python
   overhead adds up — keep the layer set small and measured.

@@ -22,7 +22,23 @@ of eyeballed.
 
 None of these can see the UI. New tools:
 
-## T1 — Poll-matrix dump (`ui_poll_matrix.py`)
+## T1 — Poll-matrix dump (`ui_poll_matrix.py`) — DONE
+
+Built and verified. Run (GUI required; keyconfigs/screen only exist there):
+
+```
+set SCULPTCORE_PYTHON_PATH=<repo>/extern/sculptcore/python
+blender.exe --factory-startup --python claudeMemory/scripts/ui_poll_matrix.py
+  -> %TEMP%/ui_poll_matrix.txt (summary) + ui_poll_matrix.json (full matrix)
+```
+
+First findings (2026-07-19): `context.mode` is `'CUSTOM'` in our mode, so
+every `bl_context`-gated panel (".sculpt_mode", ".paint_common") is
+structurally invisible regardless of poll — the whole Tool-tab panel set
+(brush settings/stroke/falloff/texture/display, dyntopo, symmetry, options,
+remesh, overlay popover) is missing; the addon currently exposes only 4
+N-panel replacements. AttributeError in a poll is reported as "NA" (the
+panel system's bl_context prefilter would have excluded it).
 
 Iterate every registered `bpy.types.Panel` / `Menu` / `Header` subclass and
 record `{idname, space, region, category, label, parent, order}` plus the
@@ -35,21 +51,50 @@ Run via `run_harness.py` (needs GUI for real `context.area`/`region`
 overrides per space type — iterate the screen's areas and override per
 panel's `bl_space_type`).
 
-## T2 — Layout introspection capture (`ui_introspect.py`)
+## T2 — Layout introspection capture (`ui_introspect.py`) — DONE
 
-`UILayout.introspect()` returns a JSON description of everything a layout
-contains, but a real layout only exists inside a draw callback. Approach:
-monkeypatch the target class's `draw` to run the original and then append
-`self.layout.introspect()` to a capture dict, force a redraw (tag the area,
-spin the event loop via a timer), restore. Driven over the REPL or as a
-harness script.
+Built and verified (43/44 targets; the one failure is
+VIEW3D_PT_tools_brush_clone, a texture-paint-only panel whose poll would
+exclude it in sculpt mode anyway). Same GUI invocation as T1; output
+`%TEMP%/ui_introspect.txt` + `ui_introspect.json`.
+
+Implementation (differs from the original monkeypatch idea): a capture
+panel registered in the View3D sidebar's "Item" tab (the default-active tab;
+`Region.active_panel_category` is read-only from Python) calls each target
+class's `draw()` against a shim whose `.layout` is a fresh sub-layout, then
+records `layout.introspect()`. The shim resolves methods via
+`inspect.getattr_static` so staticmethods/classmethods on the paint-panel
+mixins bind correctly. A panel layout is required as host — header layouts
+reject the `layout.panel()` sub-panels the brush panels use. Targets never
+need to be visible or bl_context-matched; captures run under vanilla SCULPT
+for the vanilla set, under CUSTOM for the addon panels, and under both for
+VIEW3D_HT_header / VIEW3D_MT_editor_menus.
+
+The JSON is item-level: operators with full arguments
+(`bpy.ops.sculpt.mesh_filter(type='SMOOTH')`), properties as RNA paths
+(`Sculpt.lock_x`), labels, tooltips, and the nesting structure — the parity
+spec to diff addon panels against.
 
 Output: per-panel/per-menu machine-readable item lists (operators, props,
 labels, order) for vanilla sculpt surfaces → the parity spec our addon
 panels are diffed against, at the item level. Also works for the context
 menu (`VIEW3D_PT_sculpt_context_menu`) and the Sculpt/Mask/Face Sets menus.
 
-## T3 — Keymap dump + diff (`keymap_dump.py`)
+## T3 — Keymap dump + diff (`keymap_dump.py`) — DONE
+
+Built and verified. Same GUI invocation as T1 (in `--background` the
+"Sculpt" keymap exists but is empty — keyconfig content only loads with a
+window). Output: `%TEMP%/keymap_dump.txt` (chord diff) + `keymap_dump.json`.
+
+First findings (2026-07-19): 5 chords covered (LMB/Ctrl/Shift strokes,
+F/Shift-F radial), ~60 vanilla chords unbound: mask ops + pies (A, Alt-A,
+Alt-M, Ctrl-I, B, gestures), subdivision levels (Ctrl/Alt-digits), brush
+asset shortcuts (V/S/P/I/G/K/C/M/...), bracket size scaling, stroke-method
+and stencil controls, context menu (RMB/APP -> VIEW3D_PT_sculpt_context_menu),
+asset shelf popover (Shift-Space), dyntopo/remesh (R, Ctrl-R). Note vanilla
+Shift-LMB now uses `brush_toggle: 'SMOOTH'` (brush-asset toggle) where ours
+uses `mode: 'SMOOTH'`. The per-tool "3D View Tool: Sculpt, ..." keymaps are
+listed by name in the JSON for when the toolbar is ported.
 
 Serialize keymap items (idname, type, value, ctrl/alt/shift/oskey, key
 modifier, `properties` as a dict, active state) for the vanilla "Sculpt"
@@ -58,17 +103,37 @@ for whatever keymap the custom mode registers. JSON out, plain diff. Covers
 hotkey parity (F/Shift-F radius/strength, Ctrl invert, Shift smooth, mask
 shortcuts, brush cycling, etc.).
 
-Headless-capable (`--background` can read `wm.keyconfigs`), so this can also
-become a regression-suite section.
+Not headless-capable (verified: in `--background` the "Sculpt" keymap is
+present but has zero items); a T6 regression hook needs a GUI launch via the
+`run_harness.py` pattern.
 
-## T4 — Screenshot harness (`ui_screenshot.py`)
+## T4 — Screenshot harness (`ui_screenshot.py`) — DONE
 
-REPL/harness-driven `bpy.ops.screen.screenshot(filepath=...)` with a
-deterministic scene, window size, and layout script; optionally crop to an
-area's rect (areas expose x/y/width/height) with numpy/`bpy.data.images`.
-Capture the same views in vanilla sculpt and SculptCore mode for visual
-side-by-side (Claude reads the PNGs). Complements T1/T2: catches things
-introspection misses (icons, enabled/greyed state, layout density).
+Built and verified. Run (GUI; fixed geometry keeps shots comparable):
+
+```
+set SCULPTCORE_PYTHON_PATH=<repo>/extern/sculptcore/python
+blender.exe --factory-startup --window-geometry 0 0 1600 1000 \
+    --python claudeMemory/scripts/ui_screenshot.py
+  -> %TEMP%/ui_shot_{SCULPT,CUSTOM}_{full,view3d,properties}.png + manifest
+```
+
+Deterministic setup (sphere, view_all, Properties on the Tool tab, sidebar
+open), captures the full window per mode and crops the View3D/Properties
+areas from it with numpy (rects scaled by image/window ratio, so Windows
+DPI scaling is handled). The splash is suppressed by setting
+`preferences.view.show_splash = False` at script-import time — that runs
+before the first window draw, so it works even with --factory-startup.
+Limits: the sidebar shows its default-active "Item" tab
+(Region.active_panel_category is read-only), and the brush cursor sits
+wherever the OS mouse is.
+
+First shots (2026-07-19) make the gaps visible directly: CUSTOM header has
+only a "View" menu (vs View/Sculpt/Mask/Face Sets + symmetry/falloff/etc.
+popovers), the mode dropdown shows the raw "sculptcore.sculpt" id, there is
+no toolbar and no brush asset shelf, and the Properties Tool tab shows only
+the addon's minimal Brush block instead of Brush Asset + full Brush
+Settings.
 
 ## T5 — Event-simulate hotkey runner (`ui_event_sim.py`)
 

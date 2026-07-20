@@ -66,6 +66,14 @@ class Session:
         # Store snapshot after the latest undo push (bytes) — the next push's
         # pre-state, and the C4 blob-fallback base for level-crossing undo.
         "multires_last_blob",
+        # User attribute layers (UV maps, colors, custom attrs) seeded into the
+        # engine on enter and recreated on the Blender mesh after a topology
+        # rebuild (which drops all customdata). A list of descriptor dicts; see
+        # convert._load_bridged_attrs. Empty for multires sessions (deferred).
+        "bridged_attrs",
+        # Name of the active POINT/FLOAT_COLOR color attribute at enter, so the
+        # color write-back recreates it under its own name after a rebuild.
+        "color_attr_name",
         "_freed",
     )
 
@@ -94,6 +102,8 @@ class Session:
         self.multires_active_level = 0
         self.multires_show_viewport = True
         self.multires_last_blob = None
+        self.bridged_attrs = []
+        self.color_attr_name = None
         self._freed = False
 
     def mesh(self):

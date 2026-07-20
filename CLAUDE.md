@@ -71,8 +71,55 @@ claudeMemory\scripts\bl_env.bat cmake --build --preset relwithdebinfo  # build
 
 Precompiled libraries live at `lib/windows_x64`. Build output lands in
 `../build_windows_x64_clang_RelWithDebInfo` (the presets place build dirs
-beside the source tree, not inside it). Other presets: `release`, `debug`,
-`asan`.
+beside the source tree, not inside it); the runnable `blender.exe` is in that
+tree's `bin/`. Other presets: `release`, `debug`, `asan`.
+
+### Building the SculptCore engine for the addon (this environment)
+
+The addon does **not** compile into `blender.exe`. It loads the engine at
+runtime through a ctypes package (`extern/sculptcore/python/sculptcore/`) that
+wraps a native shared library, `sculptcore_capi.dll`. So a change to the C++
+engine (`extern/sculptcore/source/**`) reaches Blender by **rebuilding that
+DLL** — Blender itself needs no rebuild. A change to the addon's Python
+(`scripts/addons_core/sculptcore_addon/**`) needs nothing rebuilt at all.
+
+Build the DLL from the submodule with the Node dispatcher (see
+`extern/sculptcore/CLAUDE.md` for the full tool):
+
+```
+cd extern/sculptcore
+node make.mjs build python   # -> extern/sculptcore/build/python/sculptcore_capi.dll
+```
+
+Deps (OpenBLAS/CHOLMOD) are statically linked into that DLL; `wgpu_native.dll`
+is staged beside it and must be findable at load time.
+
+**How the pieces are discovered** (no vendoring needed for dev):
+- The addon's `engine.py` imports the `sculptcore` package via, in order: an
+  already-importable `sculptcore`; a vendored copy at
+  `scripts/addons_core/sculptcore_addon/lib/sculptcore/`; or the directory in
+  `$SCULPTCORE_PYTHON_PATH`.
+- The package's `_capi.py` finds the DLL via, in order: `$SCULPTCORE_CAPI_PATH`;
+  a copy beside the package; or `<sculptcore-repo>/build/python/` (where
+  `build python` puts it — so a source checkout resolves automatically).
+
+**Launch Blender against the fresh build** — point the addon at the package and
+put the DLL's directory on `PATH` (for `wgpu_native.dll`), then start the exe:
+
+```
+$env:SCULPTCORE_PYTHON_PATH = "C:\dev\blender\main\extern\sculptcore\python"
+$env:PATH = "C:\dev\blender\main\extern\sculptcore\build\python;$env:PATH"
+Start-Process "C:\dev\blender\build_windows_x64_clang_RelWithDebInfo\bin\blender.exe"
+```
+
+`engine.py`'s `init()` refuses an ABI-mismatched DLL; on any engine load
+failure the addon reports it to the system console (Window → Toggle System
+Console). To sanity-check the DLL without launching Blender:
+`python -c "import sculptcore; sculptcore.init()"` (with the two env vars set).
+
+The engine's own ctest suite (`node make.mjs build native` then
+`node make.mjs test [name]`, run in `build/native`) is the authoritative check
+for the CPU executor path the addon exercises; run it before rebuilding the DLL.
 
 ### Debugging (this environment)
 
