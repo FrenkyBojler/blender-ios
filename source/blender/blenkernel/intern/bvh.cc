@@ -601,6 +601,7 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
   }
 
   ClosestPointResult result;
+  result.position = float3(nearest.co);
   result.bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
       data->vert_positions, data->corner_verts, data->corner_tris[nearest.index], result.position);
   result.index = nearest.index;

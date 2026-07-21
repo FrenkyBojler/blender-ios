@@ -134,7 +134,7 @@ static bool imapaint_pick_face(ViewContext *vc,
   const float3 end_object = math::transform_point(world_to_object, end_world);
 
   const bke::bvh::Tree &mesh_bvh = mesh.bvh_tris();
-  const bke::bvh::Ray ray(start_object, end_object - start_object);
+  const bke::bvh::Ray ray(start_object, math::normalize(end_object - start_object));
   const std::optional<bke::bvh::RayHit> ray_hit = mesh_bvh.ray_intersect(ray);
   if (!ray_hit) {
     return false;

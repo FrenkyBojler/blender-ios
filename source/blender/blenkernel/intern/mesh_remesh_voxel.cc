@@ -502,6 +502,7 @@ static void sample_corner_attributes(const Span<StringRef> names,
 
 void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
 {
+  BLI_assert(src.faces_num > 0);
   MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   /* Gather attributes to transfer for each domain. This makes it possible to skip
