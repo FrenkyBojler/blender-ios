@@ -688,6 +688,12 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    physics_particle_legacy_texture_uv
+    ${TEST_SRC_DIR}/physics/particle_legacy_texture_uv.blend
+    --python ${TEST_PYTHON_DIR}/physics_particle_legacy_texture_uv.py
+  )
+
+  add_blender_test(
     physics_particle_instance
     ${TEST_SRC_DIR}/physics/physics_particle_instance.blend
     --python ${TEST_PYTHON_DIR}/physics_particle_instance.py
@@ -776,6 +782,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/animation"
     --output-dir "${TEST_OUT_DIR}/bl_animation_action"
+  )
+
+  add_blender_test(
+    bl_animation_convert
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_convert.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
   )
 
   add_blender_test(
