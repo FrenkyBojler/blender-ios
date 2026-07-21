@@ -47,6 +47,8 @@ static GPUInputConstantData gpu_input_constant_data_from_link(const GPUNodeLink 
       return float3(std::get<const float *>(link->data));
     case GPU_VEC4:
       return float4(std::get<const float *>(link->data));
+    case GPU_MAT3:
+      return float3x3(std::get<const float *>(link->data));
     case GPU_MAT4:
       return float4x4(std::get<const float *>(link->data));
     case GPU_INT:
@@ -84,6 +86,8 @@ Span<float> gpu_constant_to_float_span(const GPUInputConstantData &data, const G
       const float4 &value = std::get<float4>(data);
       return Span<float>(&value.x, 4);
     }
+    case GPU_MAT3:
+      return Span<float>(std::get<float3x3>(data).base_ptr(), 9);
     case GPU_MAT4:
       return Span<float>(std::get<float4x4>(data).base_ptr(), 16);
     default:
@@ -288,6 +292,7 @@ static GPUNodeLink *gpu_node_stack_constant_link(const GPUNodeStack &stack)
     case GPU_BOOL:
       return GPU_constant(&stack.boolean_data);
     default:
+      /* Fallback for unhandled types. Not meant to expose real stack.vec values. */
       return GPU_constant(stack.vec);
   }
 }
@@ -308,6 +313,7 @@ static GPUNodeLink *gpu_node_stack_uniform_link(const GPUNodeStack &stack)
     case GPU_BOOL:
       return GPU_uniform(&stack.boolean_data);
     default:
+      /* Fallback for unhandled types. Not meant to expose real stack.vec values. */
       return GPU_uniform(stack.vec);
   }
 }
