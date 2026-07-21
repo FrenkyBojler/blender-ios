@@ -577,6 +577,7 @@ static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup
   gz->matrix_space[3][0] = viewgroup->state.view_border.xmin;
   gz->matrix_space[3][1] = viewgroup->state.view_border.ymin;
 
+  /* Apply roll. */
   if (viewgroup->state.roll != 0.0f) {
     gz->matrix_space[3][0] -= region->winx / 2.0f;
     gz->matrix_space[3][1] -= region->winy / 2.0f;

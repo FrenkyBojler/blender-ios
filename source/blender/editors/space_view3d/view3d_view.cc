@@ -385,6 +385,7 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
   rv3d->view = RV3D_VIEW_USER; /* don't show the grid */
 
   normalize_m4_m4(bmat, ob->object_to_world().ptr());
+  /* Apply roll. */
   if (rv3d->camroll != 0.0f) {
     rotate_m4(bmat, 'Z', -rv3d->camroll);
   }

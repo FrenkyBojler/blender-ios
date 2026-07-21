@@ -135,7 +135,7 @@ Camera *ED_view3d_camera_data_get(View3D *v3d, RegionView3D *rv3d);
 
 /**
  * Calculate the view transformation matrix from RegionView3D input.
- * The resulting matrix is equivalent to #RegionView3D.viewinv
+ * The resulting matrix is equivalent to #RegionView3D.viewinv with the roll removed.
  * \param mat: The view 4x4 transformation matrix to calculate.
  * \param ofs: The view offset, normally from #RegionView3D.ofs.
  * \param quat: The view rotation, quaternion normally from #RegionView3D.viewquat.
@@ -166,6 +166,7 @@ void ED_view3d_from_object(
     const Object *ob, float ofs[3], float quat[4], const float *dist, float *lens);
 /**
  * Set the object transformation from #RegionView3D members.
+ * View roll in quat will be removed by `roll`.
  * \param depsgraph: The depsgraph to get the evaluated object parent
  * for the transformation calculation.
  * \param ob: The object which has the transformation assigned.

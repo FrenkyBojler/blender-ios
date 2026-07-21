@@ -293,6 +293,7 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   border.xmax = float(rect.xmax);
   border.ymax = float(rect.ymax);
 
+  /* Expand and unroll border. */
   if (rv3d->persp == RV3D_CAMOB && rv3d->camroll != 0.0f) {
     const float2 view_center(region->winx / 2.0f, region->winy / 2.0f);
     BLI_rctf_translate(&border, -view_center.x, -view_center.y);

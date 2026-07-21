@@ -597,6 +597,7 @@ class Cameras : Overlay {
       if (tex) {
         image_camera_background_matrix_get(&cam, bgpic, state, aspect, mat);
 
+        /* Apply roll to image. */
         if (state.rv3d->camroll != 0.0f) {
           transpose_m4(mat.ptr());
           rotate_m4(mat.ptr(), 'Z', -state.rv3d->camroll);

@@ -592,6 +592,7 @@ bool ED_view3d_camera_view_pan(ARegion *region, const float event_ofs[2])
   const float zoomfac = BKE_screen_view3d_zoom_to_fac(rv3d->camzoom) * 2.0f;
   float2 xy(event_ofs[0] / (region->winx * zoomfac), event_ofs[1] / (region->winy * zoomfac));
 
+  /* Calculate direction after roll. */
   if (rv3d->camroll != 0.0f) {
     const float aspect = float(region->winx) / float(region->winy);
     xy.x *= aspect;
@@ -638,6 +639,7 @@ void ED_view3d_camera_lock_init_ex(const Depsgraph *depsgraph,
     }
     ED_view3d_from_object(ob_camera_eval, rv3d->ofs, rv3d->viewquat, &rv3d->dist, nullptr);
 
+    /* Unapply roll. */
     if (rv3d->camroll != 0.0f) {
       const float z_vec[3] = {0.0f, 0.0f, 1.0f};
 
@@ -1662,6 +1664,7 @@ void ED_view3d_to_m4(
 {
   float quat_result[4];
   const float z_vec[3] = {0.0f, 0.0f, 1.0f};
+  /* Unapply roll. */
   axis_angle_normalized_to_quat(quat_result, z_vec, -roll);
   mul_qt_qtqt(quat_result, quat_result, quat);
 

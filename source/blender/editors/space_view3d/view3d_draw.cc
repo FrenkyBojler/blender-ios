@@ -510,6 +510,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   {
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
+    /* Apply roll. */
     if (roll != 0.0f) {
       GPU_matrix_push();
       const int center_x = region->winx / 2;
