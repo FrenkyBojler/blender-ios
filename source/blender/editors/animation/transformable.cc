@@ -412,6 +412,14 @@ std::string AnimTransformable::rna_path_to_property(const PropertyType prop_type
   return this->rna_path_to_property(property_name);
 }
 
+std::string AnimTransformable::rna_path_to_property(const StringRef property_name) const
+{
+  if (rna_path_from_id_.empty()) {
+    return property_name;
+  }
+  return fmt::format("{}.{}", rna_path_from_id_, property_name);
+}
+
 std::string AnimTransformable::rna_path_to_rotation(const eRotationModes rotation_mode) const
 {
   StringRefNull property_name = animrig::get_rotation_mode_path(rotation_mode);
@@ -421,22 +429,6 @@ std::string AnimTransformable::rna_path_to_rotation(const eRotationModes rotatio
 std::string AnimTransformable::rna_path_to_rotation_mode() const
 {
   return this->rna_path_to_property("rotation_mode");
-}
-
-std::string AnimTransformable::rna_path_to_property(const StringRef property_name) const
-{
-  if (rna_path_from_id_.empty()) {
-    return property_name;
-  }
-  return fmt::format("{}.{}", rna_path_from_id_, property_name);
-}
-
-std::string AnimTransformable::rna_path_to_rotation_mode() const
-{
-  if (rna_path_from_id_.empty()) {
-    return "rotation_mode";
-  }
-  return fmt::format("{}.{}", rna_path_from_id_, "rotation_mode");
 }
 
 TransformFloats AnimTransformable::get_property(const PropertyType prop_type) const
