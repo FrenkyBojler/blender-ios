@@ -2623,7 +2623,7 @@ bool node_in_box(const float4x4 &mat,
     const float length_z = math::abs(node_x_axis.z) * node_half_lengths.x +
                            math::abs(node_y_axis.z) * node_half_lengths.y +
                            math::abs(node_z_axis.z) * node_half_lengths.z;
-    if (!(node_center.z - length_z < 0.0f)) {
+    if (!(node_center.z - length_z < 1.0f)) {
       return false;
     }
   }
