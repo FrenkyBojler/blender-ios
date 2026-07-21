@@ -65,7 +65,8 @@ BVHTreeFromMesh bvhtree_from_mesh_corner_tris_ex(Span<float3> vert_positions,
                                                  OffsetIndices<int> faces,
                                                  Span<int> corner_verts,
                                                  Span<int3> corner_tris,
-                                                 const IndexMask &faces_mask);
+                                                 const IndexMask &faces_mask,
+                                                 bool map_global_indices = true);
 
 /**
  * Build a BVH-tree from the triangles in the mesh that correspond to the faces in the given mask.

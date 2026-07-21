@@ -273,10 +273,14 @@ static void add_mesh_faces(const BvhBuildContext &ctx,
 struct MeshFallbackTree : public Tree::FallbackTree {
   BVHTreeFromMesh bvh_from_mesh;
 
-  MeshFallbackTree(const Mesh &mesh, const IndexMask &mask)
+  MeshFallbackTree(const Mesh &mesh, const IndexMask &mask, const bool map_global_indices)
   {
-    bvh_from_mesh = bvhtree_from_mesh_corner_tris_ex(
-        mesh.vert_positions(), mesh.faces(), mesh.corner_verts(), mesh.corner_tris(), mask);
+    bvh_from_mesh = bvhtree_from_mesh_corner_tris_ex(mesh.vert_positions(),
+                                                     mesh.faces(),
+                                                     mesh.corner_verts(),
+                                                     mesh.corner_tris(),
+                                                     mask,
+                                                     map_global_indices);
   }
   ~MeshFallbackTree() override = default;
 };
@@ -319,7 +323,7 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask, const bool ma
   rtcSetSceneProgressMonitorFunction(tree.rtc_scene_, rtc_progress_func, nullptr);
   rtcCommitScene(tree.rtc_scene_);
 #else  /* WITH_EMBREE */
-  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, face_mask);
+  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, face_mask, map_global_indices);
 #endif /* WITH_EMBREE */
 
   return tree;
@@ -349,7 +353,7 @@ Tree Tree::from_single_mesh(const Mesh &mesh)
   rtcSetSceneProgressMonitorFunction(tree.rtc_scene_, rtc_progress_func, nullptr);
   rtcCommitScene(tree.rtc_scene_);
 #else  /* WITH_EMBREE */
-  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, IndexMask(mesh.faces_num));
+  tree.fallback_tree_ = std::make_unique<MeshFallbackTree>(mesh, IndexMask(mesh.faces_num), true);
 #endif /* WITH_EMBREE */
 
   return tree;
@@ -406,7 +410,10 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   RayHit hit;
   hit.normal = float3(bvh_hit.no);
   const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
-      data->vert_positions, data->corner_verts, data->corner_tris[bvh_hit.index], hit.position);
+      data->vert_positions,
+      data->corner_verts,
+      data->corner_tris[bvh_hit.index],
+      hit.position(ray));
   hit.bary_coord = bary_coord.xy();
   hit.index = bvh_hit.index;
   hit.distance = bvh_hit.dist;
@@ -478,10 +485,11 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
   }
 
   struct AllHitsContext {
+    Ray ray;
     const BVHTreeFromMesh *data;
     FunctionRef<void(const RayHit &)> fn;
   };
-  AllHitsContext ctx{data, fn};
+  AllHitsContext ctx{ray, data, fn};
 
   BLI_bvhtree_ray_cast_all(
       data->tree,
@@ -502,13 +510,12 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
           return;
         }
         RayHit result;
-        result.position = float3(local_hit.co);
         result.normal = float3(local_hit.no);
         const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
-            data->vert_positions,
-            data->corner_verts,
-            data->corner_tris[local_hit.index],
-            result.position);
+            ctx.data->vert_positions,
+            ctx.data->corner_verts,
+            ctx.data->corner_tris[local_hit.index],
+            result.position(ctx.ray));
         result.bary_coord = bary_coord.xy();
         result.index = local_hit.index;
         result.distance = local_hit.dist;
@@ -596,7 +603,6 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
   }
 
   ClosestPointResult result;
-  result.position = float3(nearest.co);
   const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
       data->vert_positions, data->corner_verts, data->corner_tris[nearest.index], result.position);
   result.bary_coord = bary_coord.xy();
@@ -640,7 +646,7 @@ void Tree::range_query(const float3 &point, const float radius, FunctionRef<bool
       radius,
       [&](const int index, const float3 & /*co*/, const float /*dist_sq*/) {
         if (stop) {
-          continue;
+          return;
         }
         stop = !fn(index);
       });
