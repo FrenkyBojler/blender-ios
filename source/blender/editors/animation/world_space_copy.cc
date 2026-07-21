@@ -284,10 +284,7 @@ static void ensure_baked_fcurves(Main &bmain,
   namespace ar = blender::animrig;
 
   bool has_key_on_frame = false;
-  /* TODO use function on transformable once that is merged from rotation mode conversion PR. */
-  const StringRefNull group_name = transformable.type() == AnimTransformable::Type::POSE_BONE ?
-                                       transformable.name() :
-                                       "Object Transforms";
+  const StringRefNull group_name = transformable.fcurve_group_name();
   /* Ensuring all FCurves exist. */
   for (const int i : fcus.index_range()) {
     PasteFCurve &paste_fcu = fcus[i];
@@ -806,38 +803,9 @@ static void paste_world_space(Main &bmain,
 /** \name Operators
  * \{ */
 
-/* TODO: copied from rotation conversion PR. Refactor once that lands. */
-static Vector<AnimTransformable> selected_transformables_from_context(bContext *C)
-{
-  Vector<AnimTransformable> transformables;
-  Vector<PointerRNA> pointers;
-  switch (CTX_data_mode_enum(C)) {
-    case CTX_MODE_OBJECT: {
-      CTX_data_selected_objects(C, &pointers);
-      for (PointerRNA &ptr : pointers) {
-        transformables.append(ed::AnimTransformable(*id_cast<Object *>(ptr.owner_id)));
-      }
-      break;
-    }
-
-    case CTX_MODE_POSE: {
-      CTX_data_selected_pose_bones(C, &pointers);
-      for (PointerRNA &ptr : pointers) {
-        transformables.append(
-            {*id_cast<Object *>(ptr.owner_id), *static_cast<bPoseChannel *>(ptr.data)});
-      }
-      break;
-    }
-
-    default:
-      break;
-  }
-  return transformables;
-}
-
 static wmOperatorStatus world_space_copy_exec(bContext *C, wmOperator *op)
 {
-  Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
+  Vector<AnimTransformable> transformables = selected_transformables_from_context(*C);
 
   Bounds<int> bounds = {RNA_int_get(op->ptr, "start"), RNA_int_get(op->ptr, "end")};
   if (bounds.is_empty()) {
@@ -878,7 +846,7 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
 
 static wmOperatorStatus world_space_copy_current_exec(bContext *C, wmOperator *op)
 {
-  Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
+  Vector<AnimTransformable> transformables = selected_transformables_from_context(*C);
   Scene *scene = CTX_data_scene(C);
   const int current_frame = scene->r.cfra;
   Bounds<int> range = {current_frame, current_frame + 1};
@@ -926,7 +894,7 @@ static bool has_constraints(const Span<AnimTransformable> transformables)
 
 static wmOperatorStatus world_space_paste_exec(bContext *C, wmOperator *op)
 {
-  Vector<AnimTransformable> transformables = selected_transformables_from_context(C);
+  Vector<AnimTransformable> transformables = selected_transformables_from_context(*C);
   if (has_constraints(transformables)) {
     BKE_report(op->reports,
                RPT_WARNING,

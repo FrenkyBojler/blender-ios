@@ -17,6 +17,7 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_context.hh"
 #include "BKE_object.hh"
 
 #include "ANIM_rna.hh"
@@ -198,6 +199,33 @@ float4x4 world_to_local(const Depsgraph &depsgraph,
 
   BLI_assert_unreachable();
   return float4x4::identity();
+}
+
+Vector<ed::AnimTransformable> selected_transformables_from_context(bContext &C)
+{
+  Vector<ed::AnimTransformable> transformables;
+  Vector<PointerRNA> pointers;
+  switch (CTX_data_mode_enum(&C)) {
+    case CTX_MODE_OBJECT: {
+      CTX_data_selected_objects(&C, &pointers);
+      for (PointerRNA &ptr : pointers) {
+        transformables.append(ed::AnimTransformable(*id_cast<Object *>(ptr.owner_id)));
+      }
+      break;
+    }
+    case CTX_MODE_POSE: {
+      CTX_data_selected_pose_bones(&C, &pointers);
+      for (PointerRNA &ptr : pointers) {
+        transformables.append(
+            {*id_cast<Object *>(ptr.owner_id), *static_cast<bPoseChannel *>(ptr.data)});
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+  return transformables;
 }
 
 /* Since there can be more than one representation of rotation data, they are stored in an array.

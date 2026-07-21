@@ -22,6 +22,7 @@
 namespace blender {
 
 struct bPoseChannel;
+struct bContext;
 struct ID;
 struct Depsgraph;
 
@@ -248,6 +249,11 @@ float4x4 get_world_space(const Depsgraph &depsgraph, const AnimTransformable &tr
 float4x4 world_to_local(const Depsgraph &depsgraph,
                         const AnimTransformable &transformable,
                         const float4x4 &world_matrix);
+
+/**
+ * Returns all selected transformables based on the current mode.
+ */
+Vector<AnimTransformable> selected_transformables_from_context(bContext &C);
 
 }  // namespace ed
 }  // namespace blender
