@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <fmt/format.h>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -3865,7 +3866,7 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
  * If the frame is already within the range, it is returned unchanged. Otherwise,
  * the frame wraps around (e.g., going past the end jumps to the start).
  */
-static int wrap_frame_in_range(int frame, const ScenePlaybackRange &range)
+static int wrap_frame_in_range(const int frame, const ScenePlaybackRange &range)
 {
   if (range.contains(frame)) {
     return frame;
@@ -3899,8 +3900,8 @@ static wmOperatorStatus frame_offset_exec(bContext *C, wmOperator *op)
   scene->r.cfra += delta;
 
   const bool wrap_timeline_navigation = scene->r.flag & SCER_WRAP_TIMELINE_NAVIGATION;
-  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
   if (wrap_timeline_navigation) {
+    const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
     scene->r.cfra = wrap_frame_in_range(scene->r.cfra, playback_range);
   }
   else {
@@ -4053,8 +4054,8 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   }
 
   const bool wrap_timeline_navigation = scene->r.flag & SCER_WRAP_TIMELINE_NAVIGATION;
-  const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
   if (wrap_timeline_navigation) {
+    const ScenePlaybackRange playback_range = BKE_scene_get_playback_range(scene);
     scene->r.cfra = wrap_frame_in_range(scene->r.cfra, playback_range);
   }
   else {
@@ -4319,18 +4320,16 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 /** \name Jump to Marker Operator
  * \{ */
 
-template<typename MarkerColumnIterator>
-static bool set_closest_to_first_marker_column_in_range(const ScenePlaybackRange playback_range,
-                                                        MarkerColumnIterator markers,
-                                                        int *r_closest)
+template<typename MarkerIterator>
+static std::optional<int> get_first_marker_in_range(const ScenePlaybackRange playback_range,
+                                                    MarkerIterator markers)
 {
   for (const TimeMarker &marker : markers) {
     if (playback_range.contains(marker.frame)) {
-      *r_closest = marker.frame;
-      return true;
+      return marker.frame;
     }
   }
-  return false;
+  return std::nullopt;
 }
 
 /* function to be called outside UI context, or for redo */
@@ -4373,12 +4372,20 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
   /* Wrap around playback range and try to look for markers again */
   if (!found && wrap_timeline_navigation) {
     if (next) {
-      found = set_closest_to_first_marker_column_in_range(
-          playback_range, scene->markers, &closest);
+      if (const std::optional<int> frame = get_first_marker_in_range(playback_range,
+                                                                     scene->markers))
+      {
+        closest = *frame;
+        found = true;
+      }
     }
     else {
-      found = set_closest_to_first_marker_column_in_range(
-          playback_range, scene->markers.items_reversed(), &closest);
+      if (const std::optional<int> frame = get_first_marker_in_range(
+              playback_range, scene->markers.items_reversed()))
+      {
+        closest = *frame;
+        found = true;
+      }
     }
   }
 
