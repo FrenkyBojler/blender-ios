@@ -409,13 +409,13 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
 
   RayHit hit;
   hit.normal = float3(bvh_hit.no);
+  hit.index = bvh_hit.index;
+  hit.distance = bvh_hit.dist;
   hit.bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
       data->vert_positions,
       data->corner_verts,
       data->corner_tris[bvh_hit.index],
       hit.position(ray));
-  hit.index = bvh_hit.index;
-  hit.distance = bvh_hit.dist;
   return hit;
 #endif
 }
@@ -510,13 +510,13 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
         }
         RayHit result;
         result.normal = float3(local_hit.no);
+        result.index = local_hit.index;
+        result.distance = local_hit.dist;
         result.bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
             ctx.data->vert_positions,
             ctx.data->corner_verts,
             ctx.data->corner_tris[local_hit.index],
             result.position(ctx.ray));
-        result.index = local_hit.index;
-        result.distance = local_hit.dist;
         ctx.fn(result);
       },
       &ctx);
