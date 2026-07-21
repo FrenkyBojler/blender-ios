@@ -909,7 +909,6 @@ static void slip_update_header(const Scene *scene,
   ED_area_status_text(area, msg);
 }
 
-// TODO: check to make sure transitions can't be slipped
 static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);

@@ -399,7 +399,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   /* Skip effect strips where the length is dependent on another strip,
    * as they are calculated with #strip_time_update_effects_strip_range. */
-  if (strip->input1 != nullptr || strip->input2 != nullptr) {
+  if (strip->is_time_dependent()) {
     return;
   }
 
