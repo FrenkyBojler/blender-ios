@@ -3775,11 +3775,11 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brush.autosmooth_factor > 0)
   {
     if (bke::brush::supports_auto_smooth_pressure(brush) &&
-        brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+        brush.flag & BRUSH_SMOOTH_PRESSURE)
     {
       const float auto_smooth_factor = brush.autosmooth_factor *
                                        BKE_curvemapping_evaluateF(
-                                           brush.curve_auto_smooth, 0, 1.0f - ss.cache->pressure);
+                                           brush.curve_auto_smooth, 0, ss.cache->pressure);
       brushes::do_smooth_brush(depsgraph, sd, ob, node_mask, auto_smooth_factor);
     }
     else {
