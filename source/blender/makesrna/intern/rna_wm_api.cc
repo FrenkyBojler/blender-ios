@@ -1201,8 +1201,8 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(
       parm,
       "State",
-      "Activation state for button. Some states are specific to certain button types; When an "
-      "incompatible state is provided, the button will be activated as with 'HIGHLIGHT");
+      "Activation state for button. Some states are specific to certain button types; when an "
+      "incompatible state is provided, the button will be activated with the 'HIGHLIGHT' state.");
   RNA_def_property_enum_items(parm, rna_button_activation);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "warp_cursor_at_button", PROP_BOOLEAN, PROP_NONE);
@@ -1215,7 +1215,7 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_int_default(parm, 0);
   parm = RNA_def_property(func, "xy", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(
-      parm, "xy", "The center point of the button when successfully activated");
+      parm, "xy", "The center point of the button in window coordinates when successfully activated");
   RNA_def_property_array(parm, 2);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_OUTPUT);
 
