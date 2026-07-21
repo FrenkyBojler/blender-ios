@@ -391,14 +391,14 @@ inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float 
     proto_info.sync(ref, is_active_object, is_active_edit_mode);
 
     for (const DupliObject *dupli : *ref.duplis_) {
-      float4x4 dupli_mat(dupli->mat);
+      const float4x4 dupli_mat(dupli->mat);
       matrix_buf.current().get_or_resize(resource_len_).sync(dupli_mat);
       bounds_buf.current().get_or_resize(resource_len_) = proto_bounds;
 
       ObjectInfos &info = infos_buf.current().get_or_resize(resource_len_);
       info = proto_info;
       info.random = dupli->random_id * (1.0f / float(0xFFFFFFFF));
-      /* Recompute per dupli. */
+      /* Normal offset is scaled by world transform, so it must be computed per instance. */
       info.shadow_terminator_normal_offset = shadow_terminator_normal_offset_get(*ref.object,
                                                                                  dupli_mat);
 

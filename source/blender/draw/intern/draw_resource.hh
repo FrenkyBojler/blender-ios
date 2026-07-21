@@ -65,7 +65,7 @@ inline std::ostream &operator<<(std::ostream &stream, const ObjectMatrices &matr
 inline float shadow_terminator_normal_offset_get(const Object &object,
                                                  const float4x4 &object_to_world)
 {
-  if (object.shadow_terminator_normal_offset <= 0.0f) {
+  if (object.shadow_terminator_normal_offset == 0.0f) {
     return 0.0f;
   }
   using namespace blender::math;
@@ -121,8 +121,12 @@ inline void ObjectInfos::sync(const draw::ObjectRef ref,
 
   if (ref.object->shadow_terminator_normal_offset > 0.0f) {
     shadow_terminator_geometry_offset = ref.object->shadow_terminator_geometry_offset;
-    shadow_terminator_normal_offset = shadow_terminator_normal_offset_get(
-        *ref.object, ref.object->object_to_world());
+    shadow_terminator_normal_offset = 0.0f;
+    if (!ref.is_dupli()) {
+      /* Normal offset is scaled by world transform, so it must be computed per instance. */
+      shadow_terminator_normal_offset = shadow_terminator_normal_offset_get(
+          *ref.object, ref.object->object_to_world());
+    }
   }
   else {
     shadow_terminator_geometry_offset = 0.0f;
