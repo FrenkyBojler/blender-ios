@@ -4167,6 +4167,20 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKe
   }
 }
 
+template<typename KeyColumnIterator>
+static bool scene_to_first_key_column_in_range(Scene *scene,
+                                               const ScenePlaybackRange playback_range,
+                                               KeyColumnIterator key_columns)
+{
+  for (const ActKeyColumn &ak_wrap : key_columns) {
+    if (playback_range.contains(ak_wrap.cfra)) {
+      BKE_scene_frame_set(scene, ak_wrap.cfra);
+      return true;
+    }
+  }
+  return false;
+}
+
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
@@ -4228,13 +4242,8 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 
     /* Wrap around to the beginning of the frame range. */
     if (!done && wrap_timeline_navigation) {
-      for (const ActKeyColumn &ak_wrap : *ED_keylist_listbase(keylist)) {
-        if (playback_range.contains(ak_wrap.cfra)) {
-          BKE_scene_frame_set(scene, ak_wrap.cfra);
-          done = true;
-          break;
-        }
-      }
+      done = scene_to_first_key_column_in_range(
+          scene, playback_range, *ED_keylist_listbase(keylist));
     }
   }
 
@@ -4258,13 +4267,8 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 
     /* Wrap around to the end of the frame range. */
     if (!done && wrap_timeline_navigation) {
-      for (const ActKeyColumn &ak_wrap : ED_keylist_listbase(keylist)->items_reversed()) {
-        if (playback_range.contains(ak_wrap.cfra)) {
-          BKE_scene_frame_set(scene, ak_wrap.cfra);
-          done = true;
-          break;
-        }
-      }
+      done = scene_to_first_key_column_in_range(
+          scene, playback_range, ED_keylist_listbase(keylist)->items_reversed());
     }
   }
 
@@ -4315,6 +4319,20 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 /** \name Jump to Marker Operator
  * \{ */
 
+template<typename MarkerColumnIterator>
+static bool set_closest_to_first_marker_column_in_range(const ScenePlaybackRange playback_range,
+                                                        MarkerColumnIterator markers,
+                                                        int *r_closest)
+{
+  for (const TimeMarker &marker : markers) {
+    if (playback_range.contains(marker.frame)) {
+      *r_closest = marker.frame;
+      return true;
+    }
+  }
+  return false;
+}
+
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
 {
@@ -4333,7 +4351,7 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
 
   /* Find matching marker in the right direction. */
   for (TimeMarker &marker : scene->markers) {
-    /* Ignore keyframes outside of playback_range */
+    /* Ignore markers outside of playback_range */
     if (wrap_timeline_navigation && !playback_range.contains(marker.frame)) {
       continue;
     }
@@ -4355,24 +4373,12 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
   /* Wrap around playback range and try to look for markers again */
   if (!found && wrap_timeline_navigation) {
     if (next) {
-      /* Find first marker within playback range */
-      for (TimeMarker &marker : scene->markers) {
-        if (playback_range.contains(marker.frame)) {
-          closest = marker.frame;
-          found = true;
-          break;
-        }
-      }
+      found = set_closest_to_first_marker_column_in_range(
+          playback_range, scene->markers, &closest);
     }
     else {
-      /* Find last marker within playback range */
-      for (TimeMarker &marker : scene->markers.items_reversed()) {
-        if (playback_range.contains(marker.frame)) {
-          closest = marker.frame;
-          found = true;
-          break;
-        }
-      }
+      found = set_closest_to_first_marker_column_in_range(
+          playback_range, scene->markers.items_reversed(), &closest);
     }
   }
 
