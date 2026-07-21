@@ -1130,6 +1130,11 @@ static void blender_camera_border(BlenderCamera *bcam,
                                full_border,
                                &bcam->viewport_camera_border);
 
+  /* WORKAROUND: Render the full screen when any roll is applied. */
+  if (b_rv3d->camroll != 0.0f) {
+    return;
+  }
+
   if (b_render.mode & blender::R_BORDER) {
     bcam->border.left = b_render.border.xmin;
     bcam->border.right = b_render.border.xmax;
