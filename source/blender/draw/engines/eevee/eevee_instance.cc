@@ -205,8 +205,6 @@ void Instance::init(const int2 &output_res,
     is_image_render = true;
   }
 
-  float roll = 0.0f;
-
   rcti lookdev_rect = *visible_rect;
   if (is_viewport() && v3d && rv3d && rv3d->persp == RV3D_CAMOB && v3d->camera &&
       !draw_ctx->is_viewport_image_render() && !draw_ctx->is_viewport_xr())
@@ -216,20 +214,13 @@ void Instance::init(const int2 &output_res,
     ED_view3d_calc_camera_border(
         scene, depsgraph, draw_ctx->region, v3d, rv3d, false, false, &camera_border);
     BLI_rcti_rctf_copy(&lookdev_rect, &camera_border);
-
-    /* Only use roll when a view border is used. */
-    int2 offset = int2(output_rect->xmin, output_rect->ymin);
-    int2 extent = int2(BLI_rcti_size_x(output_rect), BLI_rcti_size_y(output_rect));
-    if (offset != int2(0) || extent != output_res) {
-      roll = rv3d->camroll;
-    }
   }
 
   anisotropic_filtering = GPU_anisotropic_filtering_flags(scene->r.anisotropic_filter);
 
   sampling.init(scene);
   camera.init();
-  film.init(output_res, output_rect, roll);
+  film.init(output_res, output_rect);
   render_buffers.init();
   ambient_occlusion.init();
   velocity.init();
@@ -308,7 +299,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   camera.init();
   /* Film isn't used but init to avoid side effects in other module. */
   rcti empty_rect{0, 0, 0, 0};
-  film.init(int2(1), &empty_rect, 0.0f);
+  film.init(int2(1), &empty_rect);
   render_buffers.init();
   ambient_occlusion.init();
   velocity.init();
