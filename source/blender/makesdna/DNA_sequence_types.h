@@ -478,6 +478,12 @@ struct Strip {
   }
 
   /**
+   * Returns true if the length and location of this strip depends on the timing of its input
+   * strips. False for transitions as they can be positioned independently within strip bounds.
+   */
+  bool is_time_dependent() const;
+
+  /**
    * Get timeline frame where strip content starts.
    */
   float content_start() const;

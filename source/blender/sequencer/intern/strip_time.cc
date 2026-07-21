@@ -179,11 +179,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
 
 void strip_time_effect_range_set(const Scene *scene, Strip *strip)
 {
-  if (strip->input1 == nullptr && strip->input2 == nullptr) {
-    return;
-  }
-  // tmp?
-  if (strip->is_transition()) {
+  if (!strip->is_time_dependent()) {
     return;
   }
 
@@ -457,6 +453,11 @@ void time_slip_strip(
 
 }  // namespace seq
 
+bool Strip::is_time_dependent() const
+{
+  return (this->input1 != nullptr || this->input2 != nullptr) && !this->is_transition();
+}
+
 float Strip::media_playback_rate_factor(float scene_fps) const
 {
   if ((this->flag & SEQ_AUTO_PLAYBACK_RATE) == 0) {
@@ -537,7 +538,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
 
 int Strip::left_handle() const
 {
-  if ((this->input1 || this->input2) && !this->is_transition()) {
+  if (this->is_time_dependent()) {
     return this->startdisp;
   }
 
@@ -546,7 +547,7 @@ int Strip::left_handle() const
 
 int Strip::right_handle(const Scene *scene) const
 {
-  if ((this->input1 || this->input2) && !this->is_transition()) {
+  if (this->is_time_dependent()) {
     return this->enddisp;
   }
 

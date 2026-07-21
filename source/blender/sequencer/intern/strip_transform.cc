@@ -166,7 +166,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
     strip->handles_set(evil_scene, left_handle + delta, right_handle + delta);
   }
   /* All other strip types. */
-  else if ((strip->input1 == nullptr && strip->input2 == nullptr) || strip->is_transition()) {
+  else if (!strip->is_time_dependent()) {
     strip->start += delta;
     /* Only to make files usable in older versions. */
     strip->startdisp = strip->left_handle();
