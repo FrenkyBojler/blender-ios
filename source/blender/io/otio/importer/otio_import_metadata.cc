@@ -10,12 +10,16 @@
 #include <concepts>
 #include <string>
 
+#include "BKE_colortools.hh"
+
 #include "BLI_string.hh"
 
+#include "DNA_curve_enums.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_sound.hh"
 
 #include <opentimelineio/anyDictionary.h>
 #include <opentimelineio/anyVector.h>
@@ -299,6 +303,125 @@ static void set_modifier_metadata_white_balance(AnyDictionary &data, StripModifi
   any_cast_set_array(data, "white_value", wbmd->white_value, std::size(wbmd->white_value));
 }
 
+static void set_curve_mapping(AnyDictionary &metadata, CurveMapping *cmp)
+{
+  any_cast_set(metadata, "flag", cmp->flag);
+  cmp->flag &= ~CUMA_PREMULLED;
+  any_cast_set(metadata, "preset", cmp->preset);
+  any_cast_set(metadata, "tone", cmp->tone);
+  any_cast_set(metadata, "cur", cmp->cur);
+
+  AnyVector curr;
+  any_cast_set(metadata, "curr", curr);
+  if (curr.size() >= 4) {
+    any_cast_set(curr[0], cmp->curr.xmin);
+    any_cast_set(curr[1], cmp->curr.xmax);
+    any_cast_set(curr[2], cmp->curr.ymin);
+    any_cast_set(curr[3], cmp->curr.ymax);
+  }
+
+  AnyVector clipr;
+  any_cast_set(metadata, "clipr", clipr);
+  if (clipr.size() >= 4) {
+    any_cast_set(clipr[0], cmp->clipr.xmin);
+    any_cast_set(clipr[1], cmp->clipr.xmax);
+    any_cast_set(clipr[2], cmp->clipr.ymin);
+    any_cast_set(clipr[3], cmp->clipr.ymax);
+  }
+
+  any_cast_set_array(metadata, "black", cmp->black, std::size(cmp->black));
+  any_cast_set_array(metadata, "white", cmp->white, std::size(cmp->white));
+  any_cast_set_array(metadata, "sample", cmp->sample, std::size(cmp->sample));
+
+  AnyVector curve_maps;
+  any_cast_set(metadata, "curve_maps", curve_maps);
+  for (size_t c = 0; c < std::min(curve_maps.size(), (size_t)4); ++c) {
+    CurveMap &cm = cmp->cm[c];
+
+    AnyDictionary cm_dict;
+    any_cast_set(curve_maps[c], cm_dict);
+
+    any_cast_set(cm_dict, "default_handle_type", cm.default_handle_type);
+    any_cast_set_array(cm_dict, "ext_in", cm.ext_in, std::size(cm.ext_in));
+    any_cast_set_array(cm_dict, "ext_out", cm.ext_out, std::size(cm.ext_out));
+
+    AnyVector curve;
+    any_cast_set(cm_dict, "curve", curve);
+
+    if (curve.size() < 2) {
+      continue;
+    }
+
+    /* Free default curve array and allocate new one of appropriate size. */
+    MEM_SAFE_DELETE(cm.curve);
+    cm.totpoint = curve.size();
+    cm.curve = MEM_new_array<CurveMapPoint>(curve.size(), "curve points");
+
+    for (size_t i = 0; i < curve.size(); ++i) {
+      AnyDictionary point;
+      any_cast_set(curve[i], point);
+
+      any_cast_set(point, "x", cm.curve[i].x);
+      any_cast_set(point, "y", cm.curve[i].y);
+      cm.curve[i].flag = cm.default_handle_type;
+      any_cast_set(point, "flag", cm.curve[i].flag);
+      any_cast_set(point, "shorty", cm.curve[i].shorty);
+    }
+  }
+  BKE_curvemapping_changed_all(cmp);
+}
+
+static void set_modifier_metadata_curves(AnyDictionary &data, StripModifierData *smd)
+{
+  switch (smd->type) {
+    case eSeqModifierType_Curves: {
+      CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
+      set_curve_mapping(data, &cmd->curve_mapping);
+      break;
+    }
+
+    case eSeqModifierType_HueCorrect: {
+      HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(smd);
+      set_curve_mapping(data, &hcmd->curve_mapping);
+      break;
+    }
+
+    case eSeqModifierType_SoundEqualizer: {
+      SoundEqualizerModifierData *semd = reinterpret_cast<SoundEqualizerModifierData *>(smd);
+      AnyVector graphics;
+      any_cast_set(data, "graphics", graphics);
+      if (graphics.empty()) {
+        break;
+      }
+      /* Remove the default graph. */
+      seq::sound_equalizermodifier_free(smd);
+
+      for (size_t i = 0; i < graphics.size(); ++i) {
+        AnyDictionary curve_metadata;
+        any_cast_set(graphics[i], curve_metadata);
+        AnyVector clipr;
+        any_cast_set(curve_metadata, "clipr", clipr);
+
+        float min_freq = SOUND_EQUALIZER_DEFAULT_MIN_FREQ;
+        float max_freq = SOUND_EQUALIZER_DEFAULT_MAX_FREQ;
+        if (clipr.size() >= 2) {
+          any_cast_set(clipr[0], min_freq);
+          any_cast_set(clipr[1], max_freq);
+        }
+
+        EQCurveMappingData *eqcmd = seq::sound_equalizermodifier_add_graph(
+            semd, min_freq, max_freq);
+        set_curve_mapping(curve_metadata, &eqcmd->curve_mapping);
+      }
+
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
 static void set_strip_metadata_modifiers(AnyDictionary &metadata, Strip *strip)
 {
   AnyVector modifiers;
@@ -320,6 +443,7 @@ static void set_strip_metadata_modifiers(AnyDictionary &metadata, Strip *strip)
     if (any_cast_set(parent, "data", data)) {
 
       StripModifierData *smd = seq::modifier_new(strip, name, type);
+      seq::modifier_persistent_uid_init(*strip, *smd);
       any_cast_set_flag(parent, "mute", smd->flag, STRIP_MODIFIER_FLAG_MUTE);
 
       switch (type) {
@@ -337,6 +461,12 @@ static void set_strip_metadata_modifiers(AnyDictionary &metadata, Strip *strip)
 
         case eSeqModifierType_WhiteBalance:
           set_modifier_metadata_white_balance(data, smd);
+          break;
+
+        case eSeqModifierType_Curves:
+        case eSeqModifierType_HueCorrect:
+        case eSeqModifierType_SoundEqualizer:
+          set_modifier_metadata_curves(data, smd);
           break;
 
         case eSeqModifierType_Pitch:
@@ -363,6 +493,7 @@ void set_strip_metadata(Item *item, Strip *strip)
 
   if (strip->type == STRIP_TYPE_SOUND) {
     set_strip_metadata_sound(metadata, strip);
+    set_strip_metadata_modifiers(metadata, strip);
     return;
   }
 
