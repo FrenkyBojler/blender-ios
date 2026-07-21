@@ -20,7 +20,7 @@ class SCENE_MT_add_compositor_effect(Menu):
                 "WM_OT_search_single_menu",
                 text="Search...",
                 icon='VIEWZOOM',
-            ).menu_idname = "NODE_MT_add_scene_compositor_effect_add"
+            ).menu_idname = "SCENE_MT_add_compositor_effect"
             layout.separator()
 
         layout.operator_context = 'INVOKE_REGION_WIN'

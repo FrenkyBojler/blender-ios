@@ -298,10 +298,11 @@ void remove_effect(Scene &scene, SceneCompositorEffect &effect)
     id_us_min(&effect.node_group->id);
   }
   BLI_remlink(&scene.compositor_effects, &effect);
-  free_effect(effect);
-  if (!scene.compositor_effects.is_empty()) {
+  const bool was_active = flag_is_set(effect.flags, SceneCompositorEffectFlags::IsActive);
+  if (was_active && !scene.compositor_effects.is_empty()) {
     set_active_effect(scene, *scene.compositor_effects.begin());
   }
+  free_effect(effect);
 }
 
 void copy_effects(Scene &target_scene, const Scene &source_scene, const int flags)

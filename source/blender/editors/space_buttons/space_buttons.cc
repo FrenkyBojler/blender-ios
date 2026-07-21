@@ -769,6 +769,7 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           break;
         case ND_COMPO_RESULT:
           buttons_area_redraw(area, BCONTEXT_COMPOSITOR);
+          break;
         case ND_MODE:
         case ND_LAYER:
         default:

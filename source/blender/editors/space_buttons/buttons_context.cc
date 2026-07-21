@@ -584,15 +584,25 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
 
 static bool buttons_context_path_compositor(ButsContextPath *path)
 {
-  Scene *scene = path->ptr[path->len - 1].data_as<Scene>();
+  PointerRNA *ptr = &path->ptr[path->len - 1];
 
-  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
-  if (effect) {
-    path->ptr[path->len] = RNA_pointer_create_discrete(
-        &scene->id, RNA_SceneCompositorEffect, effect);
-    path->len++;
+  /* If we already have a pinned effect, we're done. */
+  if (RNA_struct_is_a(ptr->type, RNA_SceneCompositorEffect)) {
+    return true;
   }
-  return true;
+
+  if (buttons_context_path_scene(path)) {
+    Scene *scene = ptr->data_as<Scene>();
+    SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
+    if (effect) {
+      path->ptr[path->len] = RNA_pointer_create_discrete(
+          &scene->id, RNA_SceneCompositorEffect, effect);
+      path->len++;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 #ifdef WITH_FREESTYLE

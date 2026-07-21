@@ -2802,9 +2802,9 @@ struct SceneCompositorEffect {
   SceneCompositorEffectFlags flags = SceneCompositorEffectFlags::EnableForRender |
                                      SceneCompositorEffectFlags::EnableForPreview |
                                      SceneCompositorEffectFlags::ShowNodeGroupSelector;
-  char _pad0[1];
+  char _pad0[1] = {};
   uiPanelDataExpansion ui_panel_data_expansion = UI_PANEL_DATA_EXPAND_ROOT;
-  char _pad1[4];
+  char _pad1[4] = {};
 };
 
 /** \} */

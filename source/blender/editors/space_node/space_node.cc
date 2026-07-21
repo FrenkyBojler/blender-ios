@@ -428,7 +428,11 @@ static std::optional<SceneAndCompositorEffect> get_scene_compositor_effect_for_n
     return std::nullopt;
   }
 
-  return SceneAndCompositorEffect(scene, bke::compositor::get_active_effect(*scene));
+  const SceneCompositorEffect *active_effect = bke::compositor::get_active_effect(*scene);
+  if (!active_effect) {
+    return std::nullopt;
+  }
+  return SceneAndCompositorEffect(scene, active_effect);
 }
 
 const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,

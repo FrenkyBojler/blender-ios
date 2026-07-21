@@ -71,7 +71,7 @@ static void SCENE_OT_add_compositor_effect(wmOperatorType *ot)
 {
   ot->name = "Add Scene Compositor Effect";
   ot->idname = "SCENE_OT_add_compositor_effect";
-  ot->description = "Add a compositor effect to the scene";
+  ot->description = "Add a scene compositor effect to the scene";
 
   ot->exec = add_compositor_effect_exec;
 
@@ -108,13 +108,14 @@ static void SCENE_OT_remove_compositor_effect(wmOperatorType *ot)
 
   ot->name = "Remove Scene Compositor Effect";
   ot->idname = "SCENE_OT_remove_compositor_effect";
-  ot->description = "Remove a effect from the strip";
+  ot->description = "Remove a scene compositor effect from the scene";
 
   ot->exec = remove_compositor_effect_exec;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  prop = RNA_def_string(ot->srna, "name", "Name", MAX_NAME, "Name", "Name of effect to remove");
+  prop = RNA_def_string(
+      ot->srna, "name", "Name", MAX_NAME, "Name", "Name of the effect to remove");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
@@ -157,7 +158,7 @@ static void SCENE_OT_duplicate_compositor_effect(wmOperatorType *ot)
 {
   ot->name = "Duplicate Scene Compositor Effect";
   ot->idname = "SCENE_OT_duplicate_compositor_effect";
-  ot->description = "Duplicate the active or the given effect";
+  ot->description = "Duplicate the active or the given scene compositor effect";
 
   ot->exec = duplicate_compositor_effect_exec;
 

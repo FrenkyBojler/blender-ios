@@ -228,6 +228,14 @@ void SceneCompositorEffectsOperation::execute()
 
       /* If a last operation exists, link its output. */
       if (last_operation) {
+        /* Last operation had no output, so link an invalid result. */
+        if (last_operation->node_group().interface_outputs().is_empty()) {
+          Result *invalid_result = new Result(this->context().create_result(ResultType::Color));
+          invalid_result->allocate_invalid();
+          effect_operation->map_input_to_result(input_socket->identifier, invalid_result);
+          temporary_inputs.append(std::unique_ptr<Result>(invalid_result));
+          continue;
+        }
         const bNodeTreeInterfaceSocket *last_operation_output =
             last_operation->node_group().interface_outputs().first();
         Result &output_result = last_operation->get_result(last_operation_output->identifier);

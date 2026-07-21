@@ -1991,8 +1991,9 @@ void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *
   BKE_ntree_update(*bmain);
 }
 
-void rna_Scene_compositor_update(Main * /*bmain*/, Scene *scene, PointerRNA * /*scene_ptr*/)
+void rna_Scene_compositor_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
   DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
 }
@@ -3258,7 +3259,7 @@ static std::optional<std::string> rna_SceneCompositorEffectProperties_path(
     const PointerRNA *effect_ptr)
 {
   const SceneCompositorEffect *effect = effect_ptr->data_as<SceneCompositorEffect>();
-  return fmt::format("effects[\"{}\"].properties", BLI_str_escape(effect->name));
+  return fmt::format("compositor_effects[\"{}\"].properties", BLI_str_escape(effect->name));
 }
 
 static IDProperty **rna_SceneCompositorEffect_idprops(PointerRNA *effect_ptr)
@@ -9123,7 +9124,7 @@ static void rna_def_compositor_effects(BlenderRNA *brna, PropertyRNA *cprop)
                                  "rna_SceneCompositorEffects_active_set",
                                  nullptr,
                                  nullptr);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);
   RNA_def_property_ui_text(prop, "Active Effect", "The active strip effect in the list");
   RNA_def_property_update(prop, NC_SCENE | ND_COMPO_RESULT, "rna_Scene_compositor_update");
 }

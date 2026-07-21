@@ -28,7 +28,7 @@ static std::optional<std::string> rna_SceneCompositorEffectInputProperty_path(
   const char *identifier = RNA_struct_identifier(property_ptr->type);
   const SceneCompositorEffect *effect = bke::compositor::get_effect_from_property(*property_ptr);
   return fmt::format(
-      "effects[\"{}\"].properties.inputs.{}", BLI_str_escape(effect->name), identifier);
+      "compositor_effects[\"{}\"].properties.inputs.{}", BLI_str_escape(effect->name), identifier);
 }
 
 static StructRNA *get_input_socket_struct_rna(const bNodeTree &node_group,
