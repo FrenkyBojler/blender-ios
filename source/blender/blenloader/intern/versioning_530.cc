@@ -10,6 +10,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.hh"
@@ -91,6 +92,12 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 503, 7)) {
+    for (wmWindowManager &wm : bmain->wm) {
+      wm.xr.session_settings.show_head_ui = false;
     }
   }
 

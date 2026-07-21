@@ -434,7 +434,7 @@ classes = (
 )
 
 world_space_classes = (
-    vr_world_space_panel_class(VIEW3D_PT_vr_session),
+    vr_world_space_panel_class(VIEW3D_PT_vr_session, bl_xr_panel_mount_point='LEFT_HAND'),
     vr_world_space_panel_class(VIEW3D_PT_vr_session_view_object_type_visibility),
     vr_world_space_panel_class(VIEW3D_PT_vr_session_view),
     vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting),
@@ -449,7 +449,6 @@ world_space_classes = (
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-
     for cls in world_space_classes:
         bpy.utils.register_class(cls)
 
@@ -474,10 +473,9 @@ def register():
 
 
 def unregister():
-    for cls in classes:
+    for cls in reversed(world_space_classes):
         bpy.utils.unregister_class(cls)
-
-    for cls in world_space_classes:
+    for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
     del bpy.types.View3DShading.vr_show_virtual_camera

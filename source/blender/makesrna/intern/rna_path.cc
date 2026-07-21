@@ -1232,6 +1232,10 @@ std::optional<std::string> RNA_path_resolve_from_type_to_property(const PointerR
 
 std::string RNA_path_full_ID_py(ID *id)
 {
+  if (id == nullptr) {
+    return "bpy.data";
+  }
+
   const char *path;
   ID *id_real = RNA_find_real_ID_and_path(id, &path);
 
@@ -1257,8 +1261,13 @@ std::string RNA_path_full_ID_py(ID *id)
   char id_esc[(sizeof(id->name) - 2) * 2];
   BLI_str_escape(id_esc, id->name + 2, sizeof(id_esc));
 
+  const char *id_plural = BKE_idtype_idcode_to_name_plural(GS(id->name));
+  if (id_plural == nullptr) {
+    id_plural = "ids";
+  }
+
   return fmt::format("bpy.data.{}[\"{}\"{}]{}{}",
-                     BKE_idtype_idcode_to_name_plural(GS(id->name)),
+                     id_plural,
                      id_esc,
                      lib_filepath_esc,
                      path[0] ? "." : "",

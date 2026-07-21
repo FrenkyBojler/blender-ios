@@ -680,6 +680,9 @@ static int wm_xr_ui_region_mount_points_collect(const wmXrData *xr,
     if (mount_point == XR_UI_REGION_MOUNT_NONE) {
       continue;
     }
+    if (mount_point == XR_UI_REGION_MOUNT_HEAD_FOLLOW && !xr->session_settings.show_head_ui) {
+      continue;
+    }
     if (!ELEM(mount_point,
               XR_UI_REGION_MOUNT_LEFT_HAND,
               XR_UI_REGION_MOUNT_RIGHT_HAND,
