@@ -9046,6 +9046,27 @@ def km_sequencer_preview_tool_scale(params):
     )
 
 
+def km_sequencer_tool_mask_interactive_square(params):
+    return (
+        "Sequencer Tool: Mask, Interactive Square",
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.interactive_square_add", {"type": params.tool_mouse, "value": 'PRESS'},
+             {"properties": []}),
+        ]},
+    )
+
+def km_sequencer_tool_mask_interactive_circle(params):
+    return (
+        "Sequencer Tool: Mask, Interactive Circle",
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("mask.interactive_circle_add", {"type": params.tool_mouse, "value": 'PRESS'},
+             {"properties": []}),
+        ]},
+    )
+
+
 def km_3d_view_tool_edit_grease_pencil_interpolate(params):
     return (
         "3D View Tool: Edit Grease Pencil, Interpolate",
@@ -9369,6 +9390,8 @@ def generate_keymaps(params=None):
         km_sequencer_preview_tool_move(params),
         km_sequencer_preview_tool_rotate(params),
         km_sequencer_preview_tool_scale(params),
+        km_sequencer_tool_mask_interactive_square(params),
+        km_sequencer_tool_mask_interactive_circle(params),
     ]
 
 

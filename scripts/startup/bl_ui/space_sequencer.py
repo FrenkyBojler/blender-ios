@@ -115,7 +115,7 @@ class SEQUENCER_HT_header(Header):
         if sequencer_tool_settings and st.view_type == 'PREVIEW':
             layout.prop(sequencer_tool_settings, "pivot_point", text="", icon_only=True)
 
-        if st.mode in {'MASK'} and st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
+        if tool_settings and st.mode in {'MASK'} and st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             row = layout.row(align=True)
             row.prop(tool_settings, "use_proportional_edit_mask", text="", icon_only=True)
             sub = row.row(align=True)

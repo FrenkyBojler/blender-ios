@@ -90,6 +90,8 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
 
   sseq->cache_overlay.flag = SEQ_CACHE_SHOW | SEQ_CACHE_SHOW_FINAL_OUT;
   sseq->draw_flag |= SEQ_DRAW_TRANSFORM_PREVIEW;
+  sseq->mask_draw_flag |= MASK_DRAWFLAG_SPLINE;
+  sseq->mask_draw_type = MASK_DT_OUTLINE;
 
   /* Header. */
   region = BKE_area_region_new();

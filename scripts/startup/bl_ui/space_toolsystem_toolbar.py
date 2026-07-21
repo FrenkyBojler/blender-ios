@@ -3339,6 +3339,31 @@ class _defs_sequencer_generic:
         )
 
 
+    @ToolDef.from_fn
+    def mask_interactive_square():
+        return dict(
+            idname="builtin.sequencer_mask_square",
+            label="Square Mask",
+            icon="ops.sequencer.mask_square",
+            cursor='CROSSHAIR',
+            widget=None,
+            operator="mask.interactive_square_add",
+            keymap="Sequencer Tool: Mask, Interactive Square",
+        )
+
+    @ToolDef.from_fn
+    def mask_interactive_circle():
+        return dict(
+            idname="builtin.sequencer_mask_circle",
+            label="Circle Mask",
+            icon="ops.sequencer.mask_circle",
+            cursor='CROSSHAIR',
+            widget=None,
+            operator="mask.interactive_circle_add",
+            keymap="Sequencer Tool: Mask, Interactive Circle",
+        )
+
+
 class _defs_sequencer_select:
     @ToolDef.from_fn
     def select_preview():
@@ -4278,6 +4303,11 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_sequencer_generic.rotate,
             _defs_sequencer_generic.scale,
             _defs_sequencer_generic.transform,
+            None,
+            (
+                _defs_sequencer_generic.mask_interactive_square,
+                _defs_sequencer_generic.mask_interactive_circle,
+            ),
             None,
             _defs_sequencer_generic.sample,
             *_tools_annotate,

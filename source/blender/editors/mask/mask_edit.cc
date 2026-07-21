@@ -109,6 +109,8 @@ void ED_operatortypes_mask()
   WM_operatortype_append(MASK_OT_add_feather_vertex);
   WM_operatortype_append(MASK_OT_primitive_circle_add);
   WM_operatortype_append(MASK_OT_primitive_square_add);
+  WM_operatortype_append(MASK_OT_interactive_square_add);
+  WM_operatortype_append(MASK_OT_interactive_circle_add);
 
   /* geometry */
   WM_operatortype_append(MASK_OT_switch_direction);
