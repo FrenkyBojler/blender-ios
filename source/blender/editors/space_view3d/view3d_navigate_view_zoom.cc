@@ -83,6 +83,7 @@ static void view_zoom_to_window_xy_camera(Scene *scene,
     float2 pt_dst;
     float2 delta_px;
 
+    /* Calculate the center of zoom with roll applied. */
     if (rv3d->camroll != 0.0f) {
       const float2 center(region->winx / 2, region->winy / 2);
 

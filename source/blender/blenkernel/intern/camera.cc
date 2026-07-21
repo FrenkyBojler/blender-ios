@@ -507,6 +507,7 @@ void BKE_camera_params_compute_viewplane(
   dx = params->shiftx * viewfac + winx * params->offsetx;
   dy = params->shifty * viewfac + winy * params->offsety;
 
+  /* Apply roll. */
   if (params->roll != 0.0f) {
     const float2x2 rot = math::from_rotation<float2x2>(math::AngleRadian(params->roll));
     const float2 dxy = rot * float2(dx, dy);
