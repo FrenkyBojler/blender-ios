@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_base_safe.h"
+#include "BLI_math_base_safe.hh"
 #include "BLI_math_vector.hh"
 
 #include "FN_init.hh"
@@ -171,7 +171,7 @@ class DivideFunction : public MultiFunction {
   }
 };
 
-void register_common_functions()
+static void register_common_functions_impl()
 {
   static constexpr auto exec_fast = build::exec_presets::AllSpanOrSingle();
 
@@ -664,6 +664,15 @@ void register_common_functions()
         },
         exec_fast);
   });
+}
+
+void register_common_functions()
+{
+  /* Make sure the functions are only registered once even if called multiple times. */
+  [[maybe_unused]] static bool registered = []() {
+    register_common_functions_impl();
+    return true;
+  }();
 }
 
 }  // namespace blender::fn::multi_function

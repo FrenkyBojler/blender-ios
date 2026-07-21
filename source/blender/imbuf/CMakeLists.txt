@@ -17,6 +17,7 @@ set(INC_SYS
 
 set(SRC
   intern/allocimbuf.cc
+  intern/cache.cc
   intern/colormanagement.cc
   intern/colormanagement_inline.h
   intern/conversion.cc
@@ -34,10 +35,9 @@ set(SRC
   intern/format_targa.cc
   intern/format_tiff.cc
   intern/imageprocess.cc
-  intern/interp.cc
   intern/metadata.cc
   intern/module.cc
-  intern/cache.cc
+  intern/partial_update.cc
   intern/readimage.cc
   intern/rectop.cc
   intern/rotate.cc
@@ -51,16 +51,16 @@ set(SRC
   intern/util_gpu.cc
   intern/writeimage.cc
 
+  IMB_cache.hh
   IMB_colormanagement.hh
   IMB_imbuf.hh
   IMB_imbuf_enums.h
   IMB_imbuf_types.hh
   IMB_interp.hh
   IMB_metadata.hh
-  IMB_cache.hh
   IMB_openexr.hh
+  IMB_partial_update.hh
   IMB_thumbs.hh
-  intern/IMB_allocimbuf.hh
   intern/IMB_colormanagement_intern.hh
   intern/IMB_filetype.hh
   intern/IMB_filter.hh
@@ -134,6 +134,7 @@ add_library(bf::imbuf ALIAS bf_imbuf)
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    tests/IMB_partial_update_test.cc
     tests/IMB_scaling_test.cc
     tests/IMB_transform_test.cc
   )
