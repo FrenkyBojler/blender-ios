@@ -1871,7 +1871,7 @@ PyDoc_STRVAR(
     "   :type output_type: int\n"
     "   :param epsilon: For nearness tests; should not be zero\n"
     "   :type epsilon: float\n"
-    "   :param need_ids: are the orig output arrays needed?\n"
+    "   :param needed_ids: are the orig output arrays needed?\n"
     "   :type needed_ids: int. Bitmask of 0x1 => need orig_verts. "
     "0x2 => need intersected edges. "
     "0x4 => need original edges. "
