@@ -10,9 +10,11 @@
 
 #include <optional>
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 
 #include "BLI_math_vector_types.hh"
+
+#include "DNA_windowmanager_enums.h"
 
 #include "gizmo/wm_gizmo_wmapi.hh"
 

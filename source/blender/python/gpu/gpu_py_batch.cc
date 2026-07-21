@@ -14,7 +14,7 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include "GPU_batch.hh"
 #include "GPU_state.hh"
@@ -63,7 +63,7 @@ static PyObject *pygpu_batch__tp_new(PyTypeObject * /*type*/, PyObject *args, Py
 
   static const char *_keywords[] = {"type", "buf", "elem", nullptr};
   static _PyArg_Parser _parser = {
-      "|$" /* Optional keyword only arguments. */
+      "|$" /* Optional, keyword only arguments. */
       "O&" /* `type` */
       "O!" /* `buf` */
       "O&" /* `elem` */
@@ -428,7 +428,7 @@ static PyObject *pygpu_batch_draw_instanced(BPyGPUBatch *self, PyObject *args, P
   static const char *_keywords[] = {"program", "instance_start", "instance_count", nullptr};
   static _PyArg_Parser _parser = {
       "O!" /* `program` */
-      "|$" /* Optional keyword only arguments. */
+      "|$" /* Optional, keyword only arguments. */
       "i"  /* `instance_start` */
       "i"  /* `instance_count` */
       ":GPUBatch.draw_instanced",
@@ -472,7 +472,7 @@ static PyObject *pygpu_batch_draw_range(BPyGPUBatch *self, PyObject *args, PyObj
   static const char *_keywords[] = {"program", "elem_start", "elem_count", nullptr};
   static _PyArg_Parser _parser = {
       "O!" /* `program` */
-      "|$" /* Optional keyword only arguments. */
+      "|$" /* Optional, keyword only arguments. */
       "i"  /* `elem_start` */
       "i"  /* `elem_count` */
       ":GPUBatch.draw_range",
@@ -597,17 +597,20 @@ static void pygpu_batch__tp_dealloc(BPyGPUBatch *self)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_batch__tp_doc,
-    ".. class:: GPUBatch(type, buf, elem=None)\n"
+    ".. class:: GPUBatch\n"
     "\n"
     "   Reusable container for drawable geometry.\n"
     "\n"
-    "   :param type: The primitive type of geometry to be drawn.\n"
-    "   :type type: " PYDOC_PRIMTYPE_LITERAL
+    "   .. method:: __init__(type, buf, elem=None)\n"
     "\n"
-    "   :param buf: Vertex buffer containing all or some of the attributes required for drawing.\n"
-    "   :type buf: :class:`gpu.types.GPUVertBuf`\n"
-    "   :param elem: An optional index buffer.\n"
-    "   :type elem: :class:`gpu.types.GPUIndexBuf` | None\n");
+    "      :param type: The primitive type of geometry to be drawn.\n"
+    "      :type type: " PYDOC_PRIMTYPE_LITERAL
+    "\n"
+    "      :param buf: Vertex buffer containing all or some of the attributes required for "
+    "drawing.\n"
+    "      :type buf: :class:`gpu.types.GPUVertBuf`\n"
+    "      :param elem: An optional index buffer.\n"
+    "      :type elem: :class:`gpu.types.GPUIndexBuf` | None\n");
 PyTypeObject BPyGPUBatch_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUBatch",

@@ -28,11 +28,13 @@ set(SRC
   paint_sample_color.cc
   paint_stroke.cc
   paint_utils.cc
+  palette.cc
   sculpt_uv.cc
 
   curves/sculpt_add.cc
   curves/sculpt_brush.cc
   curves/sculpt_comb.cc
+  curves/sculpt_cut.cc
   curves/sculpt_delete.cc
   curves/sculpt_density.cc
   curves/sculpt_grow_shrink.cc
@@ -51,6 +53,7 @@ set(SRC
   grease_pencil/interpolate.cc
   grease_pencil/paint.cc
   grease_pencil/paint_common.cc
+  grease_pencil/paint_cursor.cc
   grease_pencil/sculpt_clone.cc
   grease_pencil/sculpt_grab.cc
   grease_pencil/sculpt_pinch.cc
@@ -74,6 +77,7 @@ set(SRC
   grease_pencil/weight_smear.cc
 
   mesh/paint_canvas.cc
+  mesh/paint_cursor.cc
   mesh/paint_hide.cc
   mesh/paint_image.cc
   mesh/paint_image_2d.cc
@@ -113,6 +117,7 @@ set(SRC
   mesh/sculpt_trim.cc
   mesh/sculpt_undo.cc
 
+  paint_cursor.hh
   paint_intern.hh
 
   curves/sculpt_intern.hh
@@ -141,6 +146,7 @@ set(SRC
   mesh/sculpt_pose.hh
   mesh/sculpt_smooth.hh
   mesh/sculpt_undo.hh
+  mesh/vw_paint_intern.hh
 
   mesh/brushes/bmesh_topology_rake.cc
   mesh/brushes/clay.cc
@@ -164,6 +170,7 @@ set(SRC
   mesh/brushes/plane.cc
   mesh/brushes/relax.cc
   mesh/brushes/rotate.cc
+  mesh/brushes/scene_project.cc
   mesh/brushes/smooth.cc
   mesh/brushes/smooth_mask.cc
   mesh/brushes/snake_hook.cc

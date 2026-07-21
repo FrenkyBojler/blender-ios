@@ -13,6 +13,7 @@
 #include <string>
 
 #ifdef WITH_VULKAN_BACKEND
+#  define VK_NO_PROTOTYPES
 #  include <vulkan/vulkan_core.h>
 VK_DEFINE_HANDLE(VmaAllocator)
 #endif
@@ -74,6 +75,28 @@ struct GHOST_CursorGenerator {
    * Implementation specific data used for rasterization
    * (could contain SVG data for example).
    */
+  GHOST_TUserDataPtr user_data;
+};
+
+class GHOST_IWindow;
+
+struct GHOST_IconGenerator {
+  /**
+   * Generate a top-level window icon.
+   *
+   * The callback writes RGBA pixels into a pre-allocated buffer.
+   * The color is "straight" (alpha is not pre-multiplied).
+   *
+   * \param icon_generator: Pass in to allow accessing the user_data argument.
+   * \param window: The window requesting an icon.
+   * \param pixels: Pre-allocated RGBA buffer (`icon_size * icon_size * 4` bytes).
+   * \param icon_size: The width and height of the square icon in pixels.
+   */
+  void (*generate_fn)(const struct GHOST_IconGenerator *icon_generator,
+                      GHOST_IWindow *window,
+                      uint8_t *pixels,
+                      int icon_size);
+  /** Implementation specific data. */
   GHOST_TUserDataPtr user_data;
 };
 
@@ -746,7 +769,7 @@ struct GHOST_TEventKeyData {
 };
 
 enum GHOST_TUserSpecialDirTypes {
-  GHOST_kUserSpecialDirDesktop,
+  GHOST_kUserSpecialDirDesktop = 0,
   GHOST_kUserSpecialDirDocuments,
   GHOST_kUserSpecialDirDownloads,
   GHOST_kUserSpecialDirMusic,
@@ -755,6 +778,7 @@ enum GHOST_TUserSpecialDirTypes {
   GHOST_kUserSpecialDirCaches,
   /* Can be extended as needed. */
 };
+#define GHOST_kUserSpecialDirType_Num (GHOST_kUserSpecialDirCaches + 1)
 
 enum GHOST_TWindowDecorationStyleFlags {
   GHOST_kDecorationNone = 0,
@@ -762,12 +786,27 @@ enum GHOST_TWindowDecorationStyleFlags {
 };
 
 struct GHOST_GPUDevice {
+  /**
+   * When true: use the specified GPU.
+   * When false: fallback to saved GPU.
+   */
+  bool is_override;
+  /**
+   * When true, a missing override device causes context creation to fail instead of falling back.
+   */
+  bool fail_on_invalid_override;
   /** Index of the GPU device in the list provided by the platform. */
   int index;
   /** (PCI) Vendor ID of the GPU. */
   uint vendor_id;
   /** Device ID of the GPU provided by the vendor. */
   uint device_id;
+  /** Saved preference to fall back to when the override device is unavailable. */
+  int fallback_index;
+  /** Saved preference fallback (PCI) Vendor ID. */
+  uint fallback_vendor_id;
+  /** Saved preference fallback Device ID. */
+  uint fallback_device_id;
 };
 
 /**

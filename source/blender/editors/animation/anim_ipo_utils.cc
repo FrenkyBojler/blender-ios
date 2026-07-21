@@ -14,9 +14,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math_color.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_color_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -178,9 +178,9 @@ std::optional<int> getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
   if (RNA_struct_is_a(ptr.type, RNA_NodesModifier)) {
     /* Display geometry node properties with node-tree socket labels. */
     const NodesModifierData *nmd = static_cast<const NodesModifierData *>(ptr.data);
-    if (const bNodeTree *node_group = nmd->node_group) {
+    if (nmd->node_group && !ID_MISSING(nmd->node_group)) {
       if (const bNodeTreeInterfaceSocket *input = bke::node_find_interface_input_by_identifier(
-              *node_group, propname))
+              *nmd->node_group, propname))
       {
         propname = input->name;
       }

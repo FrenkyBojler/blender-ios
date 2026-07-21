@@ -6,7 +6,7 @@
 
 #include "sculpt_intern.hh"
 
-#include "BLI_math_geom.h"
+#include "BLI_math_geom_c.hh"
 
 #include "DNA_mesh_types.h"
 
@@ -177,6 +177,8 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
                                                     const float2 &brush_pos_re,
                                                     const float brush_radius_re)
 {
+  const eEvaluationMode deg_eval_mode = DEG_get_mode(&depsgraph);
+  const bool xray_enabled = XRAY_ENABLED(&v3d);
   const Curves &curves_id = *id_cast<Curves *>(curves_object.data);
   const CurvesGeometry &curves = curves_id.geometry.wrap();
   Object *surface_object = curves_id.surface;
@@ -187,7 +189,10 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
       &depsgraph, &region, &v3d, brush_pos_re, center_ray_start_wo, center_ray_end_wo, true);
 
   /* Shorten ray when the surface object is hit. */
-  if (surface_object_eval != nullptr) {
+  const bool use_surface_object_clip = surface_object_eval &&
+                                       (BKE_object_visibility(surface_object_eval, deg_eval_mode) &
+                                        OB_VISIBLE_SELF);
+  if (use_surface_object_clip && !xray_enabled) {
     const float4x4 surface_to_world_mat(surface_object->object_to_world().ptr());
     const float4x4 world_to_surface_mat = math::invert(surface_to_world_mat);
 
@@ -368,6 +373,12 @@ void move_last_point_and_resample(MoveAndResampleBuffers &buffer,
                                   MutableSpan<float3> positions,
                                   const float3 &new_last_position)
 {
+  if (positions.size() <= 2) {
+    /* Curve does not need to be resampled if there are zero points between the start and end. */
+    positions.last() = new_last_position;
+    return;
+  }
+
   /* Find the accumulated length of each point in the original curve,
    * treating it as a poly curve for performance reasons and simplicity. */
   buffer.orig_lengths.resize(length_parameterize::segments_num(positions.size(), false));
@@ -436,6 +447,11 @@ void report_missing_uv_map_on_evaluated_surface(ReportList *reports)
 void report_invalid_uv_map(ReportList *reports)
 {
   BKE_report(reports, RPT_WARNING, "Invalid UV map: UV islands must not overlap");
+}
+
+void report_cyclic_not_supported(ReportList *reports)
+{
+  BKE_report(reports, RPT_WARNING, "Cyclic curves are not supported");
 }
 
 void CurvesConstraintSolver::initialize(const bke::CurvesGeometry &curves,

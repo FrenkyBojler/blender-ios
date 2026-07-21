@@ -72,6 +72,10 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 {
   auto *mmd = reinterpret_cast<GreasePencilHookModifierData *>(md);
   if (mmd->object != nullptr) {
+    if (mmd->subtarget[0]) {
+      DEG_add_bone_relation(
+          ctx->node, mmd->object, mmd->subtarget, DEG_OB_COMP_BONE, "Hook Modifier");
+    }
     DEG_add_object_relation(ctx->node, mmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
   }
   DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
@@ -166,7 +170,8 @@ static void deform_drawing(const ModifierData &md,
       curves, mmd.influence);
 
   const int falloff_type = mmd.falloff_type;
-  const float falloff = (mmd.falloff_type == eHook_Falloff_None) ? 0.0f : mmd.falloff;
+  const float falloff = (mmd.falloff_type == MOD_GREASE_PENCIL_HOOK_Falloff_None) ? 0.0f :
+                                                                                    mmd.falloff;
   const float falloff_sq = square_f(falloff);
   const float fac_orig = mmd.force;
   const bool use_falloff = falloff_sq != 0.0f;

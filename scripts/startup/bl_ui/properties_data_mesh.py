@@ -450,6 +450,7 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
         col = layout.column()
 
         col.operator("mesh.customdata_mask_clear", icon='X')
+        col.operator("mesh.customdata_face_sets_clear", icon='X')
         col.operator("mesh.customdata_skin_clear", icon='X')
         col.operator("mesh.reorder_vertices_spatial")
         if me.has_custom_normals:
@@ -607,7 +608,12 @@ def draw_attribute_warnings(context, layout, attributes):
     if not colliding_names:
         return
 
-    layout.label(text=rpt_("Name collisions: ") + ", ".join(set(colliding_names)), icon='ERROR', translate=False)
+    layout.label(
+        text=rpt_("Name collisions: ") +
+        ", ".join(
+            set(colliding_names)),
+        icon='STATUS_WARNING',
+        translate=False)
 
 
 class ColorAttributesListBase:

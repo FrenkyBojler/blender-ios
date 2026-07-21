@@ -45,7 +45,7 @@ std::optional<FillCache> fill_cache_from_fill_ids(const VArray<int> &fill_ids)
           fill_sizes.append(1);
           curve_indices_by_fill.append(Vector<int>({curve}));
         },
-        [&](int *value) {
+        [&](const int *value) {
           const int fill_index = *value;
           fill_sizes[fill_index]++;
           curve_indices_by_fill[fill_index].append(curve);
@@ -75,13 +75,24 @@ std::optional<FillCache> fill_cache_from_fill_ids(const VArray<int> &fill_ids)
   return fill_cache;
 }
 
+static int get_next_available_fill_id_from_max(const int max_fill_id)
+{
+  /* Make sure the fill ID is greater than zero. This avoids the issue of hitting an invalid fill
+   * ID of zero when creating multiple IDs at once. */
+  return max_fill_id <= 0 ? 1 : max_fill_id + 1;
+}
+
+int get_next_available_fill_id(const Span<int> fill_ids)
+{
+  if (std::optional<int64_t> max_i = array_utils::max_element_index(fill_ids)) {
+    return get_next_available_fill_id_from_max(fill_ids[*max_i]);
+  }
+  return 1;
+}
 int get_next_available_fill_id(const VArray<int> &fill_ids)
 {
   if (std::optional<int64_t> max_i = array_utils::max_element_index(fill_ids)) {
-    const int max_fill_id = fill_ids[*max_i];
-    /* Make sure the fill ID is greater than zero. This avoids the issue of hitting an invalid fill
-     * ID of zero when creating multiple IDs at once. */
-    return max_fill_id <= 0 ? 1 : max_fill_id + 1;
+    return get_next_available_fill_id_from_max(fill_ids[*max_i]);
   }
   return 1;
 }
@@ -91,7 +102,6 @@ void gather_next_available_fill_ids(const VArray<int> &fill_ids, MutableSpan<int
   const int next_fill_id = get_next_available_fill_id(fill_ids);
   array_utils::fill_index_range(r_new_fill_ids, next_fill_id);
 }
-
 void gather_next_available_fill_ids(const VArray<int> &fill_ids,
                                     const IndexMask &curve_mask,
                                     MutableSpan<int> r_new_fill_ids)
@@ -118,21 +128,8 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
     }
     BLI_assert(domain == AttrDomain::Point);
 
-    Array<bool> selected_points(curves.points_num());
-    selected_mask.to_bools(selected_points);
-
-    const IndexMask selected_curves = IndexMask::from_predicate(
-        curves.curves_range(),
-        memory,
-        [&](const int curve_i) {
-          const IndexRange points = points_by_curve[curve_i];
-          const Span<bool> selected_curve_points = selected_points.as_span().slice(points);
-          return std::any_of(selected_curve_points.begin(),
-                             selected_curve_points.end(),
-                             [](const bool value) { return value; });
-        },
-        exec_mode::grain_size(512));
-
+    const IndexMask selected_curves = curves::point_to_curve_selection(
+        points_by_curve, selected_mask, memory);
     return curves::curve_to_point_selection(points_by_curve, selected_curves, memory);
   }
 
@@ -140,20 +137,8 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
   Array<bool> src_selected_curves(curves.curves_num());
 
   if (domain == AttrDomain::Point) {
-    Array<bool> selected_points(curves.points_num());
-    selected_mask.to_bools(selected_points);
-
-    const IndexMask selected_curves = IndexMask::from_predicate(
-        curves.curves_range(),
-        memory,
-        [&](const int curve_i) {
-          const IndexRange points = points_by_curve[curve_i];
-          const Span<bool> selected_curve_points = selected_points.as_span().slice(points);
-          return std::any_of(selected_curve_points.begin(),
-                             selected_curve_points.end(),
-                             [](const bool value) { return value; });
-        },
-        exec_mode::grain_size(512));
+    const IndexMask selected_curves = curves::point_to_curve_selection(
+        points_by_curve, selected_mask, memory);
 
     selected_curves.foreach_index([&](const int64_t curve_i) {
       const int fill_id = fill_ids[curve_i];
@@ -211,6 +196,7 @@ void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep)
       [&](const int curve_i) { max_id = math::max(max_id, fill_ids.span[curve_i]); });
 
   if (max_id == 0) {
+    fill_ids.finish();
     return;
   }
 

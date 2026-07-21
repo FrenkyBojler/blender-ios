@@ -17,13 +17,13 @@
 #include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
-#include "BLI_ghash.h"
-#include "BLI_listbase.h"
+#include "BLI_ghash.hh"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -152,7 +152,7 @@ static void library_foreach_path(ID *id, BPathForeachPathData *bpath_data)
   /* FIXME: Find if we should respect #BKE_BPATH_FOREACH_PATH_SKIP_PACKED here, and if not, explain
    * why. */
   if (lib->packedfile !=
-      nullptr /*&& (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0 */)
+      nullptr /* `&& (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0` */)
   {
     return;
   }
@@ -657,7 +657,7 @@ static void pack_linked_id(Main &bmain,
                                    std::nullopt,
                                    nullptr,
                                    LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                       LIB_ID_COPY_NO_ANIMDATA | LIB_ID_COPY_ASSET_METADATA);
+                                       LIB_ID_COPY_ASSET_METADATA);
     id_us_min(packed_id);
     copied_id_process(linked_id, packed_id);
 

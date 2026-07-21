@@ -56,6 +56,18 @@ struct WindowManagerRuntime {
   /** Indicates whether interface is locked for user interaction. */
   bool is_interface_locked = false;
 
+  /** Indicates whether modified images should be saved when saving the blend file. */
+  char save_modified_images_when_file_is_saved = true;
+
+  /**
+   * Indicates the main loop (#WM_main()) to stop processing the event queue and move to the next
+   * step. The Remaining events will then be processed during the next iteration of the loop.
+   *
+   * This is used e.g. to avoid handling events immediately after an undo/redo action, when UI has
+   * not yet been updated.
+   */
+  bool break_events_handling = false;
+
   /** Information and error reports. */
   ReportList reports;
 
@@ -105,7 +117,11 @@ struct WindowManagerRuntime {
   /** User configuration. */
   wmKeyConfig *userconf = nullptr;
 
-  /** All undo history. */
+  /**
+   * All undo history.
+   *
+   * \note This will be null in background mode unless explicitly created.
+   */
   UndoStack *undo_stack = nullptr;
 
   wmMsgBus *message_bus = nullptr;
@@ -123,6 +139,27 @@ struct WindowRuntime {
    * Only used when `WITH_INPUT_IME` is defined.
    */
   wmIMEData *ime_data = nullptr;
+  /**
+   * True while the user is composing text via an IME
+   * (set by #WM_IME_COMPOSITE_START, cleared by #WM_IME_COMPOSITE_END or #WM_window_IME_end).
+   *
+   * Operators
+   * =========
+   *
+   * When true, text input operators that support IME are skipped (returning canceled).
+   * This is needed because keys that edit the composition (backspace, enter, arrow-keys... etc)
+   * are consumed by the IME but *also* pass-through as regular key events,
+   * which the key-map handles as usual: a backspace that removes a pre-edit
+   * character would also delete committed text.
+   * Theoretically these events could be filtered out before being handled,
+   * however only the IME knows which keys it consumes and this isn't exposed by any API,
+   * so operators must skip them while composing.
+   * Canceling instead of passing the event through prevents other key-map items from matching it.
+   *
+   * See:
+   * - #WM_operator_IME_edit_maybe
+   * - #WM_operator_IME_insert_maybe
+   */
   bool ime_data_is_composing = false;
 
   /** Don't want to include ghost.h stuff. */

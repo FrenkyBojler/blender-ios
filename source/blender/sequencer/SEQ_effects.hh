@@ -8,7 +8,10 @@
 #include "DNA_vec_types.h"
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
+
+#include <mutex>
 
 namespace blender {
 
@@ -21,6 +24,8 @@ struct VFont;
 
 namespace seq {
 
+struct RenderData;
+
 void effect_ensure_initialized(Strip *strip);
 void effect_free(Strip *strip);
 
@@ -30,26 +35,38 @@ void effect_free(Strip *strip);
 int effect_type_get_min_num_inputs(StripType type);
 bool strip_type_is_effect(StripType type);
 bool effect_is_transition(StripType type);
+
 void effect_text_font_set(Strip *strip, VFont *font);
 bool effects_can_render_text(const Strip *strip);
+void text_effect_update_runtime(const RenderData *context, TextVars &text, const int2 image_size);
+int text_effect_font_get(TextVars &text);
+std::recursive_mutex &text_runtime_mutex_get();
 
 struct CharInfo {
+  /** Character offset within text buffer. */
   int index = 0;
-  int offset = 0; /* Offset in bytes within text buffer. */
+  /** Byte offset within text buffer. */
+  int offset = 0;
+  /** Size of the character in bytes. */
   int byte_length = 0;
+  /** Pixel offset of character origin. */
   float2 position{0.0f, 0.0f};
+  /** FreeType pixel offset for drawing next character after this one. */
   int advance_x = 0;
+  /** Indicate that the next character after this one should be on a new line. */
   bool do_wrap = false;
 };
 
 struct LineInfo {
   Vector<CharInfo> characters;
+  /** Pixel width. */
   int width;
 };
 
 struct TextVarsRuntime {
   Vector<LineInfo> lines;
 
+  int2 image_size;
   rcti text_boundbox; /* Bound-box used for box drawing and selection. */
   int line_height;
   int font_descender;

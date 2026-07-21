@@ -9,9 +9,9 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_linklist.h"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
+#include "BLI_linklist.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
@@ -125,7 +125,7 @@ static wmOperatorStatus knifeproject_exec(bContext *C, wmOperator *op)
   ViewContext vc = em_setup_viewcontext(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      vc.scene, vc.view_layer, vc.v3d);
+      *vc.bmain, vc.scene, vc.view_layer, vc.v3d);
 
   EDBM_mesh_knife(&vc, objects, polys, true, cut_through);
 

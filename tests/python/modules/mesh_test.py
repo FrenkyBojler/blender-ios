@@ -160,6 +160,14 @@ class OperatorSpec:
             " with parameters: " + str(self.operator_parameters)
 
 
+class SelectObjectSpec:
+    def __init__(self, object_name: str):
+        self.object_name = object_name
+
+    def __str__(self):
+        return "Selecting: " + self.object_name
+
+
 class DeformModifierSpec:
     """
     Holds a list of deform modifier and OperatorSpec.
@@ -401,12 +409,9 @@ class MeshTest(ABC):
         """
         self.evaluated_object.location = self.expected_object.location
         expected_object_name = self.expected_object.name
-        evaluated_selection = {
-            v.index for v in self.evaluated_object.data.vertices if v.select}
 
         bpy.data.objects.remove(self.expected_object, do_unlink=True)
         self.evaluated_object.name = expected_object_name
-        self.do_selection(self.evaluated_object.data, "VERT", evaluated_selection, False)
 
         self.activate_test_object()
 
@@ -541,6 +546,9 @@ class SpecMeshTest(MeshTest):
 
             elif isinstance(operation, OperatorSpec):
                 self._apply_operator(operation)
+
+            elif isinstance(operation, SelectObjectSpec):
+                self._select_other_object(operation)
 
             elif isinstance(operation, DeformModifierSpec):
                 self._apply_deform_modifier(evaluated_test_object, operation)
@@ -772,7 +780,10 @@ class SpecMeshTest(MeshTest):
             print("Applied operator {}".format(operator))
 
         if operator.mode != 'OBJECT':
-            bpy.ops.object.mode_set('OBJECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+    def _select_other_object(self, operator: SelectObjectSpec):
+        bpy.data.objects[operator.object_name].select_set(True)
 
     def _apply_deform_modifier(self, test_object, operation: DeformModifierSpec):
         """

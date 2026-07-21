@@ -8,8 +8,9 @@
 
 #pragma once
 
-#include "BLI_assert.h"
+#include "BLI_assert.hh"
 #include "BLI_enum_flags.hh"
+#include "BLI_map.hh"
 
 #include "GPU_vertex_buffer.hh"
 
@@ -84,9 +85,6 @@ ENUM_OPERATORS(GPUSamplerFormat)
 /* Maximum number of image units. */
 #define GPU_MAX_IMAGE 8
 
-/* Maximum number of FBOs a texture can be attached to. */
-#define GPU_TEX_MAX_FBO_ATTACHED 32
-
 /**
  * Implementation of Textures.
  * Base class which is then specialized for each implementation (GL, VK, ...).
@@ -126,12 +124,15 @@ class Texture {
   /** For error checking */
   int mip_min_ = 0, mip_max_ = 0;
 
+  bool is_texture_view_ = false;
+
   /** For debugging. */
   std::string name_;
 
-  /** Frame-buffer references to update on deletion. */
-  GPUAttachmentType fb_attachment_[GPU_TEX_MAX_FBO_ATTACHED];
-  FrameBuffer *fb_[GPU_TEX_MAX_FBO_ATTACHED];
+  /**
+   * Framebuffer references to update on deletion.
+   */
+  Map<FrameBuffer *, GPUAttachmentType> fb_attachments_;
 
  public:
   Texture(const char *name);
@@ -154,11 +155,11 @@ class Texture {
                  bool use_stencil);
 
   virtual void generate_mipmap() = 0;
-  virtual void copy_to(Texture *tex) = 0;
-  virtual void clear(eGPUDataFormat format, const void *data) = 0;
+  virtual void copy_to(Texture *tex, IndexRange mip_levels) = 0;
+  virtual void clear(const double4 data) = 0;
   virtual void swizzle_set(const char swizzle_mask[4]) = 0;
   virtual void mip_range_set(int min, int max) = 0;
-  virtual void *read(int mip, eGPUDataFormat format) = 0;
+  virtual void read(int mip, eGPUDataFormat format, void *dst) = 0;
 
   void attach_to(FrameBuffer *fb, GPUAttachmentType type);
   void detach_from(FrameBuffer *fb);
@@ -193,6 +194,8 @@ class Texture {
   {
     return gpu_image_usage_flags_;
   }
+
+  size_t read_size_get(int mip, eGPUDataFormat format) const;
 
   void mip_size_get(int mip, int r_size[3]) const
   {
@@ -319,6 +322,11 @@ class Texture {
         BLI_assert_msg(0, "Texture cannot be attached to a framebuffer because of its type");
         return GPU_FB_COLOR_ATTACHMENT0;
     }
+  }
+
+  bool is_texture_view() const
+  {
+    return is_texture_view_;
   }
 
  protected:
