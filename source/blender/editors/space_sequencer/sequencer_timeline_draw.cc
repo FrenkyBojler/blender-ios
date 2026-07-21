@@ -1501,7 +1501,10 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
   /* Strip outline is:
    *  - Red when overlapping with other strips or handles are clamped.
    *  - Slightly lighter while translating strips. */
-  if ((translating && overlaps && !use_overwrite) || clamped_l || clamped_r) {
+  if (transition) {
+    /* Transition outline doesn't have special state when transforming. */
+  }
+  else if ((translating && overlaps && !use_overwrite) || clamped_l || clamped_r) {
     col[0] = 255;
     col[1] = col[2] = 33;
     data.flags |= GPU_SEQ_FLAG_OVERLAP;
