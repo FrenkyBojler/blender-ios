@@ -5895,8 +5895,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend, const 
       *bmain, scene, view_layer, nullptr);
 
   struct ChangedInfo {
-    uint has_changed : 1;
-    uint has_overlap : 1;
+    uint8_t has_changed : 1;
+    uint8_t has_overlap : 1;
   };
 
   struct UVOverlapData {
