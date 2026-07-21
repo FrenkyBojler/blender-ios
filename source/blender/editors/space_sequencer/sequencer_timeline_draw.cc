@@ -383,6 +383,12 @@ static void color3ubv_from_seq(const Scene *curscene,
   ui::theme::theme_store(&theme_state);
   ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
 
+  if (strip->is_transition()) {
+    ui::theme::get_color_3ubv(TH_SEQ_TRANSITION, r_col);
+    ui::theme::theme_restore(&theme_state);
+    return;
+  }
+
   switch (strip->type) {
     case STRIP_TYPE_IMAGE:
       ui::theme::get_color_3ubv(TH_SEQ_IMAGE, r_col);
@@ -412,13 +418,6 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       break;
 
-    case STRIP_TYPE_CROSS:
-    case STRIP_TYPE_GAMCROSS:
-    case STRIP_TYPE_WIPE:
-    case STRIP_TYPE_COMPOSITOR:
-      ui::theme::get_color_3ubv(TH_SEQ_TRANSITION, r_col);
-      break;
-
     /* Effects. */
     case STRIP_TYPE_SPEED:
     case STRIP_TYPE_ADD:
@@ -431,6 +430,7 @@ static void color3ubv_from_seq(const Scene *curscene,
     case STRIP_TYPE_ADJUSTMENT:
     case STRIP_TYPE_GAUSSIAN_BLUR:
     case STRIP_TYPE_COLORMIX:
+    case STRIP_TYPE_COMPOSITOR:
       ui::theme::get_color_3ubv(TH_SEQ_EFFECT, r_col);
 
       /* Slightly offset hue to distinguish different effects. */
@@ -466,6 +466,9 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       else if (strip->type == STRIP_TYPE_MULTICAM) {
         rgb_byte_set_hue_float_offset(r_col, 0.85);
+      }
+      else if (strip->type == STRIP_TYPE_COMPOSITOR) {
+        rgb_byte_set_hue_float_offset(r_col, 0.79);
       }
       break;
 
