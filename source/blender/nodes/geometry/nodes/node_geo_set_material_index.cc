@@ -20,8 +20,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry"_ustr)
       .supported_type({GeometryComponent::Type::Mesh,
-                       GeometryComponent::Type::GreasePencil,
-                       GeometryComponent::Type::Curve})
+                       GeometryComponent::Type::Curve,
+                       GeometryComponent::Type::GreasePencil})
       .description("Geometry to update the material indices on");
   b.add_output<decl::Geometry>("Geometry"_ustr).propagate_all_geometry().align_with_previous();
   b.add_input<decl::Bool>("Selection"_ustr)
