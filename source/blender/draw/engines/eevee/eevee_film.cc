@@ -288,7 +288,7 @@ static eViewLayerEEVEEPassType with_light_pass_color_dependencies(eViewLayerEEVE
   return passes;
 }
 
-void Film::init(const int2 &extent, const rcti *output_rect)
+void Film::init(const int2 &extent, const rcti *output_rect, const float roll)
 {
   using namespace math;
 
@@ -373,6 +373,8 @@ void Film::init(const int2 &extent, const rcti *output_rect)
 
     data_.extent = int2(BLI_rcti_size_x(output_rect), BLI_rcti_size_y(output_rect));
     data_.offset = int2(output_rect->xmin, output_rect->ymin);
+    data_.roll = roll;
+    data_.display_extent = display_extent;
     data_.extent_inv = 1.0f / float2(data_.extent);
     data_.render_extent = divide_ceil(data_.extent, int2(data_.scaling_factor));
     data_.overscan = overscan_pixels_get(inst_.camera.overscan(), data_.render_extent);
@@ -902,7 +904,39 @@ void Film::accumulate(View &view, gpu::Texture *combined_final_tx)
     if (data_.extent != int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color))) {
       GPU_framebuffer_clear_color(dfbl->default_fb, double4(0.0));
     }
-    GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
+
+    /* Expand the region to cover the rotated display. */
+    if (data_.roll != 0) {
+      int2 display_extent = display_extent_get();
+
+      rctf border;
+      BLI_rctf_init(&border,
+                    data_.offset[0],
+                    data_.offset[0] + data_.extent[0],
+                    data_.offset[1],
+                    data_.offset[1] + data_.extent[1]);
+
+      const float2 view_center(display_extent[0] / 2.0f, display_extent[1] / 2.0f);
+      BLI_rctf_translate(&border, -view_center.x, -view_center.y);
+
+      float2 cent(BLI_rctf_cent_x(&border), BLI_rctf_cent_y(&border));
+      BLI_rctf_translate(&border, -cent.x, -cent.y);
+
+      const float2x2 rot_invert = math::from_rotation<float2x2>(math::AngleRadian(data_.roll));
+      cent = rot_invert * cent;
+
+      BLI_rctf_rotate_expand(&border, &border, -data_.roll);
+      BLI_rctf_translate(&border, cent.x, cent.y);
+      BLI_rctf_translate(&border, view_center.x, view_center.y);
+
+      int2 offset = int2(border.xmin, border.ymin);
+      int2 extent = int2(BLI_rctf_size_x(&border), BLI_rctf_size_y(&border));
+
+      GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(offset), UNPACK2(extent));
+    }
+    else {
+      GPU_framebuffer_viewport_set(dfbl->default_fb, UNPACK2(data_.offset), UNPACK2(data_.extent));
+    }
   }
 
   combined_final_tx_ = combined_final_tx;

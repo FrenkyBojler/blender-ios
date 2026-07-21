@@ -65,6 +65,9 @@ struct [[host_shared]] FilmData {
   float2 subpixel_offset;
   /** Scaling factor to convert texel to uvs. */
   float2 extent_inv;
+  /* Size of the full screen. */
+  int2 display_extent;
+  int2 pad0;
   /**
    * Number of border pixels on all sides inside the render_extent that do not contribute to the
    * final image.
@@ -131,7 +134,8 @@ struct [[host_shared]] FilmData {
   int samples_len;
   /** Sum of the weights of all samples in the sample table. */
   float samples_weight_total;
-  int _pad0;
+  /* Viewport roll. */
+  float roll;
   struct FilmSample samples[FILM_PRECOMP_SAMPLE_MAX];
 };
 

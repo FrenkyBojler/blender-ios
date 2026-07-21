@@ -1139,7 +1139,23 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
 {
   [[resource_table]] Cryptomatte &cryptomatte = film.cryptomatte;
 
-  int2 texel_film = int2(frag_co.xy) - uni.uniform_buf.film.offset;
+  int2 texel_film = int2(frag_co.xy);
+
+  float rot = uni.uniform_buf.film.roll;
+  /* Rotate the coordinates. */
+  if (rot != 0.0f) {
+    int2 center = int2(uni.uniform_buf.film.display_extent / 2.0f);
+    texel_film -= center;
+
+    float rot_cos = cos(rot);
+    float rot_sin = sin(rot);
+    float2x2 mat = float2x2(rot_cos, -rot_sin, rot_sin, rot_cos);
+
+    texel_film = int2(mat * float2(texel_film));
+    texel_film += center;
+  }
+
+  texel_film -= uni.uniform_buf.film.offset;
 
   if (srt.display_only) {
     out_depth = imageLoadFast(film.depth_img, texel_film).r;
@@ -1166,6 +1182,17 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
   }
   else {
     film.process_render_sample(texel_film, frag_out.color, out_depth);
+  }
+
+  /* Clear everything out side of the render border. */
+  if (rot != 0.0f) {
+    int2 input_bounds = textureSize(film.in_combined_tx, 0).xy - int2(1);
+    if (any(lessThan(texel_film, int2(0))) || any(greaterThan(texel_film, input_bounds))) {
+      frag_out.color = float4(0.0f);
+      // out_depth = -10000.0f;
+      /* Match clear value of depth pass. */
+      out_depth = 1e10f;
+    }
   }
 
   out_depth = views.get(0).depth_view_to_screen(-out_depth);

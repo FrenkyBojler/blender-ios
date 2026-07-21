@@ -135,6 +135,25 @@ void Camera::sync()
     data.winmat = inst_.drw_view->winmat();
 
     if (film_offset != int2(0) || film_extent != display_extent) {
+      /* Unapply roll. */
+      if (inst_.rv3d->persp == RV3D_CAMOB && inst_.rv3d->camroll != 0.0f) {
+        transpose_m4(data.viewmat.ptr());
+        rotate_m4(data.viewmat.ptr(), 'Z', inst_.rv3d->camroll);
+        transpose_m4(data.viewmat.ptr());
+
+        data.winmat[2][0] /= data.winmat[0][0];
+        data.winmat[2][1] /= data.winmat[1][1];
+
+        const float2x2 rot_invert = math::from_rotation<float2x2>(
+            math::AngleRadian(-inst_.rv3d->camroll));
+        const float2 dxy = rot_invert * float2(data.winmat[2]);
+
+        data.winmat[2][0] = dxy.x;
+        data.winmat[2][1] = dxy.y;
+
+        data.winmat[2][0] *= data.winmat[0][0];
+        data.winmat[2][1] *= data.winmat[1][1];
+      }
       data.winmat = projection_crop_matrix(film_offset, film_extent, display_extent) * data.winmat;
     }
 
