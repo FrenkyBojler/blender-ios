@@ -46,6 +46,7 @@ against the source at the start of the project.
 | [python-bpy-integration.md](./codebase/python-bpy-integration.md) | `bpy.utils.register_class` mechanics, startup/add-on loading, and paint-mode tool registration on the Python side. |
 | [gpu-draw-and-nodes.md](./codebase/gpu-draw-and-nodes.md) | GPU backend abstraction, Draw Manager / render-engine registration, node-tree architecture, multi-/lazy-function evaluation. |
 | [build-and-testing.md](./codebase/build-and-testing.md) | CMake/make build system, unity builds, test suites, buildbot workflow. |
+| [performance-profiling.md](./codebase/performance-profiling.md) | Catalog of profiling mini-skills: in-code instrumentation (`StrokeProfiler`, SPIKE logs, scoped timers) and AMD uProf (GUI + CLI, IBS/cache, attach/system-wide, symbols, Windows admin elevation). |
 
 ### Suggested reading order
 
