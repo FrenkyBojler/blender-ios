@@ -168,9 +168,9 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
   /* All other strip types. */
   else if (!strip->is_time_dependent()) {
     strip->start += delta;
-    /* Only to make files usable in older versions. */
-    strip->startdisp = strip->left_handle();
-    strip->enddisp = strip->right_handle(evil_scene);
+    /* For transitions and to make files usable in older versions. */
+    strip->startdisp += delta;
+    strip->enddisp += delta;
   }
 
   offset_animdata(evil_scene, strip, delta);

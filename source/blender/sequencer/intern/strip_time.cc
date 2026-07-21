@@ -436,10 +436,11 @@ static void strip_time_slip_strip_ex(const Scene *scene,
     strip->startofs = strip->startofs - delta;
     strip->endofs = strip->endofs + delta;
   }
-
-  /* Only to make files usable in older versions. */
-  strip->startdisp = strip->left_handle();
-  strip->enddisp = strip->right_handle(scene);
+  else {
+    /* For transitions and to make files usable in older versions. */
+    strip->startdisp += delta;
+    strip->enddisp += delta;
+  }
 
   Span<Strip *> effects = lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
@@ -538,7 +539,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
 
 int Strip::left_handle() const
 {
-  if (this->is_time_dependent()) {
+  if (this->input1 || this->input2) {
     return this->startdisp;
   }
 
@@ -547,7 +548,7 @@ int Strip::left_handle() const
 
 int Strip::right_handle(const Scene *scene) const
 {
-  if (this->is_time_dependent()) {
+  if (this->input1 || this->input2) {
     return this->enddisp;
   }
 
@@ -574,7 +575,8 @@ void Strip::left_handle_set(const Scene *scene, int timeline_frame)
     this->startofs = offset;
   }
 
-  this->startdisp = timeline_frame; /* Only to make files usable in older versions. */
+  /* For transitions and making files usable in older versions. */
+  this->startdisp = timeline_frame;
 
   Span<Strip *> effects = seq::lookup_effects_by_strip(scene->ed, this);
   seq::strip_time_update_effects_strip_range(scene, effects);
@@ -590,7 +592,8 @@ void Strip::right_handle_set(const Scene *scene, int timeline_frame)
   }
 
   this->endofs = this->content_end(scene) - timeline_frame;
-  this->enddisp = timeline_frame; /* Only to make files usable in older versions. */
+  /* For transitions and making files usable in older versions. */
+  this->enddisp = timeline_frame;
 
   Span<Strip *> effects = seq::lookup_effects_by_strip(scene->ed, this);
   seq::strip_time_update_effects_strip_range(scene, effects);

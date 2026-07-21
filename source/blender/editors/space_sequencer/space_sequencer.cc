@@ -706,8 +706,9 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
         wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
       }
       else {
-        wmcursor = (locked || seq::transform_single_image_check(strip)) ? WM_CURSOR_STOP :
-                                                                          WM_CURSOR_SLIP;
+        wmcursor = (locked || seq::transform_single_image_check(strip) || strip->is_transition()) ?
+                       WM_CURSOR_STOP :
+                       WM_CURSOR_SLIP;
       }
     }
     else if (STREQ(tref->idname, "builtin.blade")) {
