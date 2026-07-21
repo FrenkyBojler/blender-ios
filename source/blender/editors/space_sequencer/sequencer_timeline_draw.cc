@@ -412,23 +412,11 @@ static void color3ubv_from_seq(const Scene *curscene,
       }
       break;
 
-    /* Transitions use input colors, fallback for when the input is a transition itself. */
     case STRIP_TYPE_CROSS:
     case STRIP_TYPE_GAMCROSS:
     case STRIP_TYPE_WIPE:
     case STRIP_TYPE_COMPOSITOR:
       ui::theme::get_color_3ubv(TH_SEQ_TRANSITION, r_col);
-
-      /* Slightly offset hue to distinguish different transition types. */
-      if (strip->type == STRIP_TYPE_GAMCROSS) {
-        rgb_byte_set_hue_float_offset(r_col, 0.03);
-      }
-      else if (strip->type == STRIP_TYPE_WIPE) {
-        rgb_byte_set_hue_float_offset(r_col, 0.06);
-      }
-      else if (strip->type == STRIP_TYPE_COMPOSITOR) {
-        rgb_byte_set_hue_float_offset(r_col, -0.03f);
-      }
       break;
 
     /* Effects. */
@@ -1472,6 +1460,7 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
 {
   const bool active = strip.is_active_strip;
   const bool selected = strip.strip->flag & SEQ_SELECT;
+  const bool transition = strip.strip->is_transition();
   uchar4 col{0, 0, 0, 255};
 
   if (selected) {
@@ -1479,17 +1468,18 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
     data.flags |= GPU_SEQ_FLAG_SELECTED;
   }
   if (active) {
-    if (selected) {
-      ui::theme::get_color_3ubv(TH_SEQ_ACTIVE, col);
-    }
-    else {
-      ui::theme::get_color_shade_3ubv(TH_SEQ_ACTIVE, -40, col);
-    }
+    int offset = !selected ? -40 : 0;
+    ui::theme::get_color_shade_3ubv(TH_SEQ_ACTIVE, offset, col);
     data.flags |= GPU_SEQ_FLAG_ACTIVE;
   }
   if (!selected && !active) {
-    /* Color for unselected strips is a bit darker than the background. */
-    ui::theme::get_color_shade_3ubv(TH_BACK, -40, col);
+    if (!transition) {
+      /* Color for unselected strips is a bit darker than the background. */
+      ui::theme::get_color_shade_3ubv(TH_BACK, -40, col);
+    }
+    else {
+      ui::theme::get_color_4ubv(TH_SEQ_TRANSITION_OUTLINE, col);
+    }
   }
 
   const bool translating = (G.moving & G_TRANSFORM_SEQ);
@@ -1745,31 +1735,36 @@ static void draw_seq_transitions(const TimelineDrawContext &ctx,
                                                     strip.handle_width,
                                                     strip.is_single_image);
 
-    // TODO: not sure yet which parts should be themable, how color tags should work, etc. so for
-    // now these are just simply hard coded
-
     data.flags |= GPU_SEQ_FLAG_TRANSITION;
 
     strip_data_handle_flags_set(strip, ctx, data);
-    // TODO: Same with this
     strip_data_outline_params_set(strip, ctx, data);
 
-    uchar col_in[4] = {0xff, 0xff, 0xff, (char)(0.2 * 0xff)};
-    uchar col_out[4] = {0xff, 0xff, 0xff, (char)(0.8 * 0xff)};
-    uchar col_outline[4] = {0xff, 0xff, 0xff, (char)(0.6 * 0xff)};
-    data.col_transition_in = color_pack(col_in);
-    data.col_transition_out = color_pack(col_out);
-    data.col_background = color_pack(col_out);
-    data.col_outline = color_pack(col_outline);
+    uchar background[4];
+    uchar transition_in[4], transition_out[4];
 
-    if (strip.strip->flag & SEQ_SELECT) {
-      uchar col_in[4] = {0x00, 0x00, 0x00, (char)(0.2 * 0xff)};
-      uchar col_out[4] = {0xff, 0xff, 0xff, (char)(0.8 * 0xff)};
-      data.col_transition_in = color_pack(col_in);
-      data.col_transition_out = color_pack(col_out);
-      data.col_background = 0xffffffff;
-      data.col_outline = 0xffffffff;
+    color3ubv_from_seq(
+        ctx.scene, strip.strip, strip.show_strip_color_tag, strip.is_muted, background);
+    background[3] = 255;
+
+    const int offset = strip.is_muted ? -100 : 0;
+    const int alpha_offset = strip.is_muted ? -60 : 0;
+    const bool selected = strip.strip->flag & SEQ_SELECT;
+
+    const ThemeColorID transition_in_id = selected ? TH_SEQ_TRANSITION_IN_SELECTED :
+                                                     TH_SEQ_TRANSITION_IN;
+    const ThemeColorID transition_out_id = selected ? TH_SEQ_TRANSITION_OUT_SELECTED :
+                                                      TH_SEQ_TRANSITION_OUT;
+    ui::theme::get_color_shade_alpha_4ubv(transition_in_id, offset, alpha_offset, transition_in);
+    ui::theme::get_color_shade_alpha_4ubv(transition_out_id, offset, alpha_offset, transition_out);
+
+    if (strip.is_muted) {
+      background[3] = MUTE_ALPHA;
     }
+
+    data.col_background = color_pack(background);
+    data.col_transition_in = color_pack(transition_in);
+    data.col_transition_out = color_pack(transition_out);
   }
   strips_batch.flush_batch();
 

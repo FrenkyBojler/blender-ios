@@ -63,7 +63,9 @@ float4 draw_transition()
             radius);
 
   bool selected = (strip.flags & GPU_SEQ_FLAG_SELECTED) != 0;
-  float outline_width = selected ? 3.0f : 2.0f;
+  bool active_strip = (strip.flags & GPU_SEQ_FLAG_ACTIVE) != 0;
+
+  float outline_width = selected && active_strip ? 3.0f : 2.0f;
 
   /* Distance to whole strip shape. */
   float sdf = sdf_rounded_box(pos - center, size, radius);
