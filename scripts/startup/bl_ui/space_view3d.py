@@ -2223,6 +2223,9 @@ class VIEW3D_MT_select_paint_grease_pencil(Menu):
 
         layout.separator()
 
+        layout.operator_menu_enum("grease_pencil.select_by_stroke_type", "type", text="By Stroke Type")
+        layout.operator("grease_pencil.select_fill")
+
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 
 
