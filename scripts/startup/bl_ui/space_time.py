@@ -240,9 +240,11 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
             row.active = not scene.lock_frame_selection_to_range
             row.prop(scene, "allow_preroll")
             col.prop(screen, "use_follow", text="Follow Current Frame")
-            col.prop(scene, "playback_loop_mode", text="Loop")
 
+            col = panel.column()
+            col.prop(scene, "playback_loop_mode", text="Loop")
             col.separator()
+
             col = panel.column(heading="Show")
             col.prop(scene, "show_subframe", text="Subframes")
 
@@ -251,12 +253,12 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
         header.label(text="Audio")
         if panel:
             col = panel.column()
-            col.prop(scene, "use_audio_scrub", text="Scrubbing")
             col.prop(scene, "use_audio")
+            col.prop(scene, "use_audio_scrub", text="Scrubbing")
 
         # Region playback settings.
-        header, panel = layout.panel("TIME_PT_playback_regions", default_closed=True)
-        header.label(text="Regions")
+        header, panel = layout.panel("TIME_PT_playback_editors", default_closed=True)
+        header.label(text="Editors")
         if panel:
             col = panel.column(heading="Play In")
             col.prop(screen, "use_play_top_left_3d_editor", text="Active Editor")
