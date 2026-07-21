@@ -1763,14 +1763,15 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(stats['totalInstanceCount'], 6, "Unexpected number of instances")
         self.assertEqual(stats['prototypeCount'], 4, "Unexpected number of prototypes")
         self.assertEqual(stats['primary']['primCountsByType']['Mesh'], 4, "Unexpected number of primary meshes")
-        self.assertEqual(stats['primary']['primCountsByType']['PointInstancer'], 1, "Unexpected number of primary point clouds")
+        self.assertEqual(
+            stats['primary']['primCountsByType']['PointInstancer'], 1, "Unexpected number of primary point clouds")
         self.assertEqual(stats['prototypes']['primCountsByType']['Mesh'], 4, "Unexpected number of prototype meshes")
 
         # Ensure the prims are marked as instances
         prim_list = [
             ("/root/Text", True),
             ("/root/SurfPatch", True),
-            ("/root/Mball", False), # Metaballs are not instanced in Blender at the moment
+            ("/root/Mball", False),  # Metaballs are not instanced in Blender at the moment
         ]
         for prim_path, expected in prim_list:
             prim = stage.GetPrimAtPath(prim_path)
