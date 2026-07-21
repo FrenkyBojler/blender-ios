@@ -655,7 +655,7 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
 
                 if self.visible_output:
                     self.swap_visible_output(tree, node, output_name=self.visible_output)
-                
+
                 continue
 
             new_node = self.create_node(context, self.type)
