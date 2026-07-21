@@ -1315,6 +1315,10 @@ class VIEW3D_MT_rigify_mesh(bpy.types.Menu):
     bl_label = "Rigify"
     bl_idname = "VIEW3D_MT_rigify_mesh"
 
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH'
+
     def draw(self, _context: bpy.types.Context):
         self.layout.operator(EncodeWidget.bl_idname)
 
