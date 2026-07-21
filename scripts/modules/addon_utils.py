@@ -51,6 +51,13 @@ _addons_hidden_core = {
     "io_scene_fbx",
 }
 
+# SculptCore sculpt mode ships as an always-on core addon in builds that bundle
+# its engine (WITH_SCULPTCORE): it registers a first-class object mode and is not
+# meaningfully user-toggleable, so it joins the hidden-core set (persistent,
+# enabled at startup, no saved preferences).
+if _bpy.app.build_options.sculptcore:
+    _addons_hidden_core.add("sculptcore_addon")
+
 
 # Called only once at startup, avoids calling 'reset_all', correct but slower.
 def _initialize_once():

@@ -419,6 +419,12 @@ option(WITH_MOD_OCEANSIM "Enable Ocean Modifier" ON)
 # UV solvers.
 option(WITH_UV_SLIM "SLIM UV unwrapping solver" ON)
 
+# Sculpting.
+# Build the external SculptCore engine (extern/sculptcore) and bundle its
+# runtime (ctypes package + native DLL) into the sculptcore_addon, which is then
+# enabled by default. Requires Node.js on PATH. See build_files/cmake/sculptcore.cmake.
+option(WITH_SCULPTCORE "Build and bundle the SculptCore sculpt-mode engine + addon" ON)
+
 # Image format support
 option(WITH_IMAGE_OPENJPEG "Enable OpenJpeg Support (http://www.openjpeg.org)" ON)
 option(WITH_IMAGE_CINEON "Enable CINEON and DPX Image Support" ON)
@@ -2593,6 +2599,9 @@ if(FIRST_RUN)
     info_cfg_option(WITH_PYTHON_MODULE)
     info_cfg_option(WITH_PYTHON_SAFETY)
   endif()
+
+  info_cfg_text("Sculpting:")
+  info_cfg_option(WITH_SCULPTCORE)
 
   info_cfg_text("Modifiers:")
   info_cfg_option(WITH_MOD_FLUID)

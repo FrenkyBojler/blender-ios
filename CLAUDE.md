@@ -169,6 +169,24 @@ the final PR:
   - `AGENTS.md` was byte-identical to this file's coding-guideline sections
     (only the top title/intro differed). Recreate it by copying the reverted,
     guidelines-only `CLAUDE.md` under the heading `# AGENTS.md`.
+- **Revert the `WITH_SCULPTCORE` build integration** (wires the engine build +
+  addon bundle into Blender's own CMake, for build-farm packaging). These edits
+  are self-contained and gated behind the (default-ON) `WITH_SCULPTCORE` option;
+  revert them all before the PR:
+  - `CMakeLists.txt` — the `option(WITH_SCULPTCORE ...)` and its
+    `info_cfg_option` report lines.
+  - `source/creator/CMakeLists.txt` — the
+    `if(WITH_SCULPTCORE) include(.../sculptcore.cmake) endif()` block.
+  - `build_files/cmake/sculptcore.cmake` — delete (new file).
+  - `source/blender/python/intern/CMakeLists.txt` — the `WITH_SCULPTCORE`
+    `add_definitions` block.
+  - `source/blender/python/intern/bpy_app_build_options.cc` — the `sculptcore`
+    field entry and its `#ifdef WITH_SCULPTCORE` `SetObjIncref` block.
+  - `scripts/modules/addon_utils.py` — the
+    `if _bpy.app.build_options.sculptcore: _addons_hidden_core.add(...)` gate.
+  - In `extern/sculptcore` (the engine repo, reverted separately): the
+    `--publish-deps-to` bundle plumbing in `make.mjs`, the fresh-deps marker in
+    `tools/deps.mjs`, and the new `tools/publish-deps-from-package.mjs` tool.
 - Revert this project-specific section and the doc-link change above, so
   `CLAUDE.md` returns to the upstream guidelines-only form.
 

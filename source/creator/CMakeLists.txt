@@ -482,6 +482,12 @@ if(WITH_PYTHON)
     PATTERN "addons_core/bl_pkg/example_extension" EXCLUDE
   )
 
+  # Build the external SculptCore engine and vendor its runtime into the addon.
+  # Included after the generic `scripts` install so its lib/ overwrite wins.
+  if(WITH_SCULPTCORE)
+    include(${CMAKE_SOURCE_DIR}/build_files/cmake/sculptcore.cmake)
+  endif()
+
   if(WITH_PYTHON_MODULE)
     install(
       FILES ${CMAKE_SOURCE_DIR}/scripts/site/sitecustomize.py
