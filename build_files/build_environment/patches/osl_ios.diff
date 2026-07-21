@@ -72,14 +72,14 @@ index 8c2e77b..211b8a7 100644
 
 --- a/src/liboslcomp/CMakeLists.txt	2025-04-29 15:37:54.000000000 
 +++ b/src/liboslcomp/CMakeLists.txt	2025-04-30 15:35:55.000000000 
-@@ -20,13 +20,13 @@
+@@ -20,13 +20,14 @@
  target_include_directories(${local_lib}
      PUBLIC
          ${CMAKE_INSTALL_FULL_INCLUDEDIR}
      )
  target_link_libraries (${local_lib}
      PUBLIC
--        OpenImageIO::OpenImageIO
+         OpenImageIO::OpenImageIO
 +        ${OpenImageIO_LIBRARIES}
          $<TARGET_NAME_IF_EXISTS:Imath::Imath>
          $<TARGET_NAME_IF_EXISTS:Imath::Half>
