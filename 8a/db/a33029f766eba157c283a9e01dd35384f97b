@@ -37,3 +37,4 @@ Referenced by commit 9826d87955cae44d91bbd1eed575a0c883bc8693, Fix #157219: Beve
 Referenced by issue #157350, Freestyle Python API: NotUP1D(pyNatureUP1D(Nature.EDGE_MARK)) causes empty strokes error
 Referenced by issue #160029, Crash when lightmap unpack adds a UV layer after converting attributes
 Referenced by commit 601f4361d64cd5cbb19d092d376fc7a7877727fe, Fix #160029: Crash adding UV layer after converting attributes
+Referenced by pull request #161753, Fix #161697: Crash when texture painting mesh with single-element UV Map
