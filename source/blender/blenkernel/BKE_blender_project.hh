@@ -95,6 +95,9 @@ void with_blender_project_read_lock(FunctionRef<void()> lambda);
  */
 void with_blender_project_write_lock(FunctionRef<void()> lambda);
 
+// TODO: document.
+int abbreviate_variable_name(char *dst, int dst_max_size, StringRef name);
+
 }  // namespace bke
 
 /**
