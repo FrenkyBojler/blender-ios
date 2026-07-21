@@ -435,7 +435,7 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                                                        EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL |
                                                        EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT;
 
-    data_.exposure_scale = pow2f(scene.view_settings.exposure);
+    data_.exposure_scale = exp2f(scene.view_settings.exposure);
     if (enabled_passes_ & data_passes) {
       enabled_categories_ |= PASS_CATEGORY_DATA;
     }
