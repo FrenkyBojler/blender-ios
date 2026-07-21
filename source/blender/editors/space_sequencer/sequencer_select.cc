@@ -95,12 +95,33 @@ bool deselect_all_strips(const Scene *scene)
   return changed;
 }
 
+static bool has_transition_handles_selected(const Scene *scene)
+
+{
+  /* It should be the case that there are only transition handles selected if and only if the
+   * active strip is a transition and has a handle selected. */
+  Strip *active = seq::select_active_get(scene);
+
+  if (active && active->is_transition()) {
+    if ((active->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool deselect_transition_handles(const Scene *scene)
 {
   Editing *ed = seq::editing_get(scene);
   bool changed = false;
 
   if (ed == nullptr) {
+    return false;
+  }
+  /* If the selection state is invalid before running this function it may not deselect handles.
+   * Clamping already prevents things from breaking in an invalid state, so assume selection is
+   * always valid. */
+  if (!has_transition_handles_selected(scene)) {
     return false;
   }
 
@@ -412,21 +433,6 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene)
 {
   ED_outliner_select_sync_from_sequence_tag(C);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
-}
-
-static bool has_transition_handles_selected(Scene *scene)
-
-{
-  /* It should be the case that there are only transition handles selected if and only if the
-   * active strip is a transition and has a handle selected. */
-  Strip *active = seq::select_active_get(scene);
-
-  if (active && active->is_transition()) {
-    if ((active->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) != 0) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /** \} */
