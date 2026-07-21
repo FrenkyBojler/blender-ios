@@ -16,6 +16,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -803,11 +804,46 @@ static void paste_world_space(Main &bmain,
 /** \name Operators
  * \{ */
 
+enum class CopyRange : uint8_t {
+  /* Use the range provided by the operator. */
+  CUSTOM,
+  /* Use the playback range of the scene. This includes the preview range in case it is set. */
+  PLAYBACK_RANGE
+};
+
+const EnumPropertyItem rna_enum_copy_range_items[] = {
+    {int(CopyRange::CUSTOM),
+     "CUSTOM",
+     0,
+     "Custom",
+     "Use the range provided in the operator properties"},
+    {int(CopyRange::PLAYBACK_RANGE),
+     "PLAYBACK",
+     0,
+     "Playback Range",
+     "Use the playback range of the scene"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static wmOperatorStatus world_space_copy_exec(bContext *C, wmOperator *op)
 {
   Vector<AnimTransformable> transformables = selected_transformables_from_context(*C);
+  const CopyRange range_mode = CopyRange(RNA_enum_get(op->ptr, "range_mode"));
+  Bounds<int> bounds;
+  switch (range_mode) {
+    case CopyRange::CUSTOM:
+      bounds = {RNA_int_get(op->ptr, "start"), RNA_int_get(op->ptr, "end")};
+      break;
+    case CopyRange::PLAYBACK_RANGE: {
+      Scene *scene = CTX_data_scene(C);
+      ScenePlaybackRange range = BKE_scene_get_playback_range(scene);
+      bounds = {range.start_frame, range.end_frame};
+      break;
+    }
 
-  Bounds<int> bounds = {RNA_int_get(op->ptr, "start"), RNA_int_get(op->ptr, "end")};
+    default:
+      break;
+  }
   if (bounds.is_empty()) {
     BKE_reportf(op->reports, RPT_ERROR, "Invalid frame range %d-%d", bounds.min, bounds.max);
     return OPERATOR_CANCELLED;
@@ -837,7 +873,12 @@ void ANIM_OT_world_space_copy(wmOperatorType *ot)
 
   /* No undo possible since this creates data outside the current blend file. */
   ot->flag = OPTYPE_REGISTER;
-
+  RNA_def_enum(ot->srna,
+               "range_mode",
+               rna_enum_copy_range_items,
+               int(CopyRange::PLAYBACK_RANGE),
+               "Range Mode",
+               "Determines which range should be copied");
   RNA_def_int(
       ot->srna, "start", 0, -INT_MAX, INT_MAX, "Start", "Start frame to copy from", 0, INT_MAX);
   RNA_def_int(

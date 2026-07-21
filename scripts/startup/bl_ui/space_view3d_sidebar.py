@@ -20,10 +20,12 @@ class VIEW3D_PT_copy_global_transform(GlobalTransformPanelMixin, Panel):
         layout = self.layout
         scene = context.scene
 
-        layout.operator("anim.world_space_copy", icon='COPYDOWN')
-        layout.operator("anim.world_space_copy_current", icon='COPYDOWN')
-        layout.operator("anim.world_space_paste", icon='PASTEDOWN')
-        layout.operator("anim.world_space_paste", text="Paste from Current Frame", icon='PASTEDOWN').offset = 'START'
+        row = layout.row(align=True)
+        row.operator("anim.world_space_copy_current", icon='COPYDOWN', text="Current Frame")
+        row.operator("anim.world_space_copy", icon='COPYDOWN', text="Playback Range").range_mode = 'PLAYBACK'
+        row = layout.row(align=True)
+        row.operator("anim.world_space_paste", icon='PASTEDOWN', text="Paste")
+        row.operator("anim.world_space_paste", text="Paste Relative", icon='PASTEDOWN').offset = 'START'
         layout.separator()
 
         # No need to put "Global Transform" in the operator text, given that it's already in the panel title.
