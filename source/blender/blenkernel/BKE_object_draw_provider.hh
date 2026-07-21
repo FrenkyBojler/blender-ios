@@ -38,7 +38,7 @@ struct ObjectModeType;
  * it was built against; Blender refuses a mismatch rather than reading a
  * differently-shaped struct. Bump on any layout change.
  */
-#define BKE_EXTERNAL_DRAW_ABI_VERSION 1
+#define BKE_EXTERNAL_DRAW_ABI_VERSION 2
 
 /** #ExternalDrawNode.update_flags: what changed since Blender last built this
  * node's GPU buffers, so the cache re-uploads/reallocs only what it must. */
@@ -74,6 +74,13 @@ struct ExternalDrawNode {
   int material_index;
   /** #eExternalDrawUpdate bitmask since the last sync. */
   uint32_t update_flags;
+  /**
+   * Provider-stable node identity. The node list's order and composition may
+   * change between syncs (the provider's spatial structure rebalances), so
+   * Blender keys its per-node GPU caches on this, never on list position.
+   * Unique within one sync's node list.
+   */
+  uint32_t node_id;
   /** Object-space AABB, for frustum culling before upload. */
   float bounds_min[3];
   float bounds_max[3];

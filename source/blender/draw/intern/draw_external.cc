@@ -13,6 +13,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
@@ -169,8 +170,12 @@ struct NodeCache {
   NodeCache &operator=(const NodeCache &) = delete;
 };
 
+/* Keyed by the provider's stable node id (never by list position: the node
+ * list reorders when the provider's spatial structure rebalances, and a
+ * positionally-mismatched cache entry with a coincidentally equal vertex count
+ * would silently draw another node's stale geometry). */
 struct ObjectCache {
-  Vector<NodeCache> nodes;
+  Map<uint32_t, NodeCache> nodes;
 };
 
 /* Keyed by original object pointer (the draw object is a depsgraph copy). Freed
@@ -348,7 +353,6 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
   }
 
   ObjectCache &cache = object_caches().lookup_or_add_default(ob_orig);
-  cache.nodes.resize(nodes_num);
 
   /* Frustum planes in object space (transform by inverse(obmat); the transpose
    * inverse of a plane cancels the obmat inverse), matching draw_sculpt.cc. */
@@ -361,9 +365,12 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
   const int max_material = std::max(0, BKE_object_material_count_eval(ob) - 1);
 
   Vector<SculptBatch> result;
+  Set<uint32_t> seen_ids;
   for (const int i : IndexRange(nodes_num)) {
     const ExternalDrawNode &node = nodes[i];
-    node_upload(cache.nodes[i], node, want_color, &color_format, want_uv, &uv_format);
+    seen_ids.add(node.node_id);
+    NodeCache &node_cache = cache.nodes.lookup_or_add_default(node.node_id);
+    node_upload(node_cache, node, want_color, &color_format, want_uv, &uv_format);
 
     if (node.verts_num == 0) {
       continue;
@@ -385,11 +392,17 @@ Vector<SculptBatch> external_batches_get(const Object *ob, SculptBatchFeature /*
     }
 
     SculptBatch batch = {};
-    batch.batch = cache.nodes[i].batch;
+    batch.batch = node_cache.batch;
     batch.material_slot = std::clamp(node.material_index, 0, max_material);
     batch.debug_index = result.size();
     result.append(batch);
   }
+
+  /* Drop cache entries for nodes the provider no longer reports (merged away /
+   * repartitioned), freeing their GPU buffers. Safe within a frame: every sync
+   * of the same settled provider state returns the same id set, so no batch
+   * returned by an earlier pass this frame refers to a pruned entry. */
+  cache.nodes.remove_if([&](auto item) { return !seen_ids.contains(item.key); });
 
   provider->nodes_release(provider->user_data, object_key);
   return result;

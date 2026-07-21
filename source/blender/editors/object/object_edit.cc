@@ -2407,6 +2407,7 @@ static int external_draw_test_nodes_get(void * /*user_data*/,
   external_draw_test_node.verts_num = 3;
   external_draw_test_node.material_index = 0;
   external_draw_test_node.update_flags = EXTERNAL_DRAW_UPDATE_DATA;
+  external_draw_test_node.node_id = 0;
   external_draw_test_node.bounds_min[0] = -1.0f;
   external_draw_test_node.bounds_min[1] = -1.0f;
   external_draw_test_node.bounds_min[2] = 0.0f;
