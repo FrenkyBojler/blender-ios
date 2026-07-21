@@ -1324,8 +1324,7 @@ class VIEW3D_MT_rigify_mesh(bpy.types.Menu):
 
 
 def draw_rigify_mesh_menu(self, context):
-    if context.mode == 'EDIT_MESH':
-        self.layout.menu(VIEW3D_MT_rigify_mesh.bl_idname)
+    self.layout.menu(VIEW3D_MT_rigify_mesh.bl_idname)
 
 
 def fk_to_ik(rig: ArmatureObject, window='ALL'):
@@ -1826,7 +1825,6 @@ def register():
 
     bpy.types.VIEW3D_MT_editor_menus.append(draw_rigify_menu)
     bpy.types.VIEW3D_MT_editor_menus.append(draw_rigify_mesh_menu)
-
 
     # Sub-modules.
     rot_mode.register()
