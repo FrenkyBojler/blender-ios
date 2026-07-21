@@ -2214,7 +2214,7 @@ static bool markers_write_copy_paste_file(Main *bmain_src,
   return retval;
 }
 
-wmOperatorStatus markers_clipboard_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus markers_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
   /* If the area is the dopesheet, AND it is configured to show pose/action markers, cancel. */
   ScrArea *area = CTX_wm_area(C);
@@ -2255,7 +2255,7 @@ wmOperatorStatus markers_clipboard_copy_exec(bContext *C, wmOperator *op)
 
 static void MARKER_OT_clipboard_copy(wmOperatorType *ot)
 {
-  ot->name = "Copy to Clipboard";
+  ot->name = "Copy Markers";
   ot->description = "Copy the selected timeline markers to the internal clipboard";
   ot->idname = "MARKER_OT_clipboard_copy";
 
@@ -2268,14 +2268,6 @@ static void MARKER_OT_clipboard_copy(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Paste
  * \{ */
-
-static StringRef scene_lib_filepath(const Scene &scene)
-{
-  if (scene.id.lib && scene.id.lib->runtime) {
-    return scene.id.lib->runtime->filepath_abs;
-  }
-  return "";
-}
 
 static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op)
 {
@@ -2414,7 +2406,7 @@ static wmOperatorStatus markers_clipboard_paste_exec(bContext *C, wmOperator *op
 
 static void MARKER_OT_clipboard_paste(wmOperatorType *ot)
 {
-  ot->name = "Paste from Clipboard";
+  ot->name = "Paste Markers";
   ot->description =
       "Paste timeline markers from the internal clipboard to the active animation editor";
   ot->idname = "MARKER_OT_clipboard_paste";
@@ -2429,6 +2421,9 @@ static void MARKER_OT_clipboard_paste(wmOperatorType *ot)
                                       false,
                                       "Keep Offset",
                                       "Keep offset relative to the current frame when pasting");
+  /* It can be confusing to users when subsequent paste operations remember the "Keep Offset"
+   * state, pasting markers far away from view. So always forget the prop's value when re-running
+   * the operator. */
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
