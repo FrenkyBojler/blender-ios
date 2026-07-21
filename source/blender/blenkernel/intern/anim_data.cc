@@ -762,7 +762,7 @@ static std::string infix_to_name(const StringRef infix)
   BLI_assert(infix.size() >= 4);
   std::string unescaped;
   unescaped.resize(infix.size() - 4);
-  size_t string_size = BLI_str_unescape(unescaped.data(), infix.data() + 2, infix.size() - 4);
+  size_t string_size = BLI_str_unescape(unescaped.data(), infix.data() + 2, unescaped.size());
   unescaped.resize(string_size);
   return unescaped;
 }
@@ -990,12 +990,11 @@ DriverMap BKE_animdata_build_driver_target_map(Main &bmain)
         continue;
       }
       for (DriverVar &driver_var : driver.driver->variables) {
-        for (int target_index = 0; target_index < driver_var.num_targets; target_index++) {
-          DriverTarget &target = driver_var.targets[target_index];
+        for (DriverTarget &target : MutableSpan(driver_var.targets, driver_var.num_targets)) {
           if (!target.id) {
             continue;
           }
-          map.lookup_or_add(target.id, {}).append(&target);
+          map.lookup_or_add_default(target.id).append(&target);
         }
       }
     }

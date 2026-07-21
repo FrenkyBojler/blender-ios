@@ -480,7 +480,7 @@ void version_node_socket_index_animdata(Main *bmain,
                                         const int socket_index_offset,
                                         const int total_number_of_sockets)
 {
-
+  const DriverMap driver_map = BKE_animdata_build_driver_target_map(*bmain);
   /* See preceeding definition of `version_node_socket_index_animdata` for the reasoning of why the
    * input ids for loop is at the top level.*/
   for (int input_index = total_number_of_sockets - 1; input_index >= socket_index_orig;
@@ -501,15 +501,12 @@ void version_node_socket_index_animdata(Main *bmain,
         char *rna_path_prefix = BLI_sprintfN("nodes[\"%s\"].inputs", node_name_escaped);
 
         const int new_index = input_index + socket_index_offset;
-        BKE_animdata_fix_paths_rename_all_ex(bmain,
-                                             owner_id,
-                                             rna_path_prefix,
-                                             nullptr,
-                                             nullptr,
-                                             input_index,
-                                             new_index,
-                                             /*verify_paths=*/false,
-                                             /*infix_is_name=*/true);
+        BKE_animdata_fix_paths(*owner_id,
+                               rna_path_prefix,
+                               RNA_path_number_to_infix(input_index),
+                               RNA_path_number_to_infix(new_index),
+                               /*verify_paths=*/false,
+                               driver_map);
         MEM_delete(rna_path_prefix);
       }
     }
