@@ -54,6 +54,9 @@ belonging to the *other* codebase.
 - After finishing a plan, **audit every comment you touched** (not only
   `CLAUDENOTE:` ones) against the code and the comment guidelines below;
   leave only accurate, guideline-conforming comments.
+- **Pushing**: push this Blender repo to the `joeedh` remote
+  (`git push joeedh sculptcore` — the JosephEagar fork), never to `origin`
+  (upstream `blender/blender`).
 
 ### Building (this environment)
 
