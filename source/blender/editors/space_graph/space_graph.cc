@@ -16,11 +16,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
+
+#include "BLF_api.hh"
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -127,7 +129,7 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   region->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_HORIZONTAL_HANDLES);
   region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HANDLES);
 
-  region->v2d.keeptot = 0;
+  region->v2d.keeptot = eView2D_KeepTot{};
 
   return reinterpret_cast<SpaceLink *>(sipo);
 }
@@ -239,15 +241,15 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
    * grid size should be independent of the scene's frame rate. */
   constexpr int driver_step = 10;
   /* grid */
-  bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
+  const bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
   if (region->winy > min_height) {
     if (sipo->mode == SIPO_MODE_DRIVERS) {
-      ui::view2d_draw_lines_x__values(v2d, driver_step);
+      ui::view2d_draw_lines_x(v2d, scene, false, true, true, driver_step);
     }
     else {
-      ui::view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+      ui::view2d_draw_lines_x_frames(v2d, scene, display_seconds, true, true);
     }
-    ui::view2d_draw_lines_y__values(v2d, 10);
+    ui::view2d_draw_lines_y(v2d, true, 10);
   }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
@@ -344,6 +346,14 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   ui::view2d_view_restore(C);
 
+  if (sipo->local_view_bit) {
+    const float margin = 25 * UI_SCALE_FAC;
+    const float x = margin;
+    const float y = region->winy - UI_TIME_SCRUB_MARGIN_Y - margin;
+    const std::string name = "Local View";
+    BLF_draw_default(x, y, 0.0f, name.c_str(), name.length());
+  }
+
   /* time-scrubbing */
   int base = round_db_to_int(scene->frames_per_second());
   if (sipo->mode == SIPO_MODE_DRIVERS) {
@@ -379,7 +389,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
       rcti rect;
       BLI_rcti_init(
           &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-      ui::view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT, 10);
+      ui::view2d_draw_scale_y(region, v2d, &rect, TH_SCROLL_TEXT, 10);
     }
   }
   else {
@@ -687,6 +697,29 @@ static void graph_listener(const wmSpaceTypeListenerParams *params)
   }
 }
 
+/* Exit local view when no fcurve channel exists. */
+static void local_view_exit_if_unused(const bContext *C, SpaceGraph *sipo)
+{
+  if (!sipo->local_view_bit) {
+    return;
+  }
+
+  bAnimContext ac;
+  if (!ANIM_animdata_get_context(C, &ac)) {
+    return;
+  }
+
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                    ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
+  const size_t item_count = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+  if (item_count == 0) {
+    sipo->local_view_bit = 0;
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
 /* Update F-Curve colors */
 static void graph_refresh_fcurve_colors(const bContext *C)
 {
@@ -840,6 +873,8 @@ static void graph_refresh(const bContext *C, ScrArea *area)
 
   /* init/adjust F-Curve colors */
   graph_refresh_fcurve_colors(C);
+  /* Exit local view if no F-Curve channels there. */
+  local_view_exit_if_unused(C, sipo);
 }
 
 static void graph_id_remap(ScrArea * /*area*/,
@@ -885,7 +920,7 @@ static int graph_space_subtype_get(ScrArea *area)
 static void graph_space_subtype_set(ScrArea *area, int value)
 {
   SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
-  sgraph->mode = value;
+  sgraph->mode = eGraphEdit_Mode(value);
 }
 
 static void graph_space_subtype_item_extend(bContext * /*C*/,
@@ -925,7 +960,7 @@ static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   ListBaseT<FCurve> tmpGhosts = sipo->runtime.ghost_curves;
 
   /* temporarily disable ghost curves when saving */
-  BLI_listbase_clear(&sipo->runtime.ghost_curves);
+  sipo->runtime.ghost_curves.clear_no_delete();
 
   writer->write_struct_cast<SpaceGraph>(sl);
   if (sipo->ads) {
@@ -997,7 +1032,7 @@ void ED_spacetype_ipo()
   art = MEM_new_zeroed<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES;
   art->init = graph_header_region_init;
   art->draw = graph_header_region_draw;
   art->poll = action_region_poll_hide_in_driver_mode;

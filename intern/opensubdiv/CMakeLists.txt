@@ -26,11 +26,11 @@ set(LIB
 )
 
 if(WITH_OPENSUBDIV)
-  macro(OPENSUBDIV_DEFINE_COMPONENT component)
+  function(OPENSUBDIV_DEFINE_COMPONENT component)
     if(${${component}})
       add_definitions(-D${component})
     endif()
-  endmacro()
+  endfunction()
 
   list(APPEND SRC
     # Base.
@@ -75,12 +75,19 @@ if(WITH_OPENSUBDIV)
     bf::dependencies::epoxy
   )
 
-  if(WIN32)
-    add_definitions(-DNOMINMAX)
-    add_definitions(-D_USE_MATH_DEFINES)
+  if(WITH_METAL_BACKEND)
+    add_definitions(-DWITH_METAL_BACKEND)
+  endif()
+  if(WITH_OPENGL_BACKEND)
+    add_definitions(-DWITH_OPENGL_BACKEND)
+  endif()
+  if(WITH_VULKAN_BACKEND)
+    add_definitions(-DWITH_VULKAN_BACKEND)
   endif()
 
   set(GLSL_SRC
+    internal/evaluator/shaders/infos/osd_eval_infos.hh
+
     internal/evaluator/shaders/osd_eval_stencils_comp.glsl
     internal/evaluator/shaders/osd_eval_patches_comp.glsl
   )
@@ -90,9 +97,10 @@ if(WITH_OPENSUBDIV)
     ../../source/blender/draw/intern/shaders
 
     internal/evaluator/shaders
+    internal/evaluator/shaders/infos
   )
 
-  set(GLSL_C)
+  set(GLSL_C "")
   foreach(GLSL_FILE ${GLSL_SRC})
     glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
   endforeach()
@@ -107,8 +115,9 @@ if(WITH_OPENSUBDIV)
   set(GLSL_METADATA_CONTENT "")
   set(GLSL_INFOS_CONTENT "")
   foreach(GLSL_FILE ${GLSL_SRC})
-    get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
+    cmake_path(GET GLSL_FILE FILENAME GLSL_FILE_NAME)
     string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
+    string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
     string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
     string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
     string(APPEND GLSL_INFOS_CONTENT "#include \"${GLSL_FILE}.info\"\n")

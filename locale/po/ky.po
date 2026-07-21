@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.3.0 Alpha (b'96294be75080')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-07-20 07:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:20+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Kyrgyz <https://translate.blender.org/projects/blender-ui/ui/ky/>\n"
@@ -442,34 +442,6 @@ msgid "View"
 msgstr "Көрүнүш"
 
 
-msgid "Mix"
-msgstr "Аралаш"
-
-
-msgid "Darken"
-msgstr "Караңгы кылуу"
-
-
-msgid "Lighten"
-msgstr "Жарык кылуу"
-
-
-msgid "Screen"
-msgstr "Экран"
-
-
-msgid "Overlay"
-msgstr "Үстүнөн коюу"
-
-
-msgid "Difference"
-msgstr "Айырма"
-
-
-msgid "Divide"
-msgstr "Бөлүү"
-
-
 msgid "RGB"
 msgstr "RGB"
 
@@ -752,6 +724,10 @@ msgid "Ogg"
 msgstr "Ogg"
 
 
+msgid "Sigma"
+msgstr "Сигма"
+
+
 msgid "Frame"
 msgstr "Кадр"
 
@@ -862,6 +838,10 @@ msgstr "Аспаптын касиеттери"
 
 msgid "Blend Mode"
 msgstr "Аралаштыруу режими"
+
+
+msgid "Divide"
+msgstr "Бөлүү"
 
 
 msgid "Red"
@@ -1109,6 +1089,10 @@ msgid "Display Settings"
 msgstr "Көрсөтүү ырастоолору"
 
 
+msgid "Restore Frame"
+msgstr "Кадрды калыбына келтирүү"
+
+
 msgid "Sync Mode"
 msgstr "Синхрондоштуруу режими"
 
@@ -1282,12 +1266,40 @@ msgid "Text Input"
 msgstr "Текстти киргизүү"
 
 
+msgid "Mix"
+msgstr "Аралаш"
+
+
+msgid "Difference"
+msgstr "Айырма"
+
+
+msgid "Darken"
+msgstr "Караңгы кылуу"
+
+
+msgid "Lighten"
+msgstr "Жарык кылуу"
+
+
+msgid "Screen"
+msgstr "Экран"
+
+
+msgid "Overlay"
+msgstr "Үстүнөн коюу"
+
+
 msgid "Circles"
 msgstr "Тегеректер"
 
 
 msgid "Mask Layers"
 msgstr "Маска каттары"
+
+
+msgid "Apply"
+msgstr "Колдонуу"
 
 
 msgid "Import"
@@ -1298,16 +1310,12 @@ msgid "UV"
 msgstr "UV"
 
 
-msgid "Apply"
-msgstr "Колдонуу"
+msgid "Mirror"
+msgstr "Чагылтуу"
 
 
 msgid "Tracking"
 msgstr "Трекинг"
-
-
-msgid "Mirror"
-msgstr "Чагылтуу"
 
 
 msgctxt "MovieClip"
@@ -1628,6 +1636,10 @@ msgid "Move"
 msgstr "Ташуу"
 
 
+msgid "Search"
+msgstr "Издөө"
+
+
 msgctxt "Operator"
 msgid "Hide Selected"
 msgstr "Тандалганын жашыруу"
@@ -1918,10 +1930,6 @@ msgstr "Текстти коюу"
 
 msgid "Eraser"
 msgstr "Өчүргүч"
-
-
-msgid "Sigma"
-msgstr "Сигма"
 
 
 msgid "Flat"
@@ -2228,10 +2236,6 @@ msgid "Cancel Animation"
 msgstr "Анимацияны жокко чыгаруу"
 
 
-msgid "Restore Frame"
-msgstr "Кадрды калыбына келтирүү"
-
-
 msgctxt "Operator"
 msgid "Play Animation"
 msgstr "Анимацияны ойнотуу"
@@ -2333,6 +2337,10 @@ msgstr "Коюу"
 msgctxt "Operator"
 msgid "Refresh Sequencer"
 msgstr "Секвенсорду жаңылоо"
+
+
+msgid "Movie"
+msgstr "Тасма"
 
 
 msgid "Effect"
@@ -2601,10 +2609,6 @@ msgid "Development"
 msgstr "Иштетүү"
 
 
-msgid "Styles"
-msgstr "Стилдер"
-
-
 msgctxt "Operator"
 msgid "Draw"
 msgstr "Тартуу"
@@ -2618,6 +2622,10 @@ msgstr "Тегерек"
 msgctxt "Operator"
 msgid "Line"
 msgstr "Түз сызык"
+
+
+msgid "Styles"
+msgstr "Стилдер"
 
 
 msgid "Add/Replace"
@@ -2845,10 +2853,6 @@ msgid "Selected Marker"
 msgstr "Тандалган маркер"
 
 
-msgid "Selected File"
-msgstr "Тандалган файл"
-
-
 msgid "Font Style"
 msgstr "Арип стили"
 
@@ -2889,8 +2893,8 @@ msgid "Radians"
 msgstr "Радиандар"
 
 
-msgid "Search"
-msgstr "Издөө"
+msgid "Cancel"
+msgstr "Жокко чыгаруу"
 
 
 msgctxt "WindowManager"
@@ -3003,6 +3007,11 @@ msgid "Report a Bug"
 msgstr "Ката жөнүндө маалымдоо"
 
 
+msgctxt "Operator"
+msgid "Clear"
+msgstr "Тазалоо"
+
+
 msgid "Description:"
 msgstr "Баяндамасы:"
 
@@ -3072,11 +3081,6 @@ msgstr "Тартуу:"
 
 msgid "Transform:"
 msgstr "Өзгөртүү:"
-
-
-msgctxt "Operator"
-msgid "Clear"
-msgstr "Тазалоо"
 
 
 msgctxt "Operator"
@@ -3168,13 +3172,13 @@ msgstr "Астынан"
 
 
 msgctxt "Operator"
-msgid "Quit"
-msgstr "Чыгуу"
+msgid "Save Copy..."
+msgstr "Көчүрмөсүн сактоо..."
 
 
 msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Көчүрмөсүн сактоо..."
+msgid "Quit"
+msgstr "Чыгуу"
 
 
 msgctxt "Operator"
@@ -3302,8 +3306,9 @@ msgid "Untitled"
 msgstr "Аты жок"
 
 
-msgid "Cancel"
-msgstr "Жокко чыгаруу"
+msgctxt "Key"
+msgid "Key"
+msgstr "Ачкыч"
 
 
 msgctxt "Curve"
@@ -3315,20 +3320,12 @@ msgid "%s: %s"
 msgstr "%s: %s"
 
 
-msgid "Value:"
-msgstr "Мааниси:"
-
-
 msgid "Hex"
 msgstr "Hex"
 
 
 msgid "OK"
 msgstr "ООБА"
-
-
-msgid "Movie"
-msgstr "Тасма"
 
 
 msgid "Zoom in"
@@ -3572,6 +3569,10 @@ msgid "File name"
 msgstr "Файл аты"
 
 
+msgid "Value:"
+msgstr "Мааниси:"
+
+
 msgid "<No ID>"
 msgstr "<ID жок>"
 
@@ -3626,11 +3627,6 @@ msgstr "FPS: %i"
 
 msgid "(Smooth)"
 msgstr "(тегиз)"
-
-
-msgctxt "Key"
-msgid "Key"
-msgstr "Ачкыч"
 
 
 msgid "Modify"

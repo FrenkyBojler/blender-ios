@@ -9,18 +9,14 @@
 #include "BKE_appdir.hh"
 
 #include "BLI_fileops.hh"
-#include "BLI_hash.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_time.h"
 #ifdef _WIN32
-#  include "BLI_winstuff.h"
+#  include "BLI_winstuff.hh"
 #endif
 
 #include "vk_shader.hh"
 #include "vk_shader_compiler.hh"
 
-#include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -35,9 +31,7 @@ static std::optional<std::string> cache_dir_get()
   static std::optional<std::string> result = []() -> std::optional<std::string> {
     static char tmp_dir_buffer[FILE_MAX];
     /* Shader builder doesn't return the correct appdir. */
-    if (!BKE_appdir_folder_caches(tmp_dir_buffer, sizeof(tmp_dir_buffer))) {
-      return std::nullopt;
-    }
+    BKE_appdir_folder_caches(tmp_dir_buffer, sizeof(tmp_dir_buffer));
 
     std::string cache_dir = std::string(tmp_dir_buffer) + "vk-spirv-cache" + SEP_STR;
     BLI_dir_create_recursive(cache_dir.c_str());
@@ -192,13 +186,21 @@ static bool compile_ex(shaderc::Compiler &compiler,
 {
   std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
 
-  Shader::dump_source_to_disk(
-      shader.name_get(), full_name, ".glsl", shader_module.combined_sources);
-
-  shader_module.combined_sources = Shader::run_preprocessor(shader_module.combined_sources);
+  shader_module.original_sources = std::move(shader_module.combined_sources);
 
   Shader::dump_source_to_disk(
-      shader.name_get(), full_name + ".expanded", ".glsl", shader_module.combined_sources);
+      shader.name_get(), full_name, ".glsl", shader_module.original_sources);
+
+  if (!shader.skip_preprocessor) {
+    shader_module.combined_sources = Shader::run_preprocessor(shader_module.original_sources,
+                                                              G.debug & G_DEBUG_GPU_SHADER_NO_DCE);
+
+    Shader::dump_source_to_disk(
+        shader.name_get(), full_name + ".expanded", ".glsl", shader_module.combined_sources);
+  }
+  else {
+    shader_module.combined_sources = shader_module.original_sources;
+  }
 
   if (read_spirv_from_disk(shader_module)) {
     return true;
@@ -214,19 +216,26 @@ static bool compile_ex(shaderc::Compiler &compiler,
   if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_ANY, GPU_DRIVER_ANY)) {
     do_optimize = false;
   }
-  /* Do not optimize large shaders. They can overflow internal buffers that during optimizations
-   * that cannot be adjusted via the ShaderC API. ShaderC in the past had this API
-   * (PassId::kCompactIds) but is unused.
-   *
-   * The shaders in #144614 and #143516 are larger than 512Kb so using this as a limit to disable
-   * optimizations.
-   */
-  constexpr int64_t optimization_source_size_limit = 512 * 1024;
-  if (shader_module.combined_sources.size() > optimization_source_size_limit) {
-    do_optimize = false;
-  }
   options.SetOptimizationLevel(do_optimize ? shaderc_optimization_level_performance :
                                              shaderc_optimization_level_zero);
+
+  /* Increase the max id bound.
+   *
+   * SPIR-V has a default max id bound set to 0x3fffff which is the minimum amount of ids that
+   * needs to be supported by any platform. However during optimization the max id bound can
+   * increase very fast and lowered at the end. As glslang uses max id bound in their internal
+   * structures to allocate arrays out of bound errors can occur.
+   *
+   * Increasing the max id bound to a larger number to increase the internal arrays of the
+   * compiler to work around the compiler crash.
+   *
+   * NOTE: Test-files in #144614 and #143516 would surpass the default limit during compilation.
+   * The final optimized SPIR-V is far less than the default so be fine to be used on platforms
+   * with minimum spec.
+   *
+   * https://registry.khronos.org/SPIR-V/specs/1.0/SPIRV.html#_a_id_limits_a_universal_limits
+   */
+  options.SetMaxIdBound(0xffffff);
 
   /* Should always be called after setting the optimization level. Setting optimization level
    * resets all previous passes. */

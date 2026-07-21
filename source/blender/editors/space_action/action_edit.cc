@@ -11,11 +11,11 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "BLI_listbase.h"
+#include "BLI_listbase.hh"
 #include "BLI_map.hh"
-#include "BLI_math_base.h"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -30,7 +30,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
@@ -87,8 +87,9 @@ static bool act_markers_make_local_poll(bContext *C)
   }
 
   /* 3) */
+  const Main *bmain = CTX_data_main(C);
   bAction *active_action = ANIM_active_action_from_area(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
   if (!active_action) {
     return false;
   }
@@ -100,8 +101,9 @@ static bool act_markers_make_local_poll(bContext *C)
 static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*op*/)
 {
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
+  const Main *bmain = CTX_data_main(C);
   bAction *act = ANIM_active_action_from_area(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
 
   TimeMarker *marker, *markern = nullptr;
 
@@ -164,7 +166,7 @@ static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
   /* Get data to filter, from Action or Dope-sheet. */
   /* XXX: what is sel doing here?!
    *      Commented it, was breaking things (eg. the "auto preview range" tool). */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE /*| ANIMFILTER_SEL */ |
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE /* | ANIMFILTER_SEL */ |
             ANIMFILTER_NODUPLIS);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
@@ -458,7 +460,7 @@ void ACTION_OT_view_all(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = actkeys_viewall_exec;
-  ot->poll = ED_operator_action_active;
+  ot->poll = ED_operator_region_action_active;
 
   /* flags */
   ot->flag = 0;
@@ -473,7 +475,7 @@ void ACTION_OT_view_selected(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = actkeys_viewsel_exec;
-  ot->poll = ED_operator_action_active;
+  ot->poll = ED_operator_region_action_active;
 
   /* flags */
   ot->flag = 0;
@@ -901,7 +903,7 @@ static void insert_fcurve_key(bAnimContext *ac,
     const float curval = evaluate_fcurve(fcu, cfra);
     KeyframeSettings settings = get_keyframe_settings(true);
     settings.keyframe_type = eBezTriple_KeyframeType(ts->keyframe_type);
-    insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags(0));
+    insert_vert_fcurve(fcu, {cfra, curval}, settings, eInsertKeyFlags{});
   }
 
   ale->update |= ANIM_UPDATE_DEFAULT;
@@ -1286,6 +1288,19 @@ static wmOperatorStatus actkeys_clean_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static std::string actkeys_clean_get_description(bContext * /*C*/,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
+{
+  /* Custom description based on the 'channels' property */
+  if (RNA_boolean_get(ptr, "channels")) {
+    return TIP_("Simplify F-Curves and remove empty or redundant channels.");
+  }
+
+  /* Use the default description in the other case. */
+  return "";
+}
+
 void ACTION_OT_clean(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1295,6 +1310,7 @@ void ACTION_OT_clean(wmOperatorType *ot)
 
   /* API callbacks. */
   // ot->invoke =  /* XXX we need that number popup for this! */
+  ot->get_description = actkeys_clean_get_description;
   ot->exec = actkeys_clean_exec;
   ot->poll = ED_operator_action_active;
 
@@ -1428,7 +1444,7 @@ static void setexpo_action_keys(bAnimContext *ac, short mode)
 
     if (mode >= 0) {
       /* just set mode setting */
-      fcu->extend = mode;
+      fcu->extend = eFCurve_Extend(mode);
     }
     else {
       /* shortcuts for managing Cycles F-Modifiers to make it easier to toggle cyclic animation
@@ -2064,16 +2080,17 @@ static const EnumPropertyItem prop_actkeys_mirror_types[] = {
      0,
      "By Times Over Current Frame",
      "Flip times of selected keyframes using the current frame as the mirror line"},
-    {ACTKEYS_MIRROR_XAXIS,
-     "XAXIS",
-     0,
-     "By Values Over Zero Value",
-     "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"},
     {ACTKEYS_MIRROR_MARKER,
      "MARKER",
      0,
      "By Times Over First Selected Marker",
      "Flip times of selected keyframes using the first selected marker as the reference point"},
+    RNA_ENUM_ITEM_SEPR,
+    {ACTKEYS_MIRROR_XAXIS,
+     "XAXIS",
+     0,
+     "By Values Over Zero Value",
+     "Flip values of selected keyframes (i.e. negative values become positive, and vice versa)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

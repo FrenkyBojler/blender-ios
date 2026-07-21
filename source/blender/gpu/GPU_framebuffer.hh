@@ -28,6 +28,7 @@
 #include "GPU_texture.hh"
 
 #include "BLI_enum_flags.hh"
+#include "BLI_math_vector_types.hh"
 
 namespace blender {
 
@@ -138,7 +139,7 @@ void GPU_framebuffer_restore();
 struct GPULoadStore {
   GPULoadOp load_action;
   GPUStoreOp store_action;
-  float clear_value[4];
+  double clear_value[4];
 };
 
 /* Empty bind point. */
@@ -387,6 +388,11 @@ void GPU_framebuffer_default_size(gpu::FrameBuffer *fb, int width, int height);
  * \{ */
 
 /**
+ * \brief Get the extent of the framebuffer
+ */
+int2 GPU_framebuffer_extent_get(gpu::FrameBuffer *fb);
+
+/**
  * Set the viewport offset and size.
  * These are reset to the original dimensions explicitly (using `GPU_framebuffer_viewport_reset()`)
  * or when binding the frame-buffer after modifying its attachments.
@@ -440,7 +446,7 @@ void GPU_framebuffer_viewport_reset(gpu::FrameBuffer *fb);
  */
 void GPU_framebuffer_clear(gpu::FrameBuffer *fb,
                            GPUFrameBufferBits buffers,
-                           const float clear_col[4],
+                           const double4 clear_col,
                            float clear_depth,
                            unsigned int clear_stencil);
 
@@ -449,7 +455,7 @@ void GPU_framebuffer_clear(gpu::FrameBuffer *fb,
  * \note `GPU_write_mask`, and stencil test do not affect this command.
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
-void GPU_framebuffer_clear_color(gpu::FrameBuffer *fb, const float clear_col[4]);
+void GPU_framebuffer_clear_color(gpu::FrameBuffer *fb, const double4 clear_col);
 
 /**
  * Clear the depth attachment texture with the value \a clear_depth .
@@ -472,7 +478,7 @@ void GPU_framebuffer_clear_stencil(gpu::FrameBuffer *fb, uint clear_stencil);
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
 void GPU_framebuffer_clear_color_depth(gpu::FrameBuffer *fb,
-                                       const float clear_col[4],
+                                       const double4 clear_col,
                                        float clear_depth);
 
 /**
@@ -491,17 +497,17 @@ void GPU_framebuffer_clear_depth_stencil(gpu::FrameBuffer *fb,
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
 void GPU_framebuffer_clear_color_depth_stencil(gpu::FrameBuffer *fb,
-                                               const float clear_col[4],
+                                               const double4 clear_col,
                                                float clear_depth,
                                                uint clear_stencil);
 
 /**
  * Clear each color attachment texture attached to this frame-buffer with a different color.
- * IMPORTANT: The size of `clear_colors` must match the number of color attachments.
+ * IMPORTANT: The size of `clear_colors` must contain at least the number of color attachments.
  * \note `GPU_write_mask`, and stencil test do not affect this command.
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
-void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, const float (*clear_colors)[4]);
+void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, Span<double4> clear_colors);
 
 /**
  * Clear all color attachment textures of the active frame-buffer with the given red, green, blue,

@@ -24,7 +24,7 @@ function(blender_test_set_envvars testname envvar_list)
     list(APPEND envvar_list "${PLATFORM_ENV_INSTALL}")
   endif()
 
-  if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
     if(WITH_COMPILER_ASAN)
       set(_lsan_options "LSAN_OPTIONS=print_suppressions=false:suppressions=${CMAKE_SOURCE_DIR}/tools/config/analysis/lsan.supp")
       # FIXME: That `allocator_may_return_null=true` ASAN option is only needed for the
@@ -46,9 +46,9 @@ function(blender_test_set_envvars testname envvar_list)
   set_tests_properties(${testname} PROPERTIES ENVIRONMENT "${envvar_list}")
 endfunction()
 
-macro(blender_src_gtest_ex)
+function(blender_src_gtest_ex)
   if(WITH_GTESTS)
-    set(options)
+    set(options "")
     set(oneValueArgs NAME)
     set(multiValueArgs SRC EXTRA_LIBS COMMAND_ARGS)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -120,12 +120,8 @@ macro(blender_src_gtest_ex)
         )
       endif()
     endif()
-    unset(MANIFEST)
-    unset(TEST_INC)
-    unset(TEST_INC_SYS)
-    unset(TARGET_NAME)
   endif()
-endmacro()
+endfunction()
 
 function(blender_add_ctests)
   if(ARGC LESS 1)
@@ -202,7 +198,7 @@ function(blender_add_test_suite_lib
   set(common_sources ${ARGN})
 
   if(WITH_TESTS_SINGLE_BINARY)
-    add_cc_flags_custom_test(${name}_tests PARENT_SCOPE)
+    add_c_and_cxx_flags_custom_test(${name}_tests PARENT_SCOPE)
 
     # Otherwise external projects will produce warnings that we cannot fix.
     remove_strict_flags()
@@ -257,12 +253,12 @@ function(blender_add_test_executable_impl
   )
 
   set(oneValueArgs ADD_CTESTS DISCOVER_TESTS)
-  set(multiValueArgs)
+  set(multiValueArgs "")
   cmake_parse_arguments(ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   unset(oneValueArgs)
   unset(multiValueArgs)
 
-  add_cc_flags_custom_test(${name} PARENT_SCOPE)
+  add_c_and_cxx_flags_custom_test(${name} PARENT_SCOPE)
 
   ## Otherwise external projects will produce warnings that we cannot fix.
   remove_strict_flags()
@@ -357,7 +353,7 @@ function(blender_add_test_suite_executable
         # perform search of _PyBaseObject_Type on startup.
         #
         # Work-around by telling the linker that the python libraries should not be stripped.
-        if(APPLE)
+        if(APPLE AND NOT WITH_PYTHON_MODULE)
           target_link_libraries("${_test_name}_test" PRIVATE "-Wl,-force_load,${PYTHON_LIBRARIES}")
         endif()
 

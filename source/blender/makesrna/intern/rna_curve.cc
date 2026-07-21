@@ -12,7 +12,7 @@
 #include "DNA_key_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math_rotation.h"
+#include "BLI_math_rotation_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -137,6 +137,34 @@ static const EnumPropertyItem curve3d_fill_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem fill_solver_items[] = {
+    {CU_FILL_SOLVER_SWEEP_LINE,
+     "SWEEP_LINE",
+     0,
+     "Sweep Line",
+     "Fast without support for self-intersection"},
+    {CU_FILL_SOLVER_CDT,
+     "CDT",
+     0,
+     "Delaunay",
+     "Constrained Delaunay Triangulation (CDT), robust with support for self-intersections"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem fill_rule_items[] = {
+    {CU_FILL_RULE_EVEN_ODD,
+     "EVEN_ODD",
+     0,
+     "Even-Odd",
+     "Alternate inside/outside based on crossing count"},
+    {CU_FILL_RULE_NONZERO,
+     "NONZERO",
+     0,
+     "Non-Zero",
+     "Overlapping curves with the same winding direction are filled as a union"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifdef RNA_RUNTIME
 static const EnumPropertyItem curve2d_fill_mode_items[] = {
     {0, "NONE", 0, "None", ""},
@@ -155,9 +183,9 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 
 #  include "DNA_object_types.h"
 
-#  include "BLI_listbase.h"
-#  include "BLI_math_vector.h"
-#  include "BLI_string_utf8.h"
+#  include "BLI_listbase.hh"
+#  include "BLI_math_vector_c.hh"
+#  include "BLI_string_utf8.hh"
 
 #  include "BKE_curve.hh"
 #  include "BKE_curveprofile.h"
@@ -385,7 +413,7 @@ static void rna_Nurb_type_set(PointerRNA *ptr, int value)
   Nurb *nu = static_cast<Nurb *>(ptr->data);
   const int pntsu_prev = nu->pntsu;
 
-  if (BKE_nurb_type_convert(nu, value, true, nullptr)) {
+  if (BKE_nurb_type_convert(nu, eNurbType(value), true, nullptr)) {
     if (nu->pntsu != pntsu_prev) {
       cu->actvert = CU_ACT_NONE;
     }
@@ -489,7 +517,7 @@ static void rna_Curve_bevel_mode_set(PointerRNA *ptr, int value)
     }
   }
 
-  cu->bevel_mode = value;
+  cu->bevel_mode = eCurveBevelMode(value);
 }
 
 static bool rna_Curve_otherObject_poll(PointerRNA *ptr, PointerRNA value)
@@ -690,9 +718,10 @@ static void rna_Curve_spline_bezpoints_add(ID *id, Nurb *nu, ReportList *reports
   }
 }
 
-static Nurb *rna_Curve_spline_new(Curve *cu, int type)
+static Nurb *rna_Curve_spline_new(Curve *cu, int type_i)
 {
   Nurb *nu = MEM_new<Nurb>("spline.new");
+  const eNurbType type = eNurbType(type_i);
 
   if (type == CU_BEZIER) {
     BezTriple *bezt = MEM_new_zeroed<BezTriple>("spline.new.bezt");
@@ -1824,6 +1853,18 @@ static void rna_def_curve(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, curve3d_fill_mode_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Curve_fill_mode_itemf");
   RNA_def_property_ui_text(prop, "Fill Mode", "Mode of filling curve");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+  prop = RNA_def_property(srna, "fill_solver", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_solver");
+  RNA_def_property_enum_items(prop, fill_solver_items);
+  RNA_def_property_ui_text(prop, "Fill Solver", "Triangulation solver for filling 2D curves");
+  RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+  prop = RNA_def_property(srna, "fill_rule", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_rule");
+  RNA_def_property_enum_items(prop, fill_rule_items);
+  RNA_def_property_ui_text(prop, "Fill Rule", "Fill rule for Delaunay fill solver");
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "twist_mode", PROP_ENUM, PROP_NONE);

@@ -16,9 +16,9 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
@@ -130,8 +130,8 @@ static void node_reroute_add_storage(bNodeTree &tree)
        * identifiers were sometimes all lower case. Fixing those wrong socket identifiers is
        * important because otherwise they loose links now that the reroute node also uses node
        * declarations. */
-      STRNCPY_UTF8(input.identifier, "Input");
-      STRNCPY_UTF8(output.identifier, "Output");
+      version_node_socket_identifier_set(input, "Input");
+      version_node_socket_identifier_set(output, "Output");
 
       NodeReroute *data = MEM_new<NodeReroute>(__func__);
       STRNCPY_UTF8(data->type_idname, input.idname);
@@ -265,9 +265,11 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (ntree->type != NTREE_CUSTOM) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_COLORBALANCE) {
-            NodeColorBalance *n = static_cast<NodeColorBalance *>(node.storage);
-            n->input_temperature = n->output_temperature = 6500.0f;
-            n->input_tint = n->output_tint = 10.0f;
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeColorBalance *n = static_cast<NodeColorBalance *>(node.storage);
+              n->input_temperature = n->output_temperature = 6500.0f;
+              n->input_tint = n->output_tint = 10.0f;
+            }
           }
         }
       }
@@ -307,6 +309,9 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (node.type_legacy != CMP_NODE_OUTPUT_FILE) {
           continue;
         }
+        if (!version_node_ensure_storage_or_invalidate(node)) {
+          continue;
+        }
 
         /* Initialize node format color space if it is not set. */
         NodeCompositorFileOutput *storage = static_cast<NodeCompositorFileOutput *>(node.storage);
@@ -314,7 +319,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           BKE_image_format_update_color_space_for_type(&storage->format);
         }
 
-        if (BLI_listbase_is_empty(&node.inputs)) {
+        if (node.inputs.is_empty()) {
           continue;
         }
 
@@ -395,7 +400,7 @@ void blo_do_versions_430(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 403, 17)) {
     FOREACH_NODETREE_BEGIN (bmain, tree, id) {
       if (tree->default_group_node_width == 0) {
-        tree->default_group_node_width = GROUP_NODE_DEFAULT_WIDTH;
+        tree->default_group_node_width = bke::NodeWidth::Default;
       }
     }
     FOREACH_NODETREE_END;

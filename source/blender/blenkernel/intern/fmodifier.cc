@@ -21,11 +21,11 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_noise.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_noise.hh"
-#include "BLI_utildefines.h"
+#include "BLI_noise_c.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_fcurve.hh"
 
@@ -997,6 +997,112 @@ static FModifierTypeInfo FMI_STEPPED = {
     /*evaluate_modifier*/ nullptr,
 };
 
+/* Smooth F-Curve Modifier  --------------------------- */
+
+static void fcm_smooth_new_data(void *mdata)
+{
+  FMod_Smooth *data = (FMod_Smooth *)mdata;
+
+  data->sigma = 0.33f;
+  data->filter_width = 6;
+}
+
+/** Evaluate the F-Curve at a certain point, by locally smoothing the values around that point. */
+static float fcm_smooth_frame(const FCurve *fcu,
+                              const FModifier *fcm,
+                              const int evaltime,
+                              const float default_value)
+{
+  FMod_Smooth *data = (FMod_Smooth *)fcm->data;
+
+  const float sigma = data->sigma;
+  const int filter_width = data->filter_width;
+
+  /* If filter_width is too small, the smoothing weight will become zero. */
+  BLI_assert(filter_width >= 0.1);
+
+  /* Hold variables for weight, so we can compensate for the influence of the modifier. */
+  float total_weighted_value = 0.0f;
+  float total_weight = 0.0f;
+
+  /* Define sampling window around the frame using the filter width. */
+  const int start_frame = floorf(evaltime - filter_width);
+  const int end_frame = ceilf(evaltime + filter_width);
+
+  const float two_sigma_sq = 2.0f * sigma * sigma;
+
+  /* Sampling loop. */
+  for (float sample_time = start_frame; sample_time <= end_frame; ++sample_time) {
+    const float sample_distance = sample_time - evaltime;
+
+    /* Normalize sigma to filter width.
+     * This makes it consistent with the behavior in GRAPH_OT_gaussian_smooth. */
+    const float sample_dis_norm = sample_distance / filter_width;
+    const float weight = expf(-(sample_dis_norm * sample_dis_norm) / two_sigma_sq);
+
+    const float sample_value = evaluate_fcurve_unmodified(fcu, sample_time);
+
+    total_weighted_value += sample_value * weight;
+    total_weight += weight;
+  }
+
+  if (total_weight <= 0.0f) {
+    BLI_assert_unreachable();
+    return default_value;
+  }
+
+  return total_weighted_value / total_weight;
+}
+
+static void fcm_smooth_evaluate(
+    const FCurve *fcu, const FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
+{
+  /* Check if evaltime is an integer, with FLT_EPSILON tolerance. */
+  const bool is_integer_frame = (fabs(roundf(evaltime) - evaltime) <= FLT_EPSILON);
+
+  /* If the evaltime is an integer frame, we directly calculate the value. */
+  if (is_integer_frame) {
+    *cvalue = fcm_smooth_frame(fcu, fcm, evaltime, *cvalue);
+    return;
+  }
+
+  /* Otherwise, we linearly interpolate.
+   * The Gaussian function requires knowing the distance from a sample to its neighboring frames.
+   * However, F-Curve modifiers work as continuous functions, so we cannot access discrete keyframe
+   * positions. Instead, we sample each integer frame, then linearly interpolate to find the value
+   * at evaltime. This means that sub-frames won't contribute to the smoothing, but it is not
+   * possible to know their positions.
+   * The F-Curve is sampled using a fixed-size window of at least one frame, to prevent aliasing
+   * that can occur when there is high frequency data (on sub-frames).
+   */
+  const float prev_frame = floorf(evaltime);
+  const float next_frame = ceilf(evaltime);
+
+  float prev_value = evaluate_fcurve_unmodified(fcu, prev_frame);
+  float next_value = evaluate_fcurve_unmodified(fcu, next_frame);
+
+  prev_value = fcm_smooth_frame(fcu, fcm, prev_frame, prev_value);
+  next_value = fcm_smooth_frame(fcu, fcm, next_frame, prev_value);
+
+  *cvalue = interpf(next_value, prev_value, evaltime - prev_frame);
+}
+
+static FModifierTypeInfo FMI_SMOOTH = {
+    /*type*/ FMODIFIER_TYPE_SMOOTH,
+    /*size*/ sizeof(FMod_Smooth),
+    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
+    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Smooth"),
+    /*struct_name*/ "FMod_Smooth",
+    /*storage_size*/ 0,
+    /*free_data*/ nullptr,
+    /*copy_data*/ nullptr,
+    /*new_data*/ fcm_smooth_new_data,
+    /*verify_data*/ nullptr /*fcm_noise_verify*/,
+    /*evaluate_modifier_time*/ nullptr,
+    /*evaluate_modifier*/ fcm_smooth_evaluate,
+};
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1023,6 +1129,7 @@ static void fmods_init_typeinfo()
   fmodifiersTypeInfo[FMODIFIER_TYPE_PYTHON] = nullptr;
   fmodifiersTypeInfo[FMODIFIER_TYPE_LIMITS] = &FMI_LIMITS;
   fmodifiersTypeInfo[FMODIFIER_TYPE_STEPPED] = &FMI_STEPPED;
+  fmodifiersTypeInfo[FMODIFIER_TYPE_SMOOTH] = &FMI_SMOOTH;
 
 #ifndef NDEBUG
   /* Check that the array indices are correct. */
@@ -1081,29 +1188,21 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
     return nullptr;
   }
 
-  /* special checks for whether modifier can be added */
-  if ((modifiers->first) && (type == FMODIFIER_TYPE_CYCLES)) {
-    /* cycles modifier must be first in stack, so for now, don't add if it can't be */
-    /* TODO: perhaps there is some better way, but for now, */
-    CLOG_STR_ERROR(&LOG,
-                   "Cannot add 'Cycles' modifier to F-Curve, as 'Cycles' modifier can only be "
-                   "first in stack.");
-    return nullptr;
-  }
-
   /* add modifier itself */
   fcm = MEM_new<FModifier>("F-Curve Modifier");
-  fcm->type = type;
+  fcm->type = eFModifier_Types(type);
   fcm->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT; /* Expand the main panel, not the sub-panels. */
   fcm->curve = owner_fcu;
   fcm->influence = 1.0f;
   BLI_addtail(modifiers, fcm);
 
+  BKE_fmodifier_ensure_flag(modifiers);
+
   /* Set modifier name and make sure it is unique. */
   BKE_fmodifier_name_set(fcm, "");
 
   /* tag modifier as "active" if no other modifiers exist in the stack yet */
-  if (BLI_listbase_is_single(modifiers)) {
+  if (modifiers->is_single()) {
     fcm->flag |= FMODIFIER_FLAG_ACTIVE;
   }
 
@@ -1159,7 +1258,7 @@ void copy_fmodifiers(ListBaseT<FModifier> *dst, const ListBaseT<FModifier> *src)
     return;
   }
 
-  BLI_listbase_clear(dst);
+  dst->clear_no_delete();
   BLI_duplicatelist(dst, src);
 
   for (fcm = static_cast<FModifier *>(dst->first), srcfcm = static_cast<FModifier *>(src->first);
@@ -1210,6 +1309,7 @@ bool remove_fmodifier(ListBaseT<FModifier> *modifiers, FModifier *fcm)
       BKE_fcurve_handles_recalc(*update_fcu);
     }
 
+    BKE_fmodifier_ensure_flag(modifiers);
     return true;
   }
 

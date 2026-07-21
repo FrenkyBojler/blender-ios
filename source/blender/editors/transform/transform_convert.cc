@@ -15,10 +15,10 @@
 #include "BLI_array_utils.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_kdtree.hh"
-#include "BLI_linklist_stack.h"
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_linklist_stack.hh"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -34,10 +34,11 @@
 #include "ED_particle.hh"
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
-#include "ED_sequencer.hh"
 
 #include "ANIM_keyframing.hh"
 #include "ANIM_nla.hh"
+
+#include "SEQ_retiming.hh"
 
 #include "UI_view2d.hh"
 
@@ -95,7 +96,7 @@ static void make_sorted_index_map(TransDataContainer *tc, FunctionRef<bool(int, 
 
   const MutableSpan sorted_index_span(tc->sorted_index_map, tc->data_len);
   array_utils::fill_index_range(sorted_index_span);
-  std::sort(sorted_index_span.begin(), sorted_index_span.end(), compare);
+  std::ranges::sort(sorted_index_span, compare);
 }
 
 /**
@@ -241,7 +242,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   TransData **td_table = MEM_new_array_uninitialized<TransData *>(td_table_len, __func__);
 
   /* Create and fill KD-tree of selected's positions - in global or proj_vec space. */
-  KDTree_3d *td_tree = kdtree_3d_new(td_table_len);
+  KDTree<float3> *td_tree = kdtree_new<float3>(td_table_len);
 
   int td_table_index = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -252,13 +253,13 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
       const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
-      kdtree_3d_insert(td_tree, td_table_index, vec);
+      kdtree_insert<float3>(td_tree, td_table_index, vec);
       td_table[td_table_index++] = td;
     });
   }
   BLI_assert(td_table_index == td_table_len);
 
-  kdtree_3d_balance(td_tree);
+  kdtree_balance<float3>(td_tree);
 
   /* For each non-selected vertex, find distance to the nearest selected vertex. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -270,8 +271,8 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
       const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
-      KDTreeNearest_3d nearest;
-      const int td_index = kdtree_3d_find_nearest(td_tree, vec, &nearest);
+      KDTreeNearest<float3> nearest;
+      const int td_index = kdtree_find_nearest<float3>(td_tree, vec, &nearest);
 
       td->rdist = -1.0f;
       if (td_index != -1) {
@@ -290,7 +291,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
     });
   }
 
-  kdtree_3d_free(td_tree);
+  kdtree_free<float3>(td_tree);
   MEM_delete(td_table);
 }
 
@@ -760,7 +761,7 @@ static void init_proportional_edit(TransInfo *t)
       /* Already calculated by #uv_set_connectivity_distance. */
     }
     else if (t->data_type == &TransConvertType_Curve) {
-      BLI_assert(t->obedit_type == OB_CURVES_LEGACY);
+      BLI_assert(ELEM(t->obedit_type, OB_CURVES_LEGACY, OB_SURF));
       if (t->flag & T_PROP_CONNECTED) {
         /* Already calculated by #calc_distanceCurveVerts. */
       }
@@ -815,7 +816,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
     return;
   }
 
-  const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
+  const eObjectMode object_mode = obact ? obact->mode : OB_MODE_OBJECT;
   const short object_type = obact ? obact->type : -1;
 
   if ((object_mode & OB_MODE_EDIT) ||
@@ -833,6 +834,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
       /* Pose transform operates on `ob->pose` so don't skip duplicate object-data. */
       params.no_dup_data = (object_mode & OB_MODE_POSE) == 0;
       local_objects = BKE_view_layer_array_from_objects_in_mode_params(
+          *t->bmain,
           t->scene,
           t->view_layer,
           static_cast<const View3D *>((t->spacetype == SPACE_VIEW3D) ? t->view : nullptr),
@@ -887,7 +889,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
 static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj_armature)
 {
   ViewLayer *view_layer = t->view_layer;
-  BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+  BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* If tests must match recalc_data for correct updates. */
@@ -943,7 +945,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     if (t->options & CTX_SEQUENCER_IMAGE) {
       return &TransConvertType_SequencerImage;
     }
-    if (vse::sequencer_retiming_mode_is_active(t->scene)) {
+    if (seq::retiming_keys_are_selected(t->scene)) {
       return &TransConvertType_SequencerRetiming;
     }
     return &TransConvertType_Sequencer;
@@ -956,7 +958,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
   }
   if (t->spacetype == SPACE_CLIP) {
     if (t->options & CTX_MOVIECLIP) {
-      if (t->region->regiontype == RGN_TYPE_PREVIEW) {
+      if (t->region && (t->region->regiontype == RGN_TYPE_PREVIEW)) {
         return &TransConvertType_TrackingCurves;
       }
       return &TransConvertType_Tracking;
@@ -1019,7 +1021,14 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
     return nullptr;
   }
   if (ob && (ob->mode & OB_MODE_ALL_PAINT_GPENCIL)) {
-    /* In grease pencil all transformations must be canceled if not Object or Edit. */
+    /* In Grease Pencil all transformations must be canceled if not Object or Edit mode.
+     * Exception: Grease Pencil sculpt mode allows for paint curves
+     * which need to be able to be transformed. */
+    if ((ob->mode & OB_MODE_SCULPT_GREASE_PENCIL) && (t->options & CTX_PAINT_CURVE) &&
+        !ELEM(t->mode, TFM_SHEAR, TFM_SHRINKFATTEN))
+    {
+      return &TransConvertType_PaintCurve;
+    }
     return nullptr;
   }
   return &TransConvertType_Object;
@@ -1044,7 +1053,7 @@ void create_trans_data(bContext *C, TransInfo *t)
     init_TransDataContainers(t, ob_armature, {ob_armature});
   }
   else {
-    BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+    BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
     init_TransDataContainers(t, ob, {});
   }
@@ -1086,6 +1095,9 @@ void create_trans_data(bContext *C, TransInfo *t)
       t->num.flag |= NUM_NO_FRACTION;
     }
     else if (t->data_type == &TransConvertType_SequencerImage) {
+      t->obedit_type = -1;
+    }
+    else if (t->data_type == &TransConvertType_NLA) {
       t->obedit_type = -1;
     }
     t->data_type->create_trans_data(C, t);

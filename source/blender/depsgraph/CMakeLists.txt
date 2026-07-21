@@ -153,6 +153,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::draw
   PRIVATE bf::functions
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
@@ -181,7 +182,8 @@ if(WITH_GTESTS)
     intern/builder/deg_builder_rna_test.cc
   )
   set(TEST_LIB
+    ${LIB}
     bf_depsgraph
   )
-  blender_add_test_suite_lib(depsgraph "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+  blender_add_test_suite_lib(depsgraph "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

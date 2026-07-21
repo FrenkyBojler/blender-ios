@@ -425,18 +425,16 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
       view = opengl_view_;
     }
 
-    if (system_cocoa_->native_pixel_) {
-      /* Needs to happen early when building with the 10.14 SDK, otherwise
-       * has no effect until resizing the window. */
-      if ([view respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
-        view.wantsBestResolutionOpenGLSurface = YES;
-      }
-    }
-
     window_.contentView = view;
     window_.initialFirstResponder = view;
 
+    if (state == GHOST_kWindowStateFullScreen) {
+      setState(GHOST_kWindowStateFullScreen);
+    }
+
     [window_ makeKeyAndOrderFront:nil];
+
+    updateDrawingSize();
 
     setDrawingContextType(type);
     updateDrawingContext();
@@ -467,10 +465,6 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
     }
     else {
       window_.collectionBehavior = NSWindowCollectionBehaviorFullScreenPrimary;
-    }
-
-    if (state == GHOST_kWindowStateFullScreen) {
-      setState(GHOST_kWindowStateFullScreen);
     }
 
     setNativePixelSize();
@@ -802,13 +796,11 @@ NSScreen *GHOST_WindowCocoa::getPrimaryScreen()
 /* called for event, when window leaves monitor to another */
 void GHOST_WindowCocoa::setNativePixelSize()
 {
-  NSView *view = (opengl_view_) ? opengl_view_ : metal_view_;
-  const NSRect backingBounds = [view convertRectToBacking:[view bounds]];
-
   GHOST_Rect rect;
   getClientBounds(rect);
 
-  native_pixel_size_ = float(backingBounds.size.width) / float(rect.getWidth());
+  CAMetalLayer *metalLayer = (CAMetalLayer *)metal_view_.layer;
+  native_pixel_size_ = float(metalLayer.drawableSize.width) / float(rect.getWidth());
 }
 
 /**
@@ -896,6 +888,21 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 /* --------------------------------------------------------------------
  * Drawing context.
  */
+
+void GHOST_WindowCocoa::updateDrawingSize()
+{
+  NSSize viewSize = metal_view_.bounds.size;
+  NSSize backingSize = viewSize;
+
+  if (system_cocoa_->native_pixel_) {
+    backingSize = [metal_view_ convertSizeToBacking:viewSize];
+  }
+
+  CAMetalLayer *metalLayer = (CAMetalLayer *)metal_view_.layer;
+
+  metalLayer.contentsScale = backingSize.height / viewSize.height;
+  metalLayer.drawableSize = NSSizeToCGSize(backingSize);
+}
 
 GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
 {
@@ -1207,11 +1214,19 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(const uint8_t *bitm
                      bytesPerRow:(size[0] * 4)
                     bitsPerPixel:32];
 
-    const NSSize imSize = {(CGFloat)size[0], (CGFloat)size[1]};
-    NSImage *cursorImage = [[NSImage alloc] initWithSize:imSize];
-    [cursorImage addRepresentation:cursorImageRep];
+    /* The bitmap is already at HiDPI pixel resolution. NSImage/NSCursor work in points,
+     * so set the NSImage's logical size to `pixels / backingScaleFactor` to prevent
+     * AppKit from upscaling the cursor on Hi-DPI displays.
+     *
+     * Build the NSImage from a CGImage with size NSZeroSize so it initially adopts the
+     * pixel dimensions, then shrink with `setSize:` to declare the logical point size. */
+    const CGFloat scale = [window_ backingScaleFactor];
+    const NSSize imSize = {(CGFloat)size[0] / scale, (CGFloat)size[1] / scale};
+    CGImageRef cgImage = [cursorImageRep CGImage];
+    NSImage *cursorImage = [[NSImage alloc] initWithCGImage:cgImage size:NSZeroSize];
+    [cursorImage setSize:imSize];
 
-    const NSPoint hotSpotPoint = {(CGFloat)(hot_spot[0]), (CGFloat)(hot_spot[1])};
+    const NSPoint hotSpotPoint = {(CGFloat)hot_spot[0] / scale, (CGFloat)hot_spot[1] / scale};
 
     /* Foreground and background color parameter is not handled for now (10.6). */
     custom_cursor_ = [[NSCursor alloc] initWithImage:cursorImage hotSpot:hotSpotPoint];

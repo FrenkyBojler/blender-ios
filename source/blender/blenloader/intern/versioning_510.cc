@@ -9,6 +9,9 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
+
+#include "DNA_brush_enums.h"
+#include "DNA_brush_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -18,14 +21,15 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_sys_types.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_sys_types.hh"
 
 #include "BKE_asset.hh"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
+#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -52,6 +56,9 @@ namespace blender {
  * and set it to the result using a set alpha node. */
 static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode &node)
 {
+  if (!version_node_ensure_storage_or_invalidate(node)) {
+    return;
+  }
   const NodeShaderMix *data = reinterpret_cast<NodeShaderMix *>(node.storage);
   if (data->data_type != SOCK_RGBA) {
     return;
@@ -61,8 +68,8 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
     return;
   }
 
-  bNodeSocket *first_input = bke::node_find_socket(node, SOCK_IN, "A_Color");
-  bNodeSocket *output = bke::node_find_socket(node, SOCK_OUT, "Result_Color");
+  bNodeSocket *first_input = bke::node_find_socket(node, SOCK_IN, "A_Color"_ustr);
+  bNodeSocket *output = bke::node_find_socket(node, SOCK_OUT, "Result_Color"_ustr);
 
   /* Find the link going into the inputs of the node. */
   bNodeLink *first_link = nullptr;
@@ -73,6 +80,8 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   }
 
   bNode &separate_node = version_node_add_empty(node_tree, "CompositorNodeSeparateColor");
+  /* Preserve the muted state on the new node so restoring all nodes later behaves the same way. */
+  SET_FLAG_FROM_TEST(separate_node.flag, node.flag & NODE_MUTED, NODE_MUTED);
   separate_node.parent = node.parent;
   separate_node.location[0] = node.location[0] - 10.0f;
   separate_node.location[1] = node.location[1];
@@ -93,6 +102,7 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
   }
 
   bNode &set_alpha_node = version_node_add_empty(node_tree, "CompositorNodeSetAlpha");
+  SET_FLAG_FROM_TEST(set_alpha_node.flag, node.flag & NODE_MUTED, NODE_MUTED);
   set_alpha_node.parent = node.parent;
   set_alpha_node.location[0] = node.location[0] - 10.0f;
   set_alpha_node.location[1] = node.location[1];
@@ -127,6 +137,9 @@ static void do_version_mix_node_mix_mode_compositor(bNodeTree &node_tree, bNode 
  * and set it to the result using a pair of separate and combine color nodes. */
 static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &node)
 {
+  if (!version_node_ensure_storage_or_invalidate(node)) {
+    return;
+  }
   const NodeShaderMix *data = reinterpret_cast<NodeShaderMix *>(node.storage);
   if (data->data_type != SOCK_RGBA) {
     return;
@@ -136,8 +149,8 @@ static void do_version_mix_node_mix_mode_geometry(bNodeTree &node_tree, bNode &n
     return;
   }
 
-  bNodeSocket *first_input = bke::node_find_socket(node, SOCK_IN, "A_Color");
-  bNodeSocket *output = bke::node_find_socket(node, SOCK_OUT, "Result_Color");
+  bNodeSocket *first_input = bke::node_find_socket(node, SOCK_IN, "A_Color"_ustr);
+  bNodeSocket *output = bke::node_find_socket(node, SOCK_OUT, "Result_Color"_ustr);
 
   /* Find the link going into the inputs of the node. */
   bNodeLink *first_link = nullptr;
@@ -317,8 +330,8 @@ static void version_clear_unused_strip_flags(Main &bmain)
         constexpr int flag_delete = 1 << 10;
         constexpr int flag_ignore_channel_lock = 1 << 16;
         constexpr int flag_show_offsets = 1 << 20;
-        strip->flag &= ~(flag_overlap | flag_ipo_frame_locked | flag_effect_not_loaded |
-                         flag_delete | flag_ignore_channel_lock | flag_show_offsets);
+        strip->flag &= ~eStripFlag(flag_overlap | flag_ipo_frame_locked | flag_effect_not_loaded |
+                                   flag_delete | flag_ignore_channel_lock | flag_show_offsets);
         return true;
       });
     }
@@ -331,27 +344,27 @@ static void version_string_to_curves_node_inputs(bNodeTree &tree, bNode &node)
     return;
   }
   auto &storage = *reinterpret_cast<NodeGeometryStringToCurves *>(node.storage);
-  if (!blender::bke::node_find_socket(node, SOCK_IN, "Font")) {
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Font"_ustr)) {
     bNodeSocket &socket = version_node_add_socket(tree, node, SOCK_IN, "NodeSocketFont", "Font");
     socket.default_value_typed<bNodeSocketValueFont>()->value = reinterpret_cast<VFont *>(node.id);
     node.id = nullptr;
   }
-  if (!blender::bke::node_find_socket(node, SOCK_IN, "Overflow")) {
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Overflow"_ustr)) {
     bNodeSocket &socket = version_node_add_socket(
         tree, node, SOCK_IN, "NodeSocketMenu", "Overflow");
     socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.overflow;
   }
-  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align X")) {
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align X"_ustr)) {
     bNodeSocket &socket = version_node_add_socket(
         tree, node, SOCK_IN, "NodeSocketMenu", "Align X");
     socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.align_x;
   }
-  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align Y")) {
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Align Y"_ustr)) {
     bNodeSocket &socket = version_node_add_socket(
         tree, node, SOCK_IN, "NodeSocketMenu", "Align Y");
     socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.align_y;
   }
-  if (!blender::bke::node_find_socket(node, SOCK_IN, "Pivot Point")) {
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Pivot Point"_ustr)) {
     bNodeSocket &socket = version_node_add_socket(
         tree, node, SOCK_IN, "NodeSocketMenu", "Pivot Point");
     socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.pivot_mode;
@@ -434,7 +447,8 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
    * simulate the same effect by creating a new Light Output node and setting it to active. */
   bNodeTree *ntree = light->nodetree;
   if (ntree == nullptr) {
-    /* In case the light was defined through Python API it might have been missing a node tree. */
+    /* In case the light was defined through Python API it might have been missing a node tree.
+     */
     ntree = bke::node_tree_add_tree_embedded(
         bmain, &light->id, "Light Node Tree Versioning", "ShaderNodeTree");
   }
@@ -505,11 +519,11 @@ static void do_version_render_layers_node_albedo_normal_swap(bNode &node)
   }
 }
 
-/* Some nodes no longer have storage but their storage is still allocated at write time for forward
- * compatibility. This only happens during writes from 4.5, so we need to free this storage again
- * when loading any file from 4.5. But before this versioning was done, it was possible to save a
- * file from 4.5 in 5.0 or 5.1 and it would still have the storage, so we also need to include
- * versions up to the current 5.1 subversion. */
+/* Some nodes no longer have storage but their storage is still allocated at write time for
+ * forward compatibility. This only happens during writes from 4.5, so we need to free this
+ * storage again when loading any file from 4.5. But before this versioning was done, it was
+ * possible to save a file from 4.5 in 5.0 or 5.1 and it would still have the storage, so we also
+ * need to include versions up to the current 5.1 subversion. */
 static void free_compositor_forward_compatibility_storage(bNode &node)
 {
   if (!node.storage) {
@@ -566,13 +580,44 @@ static void free_compositor_forward_compatibility_storage(bNode &node)
   node.storage = nullptr;
 }
 
-void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
+static void convert_brush_flags_to_type(Brush &brush)
 {
-  /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
-   * fixed already in c8cb24121f, but blend files were never updated. So starting in 5.1, we fix
-   * those files by essentially doing what ED_node_set_active_viewer_key is supposed to do at load
-   * time during versioning. Note that the invalid active viewer will just cause a harmless assert,
-   * so this does not need to exist in previous releases. */
+  if (brush.flag & BRUSH_UNUSED_1) {
+    brush.flag &= ~BRUSH_UNUSED_1;
+    brush.stroke_method = BRUSH_STROKE_AIRBRUSH;
+  }
+  else if (brush.flag & BRUSH_UNUSED_2) {
+    brush.flag &= ~BRUSH_UNUSED_2;
+    brush.stroke_method = BRUSH_STROKE_ANCHORED;
+  }
+  else if (brush.flag & BRUSH_UNUSED_3) {
+    brush.flag &= ~BRUSH_UNUSED_3;
+    brush.stroke_method = BRUSH_STROKE_SPACE;
+  }
+  else if (brush.flag & BRUSH_UNUSED_4) {
+    brush.flag &= ~BRUSH_UNUSED_4;
+    brush.stroke_method = BRUSH_STROKE_DRAG_DOT;
+  }
+  else if (brush.flag & BRUSH_UNUSED_5) {
+    brush.flag &= ~BRUSH_UNUSED_5;
+    brush.stroke_method = BRUSH_STROKE_LINE;
+  }
+  else if (brush.flag & BRUSH_UNUSED_6) {
+    brush.flag &= ~BRUSH_UNUSED_6;
+    brush.stroke_method = BRUSH_STROKE_CURVE;
+  }
+  else {
+    brush.stroke_method = BRUSH_STROKE_DOTS;
+  }
+}
+
+void do_versions_after_linking_510(FileData *fd, Main *bmain)
+{
+  /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that
+   * was fixed already in c8cb24121f, but blend files were never updated. So starting in 5.1, we
+   * fix those files by essentially doing what ED_node_set_active_viewer_key is supposed to do at
+   * load time during versioning. Note that the invalid active viewer will just cause a harmless
+   * assert, so this does not need to exist in previous releases. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 0)) {
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
@@ -591,6 +636,44 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 0)) {
     version_clear_unused_strip_flags(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 24)) {
+    /* Note: For legacy Grease Pencil objects (#OB_GPENCIL_LEGACY) this is handled as part of
+     * bke::greasepencil::convert::legacy_main. */
+    bke::greasepencil::convert::material_stroke_fill_toggles_to_attributes(
+        *bmain, {}, *fd->reports);
+    /* Set the stroke mode for all brushes. */
+    for (Brush &brush : bmain->brushes) {
+      if (BrushGpencilSettings *settings = brush.gpencil_settings) {
+        if (Material *material = settings->material) {
+          BLI_assert(material->gp_style != nullptr);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0,
+                             GP_BRUSH_USE_STROKE);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0,
+                             GP_BRUSH_USE_FILL);
+        }
+        else {
+          settings->flag2 |= GP_BRUSH_USE_STROKE;
+          settings->flag2 &= ~GP_BRUSH_USE_FILL;
+        }
+      }
+    }
+    /* Set the color to transparent for when the stroke/fill is disabled. */
+    for (Material &material : bmain->materials) {
+      if (material.gp_style == nullptr) {
+        continue;
+      }
+      MaterialGPencilStyle &gp_style = *material.gp_style;
+      if ((gp_style.flag & GP_MATERIAL_STROKE_SHOW) == 0) {
+        gp_style.stroke_rgba[3] = 0.0f;
+      }
+      if ((gp_style.flag & GP_MATERIAL_FILL_SHOW) == 0) {
+        gp_style.fill_rgba[3] = 0.0f;
+      }
+    }
   }
 
   /**
@@ -675,7 +758,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
               const char *new_pass_name = legacy_pass_name_to_new_name(socket.name);
               STRNCPY(socket.name, new_pass_name);
               const char *new_pass_identifier = legacy_pass_name_to_new_name(socket.identifier);
-              STRNCPY(socket.identifier, new_pass_identifier);
+              version_node_socket_identifier_set(socket, new_pass_identifier);
             }
           }
         }
@@ -770,8 +853,9 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 20)) {
     for (Scene &scene : bmain->scenes) {
       SequencerToolSettings *seq_ts = seq::tool_settings_ensure(&scene);
-      constexpr short SEQ_SNAP_TO_FRAME_RANGE_OLD = (1 << 8);
-      /* Snap to frame range was bit 8, now bit 9, to make room for snap to increment in bit 8. */
+      constexpr eSequencerSnapMode SEQ_SNAP_TO_FRAME_RANGE_OLD = eSequencerSnapMode(1 << 8);
+      /* Snap to frame range was bit 8, now bit 9, to make room for snap to increment in bit 8.
+       */
       if (seq_ts->snap_mode & SEQ_SNAP_TO_FRAME_RANGE_OLD) {
         seq_ts->snap_mode &= ~SEQ_SNAP_TO_FRAME_RANGE_OLD;
         seq_ts->snap_mode |= SEQ_SNAP_TO_FRAME_RANGE;
@@ -801,6 +885,42 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 23)) {
+    for (Brush &brush : bmain->brushes) {
+      convert_brush_flags_to_type(brush);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 24)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        /* The 'Viewer Region' option was removed from the UI. */
+        node_tree->flag &= ~NTREE_VIEWER_BORDER;
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 25)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.direct_light_intensity = 1.0f;
+      scene.eevee.indirect_light_intensity = 1.0f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 27)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings) {
+        const short snap_geom_old = SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE |
+                                    SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR;
+        static_assert(snap_geom_old == 63);
+        if (scene.toolsettings->snap_mode_tools == snap_geom_old) {
+          scene.toolsettings->snap_mode_tools = SCE_SNAP_TO_GEOM;
+        }
+      }
+    }
   }
 
   /**

@@ -6,7 +6,7 @@
  * \ingroup blenloader
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_utildefines.hh"
 
 #include <string>
 
@@ -45,7 +45,7 @@
 #undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_anim_data.hh"
-#include "BKE_animsys.h"
+#include "BKE_animsys.hh"
 #include "BKE_colortools.hh"
 #include "BKE_customdata.hh"
 #include "BKE_fcurve_driver.h"
@@ -61,12 +61,12 @@
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -76,9 +76,13 @@
 #include "NOD_composite.hh"
 #include "NOD_socket.hh"
 
+#include "ANIM_versioning.hh"
+
 #include "readfile.hh"
 
 #include "MEM_guardedalloc.h"
+
+#include "versioning_common.hh"
 
 namespace blender {
 
@@ -280,9 +284,9 @@ static void do_version_hue_sat_node(bNodeTree *ntree, bNode *node)
 
   /* Convert value from old storage to new sockets. */
   NodeHueSat *nhs = static_cast<NodeHueSat *>(node->storage);
-  bNodeSocket *hue = bke::node_find_socket(*node, SOCK_IN, "Hue");
-  bNodeSocket *saturation = bke::node_find_socket(*node, SOCK_IN, "Saturation");
-  bNodeSocket *value = bke::node_find_socket(*node, SOCK_IN, "Value");
+  bNodeSocket *hue = bke::node_find_socket(*node, SOCK_IN, "Hue"_ustr);
+  bNodeSocket *saturation = bke::node_find_socket(*node, SOCK_IN, "Saturation"_ustr);
+  bNodeSocket *value = bke::node_find_socket(*node, SOCK_IN, "Value"_ustr);
   if (hue == nullptr) {
     hue = bke::node_add_static_socket(
         *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Hue", "Hue");
@@ -589,7 +593,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
           ListBaseT<ARegion> *lb = (&sl == area.spacedata.first) ? &area.regionbase :
                                                                    &sl.regionbase;
           for (ARegion &region : *lb) {
-            BLI_listbase_clear(&region.ui_previews);
+            region.ui_previews.clear_no_delete();
           }
         }
       }
@@ -623,7 +627,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
         sce.r.bake.normal_swizzle[2] = R_BAKE_POSZ;
         STRNCPY(sce.r.bake.filepath, U.renderdir);
 
-        sce.r.bake.im_format.planes = R_IMF_PLANES_RGBA;
+        sce.r.bake.im_format.color_mode = ImColorMode::RGBA;
         sce.r.bake.im_format.imtype = R_IMF_IMTYPE_PNG;
         sce.r.bake.im_format.depth = R_IMF_CHAN_DEPTH_8;
         sce.r.bake.im_format.quality = 90;
@@ -640,7 +644,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     {
       for (Scene &scene : bmain->scenes) {
-        int num_layers = BLI_listbase_count(&scene.r.layers);
+        int num_layers = scene.r.layers.count();
         scene.r.actlay = min_ff(scene.r.actlay, num_layers - 1);
       }
     }
@@ -818,11 +822,13 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
             if (ELEM(node.type_legacy, CMP_NODE_PLANETRACKDEFORM)) {
-              NodePlaneTrackDeformData *data = static_cast<NodePlaneTrackDeformData *>(
-                  node.storage);
-              data->flag = 0;
-              data->motion_blur_samples = 16;
-              data->motion_blur_shutter = 0.5f;
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodePlaneTrackDeformData *data = static_cast<NodePlaneTrackDeformData *>(
+                    node.storage);
+                data->flag = 0;
+                data->motion_blur_samples = 16;
+                data->motion_blur_shutter = 0.5f;
+              }
             }
           }
         }
@@ -990,7 +996,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 275, 3)) {
-#define BRUSH_TORUS (1 << 1)
+    constexpr eBrushFlags BRUSH_TORUS = eBrushFlags(1 << 1);
     for (Brush &br : bmain->brushes) {
       br.flag &= ~BRUSH_TORUS;
     }
@@ -1072,7 +1078,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       /* Ensure that the data-block's onion-skinning toggle flag
        * stays in sync with the status of the actual layers. */
       for (bGPDlayer &gpl : gpd.layers) {
-        if (gpl.flag & GP_LAYER_ONIONSKIN) {
+        if (gpl.flag & eGPDlayer_Flag(GP_LAYER_ONIONSKIN)) {
           enabled = true;
         }
       }
@@ -1214,7 +1220,8 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
              * These seem to have been runtime flags used by the IK solver, but that stuff
              * should be able to be recalculated automatically anyway, so it should be fine.
              */
-            pchan.flag &= ~((1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8));
+            pchan.flag &= ~ePchan_Flag((1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) |
+                                       (1 << 8));
           }
         }
       }
@@ -1283,7 +1290,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
        * Loop all strokes and create the palette and all colors
        */
       for (bGPdata &gpd : bmain->gpencils) {
-        if (BLI_listbase_is_empty(&gpd.palettes)) {
+        if (gpd.palettes.is_empty()) {
           /* create palette */
           bGPDpalette *palette = BKE_gpencil_palette_addnew(&gpd, "GP_Palette");
           for (bGPDlayer &gpl : gpd.layers) {
@@ -1300,7 +1307,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
               if (gpl.flag & GP_LAYER_LOCKED) {
                 palcolor->flag |= PC_COLOR_LOCKED;
               }
-              if (gpl.flag & GP_LAYER_ONIONSKIN) {
+              if (gpl.flag & eGPDlayer_Flag(GP_LAYER_ONIONSKIN)) {
                 palcolor->flag |= PC_COLOR_ONIONSKIN;
               }
               if (gpl.flag & GP_LAYER_VOLUMETRIC) {
@@ -1496,16 +1503,18 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
           bke::node_tree_set_type(*ntree);
           for (bNode &node : ntree->nodes) {
             if (node.type_legacy == CMP_NODE_GLARE) {
-              NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
-              switch (ndg->type) {
-                case CMP_NODE_GLARE_STREAKS:
-                  ndg->streaks = ndg->angle;
-                  break;
-                case CMP_NODE_GLARE_SIMPLE_STAR:
-                  ndg->star_45 = ndg->angle != 0;
-                  break;
-                default:
-                  break;
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
+                switch (ndg->type) {
+                  case CMP_NODE_GLARE_STREAKS:
+                    ndg->streaks = ndg->angle;
+                    break;
+                  case CMP_NODE_GLARE_SIMPLE_STAR:
+                    ndg->star_45 = ndg->angle != 0;
+                    break;
+                  default:
+                    break;
+                }
               }
             }
           }
@@ -1600,7 +1609,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
         for (ModifierData &md : ob.modifiers) {
           if (md.type == eModifierType_SimpleDeform) {
             SimpleDeformModifierData *smd = reinterpret_cast<SimpleDeformModifierData *>(&md);
-            smd->deform_axis = 2;
+            smd->deform_axis = SimpleDeformModifierLockAxis(2);
           }
         }
       }
@@ -1620,7 +1629,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
       else {
         preset = FFM_PRESET_GOOD;
       }
-      scene.r.ffcodecdata.ffmpeg_preset = preset;
+      scene.r.ffcodecdata.ffmpeg_preset = eFFMpegPreset(preset);
     }
 
     if (!DNA_struct_member_exists(
@@ -1659,7 +1668,7 @@ void do_versions_after_linking_270(Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 279, 2)) {
     /* B-Bones (bbone_in/out -> bbone_easein/out) + Stepped FMod Frame Start/End fix */
-    BKE_fcurves_main_cb(bmain, do_version_bbone_easing_fcurve_fix);
+    animrig::versioning::fcurves_main_cb(bmain, do_version_bbone_easing_fcurve_fix);
   }
 }
 

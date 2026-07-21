@@ -21,7 +21,7 @@
 #include "BKE_paint.hh"
 #include "BKE_shrinkwrap.hh"
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -352,7 +352,7 @@ static wmOperatorStatus face_set_extract_invoke(bContext *C, wmOperator *op, con
 
   Object &ob = *CTX_data_active_object(C);
   const int face_set_id = sculpt_paint::face_set::active_update_and_get(C, ob, mval);
-  if (face_set_id == SCULPT_FACE_SET_NONE) {
+  if (face_set_id == face_set_none_id) {
     return OPERATOR_CANCELLED;
   }
 

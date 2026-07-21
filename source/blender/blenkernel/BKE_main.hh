@@ -21,24 +21,26 @@
  */
 
 #include <array>
+#include <atomic>
 
 #include "DNA_listBase.h"
 
-#include "BLI_compiler_attrs.h"
+#include "BLI_compiler_attrs.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_set.hh"
-#include "BLI_sys_types.h"
+#include "BLI_sys_types.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector_set.hh"
 
+#include "BKE_blender_project.hh"
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
+
 struct MainLock;
 namespace blender {
 
 struct BLI_mempool;
 struct BlendThumbnail;
-struct GHash;
 struct ID;
 struct IDNameLib_Map;
 struct ImBuf;
@@ -140,7 +142,7 @@ struct MainIDRelationsEntryItem {
     /** For `from_ids` list, a user of the hashed ID. */
     ID *from;
     /** For `to_ids` list, an ID used by the hashed ID. */
-    ID **to;
+    ID *to;
   } id_pointer;
   /** Session uid of the `id_pointer`. */
   uint session_uid;
@@ -337,6 +339,11 @@ struct Main : NonCopyable, NonMovable {
   bool is_action_slot_to_id_map_dirty = false;
 
   /**
+   * Set when reading a file from undo with incomplete preview, to trigger restart of preview jobs.
+   */
+  bool need_preview_render_restart = false;
+
+  /**
    * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
    * system's file-browser.
    */
@@ -356,6 +363,17 @@ struct Main : NonCopyable, NonMovable {
    * Color-space information for this file.
    */
   MainColorspace colorspace;
+
+  /**
+   * Whether this bmain belongs to the global Blender Project or not.
+   *
+   * NOTE: this is currently always true, as we haven't yet determined which
+   * cases it should be false for, and at the moment it's unlikely to hurt much
+   * of anything to be erroneously true. However, in principle this can be false
+   * and likely will be false in some cases of temp mains in the future, so code
+   * should never assume that it's true.
+   */
+  bool is_part_of_project = true;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
@@ -426,6 +444,19 @@ struct Main : NonCopyable, NonMovable {
 
   MainLock *lock = nullptr;
 
+  /**
+   * Simple re-entrant 'lock' to prevent view-layers re-synchronize during heavy
+   * operations that could lead to needlessly re-synchronize the view-layers *many* times.
+   *
+   * Stored in Main to avoid a global lock, which can cause issues with asynchronous jobs using
+   * their own local temp Main to manage their data, e.g. the preview rending tasks. See also
+   * #156117.
+   *
+   * NOTE: This can also be modified from several threads (e.g. during depsgraph evaluation),
+   * leading to transitional big numbers.
+   */
+  std::atomic<int32_t> no_resync = 0;
+
   /* Constructors and destructors. */
   Main();
   ~Main();
@@ -494,7 +525,17 @@ struct MainMergeReport {
  *
  * Since `bmain_src` is either empty or contains left-over IDs with (likely) invalid ID
  * relationships and other potential issues after the merge, it is always freed.
+ *
+ * \param force_merge_src_ids: If not null, a set of source IDs that should always be merged, even
+ * if a matching destination ID could be found. Typically used to ensure that 'container IDs' for
+ * complex copy/paste of ID sub-data (nodes, sequencer strips...) are always merged in destination
+ * main, even if another ID with the same exact name already exists there.
  */
+void BKE_main_merge(Main *bmain_dst,
+                    Set<ID *> *force_merge_src_ids,
+                    Main **r_bmain_src,
+                    MainMergeReport &reports);
+/** Simpler overload of the other #BKE_main_merge. */
 void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &reports);
 
 /**
@@ -739,6 +780,100 @@ using MainListsArray = std::array<ListBaseT<ID> *, INDEX_ID_MAX - 1>;
  */
 MainListsArray BKE_main_lists_get(Main &bmain);
 
+/**
+ * An iterator over all IDs in the given Main.
+ *
+ * As with the historic C-based APIs, order is defined by these rules:
+ *   - ID types are iterated based on their #eID_Index, from lowest value to highest by default
+ *     (starting with libraries).
+ *   - Within a same type, IDs are iterated based on their libraries (local IDs always iterated
+ *     first) and names (alphanumeric sorting).
+ *
+ * This iterator will remain stable if the underlying Main is modified, as long as the current ID
+ * pointed at by the iterator is not modified.
+ *   - Renaming the current ID may shift it position in the underlying main, making the iterator no
+ *     more stable (some items may be skipped, or iterated over several times).
+ *   - Deleting the current ID will fully invalidate the iterator, attempt to use it in any way
+ *     afterwards will result in invalid memory accesses.
+ */
+class MainAllIDsIterator {
+ public:
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type = ID;
+  using difference_type = std::ptrdiff_t;
+  using pointer = ID *;
+  using reference = ID &;
+
+ private:
+  MainListsArray lbarray_;
+  int64_t curr_lbarray_index_ = -1;
+  ID *curr_id_ = nullptr;
+
+ public:
+  /* Note: default constructor is a requirement to make the iterator usable with std::ranges. */
+  MainAllIDsIterator() : lbarray_{}
+  {
+    ++(*this);
+  }
+
+  explicit MainAllIDsIterator(MainListsArray &lbarray) : lbarray_(lbarray)
+  {
+    ++(*this);
+  }
+
+  explicit MainAllIDsIterator(Main &bmain) : lbarray_(BKE_main_lists_get(bmain))
+  {
+    ++(*this);
+  }
+
+  MainAllIDsIterator begin() const
+  {
+    MainAllIDsIterator tmp = *this;
+    tmp.curr_lbarray_index_ = -1;
+    tmp.curr_id_ = nullptr;
+    return ++tmp;
+  }
+
+  MainAllIDsIterator end() const
+  {
+    MainAllIDsIterator tmp = *this;
+    tmp.curr_lbarray_index_ = tmp.lbarray_.size();
+    tmp.curr_id_ = nullptr;
+    return tmp;
+  }
+
+  MainAllIDsIterator &operator++();
+
+  MainAllIDsIterator operator++(int)
+  {
+    MainAllIDsIterator tmp = *this;
+    ++(*this);
+    return tmp;
+  }
+
+  MainAllIDsIterator &operator--();
+
+  MainAllIDsIterator operator--(int)
+  {
+    MainAllIDsIterator tmp = *this;
+    --(*this);
+    return tmp;
+  }
+
+  friend bool operator==(const MainAllIDsIterator &a, const MainAllIDsIterator &b)
+  {
+    return a.curr_id_ == b.curr_id_ && a.curr_lbarray_index_ == b.curr_lbarray_index_;
+  }
+
+  ID &operator*() const
+  {
+    return *curr_id_;
+  }
+
+  /** Return the total number of IDs in the Main database that this iterator is iterating over. */
+  int64_t size() const;
+};
+
 #define MAIN_VERSION_FILE_ATLEAST(main, ver, subver) \
   ((main)->versionfile > (ver) || \
    ((main)->versionfile == (ver) && (main)->subversionfile >= (subver)))
@@ -770,7 +905,7 @@ MainListsArray BKE_main_lists_get(Main &bmain);
 #define BLEN_THUMB_SIZE 128
 
 #define BLEN_THUMB_MEMSIZE(_x, _y) \
-  (sizeof(BlendThumbnail) + ((size_t)(_x) * (size_t)(_y)) * sizeof(int))
+  (sizeof(BlendThumbnail) + (size_t(_x) * size_t(_y)) * sizeof(int))
 /** Protect against buffer overflow vulnerability & negative sizes. */
 #define BLEN_THUMB_MEMSIZE_IS_VALID(_x, _y) \
   (((_x) > 0 && (_y) > 0) && ((uint64_t)(_x) * (uint64_t)(_y) < (SIZE_MAX / (sizeof(int) * 4))))

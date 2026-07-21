@@ -6,7 +6,7 @@
  * \ingroup modifiers
  */
 
-#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_c.hh"
 
 #include "BLT_translation.hh"
 
@@ -36,6 +36,7 @@ static void deform_verts(ModifierData * /*md*/,
                                &deformedVerts_tot,
                                reinterpret_cast<float *>(positions.data()),
                                sizeof(float3) * positions.size(),
+                               std::nullopt,
                                nullptr);
   }
 }

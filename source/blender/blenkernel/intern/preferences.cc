@@ -10,22 +10,31 @@
 
 #include <cstring>
 
-#include "BLI_fileops.h"
-#include "BLI_listbase.h"
+#include "AS_essentials_library.hh"
+#include "AS_remote_library.hh"
+
+#include "BLI_fileops.hh"
+#include "BLI_listbase.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 #include "BLI_string_utils.hh"
 
 #include "BKE_appdir.hh"
 #include "BKE_asset.hh"
+#include "BKE_blender_version.h"
 #include "BKE_preferences.h"
+
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
 #include "BLO_read_write.hh"
 
 #include "DNA_userdef_types.h"
+
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 namespace blender {
 
@@ -132,6 +141,38 @@ int BKE_preferences_asset_library_get_index(const UserDef *userdef,
   return BLI_findindex(&userdef->asset_libraries, library);
 }
 
+bool BKE_preferences_asset_library_is_valid(const UserDef *userdef,
+                                            const bUserAssetLibrary *library,
+                                            const bool check_directory_exists)
+{
+  /* Check disabled libraries. */
+  if (library->flag & ASSET_LIBRARY_DISABLED) {
+    return false;
+  }
+
+  /* Check remote libraries. */
+  const bool is_remote_library = library->flag & ASSET_LIBRARY_USE_REMOTE_URL;
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(userdef, use_remote_asset_libraries);
+  if (is_remote_library && skip_remote_libraries) {
+    return false;
+  }
+  if (is_remote_library && !library->remote_url[0]) {
+    return false;
+  }
+
+  /* Note that there's no check if the path exists on disk here. If an invalid library path is
+   * used, the Asset Browser can give a nice hint on what's wrong, so include such items in enums
+   * the user can choose from. */
+  if (!library->dirpath[0]) {
+    return false;
+  }
+  if (check_directory_exists && !BLI_is_dir(library->dirpath)) {
+    return false;
+  }
+
+  return true;
+}
+
 void BKE_preferences_asset_library_default_add(UserDef *userdef)
 {
   char documents_path[FILE_MAXDIR];
@@ -147,6 +188,64 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
   /* Add new "Default" library under '[doc_path]/Blender/Assets'. */
   BLI_path_join(
       library->dirpath, sizeof(library->dirpath), documents_path, N_("Blender"), N_("Assets"));
+}
+
+bUserAssetLibrary *BKE_preferences_remote_asset_library_add(UserDef *userdef,
+                                                            const char *name,
+                                                            const char *remote_url)
+{
+  bUserAssetLibrary *library = MEM_new<bUserAssetLibrary>(__func__);
+
+  library->flag |= ASSET_LIBRARY_USE_REMOTE_URL;
+  BLI_addtail(&userdef->asset_libraries, library);
+
+  if (name) {
+    BKE_preferences_asset_library_name_set(userdef, library, name);
+  }
+
+  BKE_preferences_remote_asset_library_url_set(library, remote_url);
+
+  return library;
+}
+
+/**
+ * Appends a slash to \a str if there isn't one there already. Will do nothing if \a str is empty.
+ *
+ * \param max_len: The maximum length \a str is allowed to have, including 0-terminator.
+ */
+static void url_ensure_trailing_slash(char *str, const size_t max_len)
+{
+  const size_t len = BLI_strnlen(str, max_len);
+  BLI_assert_msg(str[len] == '\0', "String should be null-terminated");
+
+  if (len > 0 && str[len - 1] != '/' && len + 1 < max_len) {
+    str[len] = '/';
+    str[len + 1] = '\0';
+  }
+}
+
+void BKE_preferences_remote_asset_library_url_set(bUserAssetLibrary *library,
+                                                  const StringRef remote_url)
+{
+  /* Always trim white-space off of URLs. */
+  remote_url.trim().copy_bytes_truncated(library->remote_url);
+
+  const bool ends_in_top_meta_file = asset_system::remote_library_url_ends_with_top_meta_file_name(
+      library->remote_url);
+
+  if (!ends_in_top_meta_file) {
+    url_ensure_trailing_slash(library->remote_url, sizeof(library->remote_url));
+  }
+
+  /* Update location cache path. */
+  const std::string library_dirpath =
+      asset_system::is_online_essentials_url(library->remote_url) ?
+          /* Special (unusual) case: When the URL path matches the online essentials URL, use the
+           * online essentials cache directory path. Otherwise the downloader deduplicates the
+           * requests, and only downloads file to one of the directories. */
+          std::string{asset_system::online_essentials_cache_directory_path()} :
+          asset_system::remote_library_cache_directory_path_from_url(remote_url);
+  BLI_strncpy_utf8(library->dirpath, library_dirpath.c_str(), sizeof(library->dirpath));
 }
 
 /** \} */
@@ -250,7 +349,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add_default_system(UserDef *u
 
 void BKE_preferences_extension_repo_add_defaults_all(UserDef *userdef)
 {
-  BLI_assert(BLI_listbase_is_empty(&userdef->extension_repos));
+  BLI_assert(userdef->extension_repos.is_empty());
   BKE_preferences_extension_repo_add_default_remote(userdef);
   BKE_preferences_extension_repo_add_default_user(userdef);
   BKE_preferences_extension_repo_add_default_system(userdef);
@@ -387,7 +486,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_find_by_remote_url_prefix(
     const UserDef *userdef, const char *remote_url_full, const bool only_enabled)
 {
   const int path_full_len = strlen(remote_url_full);
-  const int path_full_offset = BKE_preferences_extension_repo_remote_scheme_end(remote_url_full);
+  const int path_full_offset = BKE_preferences_remote_scheme_end(remote_url_full);
 
   for (bUserExtensionRepo &repo : userdef->extension_repos) {
     if (only_enabled && (repo.flag & USER_EXTENSION_REPO_FLAG_DISABLED)) {
@@ -410,7 +509,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_find_by_remote_url_prefix(
     /* Allow paths beginning with both `http` & `https` to be considered equivalent.
      * This is done by skipping the "scheme" prefix both have a scheme. */
     if (path_full_offset) {
-      const int path_repo_offset = BKE_preferences_extension_repo_remote_scheme_end(path_repo);
+      const int path_repo_offset = BKE_preferences_remote_scheme_end(path_repo);
       if (path_repo_offset) {
         path_repo += path_repo_offset;
         path_test += path_full_offset;
@@ -441,7 +540,33 @@ bUserExtensionRepo *BKE_preferences_extension_repo_find_by_remote_url_prefix(
   return nullptr;
 }
 
-int BKE_preferences_extension_repo_remote_scheme_end(const char *url)
+int BKE_preferences_extension_repo_get_index(const UserDef *userdef,
+                                             const bUserExtensionRepo *repo)
+{
+  return BLI_findindex(&userdef->extension_repos, repo);
+}
+
+void BKE_preferences_extension_repo_read_data(BlendDataReader *reader, bUserExtensionRepo *repo)
+{
+  if (repo->access_token) {
+    BLO_read_string(reader, &repo->access_token);
+  }
+}
+
+void BKE_preferences_extension_repo_write_data(BlendWriter *writer, const bUserExtensionRepo *repo)
+{
+  if (repo->access_token) {
+    writer->write_string(repo->access_token);
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Web/remote utilities
+ * \{ */
+
+int BKE_preferences_remote_scheme_end(const char *url)
 {
   /* Technically the "://" are not part of the scheme, so subtract 3 from the return value. */
   const char *scheme_check[] = {
@@ -459,8 +584,7 @@ int BKE_preferences_extension_repo_remote_scheme_end(const char *url)
   return 0;
 }
 
-void BKE_preferences_extension_remote_to_name(const char *remote_url,
-                                              char name[sizeof(bUserExtensionRepo::name)])
+void BKE_preferences_remote_to_name(const char *remote_url, char name[MAX_NAME])
 {
 #ifdef _WIN32
   const bool is_win32 = true;
@@ -469,7 +593,7 @@ void BKE_preferences_extension_remote_to_name(const char *remote_url,
 #endif
   const bool is_file = STRPREFIX(remote_url, "file://");
   name[0] = '\0';
-  if (int offset = BKE_preferences_extension_repo_remote_scheme_end(remote_url)) {
+  if (int offset = BKE_preferences_remote_scheme_end(remote_url)) {
     /* Skip the `://`. */
     remote_url += (offset + 3);
 
@@ -489,7 +613,7 @@ void BKE_preferences_extension_remote_to_name(const char *remote_url,
       }
     }
   }
-  if (UNLIKELY(remote_url[0] == '\0')) {
+  if (remote_url[0] == '\0') [[unlikely]] {
     return;
   }
 
@@ -519,33 +643,12 @@ void BKE_preferences_extension_remote_to_name(const char *remote_url,
     }
   }
 
-  BLI_strncpy_utf8(
-      name, remote_url, std::min(size_t(c - remote_url) + 1, sizeof(bUserExtensionRepo::name)));
+  BLI_strncpy_utf8(name, remote_url, std::min(size_t(c - remote_url) + 1, size_t(MAX_NAME)));
 
   if (is_win32) {
     if (is_file) {
       BLI_path_slash_native(name);
     }
-  }
-}
-
-int BKE_preferences_extension_repo_get_index(const UserDef *userdef,
-                                             const bUserExtensionRepo *repo)
-{
-  return BLI_findindex(&userdef->extension_repos, repo);
-}
-
-void BKE_preferences_extension_repo_read_data(BlendDataReader *reader, bUserExtensionRepo *repo)
-{
-  if (repo->access_token) {
-    BLO_read_string(reader, &repo->access_token);
-  }
-}
-
-void BKE_preferences_extension_repo_write_data(BlendWriter *writer, const bUserExtensionRepo *repo)
-{
-  if (repo->access_token) {
-    BLO_write_string(writer, repo->access_token);
   }
 }
 
@@ -561,7 +664,7 @@ static bUserAssetShelfSettings *asset_shelf_settings_new(UserDef *userdef,
   bUserAssetShelfSettings *settings = MEM_new<bUserAssetShelfSettings>(__func__);
   BLI_addtail(&userdef->asset_shelves_settings, settings);
   STRNCPY(settings->shelf_idname, shelf_idname);
-  BLI_assert(BLI_listbase_is_empty(&settings->enabled_catalog_paths));
+  BLI_assert(settings->enabled_catalog_paths.is_empty());
   return settings;
 }
 
@@ -613,5 +716,42 @@ bool BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(UserDef *u
 }
 
 /** \} */
+
+const EnumPropertyItem *BKE_preferences_active_section_itemf(const UserDef *userdef, bool *r_free)
+{
+
+  const bool use_developer_ui = (userdef->flag & USER_DEVELOPER_UI) != 0;
+  const bool is_alpha = BKE_blender_version_is_alpha();
+
+  if (use_developer_ui && is_alpha) {
+    *r_free = false;
+    return rna_enum_preference_section_items;
+  }
+
+  EnumPropertyItem *items = nullptr;
+  int totitem = 0;
+
+  for (const EnumPropertyItem *it = rna_enum_preference_section_items; it->identifier != nullptr;
+       it++)
+  {
+    if (it->value == USER_SECTION_EXPERIMENTAL) {
+      if (is_alpha == false) {
+        continue;
+      }
+    }
+    else if (it->value == USER_SECTION_DEVELOPER_TOOLS) {
+      if (use_developer_ui == false) {
+        continue;
+      }
+    }
+
+    RNA_enum_item_add(&items, &totitem, it);
+  }
+
+  RNA_enum_item_end(&items, &totitem);
+
+  *r_free = true;
+  return items;
+}
 
 }  // namespace blender

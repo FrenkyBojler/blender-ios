@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.3.0 Alpha (b'96294be75080')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-07-20 07:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -624,6 +624,38 @@ msgid "Space currently being displayed in this area"
 msgstr "Zona šiuo metu aktyvi šioje erdvėje"
 
 
+msgid "Asset Library"
+msgstr "Išteklių biblioteka"
+
+
+msgid "All Libraries"
+msgstr "Visos bibliotekos"
+
+
+msgid "Show assets from all of the listed asset libraries"
+msgstr "Rodyti išteklius iš visų išvardintų bibliotekų"
+
+
+msgid "Current File"
+msgstr "Dabartinis failas"
+
+
+msgid "Show the assets currently available in this Blender session"
+msgstr "Rodyti išteklius pasiekiamus šioje Blender sesijoje"
+
+
+msgid "Essentials"
+msgstr "Esminiai"
+
+
+msgid "Custom"
+msgstr "Pasirinktinis/-ė"
+
+
+msgid "Show assets from the asset libraries configured in the Preferences"
+msgstr "Rodyti išteklius iš nustatymuose pasirinktų išteklių bibliotekų"
+
+
 msgid "User Asset Libraries"
 msgstr "Vartotojo išteklių bibliotekos"
 
@@ -729,40 +761,8 @@ msgid "Asset Shelf"
 msgstr "Išteklių lentyna"
 
 
-msgid "Asset Library"
-msgstr "Išteklių biblioteka"
-
-
 msgid "Choose the asset library to display assets from"
 msgstr "Pasirinkti išteklių biblioteką, kurios ištekliai rodomi"
-
-
-msgid "All Libraries"
-msgstr "Visos bibliotekos"
-
-
-msgid "Show assets from all of the listed asset libraries"
-msgstr "Rodyti išteklius iš visų išvardintų bibliotekų"
-
-
-msgid "Current File"
-msgstr "Dabartinis failas"
-
-
-msgid "Show the assets currently available in this Blender session"
-msgstr "Rodyti išteklius pasiekiamus šioje Blender sesijoje"
-
-
-msgid "Essentials"
-msgstr "Esminiai"
-
-
-msgid "Custom"
-msgstr "Pasirinktinis/-ė"
-
-
-msgid "Show assets from the asset libraries configured in the Preferences"
-msgstr "Rodyti išteklius iš nustatymuose pasirinktų išteklių bibliotekų"
 
 
 msgid "Activate Operator"
@@ -1199,6 +1199,10 @@ msgid "Flat"
 msgstr "Plokščia"
 
 
+msgid "Threshold"
+msgstr "Slenkstis"
+
+
 msgctxt "GPencil"
 msgid "Mode"
 msgstr "Veiksena"
@@ -1265,8 +1269,8 @@ msgid "Simplify"
 msgstr "Supaprastinti"
 
 
-msgid "Threshold"
-msgstr "Slenkstis"
+msgid "Pixel"
+msgstr "Pikselis"
 
 
 msgid "Hardness"
@@ -1429,30 +1433,6 @@ msgstr "Rodymas"
 
 msgid "Temperature"
 msgstr "Temperatūra"
-
-
-msgid "Mix"
-msgstr "Maišyti"
-
-
-msgid "Darken"
-msgstr "Tamsinti"
-
-
-msgid "Lighten"
-msgstr "Šviesinti"
-
-
-msgid "Screen"
-msgstr "Ekranas"
-
-
-msgid "Difference"
-msgstr "Skirtumas"
-
-
-msgid "Divide"
-msgstr "Dalinti"
 
 
 msgid "Color Mode"
@@ -2295,6 +2275,10 @@ msgid "XR"
 msgstr "„XR“"
 
 
+msgid "Divide"
+msgstr "Dalinti"
+
+
 msgctxt "Color"
 msgid "Mode"
 msgstr "Veiksena"
@@ -2451,10 +2435,6 @@ msgstr "Mažos raidės"
 
 msgid "Scale of small capitals"
 msgstr "Mažų raidžių dydis"
-
-
-msgid "Textboxes"
-msgstr "Teksto laukai"
 
 
 msgid "Active Texture"
@@ -2705,10 +2685,6 @@ msgstr "Tuščia/-s"
 
 msgid "Degrees"
 msgstr "Laipsniai"
-
-
-msgid "Pixel"
-msgstr "Pikselis"
 
 
 msgid "RK4"
@@ -3077,12 +3053,32 @@ msgid "Name of the modifier"
 msgstr "Keitiklio pavadinimas"
 
 
+msgid "Mix"
+msgstr "Maišyti"
+
+
+msgid "Difference"
+msgstr "Skirtumas"
+
+
 msgid "Modifier Type"
 msgstr "Keitiklio tipas"
 
 
 msgid "Type of the modifier"
 msgstr "Keitiklio tipas"
+
+
+msgid "Darken"
+msgstr "Tamsinti"
+
+
+msgid "Lighten"
+msgstr "Šviesinti"
+
+
+msgid "Screen"
+msgstr "Ekranas"
 
 
 msgid "ID Type"
@@ -3093,20 +3089,20 @@ msgid "Dots"
 msgstr "Taškai"
 
 
-msgid "Show/Hide"
-msgstr "Rodyti/Slėpti"
-
-
-msgid "Import"
-msgstr "Importuoti"
-
-
 msgid "Apply"
 msgstr "Pritaikyti"
 
 
 msgid "Track"
 msgstr "Sekti"
+
+
+msgid "Show/Hide"
+msgstr "Rodyti/Slėpti"
+
+
+msgid "Import"
+msgstr "Importuoti"
 
 
 msgid "Layout"
@@ -3230,6 +3226,10 @@ msgstr "Importuoti „PLY“"
 
 msgid "Import STL"
 msgstr "Importuoti „STL“"
+
+
+msgid "OpenGL"
+msgstr "„OpenGL“"
 
 
 msgid "Vector Math"
@@ -3378,11 +3378,6 @@ msgstr "Importuoti „BVH“"
 
 
 msgctxt "Operator"
-msgid "Import SVG"
-msgstr "Importuoti „SVG“"
-
-
-msgctxt "Operator"
 msgid "Import FBX"
 msgstr "Importuoti „FBX“"
 
@@ -3410,6 +3405,10 @@ msgstr "Atnaujinti „I18n Blender“ saugyklą"
 msgctxt "Operator"
 msgid "New Action"
 msgstr "Naujas veiksmas"
+
+
+msgid "Search"
+msgstr "Paieška"
 
 
 msgid "File Browser Mode"
@@ -3473,13 +3472,14 @@ msgid "Import FBX animation"
 msgstr "Importuoti „FBX“ animaciją"
 
 
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Kampas"
+
+
 msgctxt "Action"
 msgid "Object"
 msgstr "Objektas"
-
-
-msgid "Add Mode"
-msgstr "Pridėti veikseną"
 
 
 msgid "BMP"
@@ -3652,10 +3652,6 @@ msgid "No device - there will be no audio output"
 msgstr "Nėra įrenginio – nebus jokios garso išvesties"
 
 
-msgid "OpenGL"
-msgstr "„OpenGL“"
-
-
 msgid "Language"
 msgstr "Kalba"
 
@@ -3810,10 +3806,6 @@ msgstr "Rodyti šaltinį"
 
 msgid "Show Color Tags"
 msgstr "Rodyti spalvos žymes"
-
-
-msgid "Show Thumbnails"
-msgstr "Rodyti miniatiūras"
 
 
 msgid "Toolbar"
@@ -4087,11 +4079,6 @@ msgid "3D"
 msgstr "3D"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Kampas"
-
-
 msgid "Color Value"
 msgstr "Spalvos reikšmė"
 
@@ -4143,10 +4130,6 @@ msgstr "Kelias po"
 
 msgid "Path Before"
 msgstr "Kelias prieš"
-
-
-msgid "Selected File"
-msgstr "Pasirinktas failas"
 
 
 msgid "Font Style"
@@ -4240,8 +4223,8 @@ msgid "Vibration"
 msgstr "Vibracija"
 
 
-msgid "Search"
-msgstr "Paieška"
+msgid "Cancel"
+msgstr "Atšaukti"
 
 
 msgctxt "WindowManager"
@@ -4426,6 +4409,11 @@ msgstr "Nauja/-s/-i"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Išsaugoti kopiją..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Išeiti"
 
@@ -4438,11 +4426,6 @@ msgstr "Automatiškai išsaugoti..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Nuostatos..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Išsaugoti kopiją..."
 
 
 msgid "Auto-Save Preferences"
@@ -4499,10 +4482,6 @@ msgstr "„AOV“"
 
 msgid "objects"
 msgstr "objektai"
-
-
-msgid "Cancel"
-msgstr "Atšaukti"
 
 
 msgctxt "WindowManager"

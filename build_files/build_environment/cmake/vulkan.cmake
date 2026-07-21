@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(VULKAN_HEADERS_EXTRA_ARGS)
+set(VULKAN_HEADERS_EXTRA_ARGS "")
 
 ExternalProject_Add(external_vulkan_headers
   URL file://${PACKAGE_DIR}/${VULKAN_HEADERS_FILE}
@@ -11,7 +11,8 @@ ExternalProject_Add(external_vulkan_headers
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${VULKAN_HEADERS_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/vulkan_headers
@@ -31,7 +32,8 @@ ExternalProject_Add(external_vulkan_utility_libraries
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${VULKAN_UTILITY_LIBRARIES_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/vulkan_headers
@@ -42,7 +44,7 @@ add_dependencies(
   external_vulkan_headers
 )
 
-set(SPIRV_HEADERS_EXTRA_ARGS)
+set(SPIRV_HEADERS_EXTRA_ARGS "")
 
 ExternalProject_Add(external_spirv_headers
   URL file://${PACKAGE_DIR}/${SPIRV_HEADERS_FILE}
@@ -51,10 +53,35 @@ ExternalProject_Add(external_spirv_headers
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/vulkan_headers
-    -Wno-dev ${DEFAULT_CMAKE_FLAGS}
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
     ${SPIRV_HEADERS_EXTRA_ARGS}
 
   INSTALL_DIR ${LIBDIR}/vulkan_headers
+)
+
+set(SPIRV_TOOLS_EXTRA_ARGS
+  -DSPIRV-Headers_SOURCE_DIR=${LIBDIR}/vulkan_headers
+  -DPython3_EXECUTABLE=${PYTHON_BINARY}
+)
+
+ExternalProject_Add(external_spirv_tools
+  URL file://${PACKAGE_DIR}/${SPIRV_TOOLS_FILE}
+  URL_HASH ${SPIRV_TOOLS_HASH_TYPE}=${SPIRV_TOOLS_HASH}
+  PREFIX ${BUILD_DIR}/spirv_tools
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/spirv_tools
+    -Wno-dev
+    ${DEFAULT_CMAKE_FLAGS}
+    ${SPIRV_TOOLS_EXTRA_ARGS}
+
+  INSTALL_DIR ${LIBDIR}/spirv_tools
+)
+
+add_dependencies(
+  external_spirv_tools
+  external_spirv_headers
 )
 
 if(UNIX AND NOT APPLE)

@@ -15,11 +15,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_kdopbvh.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_rotation_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -127,7 +127,7 @@ static void texture_free_data(ID *id)
   MEM_SAFE_DELETE(texture->coba);
 
   BKE_icon_id_delete(id_cast<ID *>(texture));
-  BKE_previewimg_free(&texture->preview);
+  BKE_previewimg_id_free(&texture->id);
 }
 
 static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -181,34 +181,34 @@ static void texture_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_TE = {
-    /*id_code*/ Tex::id_type,
-    /*id_filter*/ FILTER_ID_TE,
-    /*dependencies_id_types*/ FILTER_ID_IM | FILTER_ID_OB,
-    /*main_listbase_index*/ INDEX_ID_TE,
-    /*struct_size*/ sizeof(Tex),
-    /*name*/ "Texture",
-    /*name_plural*/ N_("textures"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_TEXTURE,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Tex::id_type,
+    .id_filter = FILTER_ID_TE,
+    .dependencies_id_types = FILTER_ID_IM | FILTER_ID_OB,
+    .main_listbase_index = INDEX_ID_TE,
+    .struct_size = sizeof(Tex),
+    .name = "Texture",
+    .name_plural = N_("textures"),
+    .translation_context = BLT_I18NCONTEXT_ID_TEXTURE,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ texture_init_data,
-    /*copy_data*/ texture_copy_data,
-    /*free_data*/ texture_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ texture_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = texture_init_data,
+    .copy_data = texture_copy_data,
+    .free_data = texture_free_data,
+    .make_local = nullptr,
+    .foreach_id = texture_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ texture_blend_write,
-    /*blend_read_data*/ texture_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = texture_blend_write,
+    .blend_read_data = texture_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 void BKE_texture_mtex_foreach_id(LibraryForeachIDData *data, MTex *mtex)
@@ -240,7 +240,7 @@ void BKE_texture_mapping_default(TexMapping *texmap, int type)
   texmap->projy = PROJ_Y;
   texmap->projz = PROJ_Z;
   texmap->mapping = MTEX_FLAT;
-  texmap->type = type;
+  texmap->type = eTexMapping_Type(type);
 }
 
 void BKE_texture_mapping_init(TexMapping *texmap)
@@ -357,7 +357,7 @@ void BKE_texture_default(Tex *tex)
   texture_init_data(&tex->id);
 }
 
-void BKE_texture_type_set(Tex *tex, int type)
+void BKE_texture_type_set(Tex *tex, eTex_Type type)
 {
   tex->type = type;
 }
@@ -587,6 +587,8 @@ bool BKE_texture_is_image_user(const Tex *tex)
     case TEX_IMAGE: {
       return true;
     }
+    default:
+      break;
   }
 
   return false;

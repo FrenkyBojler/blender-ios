@@ -6,10 +6,10 @@ string(REPLACE "-DCMAKE_CXX_STANDARD=20" " " OSL_CMAKE_FLAGS "${DEFAULT_CMAKE_FL
 
 if(WIN32)
   set(OSL_CMAKE_CXX_STANDARD_LIBRARIES "kernel32${LIBEXT} user32${LIBEXT} gdi32${LIBEXT} winspool${LIBEXT} shell32${LIBEXT} ole32${LIBEXT} oleaut32${LIBEXT} uuid${LIBEXT} comdlg32${LIBEXT} advapi32${LIBEXT} psapi${LIBEXT}")
-  set(OSL_CMAKE_LINKER_FLAGS)
+  set(OSL_CMAKE_LINKER_FLAGS "")
   set(OSL_FLEX_BISON -DFLEX_EXECUTABLE=${LIBDIR}/flexbison/win_flex.exe -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe)
 else()
-  set(OSL_CMAKE_CXX_STANDARD_LIBRARIES)
+  set(OSL_CMAKE_CXX_STANDARD_LIBRARIES "")
   # llvm-config will add -lxml2. Make sure it can be found and that no system
   # library is used instead.
   set(OSL_CMAKE_LINKER_FLAGS "-L${LIBDIR}/xml2/lib")
@@ -23,7 +23,7 @@ else()
       set(OSL_FLEX_BISON -DBISON_EXECUTABLE=/usr/local/opt/bison/bin/bison)
     endif()
   else()
-    set(OSL_FLEX_BISON)
+    set(OSL_FLEX_BISON "")
   endif()
 endif()
 
@@ -82,7 +82,7 @@ ExternalProject_Add(external_osl
       ${PATCH_DIR}/osl_ptx_version.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/osl/src/external_osl <
-      ${PATCH_DIR}/osl_supports_isa_thread.diff
+      ${PATCH_DIR}/osl_relative_inc_cmake.diff
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/osl
@@ -95,7 +95,7 @@ ExternalProject_Add(external_osl
 
 add_dependencies(
   external_osl
-  ll
+  external_llvm
   external_openexr
   external_zlib
   external_openimageio
@@ -128,6 +128,9 @@ if(WIN32)
   if(BUILD_MODE STREQUAL Debug)
     ExternalProject_Add_Step(external_osl after_install
       COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/osl/lib/cmake/OSL/OSLTargets-debug.cmake
+        ${HARVEST_TARGET}/osl/lib/cmake/OSL/OSLTargets-debug.cmake
+      COMMAND ${CMAKE_COMMAND} -E copy
         ${LIBDIR}/osl/lib/oslcomp_d.lib
         ${HARVEST_TARGET}/osl/lib/oslcomp_d.lib
       COMMAND ${CMAKE_COMMAND} -E copy
@@ -159,8 +162,10 @@ if(WIN32)
     )
   endif()
 else()
-  harvest_rpath_bin(external_osl osl/bin osl/bin "oslc")
+  harvest_rpath_bin(external_osl osl/bin osl/bin "*")
   harvest(external_osl osl/include osl/include "*.h")
+  # Cmake files first because harvest_rpath_lib edits them.
+  harvest(external_osl osl/lib/cmake/OSL osl/lib/cmake/OSL "*.cmake")
   harvest_rpath_lib(external_osl osl/lib osl/lib "*${SHAREDLIBEXT}*")
   harvest(external_osl osl/share/OSL/shaders osl/share/OSL/shaders "*.h")
   harvest_rpath_python(external_osl

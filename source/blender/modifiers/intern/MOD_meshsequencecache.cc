@@ -9,8 +9,8 @@
 #include <cstring>
 
 #include "BLI_math_vector.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 
 #include "BLT_translation.hh"
 
@@ -397,7 +397,7 @@ static void override_layers_panel_draw(const bContext *C, Panel *panel)
   }
 
   layout.use_property_split_set(true);
-  template_list_flags(&layout, C, &fileptr);
+  template_uilist_flags(&layout, C, &fileptr);
 }
 
 static void panel_register(ARegionType *region_type)

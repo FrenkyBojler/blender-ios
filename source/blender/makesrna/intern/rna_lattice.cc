@@ -20,7 +20,7 @@
 #  include <algorithm>
 #  include <fmt/format.h>
 
-#  include "BLI_string.h"
+#  include "BLI_string.hh"
 
 #  include "DNA_curve_types.h"
 #  include "DNA_meshdata_types.h"
@@ -148,6 +148,8 @@ static void rna_Lattice_update_size(Main *bmain, Scene *scene, PointerRNA *ptr)
       BKE_lattice_resize(lt->editlatt->latt, newu, newv, neww, nullptr);
     }
   }
+
+  lt->opntsu = lt->opntsv = lt->opntsw = 0;
 
   rna_Lattice_update_data(bmain, scene, ptr);
 }

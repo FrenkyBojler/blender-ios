@@ -135,6 +135,11 @@ struct DrawEngine {
  */
 draw::TextureFromPool &DRW_viewport_pass_texture_get(const char *pass_name);
 
+/**
+ * Returns true if the pass with the given name exists.
+ */
+bool DRW_viewport_pass_texture_exists(const char *pass_name);
+
 void DRW_viewport_request_redraw();
 
 void DRW_render_to_image(
@@ -260,7 +265,10 @@ struct DRWContext {
     VIEWPORT_XR,
     /** Render for a 3D viewport offscreen render (python). Runs on main thread. */
     VIEWPORT_OFFSCREEN,
-    /** Render for a 3D viewport image render (render preview). Runs on main thread. */
+    /**
+     * Render for a 3D viewport image render (Render Viewport Preview, also VSE scene strips).
+     * Runs on main thread.
+     */
     VIEWPORT_RENDER,
 
     /** Render for object mode selection. Runs on main thread. */
@@ -417,6 +425,10 @@ struct DRWContext {
   bool is_viewport_image_render() const
   {
     return ELEM(mode, VIEWPORT_RENDER);
+  }
+  bool is_viewport_xr() const
+  {
+    return ELEM(mode, VIEWPORT_XR);
   }
   float last_sync_time() const
   {

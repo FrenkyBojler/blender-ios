@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "BLI_math_vector.h"
+#include "BLI_math_vector_c.hh"
 #include "BLI_span.hh"
 
 #include "GPU_framebuffer.hh"
@@ -107,13 +107,11 @@ class FrameBuffer {
   virtual void bind(bool enabled_srgb) = 0;
   virtual bool check(char err_out[256]) = 0;
   virtual void clear(GPUFrameBufferBits buffers,
-                     const float clear_col[4],
+                     const double4 clear_color,
                      float clear_depth,
                      uint clear_stencil) = 0;
-  virtual void clear_multi(const float (*clear_col)[4]) = 0;
-  virtual void clear_attachment(GPUAttachmentType type,
-                                eGPUDataFormat data_format,
-                                const void *clear_value) = 0;
+  virtual void clear_multi(Span<double4> clear_cols) = 0;
+  virtual void clear_attachment(GPUAttachmentType type, const double4 clear_value) = 0;
 
   virtual void attachment_set_loadstore_op(GPUAttachmentType type, GPULoadStore ls) = 0;
 
@@ -160,6 +158,12 @@ class FrameBuffer {
     width_ = width;
     height_ = height;
     dirty_state_ = true;
+  }
+
+  /** \brief Get the size of the framebuffer. */
+  int2 size_get() const
+  {
+    return int2(width_, height_);
   }
 
   /* Sets the size for frame-buffer with no attachments. */
@@ -232,7 +236,7 @@ class FrameBuffer {
     scissor_set(scissor_rect);
   }
 
-  inline const GPUAttachment &depth_attachment() const
+  const GPUAttachment &depth_attachment() const
   {
     if (attachments_[GPU_FB_DEPTH_ATTACHMENT].tex) {
       return attachments_[GPU_FB_DEPTH_ATTACHMENT];

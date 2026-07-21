@@ -56,7 +56,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   if(WITH_CYCLES_ONEAPI_BINARIES)
     message(STATUS "${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS} instance(s) of oneAPI offline compiler will be used.")
   endif()
-  # SYCL_CPP_FLAGS is a variable that the user can set to pass extra compiler options
   set(sycl_compiler_flags
     ${CMAKE_CURRENT_SOURCE_DIR}/${SRC_KERNEL_DEVICE_ONEAPI}
     -fsycl
@@ -73,11 +72,10 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -D__KERNEL_LOCAL_ATOMIC_SORT__
     -o"${cycles_kernel_oneapi_lib}"
     -I"${CMAKE_CURRENT_SOURCE_DIR}/../../.."
-    ${SYCL_CPP_FLAGS}
   )
-
-  if(WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
-    list(APPEND sycl_compiler_flags -DWITH_ONEAPI_SYCL_HOST_TASK)
+  # SYCL_CPP_FLAGS is a variable that the user can set to pass extra compiler options.
+  if(DEFINED SYCL_CPP_FLAGS)
+    list(APPEND sycl_compiler_flags ${SYCL_CPP_FLAGS})
   endif()
 
   # Set defaults for spir64 and spir64_gen options
@@ -92,28 +90,16 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
   string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "--format zebin ")
 
   # Host execution won't use GPU binaries, no need to compile them.
-  if(WITH_CYCLES_ONEAPI_BINARIES AND NOT WITH_CYCLES_ONEAPI_HOST_TASK_EXECUTION)
+  if(WITH_CYCLES_ONEAPI_BINARIES)
     # Add the list of Intel devices to build binaries for.
     foreach(device ${CYCLES_ONEAPI_INTEL_BINARIES_ARCH})
       # Run `ocloc` ids to test if the device is supported.
-      if(WIN32)
-        execute_process(
-          COMMAND ${OCLOC_INSTALL_DIR}/ocloc.exe ids ${device}
-          RESULT_VARIABLE oclocids_ret
-          OUTPUT_QUIET
-          ERROR_QUIET
-        )
-      else()
-        execute_process(
-          COMMAND ${CMAKE_COMMAND}
-          -E env "LD_LIBRARY_PATH=${OCLOC_INSTALL_DIR}/lib:${IGC_INSTALL_DIR}/lib"
-          ${OCLOC_INSTALL_DIR}/bin/ocloc ids ${device}
-
-          RESULT_VARIABLE oclocids_ret
-          OUTPUT_QUIET
-          ERROR_QUIET
-        )
-      endif()
+      execute_process(
+        COMMAND ${OCLOC_ENV_COMMAND} ${OCLOC_BINARY_FULL_FILEPATH} ids ${device}
+        RESULT_VARIABLE oclocids_ret
+        OUTPUT_QUIET
+        ERROR_QUIET
+      )
       if(NOT oclocids_ret EQUAL 0)
         list(REMOVE_ITEM CYCLES_ONEAPI_INTEL_BINARIES_ARCH ${device})
         message(STATUS
@@ -270,9 +256,6 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       COMMAND_EXPAND_LISTS
       DEPENDS ${cycles_oneapi_kernel_sources} ${SYCL_COMPILER})
   else()
-    if(NOT IGC_INSTALL_DIR)
-      get_filename_component(IGC_INSTALL_DIR "${sycl_compiler_root}/../lib/igc" ABSOLUTE)
-    endif()
     # The following join/replace operations are to prevent cmake from
     # escaping space chars with backslashes in add_custom_command.
     list(JOIN sycl_compiler_flags_Release " " sycl_compiler_flags_Release_str)
@@ -285,7 +268,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       OUTPUT ${cycles_kernel_oneapi_lib}
       COMMAND
         ${CMAKE_COMMAND} -E env
-        "LD_LIBRARY_PATH=${sycl_compiler_root}/../lib:${OCLOC_INSTALL_DIR}/lib:${IGC_INSTALL_DIR}/lib"
+        "LD_LIBRARY_PATH=${sycl_compiler_root}/../lib:${OCLOC_LD_LIBRARY_PATH}"
         # `$ENV{PATH}` is for compiler to find `ld`.
         "PATH=${OCLOC_INSTALL_DIR}/bin:${sycl_compiler_root}:$ENV{PATH}"
         ${SYCL_COMPILER}

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "GPU_batch.hh"
+#include "GPU_ray_tracing.hh"
 
 namespace blender {
 
@@ -73,6 +74,8 @@ inline void DRW_vbo_request(gpu::Batch *batch, gpu::VertBuf **vbo)
     *vbo = GPU_vertbuf_calloc();
   }
   if (batch != nullptr) {
+    BLI_assert_msg(batch->procedural_vertices == -1,
+                   "Request of vertex buffer for procedural batch is not valid operation.");
     /* HACK we set VBO's that may not yet be valid. */
     GPU_batch_vertbuf_add(batch, *vbo, false);
   }
@@ -81,6 +84,13 @@ inline void DRW_vbo_request(gpu::Batch *batch, gpu::VertBuf **vbo)
 inline bool DRW_vbo_requested(gpu::VertBuf *vbo)
 {
   return (vbo != nullptr && (GPU_vertbuf_get_status(vbo) & GPU_VERTBUF_INIT) == 0);
+}
+
+inline void DRW_blas_request(gpu::BottomLevelAS **blas)
+{
+  if (*blas == nullptr) {
+    *blas = GPU_ray_tracing_blas_alloc(__func__);
+  }
 }
 
 }  // namespace blender

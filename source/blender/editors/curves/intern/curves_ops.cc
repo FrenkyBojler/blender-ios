@@ -7,11 +7,11 @@
  */
 
 #include "BLI_array_utils.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_geom.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_string.hh"
+#include "BLI_utildefines.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -75,6 +75,11 @@
  */
 
 namespace blender::ed::curves {
+
+static eHandleDisplay view3d_handle_type_or_default(const View3D *v3d)
+{
+  return v3d ? v3d->overlay.handle_display : CURVE_HANDLE_SELECTED;
+}
 
 bool object_has_editable_curves(const Main &bmain, const Object &object)
 {
@@ -282,7 +287,7 @@ static void try_convert_single_object(Object &curves_ob,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   IndexMaskMemory memory;
   const IndexMask multi_point_curves = IndexMask::from_predicate(
-      curves.curves_range(), GrainSize(4096), memory, [&](const int curve_i) {
+      curves.curves_range(), memory, [&](const int curve_i) {
         return points_by_curve[curve_i].size() > 1;
       });
 
@@ -358,7 +363,8 @@ static void try_convert_single_object(Object &curves_ob,
 
     ParticleData &particle = particles[new_hair_i];
     const int num_keys = points.size();
-    MutableSpan<HairKey> hair_keys{MEM_new_array_zeroed<HairKey>(num_keys, __func__), num_keys};
+    MutableSpan<HairKey> hair_keys{
+        MEM_new_array_zeroed<HairKey>(num_keys, "try_convert_single_object hair_keys"), num_keys};
 
     particle.hair = hair_keys.data();
     particle.totkey = hair_keys.size();
@@ -944,7 +950,7 @@ static void CURVES_OT_select_random(wmOperatorType *ot)
 {
   ot->name = "Select Random";
   ot->idname = __func__;
-  ot->description = "Randomizes existing selection or create new random selection";
+  ot->description = "Randomize existing selection or create new random selection";
 
   ot->exec = select_random_exec;
   ot->poll = curves::editable_curves_poll;
@@ -1139,12 +1145,12 @@ namespace split {
 static wmOperatorStatus split_exec(bContext *C, wmOperator * /*op*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
+  const eHandleDisplay handle_display = view3d_handle_type_or_default(v3d);
   VectorSet<Curves *> unique_curves = get_unique_editable_curves(*C);
   for (Curves *curves_id : unique_curves) {
     CurvesGeometry &curves = curves_id->geometry.wrap();
     IndexMaskMemory memory;
-    const IndexMask points_to_split = retrieve_all_selected_points(
-        curves, v3d->overlay.handle_display, memory);
+    const IndexMask points_to_split = retrieve_all_selected_points(curves, handle_display, memory);
     if (points_to_split.is_empty()) {
       continue;
     }
@@ -1406,7 +1412,7 @@ static void CURVES_OT_cyclic_toggle(wmOperatorType *ot)
 {
   ot->name = "Toggle Cyclic";
   ot->idname = __func__;
-  ot->description = "Make active curve closed/opened loop";
+  ot->description = "Make active curve closed/open loop";
 
   ot->exec = cyclic_toggle::exec;
   ot->poll = editable_curves_in_edit_mode_poll;
@@ -1824,7 +1830,7 @@ static void CURVES_OT_handle_type_set(wmOperatorType *ot)
 {
   ot->name = "Set Handle Type";
   ot->idname = __func__;
-  ot->description = "Set the handle type for bezier curves";
+  ot->description = "Set the handle type for Bézier curves";
 
   ot->invoke = WM_menu_invoke;
   ot->exec = set_handle_type::exec;

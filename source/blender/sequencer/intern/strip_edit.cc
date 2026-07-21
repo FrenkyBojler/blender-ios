@@ -11,10 +11,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -64,7 +64,7 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
     }
 
     if (strip_a->is_effect() && strip_b->is_effect()) {
-      if (effect_get_num_inputs(strip_a->type) != effect_get_num_inputs(strip_b->type)) {
+      if (strip_a->effect_num_inputs_get() != strip_b->effect_num_inputs_get()) {
         *r_error_str = N_("Strips must have the same number of inputs");
         return false;
       }
@@ -86,7 +86,9 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
   std::swap(strip_a->next, strip_b->next);
   std::swap(strip_a->start, strip_b->start);
   std::swap(strip_a->startofs, strip_b->startofs);
-  std::swap(strip_a->endofs, strip_b->endofs);
+  const float tmp_offset = strip_a->end_offset();
+  strip_a->end_offset_set(strip_b->end_offset());
+  strip_b->end_offset_set(tmp_offset);
   std::swap(strip_a->channel, strip_b->channel);
   strip_time_effect_range_set(scene, strip_a);
   strip_time_effect_range_set(scene, strip_b);
@@ -248,7 +250,7 @@ bool edit_move_strip_to_meta(Scene *scene,
 
   VectorSet<Strip *> strips;
   strips.add(src_strip);
-  iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
+  iterator_set_expand(ed, strips, query_strip_effect_chain);
 
   for (Strip *strip : strips) {
     /* Move to meta. */
@@ -276,7 +278,7 @@ static void seq_split_set_right_hold_offset(Main *bmain,
   }
   /* Adjust within range of strip contents. */
   else if ((timeline_frame >= content_start) && (timeline_frame <= content_end)) {
-    strip->endofs = 0;
+    strip->end_offset_set(0);
     const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
     const float speed_factor = strip->media_playback_rate_factor(scene_fps);
     strip->anim_endofs += round_fl_to_int((content_end - timeline_frame) * speed_factor);
@@ -307,7 +309,7 @@ static void seq_split_set_left_hold_offset(Main *bmain,
   else if (timeline_frame > content_end) {
     const float offset = timeline_frame - content_end + 1;
     strip->start += offset;
-    strip->endofs += offset;
+    strip->end_offset_set(strip->end_offset() + offset);
   }
 
   /* Needed only to set `strip->len`. */
@@ -391,10 +393,10 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
     if (!seq_edit_split_intersect_check(scene, strip, timeline_frame)) {
       continue;
     }
-    if (effect_get_num_inputs(strip->type) <= 1) {
+    if (strip->effect_num_inputs_get() <= 1) {
       continue;
     }
-    if (effect_is_transition(StripType(strip->type))) {
+    if (effect_is_transition(strip->type)) {
       *r_error = "Splitting transition effect is not permitted.";
       return false;
     }
@@ -422,8 +424,7 @@ Strip *edit_strip_split(Main *bmain,
   /* Whole strip effect chain must be duplicated in order to preserve relationships. */
   VectorSet<Strip *> strips;
   strips.add(strip);
-  iterator_set_expand(scene,
-                      seqbase,
+  iterator_set_expand(seq::editing_get(scene),
                       strips,
                       ignore_connections ? query_strip_effect_chain :
                                            query_strip_connected_and_effect_chain);
@@ -467,7 +468,7 @@ Strip *edit_strip_split(Main *bmain,
    * strips to seqbase, for lookup cache to work correctly. */
   Strip *strip_rename = right_strip;
   for (; strip_rename; strip_rename = strip_rename->next) {
-    ensure_unique_name(strip_rename, scene);
+    ensure_unique_name(*bmain, strip_rename, scene);
   }
 
   /* Split strips. */

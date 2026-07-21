@@ -50,7 +50,7 @@ extern "C" {
 #undef SHADER_SOURCE
 }
 
-static CLG_LogRef LOG = {"shader.dependencies"};
+static CLG_LogRef LOG = {"gpu.shader.deps"};
 
 namespace gpu::shader {
 
@@ -171,6 +171,16 @@ struct GPUSource {
         return GPU_MAT3;
       case metadata::Type::float4x4:
         return GPU_MAT4;
+      case metadata::Type::int1:
+        return GPU_INT;
+      case metadata::Type::int2:
+        return GPU_INT2;
+      case metadata::Type::int3:
+        return GPU_INT3;
+      case metadata::Type::int4:
+        return GPU_INT4;
+      case metadata::Type::bool1:
+        return GPU_BOOL;
       case metadata::Type::sampler1DArray:
         return GPU_TEX1D_ARRAY;
       case metadata::Type::sampler2DArray:
@@ -381,8 +391,8 @@ struct GPUSource {
                   const GPUSource &from) const
   {
 #define CLOG_FILE_INCLUDE(_from, _include) \
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO) && (from).filename.c_str() != (_include).filename.c_str()) \
-  { \
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE) && \
+      (from).filename.c_str() != (_include).filename.c_str()) { \
     const char *from_filename = (_from).filename.c_str(); \
     const char *include_filename = (_include).filename.c_str(); \
     const int from_size = int((_from).source.size()); \
@@ -662,12 +672,12 @@ Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
   if (src == nullptr) {
     std::cerr << "Error source not found : " << shader_source_name << std::endl;
   }
-  CLOG_INFO(&LOG, "Resolved Source Tree (Mermaid flowchart) %s", shader_name.c_str());
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+  CLOG_TRACE(&LOG, "Resolved Source Tree (Mermaid flowchart) %s", shader_name.c_str());
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE)) {
     CLG_log_raw(LOG.type, "flowchart LR\n");
   }
   src->build(result, generated_sources, *g_sources);
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE)) {
     CLG_log_raw(LOG.type, "\n");
   }
   return result;

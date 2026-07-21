@@ -16,11 +16,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_path_utils.hh"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -109,12 +109,12 @@ static void init_preview_region(const Scene *scene,
 
     region->v2d.minzoom = 0.0f;
     region->v2d.maxzoom = 0.0f;
-    region->v2d.keepzoom = 0;
-    region->v2d.keepofs = 0;
-    region->v2d.align = 0;
-    region->v2d.flag = 0;
+    region->v2d.keepzoom = eView2D_KeepZoom{};
+    region->v2d.keepofs = eView2D_KeepOfs{};
+    region->v2d.align = eView2D_Align{};
+    region->v2d.flag = eView2D_Flag{};
 
-    region->v2d.keeptot = 0;
+    region->v2d.keeptot = eView2D_KeepTot{};
   }
 }
 
@@ -678,6 +678,7 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   /* draw entirely, view changes should be handled here */
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
+  ScrArea *area = CTX_wm_area(C);
   float aspx, aspy, zoomx, zoomy, x, y;
   int width, height;
   bool show_cursor = false;
@@ -788,6 +789,8 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   if ((sc->gizmo_flag & SCLIP_GIZMO_HIDE) == 0) {
     WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
+
+  ED_area_hud_region_set_padding_flag(area, region, true);
 }
 
 static void clip_main_region_listener(const wmRegionListenerParams *params)
@@ -896,7 +899,7 @@ static void graph_region_draw(const bContext *C, ARegion *region)
     rcti rect;
     BLI_rcti_init(
         &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-    ui::view2d_draw_scale_y__values(region, v2d, &rect, TH_TEXT, 10);
+    ui::view2d_draw_scale_y(region, v2d, &rect, TH_TEXT, 10);
   }
 }
 
@@ -920,8 +923,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
 
   /* time grid */
   if (!minimized) {
-    ui::view2d_draw_lines_x__discrete_frames_or_seconds(
-        v2d, scene, sc->flag & SC_SHOW_SECONDS, true);
+    ui::view2d_draw_lines_x_frames(v2d, scene, sc->flag & SC_SHOW_SECONDS, false, true);
   }
 
   /* data... */

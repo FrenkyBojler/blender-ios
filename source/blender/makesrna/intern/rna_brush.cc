@@ -13,8 +13,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BLI_math_base.h"
-#include "BLI_string_utf8_symbols.h"
+#include "BLI_math_base_c.hh"
+#include "BLI_string_utf8_symbols.hh"
 
 #include "BLT_translation.hh"
 
@@ -36,21 +36,29 @@ static const EnumPropertyItem prop_direction_items[] = {
 };
 
 static const EnumPropertyItem sculpt_stroke_method_items[] = {
-    {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
-    {BRUSH_DRAG_DOT, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
-    {BRUSH_SPACE,
+    {BRUSH_STROKE_DOTS, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
+    {BRUSH_STROKE_DRAG_DOT,
+     "DRAG_DOT",
+     0,
+     "Drag Dot",
+     "Allows a single dot to be carefully positioned"},
+    {BRUSH_STROKE_SPACE,
      "SPACE",
      0,
      "Space",
      "Limit brush application to the distance specified by spacing"},
-    {BRUSH_AIRBRUSH,
+    {BRUSH_STROKE_AIRBRUSH,
      "AIRBRUSH",
      0,
      "Airbrush",
      "Keep applying paint effect while holding mouse (spray)"},
-    {BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
-    {BRUSH_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
-    {int(BRUSH_CURVE),
+    {BRUSH_STROKE_ANCHORED,
+     "ANCHORED",
+     0,
+     "Anchored",
+     "Keep the brush anchored to the initial location"},
+    {BRUSH_STROKE_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
+    {BRUSH_STROKE_CURVE,
      "CURVE",
      0,
      "Curve",
@@ -84,7 +92,7 @@ const EnumPropertyItem rna_enum_brush_curve_preset_items[] = {
 
 /* NOTE: we don't actually turn these into a single enum bit-mask property,
  * instead we construct individual boolean properties. */
-const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
+const EnumPropertyItem rna_enum_shared_automasking_flag_items[] = {
     {BRUSH_AUTOMASKING_TOPOLOGY,
      "use_automasking_topology",
      0,
@@ -120,6 +128,21 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      0,
      "Custom Cavity Curve",
      "Use custom curve"},
+    {BRUSH_AUTOMASKING_BRUSH_NORMAL,
+     "use_automasking_start_normal",
+     0,
+     "Area Normal",
+     "Affect only vertices with a similar normal to where the stroke starts"},
+    {BRUSH_AUTOMASKING_VIEW_NORMAL,
+     "use_automasking_view_normal",
+     0,
+     "View Normal",
+     "Affect only vertices with a normal that faces the viewer"},
+    {BRUSH_AUTOMASKING_VIEW_OCCLUSION,
+     "use_automasking_view_occlusion",
+     0,
+     "Occlusion",
+     "Only affect vertices that are not occluded by other faces (slower performance)"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
@@ -147,6 +170,7 @@ const EnumPropertyItem rna_enum_brush_sculpt_brush_type_items[] = {
     {SCULPT_BRUSH_TYPE_ROTATE, "ROTATE", 0, "Rotate", ""},
     {SCULPT_BRUSH_TYPE_SLIDE_RELAX, "TOPOLOGY", 0, "Slide Relax", ""},
     {SCULPT_BRUSH_TYPE_BOUNDARY, "BOUNDARY", 0, "Boundary", ""},
+    {SCULPT_BRUSH_TYPE_SCENE_PROJECT, "SCENE_PROJECT", 0, "Scene Project", ""},
     RNA_ENUM_ITEM_SEPR,
     {SCULPT_BRUSH_TYPE_CLOTH, "CLOTH", 0, "Cloth", ""},
     {SCULPT_BRUSH_TYPE_SIMPLIFY, "SIMPLIFY", 0, "Simplify", ""},
@@ -297,6 +321,7 @@ const EnumPropertyItem rna_enum_brush_curves_sculpt_brush_type_items[] = {
     {CURVES_SCULPT_BRUSH_TYPE_COMB, "COMB", 0, "Comb", ""},
     {CURVES_SCULPT_BRUSH_TYPE_SNAKE_HOOK, "SNAKE_HOOK", 0, "Snake Hook", ""},
     {CURVES_SCULPT_BRUSH_TYPE_GROW_SHRINK, "GROW_SHRINK", 0, "Grow / Shrink", ""},
+    {CURVES_SCULPT_BRUSH_TYPE_CUT, "CUT", 0, "Cut", ""},
     {CURVES_SCULPT_BRUSH_TYPE_PINCH, "PINCH", 0, "Pinch", ""},
     {CURVES_SCULPT_BRUSH_TYPE_PUFF, "PUFF", 0, "Puff", ""},
     {CURVES_SCULPT_BRUSH_TYPE_SMOOTH, "SMOOTH", 0, "Smooth", ""},
@@ -346,6 +371,11 @@ static EnumPropertyItem rna_enum_gpencil_fill_direction_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static EnumPropertyItem rna_enum_gpencil_fill_solver_items[] = {
+    {GP_FILL_SOLVER_DELAUNAY, "DELAUNAY", 0, "Delaunay", "Use the exact geometry to create fills"},
+    {GP_FILL_SOLVER_PIXEL, "PIXEL", 0, "Pixel", "Use pixel based flooding to create fills"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
     {GP_BRUSH_MODE_ACTIVE, "ACTIVE", 0, "Active", "Use current mode"},
     {GP_BRUSH_MODE_MATERIAL, "MATERIAL", 0, "Material", "Use always material mode"},
@@ -355,7 +385,6 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 #endif
 
 }  // namespace blender
-
 #ifdef RNA_RUNTIME
 
 #  include "DNA_material_types.h"
@@ -405,20 +434,23 @@ static bool rna_BrushCapabilities_has_overlay_get(PointerRNA *ptr)
 static bool rna_BrushCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
 {
   Brush *br = static_cast<Brush *>(ptr->data);
-  return !(br->flag & BRUSH_ANCHORED);
+  return !(br->stroke_method == BRUSH_STROKE_ANCHORED);
 }
 
 static bool rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 {
   Brush *br = static_cast<Brush *>(ptr->data);
-  return (!(br->flag & BRUSH_ANCHORED) && !(br->flag & BRUSH_DRAG_DOT) &&
-          !(br->flag & BRUSH_LINE) && !(br->flag & BRUSH_CURVE));
+  return (!(ELEM(br->stroke_method,
+                 BRUSH_STROKE_ANCHORED,
+                 BRUSH_STROKE_DRAG_DOT,
+                 BRUSH_STROKE_LINE,
+                 BRUSH_STROKE_CURVE)));
 }
 
 static bool rna_BrushCapabilities_has_spacing_get(PointerRNA *ptr)
 {
   Brush *br = static_cast<Brush *>(ptr->data);
-  return (!(br->flag & BRUSH_ANCHORED));
+  return (!(br->stroke_method == BRUSH_STROKE_ANCHORED));
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_accumulate_get(PointerRNA *ptr)
@@ -437,6 +469,18 @@ static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
   return bke::brush::supports_auto_smooth(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_tip_roundness_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return bke::brush::supports_tip_roundness(*br);
+}
+
+static bool rna_BrushCapabilitiesSculpt_has_hardness_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return bke::brush::supports_hardness(*br);
 }
 
 static bool rna_BrushCapabilitiesSculpt_has_height_get(PointerRNA *ptr)
@@ -547,6 +591,12 @@ static bool rna_BrushCapabilitiesSculpt_has_auto_smooth_pressure_get(PointerRNA 
   return bke::brush::supports_auto_smooth_pressure(*br);
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_normal_radius_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return bke::brush::supports_normal_radius(*br);
+}
+
 static bool rna_BrushCapabilitiesSculpt_has_hardness_pressure_get(PointerRNA *ptr)
 {
   const Brush *br = static_cast<const Brush *>(ptr->data);
@@ -582,8 +632,11 @@ static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
   /* only support for draw brush */
   Brush *br = static_cast<Brush *>(ptr->data);
 
-  return ((br->flag & BRUSH_AIRBRUSH) || (br->flag & BRUSH_DRAG_DOT) ||
-          (br->flag & BRUSH_ANCHORED) || (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
+  return (ELEM(br->stroke_method,
+               BRUSH_STROKE_AIRBRUSH,
+               BRUSH_STROKE_DRAG_DOT,
+               BRUSH_STROKE_ANCHORED) ||
+          (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
           (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_SMEAR) ||
           (br->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
           (br->mtex.tex && !ELEM(br->mtex.brush_map_mode,
@@ -605,7 +658,7 @@ static bool rna_BrushCapabilitiesImagePaint_has_radius_get(PointerRNA *ptr)
 static bool rna_BrushCapabilitiesImagePaint_has_space_attenuation_get(PointerRNA *ptr)
 {
   Brush *br = static_cast<Brush *>(ptr->data);
-  return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
+  return (ELEM(br->stroke_method, BRUSH_STROKE_SPACE, BRUSH_STROKE_LINE, BRUSH_STROKE_CURVE)) &&
          br->image_brush_type != IMAGE_PAINT_BRUSH_TYPE_FILL;
 }
 
@@ -686,7 +739,7 @@ static void rna_Brush_main_tex_update(bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Brush *br = static_cast<Brush *>(ptr->data);
-  BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.tex);
+  BKE_paint_invalidate_overlay_tex(*bmain, scene, view_layer, br->mtex.tex);
   rna_Brush_update(bmain, scene, ptr);
 }
 
@@ -696,7 +749,7 @@ static void rna_Brush_secondary_tex_update(bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Brush *br = static_cast<Brush *>(ptr->data);
-  BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mask_mtex.tex);
+  BKE_paint_invalidate_overlay_tex(*bmain, scene, view_layer, br->mask_mtex.tex);
   rna_Brush_update(bmain, scene, ptr);
 }
 
@@ -714,12 +767,13 @@ static void rna_Brush_stroke_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static void rna_TextureSlot_brush_angle_update(bContext *C, PointerRNA *ptr)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   MTex *mtex = static_cast<MTex *>(ptr->data);
   /* skip invalidation of overlay for stencil mode */
-  if (mtex->mapping != MTEX_MAP_MODE_STENCIL) {
+  if (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
+    BKE_paint_invalidate_overlay_tex(*bmain, scene, view_layer, mtex->tex);
   }
 
   rna_TextureSlot_update(C, ptr);
@@ -764,6 +818,10 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
                                                          PropertyRNA * /*prop*/,
                                                          bool * /*r_free*/)
 {
+  if (C == nullptr) {
+    return rna_enum_dummy_DEFAULT_items;
+  }
+
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
   /* sculpt mode */
@@ -861,6 +919,7 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
         case SCULPT_BRUSH_TYPE_CLAY:
         case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
         case SCULPT_BRUSH_TYPE_PLANE:
+        case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
           return prop_direction_items;
         case SCULPT_BRUSH_TYPE_SMOOTH:
           return prop_smooth_direction_items;
@@ -936,19 +995,23 @@ static const EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C,
   PaintMode mode = (C) ? BKE_paintmode_get_active_from_context(C) : PaintMode::Invalid;
 
   static const EnumPropertyItem brush_stroke_method_items[] = {
-      {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
-      {BRUSH_SPACE,
+      {BRUSH_STROKE_DOTS, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
+      {BRUSH_STROKE_SPACE,
        "SPACE",
        0,
        "Space",
        "Limit brush application to the distance specified by spacing"},
-      {BRUSH_AIRBRUSH,
+      {BRUSH_STROKE_AIRBRUSH,
        "AIRBRUSH",
        0,
        "Airbrush",
        "Keep applying paint effect while holding mouse (spray)"},
-      {BRUSH_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
-      {int(BRUSH_CURVE),
+      {BRUSH_STROKE_LINE,
+       "LINE",
+       0,
+       "Line",
+       "Draw a line with dabs separated according to spacing"},
+      {BRUSH_STROKE_CURVE,
        "CURVE",
        0,
        "Curve",
@@ -988,9 +1051,10 @@ static void rna_BrushGpencilSettings_update(Main * /*bmain*/, Scene * /*scene*/,
 
 static void rna_BrushGpencilSettings_use_material_pin_update(bContext *C, PointerRNA *ptr)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Brush *brush = reinterpret_cast<Brush *>(ptr->owner_id);
 
@@ -1083,32 +1147,6 @@ static const EnumPropertyItem *rna_BrushTextureSlot_map_mode_itemf(bContext *C,
   return rna_enum_brush_texture_slot_map_texture_mode_items;
 
 #  undef rna_enum_brush_texture_slot_map_sculpt_mode_items
-}
-
-static void rna_Brush_automasking_invert_cavity_set(PointerRNA *ptr, bool val)
-{
-  Brush *brush = static_cast<Brush *>(ptr->data);
-
-  if (val) {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
-    brush->automasking_flags |= BRUSH_AUTOMASKING_CAVITY_INVERTED;
-  }
-  else {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
-  }
-}
-
-static void rna_Brush_automasking_cavity_set(PointerRNA *ptr, bool val)
-{
-  Brush *brush = static_cast<Brush *>(ptr->data);
-
-  if (val) {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_INVERTED;
-    brush->automasking_flags |= BRUSH_AUTOMASKING_CAVITY_NORMAL;
-  }
-  else {
-    brush->automasking_flags &= ~BRUSH_AUTOMASKING_CAVITY_NORMAL;
-  }
 }
 
 static std::optional<std::string> rna_BrushCurvesSculptSettings_path(const PointerRNA * /*ptr*/)
@@ -1215,6 +1253,9 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
 
   SCULPT_BRUSH_CAPABILITY(has_accumulate, "Has Accumulate");
   SCULPT_BRUSH_CAPABILITY(has_auto_smooth, "Has Auto Smooth");
+  SCULPT_BRUSH_CAPABILITY(has_normal_radius, "Has Normal Radius");
+  SCULPT_BRUSH_CAPABILITY(has_hardness, "Has Hardness");
+  SCULPT_BRUSH_CAPABILITY(has_tip_roundness, "Has Tip Roundness");
   SCULPT_BRUSH_CAPABILITY(has_topology_rake, "Has Topology Rake");
   SCULPT_BRUSH_CAPABILITY(has_height, "Has Height");
   SCULPT_BRUSH_CAPABILITY(has_plane_depth, "Has Plane Depth");
@@ -1347,15 +1388,34 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* modes */
   static const EnumPropertyItem gppaint_mode_types_items[] = {
-      {GPPAINT_MODE_STROKE, "STROKE", 0, "Stroke", "Vertex Color affects to Stroke only"},
-      {GPPAINT_MODE_FILL, "FILL", 0, "Fill", "Vertex Color affects to Fill only"},
-      {GPPAINT_MODE_BOTH, "BOTH", 0, "Stroke & Fill", "Vertex Color affects to Stroke and Fill"},
+      {GPPAINT_MODE_STROKE,
+       "STROKE",
+       ICON_GP_DRAW_STROKE,
+       "Stroke",
+       "Painting affects only strokes, not fills"},
+      {GPPAINT_MODE_FILL,
+       "FILL",
+       ICON_GP_DRAW_FILL,
+       "Fill",
+       "Painting affects only fills, not strokes"},
+      {GPPAINT_MODE_BOTH,
+       "BOTH",
+       ICON_GP_DRAW_BOTH,
+       "Both",
+       "Painting affects both strokes and fills"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem rna_enum_gpencil_brush_caps_types_items[] = {
       {GP_STROKE_CAP_ROUND, "ROUND", ICON_GP_CAPS_ROUND, "Round", ""},
       {GP_STROKE_CAP_FLAT, "FLAT", ICON_GP_CAPS_FLAT, "Flat", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem rna_enum_gpencil_brush_stroke_type_items[] = {
+      {GP_BRUSH_USE_STROKE, "STROKE", ICON_GP_DRAW_STROKE, "Stroke", ""},
+      {GP_BRUSH_USE_FILL, "FILL", ICON_GP_DRAW_FILL, "Fill", ""},
+      {GP_BRUSH_USE_FILL | GP_BRUSH_USE_STROKE, "BOTH", ICON_GP_DRAW_BOTH, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1680,7 +1740,8 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   /* Factor to extend stroke extremes in Fill brush. */
   prop = RNA_def_property(srna, "extend_stroke_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fill_extend_fac");
-  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 10.0f, 0.1, 2);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(
       prop, "Closure Size", "Strokes end extension for closing gaps, use zero to disable");
@@ -1713,6 +1774,15 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(
       prop, "Thickness", "Thickness of the outline stroke relative to current brush thickness");
+  RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  /* Threshold distance for converting curve types. */
+  prop = RNA_def_property(srna, "conversion_threshold", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "conversion_threshold");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_float_default(prop, 0.001f);
+  RNA_def_property_ui_text(prop, "Threshold", "Threshold distance between points for conversion");
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -1823,6 +1893,14 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
 
+  prop = RNA_def_property(srna, "stroke_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag2");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_brush_stroke_type_items);
+  RNA_def_property_ui_text(prop, "Stroke Mode", "Mode to use when creating strokes");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_BrushGpencilSettings_update");
+
   prop = RNA_def_property(srna, "use_settings_stabilizer", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_STABILIZE_MOUSE);
   RNA_def_property_boolean_default(prop, true);
@@ -1868,6 +1946,22 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_direction_items);
   RNA_def_property_ui_text(prop, "Direction", "Direction of the fill");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "fill_solver", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_solver");
+  RNA_def_property_enum_items(prop, rna_enum_gpencil_fill_solver_items);
+  RNA_def_property_ui_text(prop, "Fill Solver", "Method used for when filling");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "fill_gap_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop,
+                           "Gap Detection Factor",
+                           "The sensitivity of the gap detection. Higher values results in more "
+                           "gaps detected and as such can create smaller fills");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -1988,6 +2082,20 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
+  prop = RNA_def_property(srna, "fill_internal_gaps", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_FILL_INTERNAL_GAPS);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop, "Internal Gaps", "Stop at internal gaps");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "curve_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_curves_type_items);
+  RNA_def_property_ui_text(prop, "Curve Type", "Type of curves");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
   prop = RNA_def_property(srna, "use_fill_limit", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_FILL_FIT_DISABLE);
   RNA_def_property_boolean_default(prop, true);
@@ -2019,8 +2127,7 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_lasso", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", GP_BRUSH_DISSABLE_LASSO);
-  RNA_def_property_ui_text(
-      prop, "Show Lasso", "Do not display fill color while drawing the stroke");
+  RNA_def_property_ui_text(prop, "Show Lasso", "Display fill color while drawing the stroke");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
@@ -2386,6 +2493,20 @@ static void rna_def_brush(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem brush_project_ray_direction_type_items[] = {
+      {BRUSH_PROJECT_RAY_DIRECTION_VIEW_NORMAL,
+       "VIEW_NORMAL",
+       0,
+       "View Normal",
+       "Project the vertices along the view normal."},
+      {BRUSH_PROJECT_RAY_DIRECTION_PLANE_NORMAL,
+       "PLANE_NORMAL",
+       0,
+       "Plane Normal",
+       "Project the vertices along the plane normal."},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem brush_cloth_deform_type_items[] = {
       {BRUSH_CLOTH_DEFORM_DRAG, "DRAG", 0, "Drag", ""},
       {BRUSH_CLOTH_DEFORM_PUSH, "PUSH", 0, "Push", ""},
@@ -2529,6 +2650,7 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blend", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_blend_items);
   RNA_def_property_ui_text(prop, "Blending Mode", "Brush blending mode");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_COLOR);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   /**
@@ -2611,7 +2733,6 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stroke_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "flag");
   RNA_def_property_enum_items(prop, sculpt_stroke_method_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Brush_stroke_itemf");
   RNA_def_property_ui_text(prop, "Stroke Method", "");
@@ -2656,6 +2777,21 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "plane_inversion_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, brush_plane_inversion_mode_items);
   RNA_def_property_ui_text(prop, "Inversion Mode", "Inversion Mode");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "project_ray_direction_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, brush_project_ray_direction_type_items);
+  RNA_def_property_ui_text(prop, "Ray Direction", "Ray Direction");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "minimum_distance", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "minimum_distance");
+  RNA_def_property_float_default(prop, 0);
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Minimum Distance",
+                           "Minimum distance to other scene objects after projecting onto them");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "cloth_deform_type", PROP_ENUM, PROP_NONE);
@@ -3160,7 +3296,7 @@ static void rna_def_brush(BlenderRNA *brna)
                            "and a value of 1 corresponds to using the initial center.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "texture_sample_bias");
   RNA_def_property_float_default(prop, 0);
   RNA_def_property_range(prop, -1, 1);
@@ -3330,17 +3466,6 @@ static void rna_def_brush(BlenderRNA *brna)
       prop, "Hardness", "How close the brush falloff starts from the edge of the brush");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(
-      srna, "automasking_boundary_edges_propagation_steps", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "automasking_boundary_edges_propagation_steps");
-  RNA_def_property_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS);
-  RNA_def_property_ui_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS, 1, -1);
-  RNA_def_property_ui_text(prop,
-                           "Propagation Steps",
-                           "Distance where boundary edge automasking is going to protect vertices "
-                           "from the fully masked edge");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
   prop = RNA_def_property(srna, "auto_smooth_factor", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "autosmooth_factor");
   RNA_def_property_float_default(prop, 0);
@@ -3467,12 +3592,6 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   /* flag */
-  prop = RNA_def_property(srna, "use_airbrush", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_AIRBRUSH);
-  RNA_def_property_ui_text(
-      prop, "Airbrush", "Keep applying paint effect while holding mouse (spray)");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
   prop = RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_ORIGINAL_NORMAL);
   RNA_def_property_ui_text(prop,
@@ -3486,97 +3605,6 @@ static void rna_def_brush(BlenderRNA *brna)
       prop,
       "Original Plane",
       "When locked keep using the plane origin of surface where stroke was initiated");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  const EnumPropertyItem *entry = rna_enum_brush_automasking_flag_items;
-  do {
-    prop = RNA_def_property(srna, entry->identifier, PROP_BOOLEAN, PROP_NONE);
-    RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", entry->value);
-    RNA_def_property_ui_text(prop, entry->name, entry->description);
-
-    if (entry->value == BRUSH_AUTOMASKING_CAVITY_NORMAL) {
-      RNA_def_property_boolean_funcs(prop, nullptr, "rna_Brush_automasking_cavity_set");
-    }
-    else if (entry->value == BRUSH_AUTOMASKING_CAVITY_INVERTED) {
-      RNA_def_property_boolean_funcs(prop, nullptr, "rna_Brush_automasking_invert_cavity_set");
-    }
-
-    RNA_def_property_update(prop, 0, "rna_Brush_update");
-  } while ((++entry)->identifier);
-
-  prop = RNA_def_property(srna, "automasking_cavity_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_cavity_factor");
-  RNA_def_property_ui_text(prop, "Cavity Factor", "The contrast of the cavity mask");
-  RNA_def_property_range(prop, 0.0f, 5.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "automasking_cavity_blur_steps", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "automasking_cavity_blur_steps");
-  RNA_def_property_int_default(prop, 0);
-  RNA_def_property_ui_text(prop, "Blur Steps", "The number of times the cavity mask is blurred");
-  RNA_def_property_range(prop, 0, 25);
-  RNA_def_property_ui_range(prop, 0, 10, 1, 1);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "automasking_cavity_curve", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "automasking_cavity_curve");
-  RNA_def_property_struct_type(prop, "CurveMapping");
-  RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_automasking_start_normal", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_BRUSH_NORMAL);
-  RNA_def_property_ui_text(
-      prop,
-      "Area Normal",
-      "Affect only vertices with a similar normal to where the stroke starts");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "automasking_start_normal_limit", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_start_normal_limit");
-  RNA_def_property_range(prop, 0.0001f, M_PI);
-  RNA_def_property_ui_text(prop, "Area Normal Limit", "The range of angles that will be affected");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "automasking_start_normal_falloff", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_start_normal_falloff");
-  RNA_def_property_range(prop, 0.0001f, 1.0f);
-  RNA_def_property_ui_text(
-      prop, "Area Normal Falloff", "Extend the angular range with a falloff gradient");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_automasking_view_normal", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_VIEW_NORMAL);
-  RNA_def_property_ui_text(
-      prop, "View Normal", "Affect only vertices with a normal that faces the viewer");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_automasking_view_occlusion", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_VIEW_OCCLUSION);
-  RNA_def_property_ui_text(
-      prop,
-      "Occlusion",
-      "Only affect vertices that are not occluded by other faces (slower performance)");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "automasking_view_normal_limit", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_view_normal_limit");
-  RNA_def_property_range(prop, 0.0001f, M_PI);
-  RNA_def_property_ui_text(prop, "View Normal Limit", "The range of angles that will be affected");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "automasking_view_normal_falloff", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_view_normal_falloff");
-  RNA_def_property_range(prop, 0.0001f, 1.0f);
-  RNA_def_property_ui_text(
-      prop, "View Normal Falloff", "Extend the angular range with a falloff gradient");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_scene_spacing", PROP_ENUM, PROP_NONE);
@@ -3734,31 +3762,6 @@ static void rna_def_brush(BlenderRNA *brna)
       prop, "Use Front-Face Falloff", "Blend brush influence by how much they face the front");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "use_anchor", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_ANCHORED);
-  RNA_def_property_ui_text(prop, "Anchored", "Keep the brush anchored to the initial location");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_space", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_SPACE);
-  RNA_def_property_ui_text(
-      prop, "Space", "Limit brush application to the distance specified by spacing");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_GPENCIL);
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_line", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_LINE);
-  RNA_def_property_ui_text(prop, "Line", "Draw a line with dabs separated according to spacing");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_curve", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_CURVE);
-  RNA_def_property_ui_text(
-      prop,
-      "Curve",
-      "Define the stroke curve with a Bézier curve. Dabs are separated according to spacing.");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
   prop = RNA_def_property(srna, "use_smooth_stroke", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_SMOOTH_STROKE);
   RNA_def_property_ui_text(
@@ -3768,6 +3771,14 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_persistent", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_PERSISTENT);
   RNA_def_property_ui_text(prop, "Persistent", "Sculpt on a persistent layer of the mesh");
+  RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+  prop = RNA_def_property(srna, "use_bidirectional", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_PROJECT_USE_BIDIRECTIONAL);
+  RNA_def_property_ui_text(prop,
+                           "Bidirectional",
+                           "Project vertices both along the projection direction and its "
+                           "inverse, choosing the closest intersection.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
@@ -3808,11 +3819,6 @@ static void rna_def_brush(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_edge_to_edge", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_EDGE_TO_EDGE);
   RNA_def_property_ui_text(prop, "Edge-to-Edge", "Drag anchor brush from edge-to-edge");
-  RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-  prop = RNA_def_property(srna, "use_restore_mesh", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BRUSH_DRAG_DOT);
-  RNA_def_property_ui_text(prop, "Restore Mesh", "Allow a single dot to be carefully positioned");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   /* only for projection paint & vertex paint, TODO: other paint modes. */
@@ -4025,6 +4031,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "BrushCurvesSculptSettings");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Curves Sculpt Settings", "");
+
+  prop = RNA_def_property(srna, "mesh_automasking_settings", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "MeshAutomaskingSettings");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Mesh Automasking Settings", nullptr);
 }
 
 /**
@@ -4090,7 +4101,7 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_ui_text(prop, "Is Stroke Start", "");
 
-  /* XXX: Tool (this will be for pressing a modifier key for a different brush,
+  /* XXX: Tool: this will be for pressing a modifier key for a different brush,
    *      e.g. switching to a Smooth brush in the middle of the stroke */
 
   /* XXX: i don't think blender currently supports the ability to properly do a remappable modifier

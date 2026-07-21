@@ -94,9 +94,11 @@ if(WITH_CYCLES_CUDA_BINARIES)
     ${SRC_KERNEL_DEVICE_CUDA_HEADERS}
     $<TARGET_PROPERTY:cycles_kernel,INTERFACE_SOURCES>
   )
-  set(cuda_cubins)
+  set(cuda_cubins "")
 
-  macro(CYCLES_CUDA_KERNEL_ADD arch prev_arch name flags sources experimental)
+  # Modifies in parent scope:
+  # - `cuda_cubins`: appended with compressed `cubin/ptx` output.
+  function(CYCLES_CUDA_KERNEL_ADD arch prev_arch name flags sources experimental)
     if(${arch} MATCHES "compute_.*")
       set(format "ptx")
     else()
@@ -155,9 +157,8 @@ if(WITH_CYCLES_CUDA_BINARIES)
     unset(_cuda_nvcc_args)
     delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${cuda_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
     list(APPEND cuda_cubins ${cuda_file_compressed})
-
-    unset(cuda_debug_flags)
-  endmacro()
+    set(cuda_cubins "${cuda_cubins}" PARENT_SCOPE)
+  endfunction()
 
   set(prev_arch "none")
   foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})

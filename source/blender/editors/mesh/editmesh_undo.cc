@@ -19,12 +19,12 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_array_utils.h"
+#include "BLI_array_utils_c.hh"
 #include "BLI_implicit_sharing.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_base.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_base_c.hh"
 #include "BLI_multi_value_map.hh"
-#include "BLI_string.h"
+#include "BLI_string.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -57,11 +57,11 @@
 // #  define DEBUG_PRINT
 // #  define DEBUG_TIME
 #  ifdef DEBUG_TIME
-#    include "BLI_time_utildefines.h"
+#    include "BLI_time_utildefines.hh"
 #  endif
 
-#  include "BLI_array_store.h"
-#  include "BLI_array_store_utils.h"
+#  include "BLI_array_store.hh"
+#  include "BLI_array_store_utils.hh"
 /**
  * This used to be much smaller (256), but this caused too much overhead
  * when selection moved to boolean arrays. Especially with high-poly meshes
@@ -100,7 +100,7 @@
 #endif
 
 #ifdef USE_ARRAY_STORE_THREAD
-#  include "BLI_task.h"
+#  include "BLI_task_c.hh"
 #endif
 
 namespace blender {
@@ -182,6 +182,8 @@ struct UndoMesh {
   size_t undo_size;
 };
 
+/** \} */
+
 #ifdef USE_ARRAY_STORE
 
 /* -------------------------------------------------------------------- */
@@ -248,7 +250,9 @@ static void store_layer(const eCustomDataType type,
    */
   if (CustomData_layertype_is_dynamic(type)) {
     ImplicitSharingInfoAndData state = {sharing_info, data};
-    state.sharing_info->add_user();
+    if (state.data) {
+      state.sharing_info->add_user();
+    }
     bcd.non_trivial_arrays.lookup_or_add_default(type).append(state);
     return;
   }
@@ -320,25 +324,43 @@ static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
                 bcd_reference,
                 index_in_type,
                 bcd);
-    layer.sharing_info->remove_user_and_delete_if_last();
-    layer.sharing_info = nullptr;
-    layer.data = nullptr;
+    if (layer.data) {
+      layer.sharing_info->remove_user_and_delete_if_last();
+      layer.sharing_info = nullptr;
+      layer.data = nullptr;
+    }
   }
 
   for (bke::Attribute *attribute : attributes) {
     const eCustomDataType type = *bke::attr_type_to_custom_data_type(attribute->data_type());
-    const bke::Attribute::DataVariant &data = attribute->data();
-    BLI_assert(std::holds_alternative<bke::Attribute::ArrayData>(data));
-    const bke::Attribute::ArrayData &array_data = std::get<bke::Attribute::ArrayData>(data);
-    store_layer(type,
-                array_data.data,
-                array_data.sharing_info.get(),
-                data_len,
-                bs_index,
-                bcd_reference,
-                index_in_type,
-                bcd);
-    attribute->assign_data({});
+    switch (attribute->storage_type()) {
+      case bke::AttrStorageType::Array: {
+        const auto &data = std::get<bke::Attribute::ArrayData>(attribute->data());
+        store_layer(type,
+                    data.data,
+                    data.sharing_info.get(),
+                    data_len,
+                    bs_index,
+                    bcd_reference,
+                    index_in_type,
+                    bcd);
+        attribute->assign_data(bke::Attribute::ArrayData{});
+        break;
+      }
+      case bke::AttrStorageType::Single: {
+        int &i = index_in_type.lookup_or_add(type, 0);
+        BLI_SCOPED_DEFER([&]() { i++; });
+        if (CustomData_layertype_is_dynamic(type)) {
+          bcd.non_trivial_arrays.lookup_or_add_default(type).append(ImplicitSharingInfoAndData{});
+          break;
+        }
+        const int stride = CustomData_sizeof(type);
+        BLI_array_store_at_size_ensure(
+            &um_arraystore.bs_stride[bs_index], stride, array_chunk_size_calc(stride));
+        bcd.trivial_arrays.lookup_or_add_default(type).append(nullptr);
+        break;
+      }
+    }
   }
 
   if (bcd.trivial_arrays.is_empty() && bcd.non_trivial_arrays.is_empty()) {
@@ -445,6 +467,10 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
 
     int &i = index_in_type.lookup_or_add(type, 0);
     BLI_SCOPED_DEFER([&]() { i++; });
+
+    if (attribute->storage_type() == bke::AttrStorageType::Single) {
+      continue;
+    }
 
     bke::Attribute::ArrayData array_data{};
     if (bcd->non_trivial_arrays.contains(type)) {
@@ -581,8 +607,8 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
               &um_arraystore.bs_stride[ARRAY_STORE_INDEX_SHAPE],
               stride,
               array_chunk_size_calc(stride));
-          um->store.keyblocks = MEM_new_array_uninitialized<BArrayState *>(mesh->key->totkey,
-                                                                           __func__);
+          um->store.keyblocks = MEM_new_array_uninitialized<BArrayState *>(
+              mesh->key->totkey, "um_arraystore_compact keyblocks");
 
           KeyBlock *keyblock = static_cast<KeyBlock *>(mesh->key->block.first);
           for (int i = 0; i < mesh->key->totkey; i++, keyblock = keyblock->next) {
@@ -631,7 +657,10 @@ static void um_arraystore_expand_clear(UndoMesh *um)
   um_arraystore_cd_clear(&mesh->corner_data);
   um_arraystore_cd_clear(&mesh->face_data);
   for (bke::Attribute &attr : mesh->attribute_storage.wrap()) {
-    attr.assign_data({});
+    if (attr.storage_type() == bke::AttrStorageType::Single) {
+      continue;
+    }
+    attr.assign_data(bke::Attribute::ArrayData{});
   }
   if (mesh->face_offset_indices) {
     implicit_sharing::free_shared_data(&mesh->face_offset_indices,
@@ -885,6 +914,10 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 
 #endif /* USE_ARRAY_STORE */
 
+/* -------------------------------------------------------------------- */
+/** \name Undo/Redo Helper Functions
+ * \{ */
+
 /* for callbacks */
 /* undo simply makes copies of a bmesh */
 /**
@@ -1031,7 +1064,7 @@ static void undomesh_to_editmesh(UndoMesh *um,
   convert_params.calc_vert_normal = false;
   convert_params.active_shapekey = um->shapenr;
   BM_mesh_bm_from_me(bm, um->mesh, &convert_params);
-  BLI_freelistN(vertex_group_names);
+  vertex_group_names->free_no_destruct();
   BKE_defgroup_copy_list(vertex_group_names, &um->mesh->vertex_group_names);
   *vertex_group_active_index = um->mesh->vertex_group_active_index;
 
@@ -1084,9 +1117,10 @@ static void undomesh_free_data(UndoMesh *um)
 
 static Object *editmesh_object_from_context(bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_MESH) {
     const Mesh *mesh = id_cast<Mesh *>(obedit->data);
@@ -1116,9 +1150,9 @@ struct MeshUndoStep_Elem {
  */
 struct MeshUndoStep_SceneData {
   char selectmode;
-  char uv_selectmode;
-  char uv_sticky;
-  char uv_flag;
+  eTool_UvSelectMode uv_selectmode;
+  eTool_UvSticky uv_sticky;
+  eTool_UvFlag uv_flag;
 };
 
 struct MeshUndoStep {
@@ -1145,7 +1179,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const ToolSettings *ts = scene->toolsettings;
-  Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
+  Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(*bmain, scene, view_layer);
 
   us->scene_ref.ptr = scene;
   us->elems = MEM_new_array_zeroed<MeshUndoStep_Elem>(objects.size(), __func__);
@@ -1238,17 +1272,23 @@ static void mesh_undosys_step_decode(
 
   /* The first element is always active */
   ED_undo_object_set_active_or_warn(
-      scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
+      *bmain, scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
 
   /* Check after setting active (unless undoing into another scene). */
   BLI_assert(mesh_undosys_poll(C) || (scene != CTX_data_scene(C)));
 
+  /* NOTE: Changes here must be accounted for:
+   * - With properties flags, since tool-settings disables undo for all members by default,
+   *   #PROP_FORCE_UNDO needs to be enabled for these settings.
+   * - #ED_undo_is_legacy_compatible_for_property
+   *   which disables undo for all non-mesh ID's in edit-mode.
+   */
   {
     /* Follow settings related to selection.
      * While other flags could be included too: it's important the user doesn't
      * undo into a state where the scene settings would show a different selection
      * to the selection the user was previously editing. */
-    constexpr char uv_flag_undo = UV_FLAG_SELECT_SYNC | UV_FLAG_SELECT_ISLAND;
+    constexpr eTool_UvFlag uv_flag_undo = UV_FLAG_SELECT_SYNC | UV_FLAG_SELECT_ISLAND;
 
     ToolSettings *ts = scene->toolsettings;
     const MeshUndoStep_SceneData &scene_data = us->scene_data;
@@ -1289,7 +1329,7 @@ static void mesh_undosys_foreach_ID_ref(UndoStep *us_p,
 
 void ED_mesh_undosys_type(UndoType *ut)
 {
-  ut->name = "Edit Mesh";
+  ut->identifier = "EDIT_MESH";
   ut->poll = mesh_undosys_poll;
   ut->step_encode = mesh_undosys_step_encode;
   ut->step_decode = mesh_undosys_step_decode;

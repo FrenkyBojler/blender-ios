@@ -39,8 +39,14 @@ math_nodes = {
 }
 
 switch_nodes = {
+    "GeometryNodeSwitch",
     "GeometryNodeMenuSwitch",
     "GeometryNodeIndexSwitch",
+}
+
+has_child_sockets = {
+    "NodeCombineBundle",
+    "NodeSeparateBundle",
 }
 
 
@@ -48,7 +54,10 @@ def cast_value(source, target):
     source_type = source.type
     target_type = target.type
 
-    value = source.default_value
+    if hasattr(source, "default_value"):
+        value = source.default_value
+    else:
+        return None
 
     def to_bool(value):
         return value > 0
@@ -245,11 +254,36 @@ class NodeSwapOperator(NodeOperator):
         "operation",
         "domain",
         "data_type",
+        "image",
+        "interpolation",
+    )
+
+    image_user_settings = (
+        'frame_current',
+        'frame_duration',
+        'frame_offset',
+        'frame_start',
+        'tile',
+        'use_auto_refresh',
+        'use_cyclic',
+    )
+
+    id_prop_names = (
+        'collection',
+        'image',
+        'material',
+        'object',
     )
 
     @classmethod
     def poll(cls, context):
         if (context.area is None) or (context.area.type != "NODE_EDITOR"):
+            return False
+
+        if context.space_data.edit_tree is None:
+            return False
+
+        if context.space_data.edit_tree.library is not None:
             return False
 
         if len(context.selected_nodes) <= 0:
@@ -269,15 +303,58 @@ class NodeSwapOperator(NodeOperator):
                 except (TypeError, ValueError):
                     pass
 
+    def transfer_datablock_properties(self, old_node, new_node):
+        for prop_name in self.id_prop_names:
+            socket_name = prop_name.title()
+
+            if hasattr(old_node, prop_name):
+                prop = getattr(old_node, prop_name)
+            else:
+                socket = old_node.inputs.get(socket_name)
+                if socket is not None:
+                    prop = socket.default_value
+                else:
+                    continue
+
+            try:
+                if hasattr(new_node, prop_name):
+                    setattr(new_node, prop_name, prop)
+                else:
+                    socket = new_node.inputs.get(socket_name)
+                    if socket is not None:
+                        socket.default_value = prop
+            except (TypeError, ValueError):
+                continue
+
+    # NOTE: Node.image_user is read-only, so its properties are copied over one-by-one.
+    def transfer_image_user_settings(self, old_node, new_node):
+        image_user_attr = "image_user"
+
+        if not (hasattr(old_node, image_user_attr) and hasattr(new_node, image_user_attr)):
+            return
+
+        old_image_user = getattr(old_node, image_user_attr)
+        new_image_user = getattr(new_node, image_user_attr)
+
+        for attr in self.image_user_settings:
+            try:
+                setattr(new_image_user, attr, getattr(old_image_user, attr))
+            except (AttributeError, KeyError, TypeError):
+                pass
+
     def transfer_input_values(self, old_node, new_node):
-        if (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes):
+        both_math_nodes = (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes)
+        both_switch_nodes = (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes)
+
+        transfer_by_index = both_math_nodes or both_switch_nodes
+
+        if transfer_by_index:
             for source_input, target_input in zip(old_node.inputs, new_node.inputs):
 
                 new_value = cast_value(source=source_input, target=target_input)
 
                 if new_value is not None:
                     target_input.default_value = new_value
-
         else:
             for input in old_node.inputs:
                 try:
@@ -295,54 +372,106 @@ class NodeSwapOperator(NodeOperator):
 
     @staticmethod
     def transfer_links(tree, old_node, new_node, is_input):
+        is_reroute = old_node.bl_idname == "NodeReroute"
+
         both_math_nodes = (old_node.bl_idname in math_nodes) and (new_node.bl_idname in math_nodes)
+        both_switch_nodes = (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes)
+
+        transfer_by_index = both_math_nodes or both_switch_nodes
 
         if is_input:
-            if both_math_nodes:
+            if transfer_by_index:
                 for i, input in enumerate(old_node.inputs):
                     for link in input.links[:]:
                         try:
+                            is_muted = link.is_muted
+                            old_socket = link.from_socket
                             new_socket = new_node.inputs[i]
 
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
-                            tree.links.new(link.from_socket, new_socket)
+                            new_link = tree.links.new(old_socket, new_socket)
+                            new_link.is_muted = is_muted
+
+                            if not new_link.is_valid:
+                                tree.links.remove(new_link)
+
                         except IndexError:
                             pass
+            elif is_reroute:
+                # Transfer reroute input to the first compatible socket.
+                input = old_node.inputs[0]
+                new_socket = None
+                for s in new_node.inputs:
+                    if s.hide or not s.enabled:
+                        continue
+                    if s.type == input.type or cast_value(input, s) is not None:
+                        new_socket = s
+                        break
+                if new_socket:
+                    for link in input.links[:]:
+                        is_muted = link.is_muted
+                        new_link = tree.links.new(link.from_socket, new_socket)
+                        new_link.is_muted = is_muted
             else:
                 for input in old_node.inputs:
                     links = sorted(input.links, key=lambda link: link.multi_input_sort_id)
 
                     for link in links:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.inputs[input.name]
 
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
-                            tree.links.new(link.from_socket, new_socket)
+                            new_link = tree.links.new(link.from_socket, new_socket)
+                            new_link.is_muted = is_muted
                         except KeyError:
                             pass
 
         else:
-            if both_math_nodes:
+            if transfer_by_index:
                 for i, output in enumerate(old_node.outputs):
                     for link in output.links[:]:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.outputs[i]
 
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
                             new_link = tree.links.new(new_socket, link.to_socket)
+                            new_link.is_muted = is_muted
                         except IndexError:
                             pass
+            elif is_reroute:
+                # Find first compatible output socket.
+                output = old_node.outputs[0]
+                new_socket = None
+                for s in new_node.outputs:
+                    if s.hide or not s.enabled:
+                        continue
+                    if s.type == output.type or cast_value(s, output) is not None:
+                        new_socket = s
+                        break
+                if new_socket:
+                    # Transfer reroute outputs to chosen socket.
+                    for link in output.links[:]:
+                        is_muted = link.is_muted
+                        is_multi_input = link.to_socket.is_multi_input
 
+                        new_link = tree.links.new(new_socket, link.to_socket)
+                        new_link.is_muted = is_muted
+
+                        if is_multi_input:
+                            new_link.swap_multi_input_sort_id(link)
             else:
                 for output in old_node.outputs:
                     for link in output.links[:]:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.outputs[output.name]
 
                             if new_socket.hide or not new_socket.enabled:
@@ -351,6 +480,7 @@ class NodeSwapOperator(NodeOperator):
                             is_multi_input = link.to_socket.is_multi_input
 
                             new_link = tree.links.new(new_socket, link.to_socket)
+                            new_link.is_muted = is_muted
 
                             if is_multi_input:
                                 new_link.swap_multi_input_sort_id(link)
@@ -362,41 +492,56 @@ class NodeSwapOperator(NodeOperator):
     def get_switch_items(node):
         switch_type = node.bl_idname
 
+        if switch_type == "GeometryNodeSwitch":
+            return [node.inputs["False"], node.inputs["True"]]
         if switch_type == "GeometryNodeMenuSwitch":
             return node.enum_definition.enum_items
         if switch_type == "GeometryNodeIndexSwitch":
             return node.index_switch_items
+
         return None
 
     def transfer_switch_data(self, old_node, new_node):
         old_switch_items = self.get_switch_items(old_node)
         new_switch_items = self.get_switch_items(new_node)
 
-        new_switch_items.clear()
+        old_selector_value = old_node.inputs[0].default_value
+        if old_node.bl_idname == "GeometryNodeMenuSwitch":
+            if old_selector_value == '':
+                old_selector_value = 0
+            else:
+                old_selector_value = next(i for i, item in enumerate(
+                    old_switch_items) if item.name == old_selector_value)
 
-        if new_node.bl_idname == "GeometryNodeMenuSwitch":
-            for i, old_item in enumerate(old_switch_items[:]):
-                # Change the menu item names to numerical indices.
-                # This makes it so that later functions that match by socket name work on the switches.
-                if hasattr(old_item, "name"):
-                    old_item.name = str(i)
+        if new_node.bl_idname in {"GeometryNodeMenuSwitch", "GeometryNodeIndexSwitch"}:
+            new_switch_items.clear()
 
-                new_switch_items.new(str(i))
+            if old_node.bl_idname == "GeometryNodeSwitch":
+                new_node.data_type = old_node.input_type
 
-            if (old_switch_value := old_node.inputs[0].default_value) != '':
-                new_node.inputs[0].default_value = str(old_switch_value)
+            if new_node.bl_idname == "GeometryNodeMenuSwitch":
+                for i, old_item in enumerate(old_switch_items[:]):
+                    if old_node.bl_idname == "GeometryNodeSwitch":
+                        name = old_item.name
+                    elif old_node.bl_idname in {"GeometryNodeMenuSwitch", "GeometryNodeIndexSwitch"}:
+                        name = str(i)
 
+                    new_switch_items.new(name)
+
+            elif new_node.bl_idname == "GeometryNodeIndexSwitch":
+                for old_item in old_switch_items[:]:
+                    new_switch_items.new()
+
+        elif new_node.bl_idname == "GeometryNodeSwitch":
+            if old_node.bl_idname != "GeometryNodeSwitch":
+                new_node.input_type = old_node.data_type
+
+        if new_node.bl_idname == "GeometryNodeSwitch":
+            new_node.inputs[0].default_value = bool(old_selector_value)
+        elif new_node.bl_idname == "GeometryNodeMenuSwitch":
+            new_node.inputs[0].default_value = str(old_selector_value)
         elif new_node.bl_idname == "GeometryNodeIndexSwitch":
-            for i, old_item in enumerate(old_switch_items[:]):
-                # Change the menu item names to numerical indices.
-                # This makes it so that later functions that match by socket name work on the switches.
-                if hasattr(old_item, "name"):
-                    old_item.name = str(i)
-
-                new_switch_items.new()
-
-            if (old_switch_value := old_node.inputs[0].default_value) != '':
-                new_node.inputs[0].default_value = int(old_switch_value)
+            new_node.inputs[0].default_value = int(old_selector_value)
 
 
 # Simple basic operator for adding a node.
@@ -463,6 +608,26 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
 
         return None
 
+    @staticmethod
+    def get_node_sockets(node):
+        if node.bl_idname in {"NodeCombineBundle", "NodeSeparateBundle"}:
+            return node.bundle_items
+        return None
+
+    def transfer_node_sockets(self, old_node, new_node):
+        old_items = self.get_node_sockets(old_node)
+        new_items = self.get_node_sockets(new_node)
+
+        for old_item in old_items:
+            try:
+                new_item = new_items.new(old_item.socket_type, old_item.name)
+
+                if hasattr(old_item, "structure_type") and hasattr(new_item, "structure_type"):
+                    new_item.structure_type = old_item.structure_type
+
+            except RuntimeError:
+                pass
+
     def execute(self, context):
         tree = context.space_data.edit_tree
         nodes_to_delete = set()
@@ -484,6 +649,12 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                         socket.hide = True
 
             new_node.location_absolute = old_node.location_absolute
+            if old_node.bl_idname == "NodeReroute":
+                # The `new_node.dimensions` have not been computed yet, but `new_node.width` should be correct.
+                # Instead of centering the node vertically, we use an offset that makes it appear vertically
+                # centered if it were collapsed. Besides, `new_node.height` is not yet computed at this point.
+                new_node.location_absolute.x -= new_node.width / 2
+                new_node.location_absolute.y += 10
             new_node.select = True
 
             zone_pair = self.get_zone_pair(tree, old_node)
@@ -504,9 +675,14 @@ class NODE_OT_swap_node(NodeSwapOperator, Operator):
                     nodes_to_delete.add(node)
             else:
                 self.transfer_node_properties(old_node, new_node)
+                self.transfer_datablock_properties(old_node, new_node)
+                self.transfer_image_user_settings(old_node, new_node)
 
                 if (old_node.bl_idname in switch_nodes) and (new_node.bl_idname in switch_nodes):
                     self.transfer_switch_data(old_node, new_node)
+
+                if (old_node.bl_idname in has_child_sockets) and (new_node.bl_idname in has_child_sockets):
+                    self.transfer_node_sockets(old_node, new_node)
 
                 self.transfer_input_values(old_node, new_node)
 
@@ -595,6 +771,34 @@ class NODE_OT_swap_empty_group(NodeSwapOperator, bpy.types.Operator):
         return group
 
 
+class NODE_OT_add_typed_bundle(NodeAddOperator, bpy.types.Operator):
+    bl_idname = "node.add_typed_bundle"
+    bl_label = "Add Typed Bundle"
+    bl_description = "Add a Combine Bundle node with a type input"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        self.deselect_nodes(context)
+        node = self.create_node(context, "NodeCombineBundle")
+        node.bundle_items.new("STRING", "Type")
+        return {"FINISHED"}
+
+
+class NODE_OT_swap_typed_bundle(NodeSwapOperator, bpy.types.Operator):
+    bl_idname = "node.swap_typed_bundle"
+    bl_label = "Swap Typed Bundle"
+    bl_description = "Swap existing node with a Combine Bundle node with a type input"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bpy.ops.node.swap_node('INVOKE_DEFAULT', type="NodeCombineBundle")
+
+        for node in context.selected_nodes:
+            node.bundle_items.new("STRING", "Type")
+
+        return {"FINISHED"}
+
+
 class ZoneOperator:
     offset: FloatVectorProperty(
         name="Offset",
@@ -626,7 +830,7 @@ class ZoneOperator:
         if input_node_type is None:
             input_node_type = cls.input_node_type
 
-        return cls._zone_tooltips.get(input_node_type, None)
+        return tip_(cls._zone_tooltips.get(input_node_type, None))
 
 
 class NodeAddZoneOperator(ZoneOperator, NodeAddOperator):
@@ -728,12 +932,13 @@ class NODE_OT_swap_zone(ZoneOperator, NodeSwapOperator, Operator):
 
         if node.bl_idname.startswith("GeometryNodeSimulation"):
             return output_node.state_items
-        elif node.bl_idname.startswith("GeometryNodeRepeat"):
+        if node.bl_idname.startswith("GeometryNodeRepeat"):
             return output_node.repeat_items
-        elif node.bl_idname == "NodeClosureInput":
+        if node.bl_idname == "NodeClosureInput":
             return output_node.input_items
-        elif node.bl_idname == "NodeClosureOutput":
+        if node.bl_idname == "NodeClosureOutput":
             return output_node.output_items
+        return None
 
     def transfer_zone_sockets(self, old_node, new_node):
         old_children = self.get_child_items(old_node)
@@ -1062,8 +1267,11 @@ class NODE_OT_interface_item_new_panel_toggle(Operator):
         active_panel = interface.active
 
         item = interface.new_socket(active_panel.name, socket_type='NodeSocketBool', in_out='INPUT')
-        item.is_panel_toggle = True
+
+        # Set is_panel_toggle after moving into parent
         interface.move_to_parent(item, active_panel, 0)
+        item.is_panel_toggle = True
+
         return {'FINISHED'}
 
 
@@ -1179,8 +1387,6 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         # Use the same name as the panel in the UI for clarity.
         active_item.name = parent_panel.name
 
-        # Move the socket to the first position.
-        interface.move_to_parent(active_item, parent_panel, 0)
         # Make the panel active.
         interface.active = parent_panel
 
@@ -1374,6 +1580,8 @@ classes = (
     NODE_OT_add_repeat_zone,
     NODE_OT_add_foreach_geometry_element_zone,
     NODE_OT_add_closure_zone,
+    NODE_OT_add_typed_bundle,
+    NODE_OT_swap_typed_bundle,
     NODE_OT_collapse_hide_unused_toggle,
     NODE_OT_interface_item_new,
     NODE_OT_interface_item_new_panel_toggle,

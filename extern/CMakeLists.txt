@@ -15,11 +15,12 @@ remove_strict_flags()
 
 # Not a strict flag, but noisy for code we don't maintain
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  remove_cc_flag(
+  remove_c_and_cxx_flag(
+    "-Wextra"
     "-Wmisleading-indentation"
   )
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  remove_cc_flag(
+  remove_c_and_cxx_flag(
     "-Weverything"
     "-Wextra"
     "-Wnull-pointer-subtraction"
@@ -54,10 +55,6 @@ if(WITH_BULLET)
   endif()
 endif()
 
-if(WITH_DRACO)
-  add_subdirectory(draco)
-endif()
-
 if(WITH_BINRELOC)
   add_subdirectory(binreloc)
 endif()
@@ -73,10 +70,6 @@ endif()
 
 if(WITH_GHOST_X11 AND WITH_GHOST_XDND)
   add_subdirectory(xdnd)
-endif()
-
-if(WITH_LIBMV)
-  add_subdirectory(ceres)
 endif()
 
 if(WITH_LIBMV OR WITH_GTESTS)
@@ -109,4 +102,9 @@ endif()
 
 if(WITH_VULKAN_BACKEND)
   add_subdirectory(vulkan_memory_allocator)
+  add_subdirectory(volk)
+endif()
+
+if(WITH_TRACY)
+  add_subdirectory(tracy_profiler)
 endif()

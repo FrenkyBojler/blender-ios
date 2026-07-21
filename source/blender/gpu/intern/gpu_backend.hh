@@ -35,6 +35,8 @@ class TexturePool;
 class UniformBuf;
 class StorageBuf;
 class VertBuf;
+class TopLevelAS;
+class BottomLevelAS;
 
 class GPUBackend {
  protected:
@@ -55,7 +57,6 @@ class GPUBackend {
     return compiler_;
   }
 
-  virtual void samplers_update() = 0;
   virtual void compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len) = 0;
   virtual void compute_dispatch_indirect(StorageBuf *indirect_buf) = 0;
 
@@ -73,6 +74,8 @@ class GPUBackend {
   virtual UniformBuf *uniformbuf_alloc(size_t size, const char *name) = 0;
   virtual StorageBuf *storagebuf_alloc(size_t size, GPUUsageType usage, const char *name) = 0;
   virtual VertBuf *vertbuf_alloc() = 0;
+  virtual TopLevelAS *tlas_alloc(const char *name) = 0;
+  virtual BottomLevelAS *blas_alloc(const char *name) = 0;
   virtual void shader_cache_dir_clear_old() = 0;
 
   /* Render Frame Coordination --

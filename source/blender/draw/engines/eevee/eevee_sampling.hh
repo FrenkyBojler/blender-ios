@@ -63,6 +63,11 @@ class Sampling {
    * Accumulation sampling from sample interactive_mode_threshold to sample_count_.
    */
   static constexpr int interactive_mode_threshold = 3;
+  /**
+   * For overwriting pixel jitter sample position.
+   */
+  bool use_custom_pixel_jitter_sample_ = false;
+  float2 custom_pixel_jitter_sample_ = {};
 
   SamplingDataBuf data_ = {"SamplingDataBuf"};
 
@@ -143,6 +148,12 @@ class Sampling {
     return sample_;
   }
 
+  /* Returns true if a custom pixel jitter sample position is set. */
+  bool use_custom_pixel_jitter_sample() const
+  {
+    return use_custom_pixel_jitter_sample_;
+  }
+
   bool use_clamp_direct() const
   {
     return clamp_data_.surface_direct != 0.0f;
@@ -151,6 +162,26 @@ class Sampling {
   bool use_clamp_indirect() const
   {
     return clamp_data_.surface_indirect != 0.0f;
+  }
+
+  bool use_direct_scale() const
+  {
+    return clamp_data_.direct_scale != 1.0f;
+  }
+
+  float direct_scale() const
+  {
+    return clamp_data_.direct_scale;
+  }
+
+  bool use_indirect_scale() const
+  {
+    return clamp_data_.indirect_scale != 1.0f;
+  }
+
+  float indirect_scale() const
+  {
+    return clamp_data_.indirect_scale;
   }
 
   /* Return true if we are starting a new motion blur step. We need to run sync again since

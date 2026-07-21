@@ -17,8 +17,8 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
 
 #include "BLT_translation.hh"
 
@@ -174,7 +174,7 @@ static void datadropper_id_sample_pt(
               id = ob->data;
             }
             else {
-              SNPRINTF_UTF8(ddr->name, "Incompatible, expected a %s", ddr->idcode_name);
+              SNPRINTF_UTF8(ddr->name, RPT_("Incompatible, expected a %s"), ddr->idcode_name);
             }
           }
 

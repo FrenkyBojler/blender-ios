@@ -11,11 +11,7 @@
 #  include "device/hip/queue.h"
 #  include "device/hiprt/queue.h"
 
-#  ifdef WITH_HIP_DYNLOAD
-#    include <hiprtew.h>
-#  else
-#    include <hiprt/hiprt_types.h>
-#  endif
+#  include <hiprt/hiprt_types.h>
 
 CCL_NAMESPACE_BEGIN
 
@@ -29,6 +25,8 @@ class BVHHIPRT;
 class HIPRTDevice : public HIPDevice {
 
  public:
+  static bool is_supported();
+
   BVHLayoutMask get_bvh_layout_mask(const uint kernel_features) const override;
 
   HIPRTDevice(const DeviceInfo &info, Stats &stats, Profiler &profiler, bool headless);
@@ -60,11 +58,8 @@ class HIPRTDevice : public HIPDevice {
   hiprtGeometryBuildInput prepare_triangle_blas(BVHHIPRT *bvh, Mesh *mesh);
   hiprtGeometryBuildInput prepare_curve_blas(BVHHIPRT *bvh, Hair *hair);
   hiprtGeometryBuildInput prepare_point_blas(BVHHIPRT *bvh, PointCloud *pointcloud);
-  void build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions options);
-  hiprtScene build_tlas(BVHHIPRT *bvh,
-                        const vector<Object *> &objects,
-                        hiprtBuildOptions options,
-                        bool refit);
+  void build_blas(BVHHIPRT *bvh, Geometry *geom);
+  hiprtScene build_tlas(BVHHIPRT *bvh, const vector<Object *> &objects, bool refit);
   void free_bvh_memory_delayed();
 
   hiprtContext hiprt_context;
@@ -125,18 +120,6 @@ class HIPRTDevice : public HIPDevice {
   device_vector<int> user_instance_id;
   device_vector<hiprtInstance> hiprt_blas_ptr;
   device_vector<uint64_t> blas_ptr;
-
-  /* custom_prim_info stores custom information for custom primitives for all the primitives in a
-   * scene. Primitive id that HIP RT returns is local to the geometry that was hit.
-   * custom_prim_info_offset returns the offset required to add to the primitive id to retrieve
-   * primitive info from custom_prim_info. */
-  device_vector<int2> custom_prim_info;
-  device_vector<int2> custom_prim_info_offset;
-
-  /* prims_time stores primitive time for geometries with motion blur.
-   * prim_time_offset returns the offset to add to primitive id to retrieve primitive time. */
-  device_vector<float2> prims_time;
-  device_vector<int> prim_time_offset;
 };
 CCL_NAMESPACE_END
 

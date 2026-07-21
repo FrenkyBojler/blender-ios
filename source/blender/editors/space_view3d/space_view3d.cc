@@ -12,6 +12,7 @@
 #include <cstring>
 
 #include "DNA_collection_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
@@ -20,11 +21,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_asset.hh"
 #include "BKE_context.hh"
@@ -40,6 +42,7 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_vfont.hh"
 #include "BKE_viewer_path.hh"
 
 #include "ED_asset_shelf.hh"
@@ -554,6 +557,53 @@ static void *view3d_main_region_duplicate(void *poin)
   return nullptr;
 }
 
+#ifdef WITH_INPUT_IME
+static std::optional<rcti> view3d_main_region_cursor_ime(wmWindow *win,
+                                                         const ScrArea * /*area*/,
+                                                         const ARegion *region)
+{
+  /* Defer during viewport navigation (orbit, pan, zoom, fly, walk). */
+  const RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+  if (rv3d->rflag & RV3D_NAVIGATING) {
+    return std::nullopt;
+  }
+
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  if (!view_layer) {
+    return std::nullopt;
+  }
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (!(ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT)) {
+    return std::nullopt;
+  }
+
+  const Curve *cu = id_cast<Curve *>(ob->data);
+  const EditFont *ef = cu->editfont;
+  /* `cu->editfont` can be nullptr on Blender startup. */
+  if (!ef) {
+    return std::nullopt;
+  }
+
+  /* Lower-left corner of the caret; returned as a zero-size rectangle since the caret may be
+   * rotated by the object transform, where an axis-aligned size would not represent it well. */
+  const float3 cursor_local = {ef->textcurs[0].x, ef->textcurs[0].y, 0.0f};
+  /* Transform to world space, then project to region coordinates. */
+  const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
+  float2 cursor_screen;
+  if (ED_view3d_project_float_global(
+          region, cursor_world, cursor_screen, V3D_PROJ_TEST_CLIP_NEAR) != V3D_PROJ_RET_OK)
+  {
+    /* Cursor is behind the view (near-plane clipped), no usable position. */
+    return std::nullopt;
+  }
+
+  const int x = int(cursor_screen[0]);
+  const int y = int(cursor_screen[1]);
+  return rcti{x, x, y, y};
+}
+
+#endif
+
 static void view3d_main_region_listener(const wmRegionListenerParams *params)
 {
   wmWindow *window = params->window;
@@ -931,9 +981,10 @@ static void view3d_main_region_message_subscribe(const wmRegionMessageSubscribeP
   WM_msg_subscribe_rna_anon_type(mbus, SceneDisplay, &msg_sub_value_region_tag_redraw);
   WM_msg_subscribe_rna_anon_type(mbus, ObjectDisplay, &msg_sub_value_region_tag_redraw);
 
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   if (obact != nullptr) {
     switch (obact->mode) {
@@ -964,7 +1015,9 @@ static void view3d_main_region_cursor(wmWindow *win, ScrArea *area, ARegion *reg
 
   Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  /* FIXME: Probably need to pass Main to this callback? For now though, using G_MAIN should be
+   * fine here.*/
+  BKE_view_layer_synced_ensure(*G_MAIN, scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit) {
     WM_cursor_set(win, WM_CURSOR_EDIT);
@@ -1018,7 +1071,6 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
           ED_region_tag_redraw(region);
           break;
         case ND_SPACE_ASSET_PARAMS:
-          ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
       }
@@ -1028,12 +1080,10 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
         case ND_ASSET_CATALOGS:
         case ND_ASSET_LIST:
         case ND_ASSET_LIST_READING:
-          ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
         default:
           if (ELEM(wmn->action, NA_ADDED, NA_REMOVED)) {
-            ed::geometry::clear_operator_asset_trees();
             ED_region_tag_redraw(region);
           }
       }
@@ -1041,7 +1091,6 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
     case NC_NODE:
       switch (wmn->data) {
         case ND_NODE_ASSET_DATA:
-          ed::geometry::clear_operator_asset_trees();
           ED_region_tag_redraw(region);
           break;
       }
@@ -1064,7 +1113,7 @@ static void view3d_header_region_listener(const wmRegionListenerParams *params)
       break;
     case NC_MATERIAL:
       /* For the canvas picker. */
-      if (wmn->data == ND_SHADING_LINKS) {
+      if (ELEM(wmn->data, ND_SHADING_LINKS, ND_NODES)) {
         ED_region_tag_redraw(region);
       }
       break;
@@ -1558,8 +1607,7 @@ static void view3d_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
   v3d->runtime = View3D_Runtime{};
 
-  if (v3d->gpd) {
-    BLO_read_struct(reader, bGPdata, &v3d->gpd);
+  if (BLO_read_struct_nonnull(reader, bGPdata, &v3d->gpd)) {
     BKE_gpencil_blend_read_data(reader, v3d->gpd);
   }
   BLO_read_struct(reader, RegionView3D, &v3d->localvd);
@@ -1627,6 +1675,9 @@ void ED_spacetype_view3d()
   art->exit = view3d_main_region_exit;
   art->free = view3d_main_region_free;
   art->duplicate = view3d_main_region_duplicate;
+#ifdef WITH_INPUT_IME
+  art->cursor_ime = view3d_main_region_cursor_ime;
+#endif
   art->listener = view3d_main_region_listener;
   art->message_subscribe = view3d_main_region_message_subscribe;
   art->cursor = view3d_main_region_cursor;

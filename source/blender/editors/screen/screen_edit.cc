@@ -16,10 +16,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_rect.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_rect.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -103,8 +103,7 @@ ScrArea *area_split(const wmWindow *win,
                     bScreen *screen,
                     ScrArea *area,
                     const eScreenAxis dir_axis,
-                    const float fac,
-                    const bool merge)
+                    const float fac)
 {
   ScrArea *newa = nullptr;
 
@@ -187,10 +186,6 @@ ScrArea *area_split(const wmWindow *win,
     ED_area_data_copy(newa, area, true);
   }
 
-  /* remove double vertices en edges */
-  if (merge) {
-    BKE_screen_remove_double_scrverts(screen);
-  }
   BKE_screen_remove_double_scredges(screen);
   BKE_screen_remove_unused_scredges(screen);
 
@@ -255,7 +250,7 @@ eScreenDir area_getorientation(ScrArea *sa_a, ScrArea *sa_b)
     return eScreenDir(3); /* sa_a on top of sa_b = S */
   }
   if (left_a == right_b && overlapy >= miny) {
-    return eScreenDir(0); /* sa_a to right of sa_b = W */
+    return eScreenDir{}; /* sa_a to right of sa_b = W */
   }
   if (right_a == left_b && overlapy >= miny) {
     return eScreenDir(2); /* sa_a to left of sa_b = E */
@@ -478,7 +473,7 @@ static ScrArea *screen_area_trim(
                                            ((*area)->v3->vec.y - (*area)->v1->vec.y));
   fac = (reverse == vertical) ? 1.0f - fac : fac;
   ScrArea *newsa = area_split(
-      CTX_wm_window(C), screen, *area, vertical ? SCREEN_AXIS_V : SCREEN_AXIS_H, fac, true);
+      CTX_wm_window(C), screen, *area, vertical ? SCREEN_AXIS_V : SCREEN_AXIS_H, fac);
 
   /* area_split always returns smallest of the two areas, so might have to swap. */
   if (((fac > 0.5f) == vertical) != reverse) {
@@ -576,7 +571,7 @@ bool screen_area_close(
   float best_alignment = 0.0f;
 
   for (ScrArea &neighbor : screen->areabase) {
-    if (&neighbor == area || &neighbor == not_area) {
+    if (ELEM(&neighbor, area, not_area)) {
       continue;
     }
     const eScreenDir dir = area_getorientation(area, &neighbor);
@@ -609,7 +604,7 @@ void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type sp
   area->regionbase = slink->regionbase;
 
   BLI_addhead(&area->spacedata, slink);
-  BLI_listbase_clear(&slink->regionbase);
+  slink->regionbase.clear_no_delete();
 }
 
 /* ****************** EXPORTED API TO OTHER MODULES *************************** */
@@ -957,12 +952,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
   CTX_wm_window_set(C, window);
 
   if (screen->animtimer) {
-    WM_event_timer_remove(wm, window, screen->animtimer);
-
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-    Scene *scene = WM_window_get_active_scene(prevwin);
-    Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
-    BKE_sound_stop_scene(scene_eval);
+    screen_stop_playback(CTX_data_main(C), wm, window, screen);
   }
   screen->animtimer = nullptr;
   screen->scrubbing = false;
@@ -983,7 +973,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
   /* mark it available for use for other windows */
   screen->winid = 0;
 
-  if (!WM_window_is_temp_screen(prevwin)) {
+  if (prevwin && !WM_window_is_temp_screen(prevwin)) {
     /* use previous window if possible */
     CTX_wm_window_set(C, prevwin);
   }
@@ -1058,7 +1048,15 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
 
     if (actedge) {
       if (screen_geom_edge_is_horizontal(actedge)) {
-        WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        rcti screen_rect;
+        WM_window_screen_rect_calc(win, &screen_rect);
+        /* Check if edge is at top of screen (with small threshold that scales with interface). */
+        if (actedge->v1->vec.y >= screen_rect.ymax - int(2.0f * UI_SCALE_FAC)) {
+          WM_cursor_set(win, WM_CURSOR_DEFAULT);
+        }
+        else {
+          WM_cursor_set(win, WM_CURSOR_Y_MOVE);
+        }
       }
       else {
         WM_cursor_set(win, WM_CURSOR_X_MOVE);
@@ -1170,6 +1168,12 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
       }
     }
   }
+
+#ifdef WITH_INPUT_IME
+  if (region_prev != screen->active_region) {
+    WM_window_IME_region_refresh(win, area, screen->active_region);
+  }
+#endif
 }
 
 int ED_screen_area_active(const bContext *C)
@@ -1277,12 +1281,14 @@ static int screen_global_header_size()
 
 static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 {
-  const int2 win_size = WM_window_native_pixel_size(win);
   const short size = screen_global_header_size();
   rcti rect;
 
-  BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
-  rect.ymin = rect.ymax - size;
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
+  WM_window_rect_calc(win, &rect);
+  rect.xmax -= 1;
+  rect.ymin = (rect.ymax - 1) - size;
+  rect.ymax -= 1;
 
   screen_global_area_refresh(
       win, screen, SPACE_TOPBAR, GLOBAL_AREA_ALIGN_TOP, &rect, size, size, size);
@@ -1290,13 +1296,14 @@ static void screen_global_topbar_area_refresh(wmWindow *win, bScreen *screen)
 
 static void screen_global_statusbar_area_refresh(wmWindow *win, bScreen *screen)
 {
-  const int2 win_size = WM_window_native_pixel_size(win);
   const short size_min = 1;
   const short size_max = 0.85f * screen_global_header_size();
   const short size = (screen->flag & SCREEN_COLLAPSE_STATUSBAR) ? size_min : size_max;
   rcti rect;
 
-  BLI_rcti_init(&rect, 0, win_size[0] - 1, 0, win_size[1] - 1);
+  /* Use content rect to account for CSD, converted to inclusive bounds for area geometry. */
+  WM_window_rect_calc(win, &rect);
+  rect.xmax -= 1;
   rect.ymax = rect.ymin + size_max;
 
   screen_global_area_refresh(
@@ -1419,17 +1426,15 @@ bool ED_screen_change(bContext *C, bScreen *screen)
   return false;
 }
 
-static void screen_set_3dview_camera(Scene *scene,
-                                     ViewLayer *view_layer,
-                                     ScrArea *area,
-                                     View3D *v3d)
+static void screen_set_3dview_camera(
+    const Main &bmain, Scene *scene, ViewLayer *view_layer, ScrArea *area, View3D *v3d)
 {
   /* Fix any cameras that are used in the 3d view but not in the scene. */
   BKE_screen_view3d_sync(v3d, scene);
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(bmain, scene, view_layer);
   if (!v3d->camera || !BKE_view_layer_base_find(view_layer, v3d->camera)) {
-    v3d->camera = BKE_view_layer_camera_find(scene, view_layer);
+    v3d->camera = BKE_view_layer_camera_find(bmain, scene, view_layer);
   }
   ListBaseT<ARegion> *regionbase;
 
@@ -1494,18 +1499,19 @@ void ED_screen_scene_change(bContext *C,
 #endif
 
   /* Update 3D view cameras. */
+  const Main *bmain = CTX_data_main(C);
   const bScreen *screen = WM_window_get_active_screen(win);
   for (ScrArea &area : screen->areabase) {
     for (SpaceLink &sl : area.spacedata) {
       if (sl.spacetype == SPACE_VIEW3D) {
         View3D *v3d = reinterpret_cast<View3D *>(&sl);
-        screen_set_3dview_camera(scene, view_layer, &area, v3d);
+        screen_set_3dview_camera(*bmain, scene, view_layer, &area, v3d);
       }
     }
   }
 
   if (refresh_toolsystem) {
-    WM_toolsystem_refresh_screen_window(win);
+    WM_toolsystem_refresh_screen_window(*bmain, win);
   }
 }
 
@@ -1576,7 +1582,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *area)
   wmWindow *win = CTX_wm_window(C);
   SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
   bScreen *screen = CTX_wm_screen(C);
-  short state = (screen ? screen->state : short(SCREENMAXIMIZED));
+  eScreen_State state = (screen ? screen->state : SCREENMAXIMIZED);
 
   /* If full-screen area has a temporary space (such as a file browser or full-screen render
    * overlaid on top of an existing setup) then return to the previous space. */
@@ -1608,7 +1614,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *area)
 static bScreen *screen_state_to_nonnormal(bContext *C,
                                           wmWindow *win,
                                           ScrArea *toggle_area,
-                                          int state)
+                                          eScreen_State state)
 {
   Main *bmain = CTX_data_main(C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
@@ -1664,15 +1670,14 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
                RGN_TYPE_TOOLS,
                RGN_TYPE_NAV_BAR,
                RGN_TYPE_EXECUTE,
-               RGN_TYPE_ASSET_SHELF,
-               RGN_TYPE_ASSET_SHELF_HEADER))
+               RGN_TYPE_ASSET_SHELF))
       {
         region.flag |= RGN_FLAG_HIDDEN;
       }
     }
 
     /* Temporarily hide gizmos and overlays. */
-    screen->fullscreen_flag = 0;
+    screen->fullscreen_flag = eScreen_Fullscreen_Flag{};
     if (newa->spacetype == SPACE_VIEW3D) {
       View3D *v3d = static_cast<View3D *>(newa->spacedata.first);
       if (v3d && !(v3d->gizmo_flag & V3D_GIZMO_HIDE_NAVIGATE)) {
@@ -1726,7 +1731,10 @@ bScreen *ED_screen_state_maximized_create(bContext *C)
   return screen_state_to_nonnormal(C, CTX_wm_window(C), nullptr, SCREENMAXIMIZED);
 }
 
-ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const short state)
+ScrArea *ED_screen_state_toggle(bContext *C,
+                                wmWindow *win,
+                                ScrArea *area,
+                                const eScreen_State state)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
@@ -1782,7 +1790,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
       }
       /* restore the old side panels/header visibility */
       for (ARegion &region : area->regionbase) {
-        region.flag = region.flagfullscreen;
+        region.flag = eRegion_Flag(region.flagfullscreen);
       }
       /* Restore gizmos and overlays to their prior states. */
       if (area->spacetype == SPACE_VIEW3D) {
@@ -1919,18 +1927,45 @@ ScrArea *ED_screen_temp_space_open(
   return nullptr;
 }
 
+void ED_screen_animation_stop(Main *bmain,
+                              wmWindowManager *wm,
+                              FunctionRef<bool(const bScreen &screen)> should_stop_fn)
+{
+  /* Cannot use ED_window_animation_playing_no_scrub() here, because that only returns the window,
+   * and we need the screen too. */
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
+    if (!screen || !screen->animtimer) {
+      continue;
+    }
+    if (!should_stop_fn(*screen)) {
+      continue;
+    }
+
+    screen_stop_playback(bmain, wm, &win, screen);
+  }
+}
+
+void ED_screen_animation_timer_remove(wmWindowManager *wm, wmWindow *win)
+{
+  /* `ED_screen_animation_playing` isn't used, as it also checks for screens with
+   *  scrubbing enabled*/
+  bScreen *stopscreen = ED_screen_animation_no_scrub(wm);
+  if (!stopscreen) {
+    return;
+  }
+  WM_event_timer_remove(wm, win, stopscreen->animtimer);
+  stopscreen->animtimer = nullptr;
+}
+
 void ED_screen_animation_timer(
     bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  bScreen *stopscreen = ED_screen_animation_playing(wm);
 
-  if (stopscreen) {
-    WM_event_timer_remove(wm, win, stopscreen->animtimer);
-    stopscreen->animtimer = nullptr;
-  }
+  ED_screen_animation_timer_remove(wm, win);
 
   if (enable) {
     ScreenAnimData *sad = MEM_new_zeroed<ScreenAnimData>("ScreenAnimData");
@@ -1945,7 +1980,7 @@ void ED_screen_animation_timer(
 
     sad->sfra = scene->r.cfra;
     /* Make sure that were are inside the scene or preview frame range. */
-    CLAMP(scene->r.cfra, PSFRA, PEFRA);
+    BKE_scene_frame_clamp_for_playback(scene, enable > 0);
     if (scene->r.cfra != sad->sfra) {
       sad->flag |= ANIMPLAY_FLAG_JUMPED;
     }
@@ -2017,7 +2052,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph)
 
   DEG_time_tag_update(bmain);
 
-  void *camera = BKE_scene_camera_switch_find(scene);
+  void *camera = BKE_scene_camera_switch_find(scene, int(BKE_scene_ctime_get(scene)));
   if (camera && scene->camera != camera) {
     scene->camera = static_cast<Object *>(camera);
     /* are there cameras in the views that are not in the scene? */
