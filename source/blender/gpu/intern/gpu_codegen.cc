@@ -116,6 +116,8 @@ static std::ostream &operator<<(std::ostream &stream, const GPUConstant *input)
     case GPU_VEC2:
     case GPU_VEC3:
     case GPU_VEC4:
+    case GPU_MAT3:
+    case GPU_MAT4:
       return stream << gpu_constant_to_float_span(input->constant_data, input->type);
     case GPU_INT:
     case GPU_INT2:
