@@ -137,8 +137,8 @@ def enter(ob):
     _load_mask(ob.data, mesh_ptr, verts_num)
     _load_face_sets(ob.data, mesh_ptr)
     _load_color(ob.data, mesh_ptr, verts_num)
-    _load_uv(ob.data, mesh_ptr)
-    _load_edge_flags(ob.data, mesh_ptr)
+    has_uv = _load_uv(ob.data, mesh_ptr)
+    _load_edge_flags(ob.data, mesh_ptr, recompute=has_uv)
 
     session = Session(ob.name, mesh_ptr, tree_ptr, verts_num)
     engine.sessions[ob.name] = session
@@ -315,12 +315,15 @@ def _flush_color(mesh, mesh_ptr, verts_num, color_name=None):
     attr.data.foreach_set("color", values)
 
 
-def _load_edge_flags(mesh, mesh_ptr):
+def _load_edge_flags(mesh, mesh_ptr, recompute=False):
     """Seed the engine boundary edge flags (seam/sharp) from the Blender edge
     bool attributes. Engine vertex indices equal Blender indices at enter
     (Mesh_fromArrays creates verts in order), so edges are keyed by their
     vertex pair. Recomputes the boundary classification when anything was
-    seeded, so BSMOOTH/dyntopo see the features from the first stroke."""
+    seeded — or when the caller passes ``recompute`` (UVs were seeded, which
+    marks the whole mesh boundary-dirty) — so BSMOOTH/dyntopo see the seam/
+    sharp features *and* the derived UV-chart boundaries from the first
+    stroke."""
     import numpy as np
 
     lib = engine.capi().lib
@@ -328,7 +331,7 @@ def _load_edge_flags(mesh, mesh_ptr):
     if not edges_num:
         return
     edge_verts = None
-    seeded = False
+    seeded = recompute
     for bl_name, sc_name in _EDGE_FLAG_MAP:
         attr = mesh.attributes.get(bl_name)
         if attr is None or attr.domain != 'EDGE' or attr.data_type != 'BOOLEAN':
@@ -395,12 +398,14 @@ def _flush_edge_flags(session, mesh, vert_map):
 
 def _load_uv(mesh, mesh_ptr):
     """Seed the engine `uv` corner attribute from the active UV map (per-loop
-    float2, loop order = the engine's corner order). No-op with no UV map."""
+    float2, loop order = the engine's corner order). Returns True when UVs
+    were seeded (the engine marks the mesh boundary-dirty so the derived
+    UV-chart edge flags can be recomputed). No-op with no UV map."""
     import numpy as np
 
     uv_layer = mesh.uv_layers.active
     if uv_layer is None:
-        return
+        return False
     values = np.empty(len(mesh.loops) * 2, dtype=np.float32)
     # A UV map is a CORNER-domain FLOAT2 attribute; reading it through the
     # attribute API is a contiguous memcpy, ~300x faster than the per-element
@@ -411,6 +416,7 @@ def _load_uv(mesh, mesh_ptr):
     else:
         uv_layer.data.foreach_get("uv", values)
     engine.capi().lib.Mesh_writeCornerFloat2Attr(mesh_ptr, b"uv", values)
+    return True
 
 
 def _flush_uv(mesh, mesh_ptr):
