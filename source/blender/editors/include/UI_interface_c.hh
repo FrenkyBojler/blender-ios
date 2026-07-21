@@ -341,7 +341,7 @@ enum {
 };
 
 /** #Button.flag general state flags. */
-enum ButtonFlag {
+enum ButtonFlag : int64_t {
   /* WARNING: the first 8 flags are internal (see #UI_SELECT definition). */
 
   BUT_ICON_SUBMENU = 1 << 8,
@@ -392,22 +392,20 @@ enum ButtonFlag {
   BUT_VALUE_CLEAR = 1 << 30,
 
   /** RNA property of the button is overridden from linked reference data. */
-  BUT_OVERRIDDEN = 1u << 31u,
-};
+  BUT_OVERRIDDEN = int64_t(1) << 31,
 
-enum {
   /**
    * This is used when `BUT_ACTIVATE_ON_INIT` is used, which is used to activate e.g. a search
    * box as soon as a popup opens. Usually, the text in the search box is selected by default.
    * However, sometimes this behavior is not desired, so it can be disabled with this flag.
    */
-  BUT2_ACTIVATE_ON_INIT_NO_SELECT = 1 << 0,
+  BUT_ACTIVATE_ON_INIT_NO_SELECT = int64_t(1) << 32,
   /**
    * Force the button as active in a semi-modal state. For example, text buttons can continuously
    * capture text input, while leaving the remaining UI interactive. Only supported well for text
    * buttons currently.
    */
-  BUT2_FORCE_SEMI_MODAL_ACTIVE = 1 << 1,
+  BUT_FORCE_SEMI_MODAL_ACTIVE = int64_t(1) << 33,
 };
 
 /** #Button.dragflag */
@@ -450,6 +448,8 @@ enum {
 #define UI_PANEL_CATEGORY_MIN_WIDTH ((U.uiflag2 & USER_UIFLAG2_PANEL_TABS_COMPACT) ? 32.0f : 26.0f)
 /* Minimum width for a panel showing content and category tabs. */
 #define UI_PANEL_CATEGORY_MIN_SNAP_WIDTH 90.0f
+/* Minimum panel draw width. */
+static constexpr int PANEL_MIN_DRAW_WIDTH = 20;
 
 /* Both these margins should be ignored if the panel doesn't show a background (check
  * #panel_should_show_background()). */
@@ -992,14 +992,24 @@ Layout *pie_menu_layout(PieMenu *pie);
 using BlockCreateFunc = Block *(*)(bContext * C, ARegion *region, void *arg1);
 using BlockCancelFunc = void (*)(bContext *C, void *arg1);
 
-void popup_block_invoke(bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free);
+void popup_block_invoke(bContext *C,
+                        BlockCreateFunc func,
+                        void *arg,
+                        FreeArgFunc arg_free,
+                        StructRNA *srna_owner = nullptr);
 /**
  * \param can_refresh: When true, the popup may be refreshed (updated after creation).
  * \note It can be useful to disable refresh (even though it will work)
  * as this exits text fields which can be disruptive if refresh isn't needed.
+ * \param srna_owner: The StructRNA type that owns this popup, this popup should be removed if this
+ * type gets unregistered.
  */
-void popup_block_invoke_ex(
-    bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, bool can_refresh);
+void popup_block_invoke_ex(bContext *C,
+                           BlockCreateFunc func,
+                           void *arg,
+                           FreeArgFunc arg_free,
+                           bool can_refresh,
+                           StructRNA *srna_owner = nullptr);
 void popup_block_ex(bContext *C,
                     BlockCreateFunc func,
                     BlockHandleFunc popup_func,
@@ -1201,10 +1211,9 @@ Button *button_active_drop_name_button(const bContext *C);
 bool button_active_drop_name(const bContext *C);
 bool button_active_drop_color(bContext *C);
 
-void button_flag_enable(Button *but, int flag);
-void button_flag_disable(Button *but, int flag);
-bool button_flag_is_set(Button *but, int flag);
-void button_flag2_enable(Button *but, int flag);
+void button_flag_enable(Button *but, int64_t flag);
+void button_flag_disable(Button *but, int64_t flag);
+bool button_flag_is_set(Button *but, int64_t flag);
 
 void button_drawflag_enable(Button *but, int flag);
 void button_drawflag_disable(Button *but, int flag);
@@ -1845,7 +1854,7 @@ bool search_item_add(SearchItems *items,
                      StringRef name,
                      void *poin,
                      int iconid,
-                     int but_flag,
+                     int64_t but_flag,
                      uint8_t name_prefix_offset);
 
 /**
@@ -1904,11 +1913,21 @@ int search_items_find_index(const SearchItems *items, const char *name);
  * Adds a hint to the button which draws right aligned, grayed out and never clipped.
  */
 void button_hint_drawstr_set(Button *but, const char *string);
+void button_icon_scale_set(Button *but, float scale);
 void button_icon_indicator_number_set(Button *but, const int indicator_number);
 void button_icon_indicator_set(Button *but, const char *string);
 void button_icon_indicator_color_set(Button *but, const uchar color[4]);
 
 void button_node_link_set(Button *but, bNodeSocket *socket, const float draw_color[4]);
+
+/**
+ * Draw the button in a way that works as overlay, with a dark filled circle in the back and the
+ * icon in white on top. This ensures readable contrast even on varying backgrounds.
+ * Probably only works well for icon only buttons.
+ *
+ * Requires embossing to be enabled.
+ */
+void button_pushbutton_draw_as_overlay_set(Button *but, bool value);
 
 void button_number_step_size_set(Button *but, float step_size);
 void button_number_precision_set(Button *but, float precision);
@@ -2296,6 +2315,13 @@ void popup_handlers_add(bContext *C,
                         char flag);
 void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle *popup);
 void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers);
+
+/**
+ * Tags for refresh popup/menu handlers referencing a #StructRNA that is being unregistered,
+ * popups/menus that can't be refreshed or are created using the \a srna_to_unreg reference will
+ * be removed.
+ */
+void refresh_for_srna_unregister(Main *bmain, StructRNA *srna_to_unreg);
 
 /* Module
  *
@@ -2856,13 +2882,6 @@ Block *region_block_find_mouse_over(const ARegion *region, const int xy[2], bool
  * Try to find a search-box region opened from a button in \a button_region.
  */
 ARegion *region_searchbox_region_get(const ARegion *button_region);
-
-/** #uiFontStyle.align */
-enum FontStyleAlign {
-  UI_STYLE_TEXT_LEFT = 0,
-  UI_STYLE_TEXT_CENTER = 1,
-  UI_STYLE_TEXT_RIGHT = 2,
-};
 
 struct FontStyleDrawParams {
   FontStyleAlign align;
