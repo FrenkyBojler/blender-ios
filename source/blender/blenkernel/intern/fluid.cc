@@ -1714,7 +1714,7 @@ static void update_distances(int index,
 
     /* Subtract optional surface thickness value and virtually increase the object size. */
     if (surface_thickness) {
-      surface_distance += std::sqrt(surface_thickness);
+      surface_distance = std::sqrt(surface_distance * surface_distance + surface_thickness);
     }
     if (const std::optional<bke::bvh::ClosestPointResult> nearest = tree.closest_point(
             ray_start, surface_distance))
