@@ -717,7 +717,7 @@ static wmOperatorStatus add_primitive_quadsphere_exec(bContext *C, wmOperator *o
       C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
   obedit = make_prim_init(C,
                           op,
-                          CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cube"),
+                          CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "QuadSphere"),
                           loc,
                           rot,
                           scale,
