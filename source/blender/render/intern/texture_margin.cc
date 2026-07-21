@@ -114,7 +114,7 @@ class TextureMarginMap {
     zspan_scanconvert(
         &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
   }
-  
+
   void rasterize_wires(float *v1, float *v2, float *v3, uint32_t value, char *mask, bool writemask)
   {
     /* NOTE: This is not thread safe, because the value to be written by the rasterizer is
@@ -516,7 +516,7 @@ static void generate_margin(ImBuf *ibuf,
                             const Span<int> corner_verts,
                             const Span<float2> uv_map,
                             const float uv_offset[2],
-							bool conservative)
+                            bool conservative)
 {
   Array<int3> corner_tris(poly_to_tri_count(faces.size(), corner_edges.size()));
   bke::mesh::corner_tris_calc(vert_positions, faces, corner_verts, corner_tris);
@@ -544,29 +544,29 @@ static void generate_margin(ImBuf *ibuf,
     for (int fill = conservative ? 0 : 1; fill < 2; fill++) {
       for (int a = 0; a < 3; a++) {
         const float *uv = uv_map[tri[a]];
-  
+
         vec[a][0] = (uv[0] - uv_offset[0]) * float(ibuf->x);
         vec[a][1] = (uv[1] - uv_offset[1]) * float(ibuf->y);
-		
-		if (fill)
-		{
+
+        if (fill) {
           /* NOTE(@ideasman42): workaround for pixel aligned UVs which are common and can screw up
            * our intersection tests where a pixel gets in between 2 faces or the middle of a quad,
            * camera aligned quads also have this problem but they are less common.
            * Add a small offset to the UVs, fixes bug #18685. */
           vec[a][0] -= (0.5f + 0.001f);
           vec[a][1] -= (0.5f + 0.002f);
-		}
+        }
       }
-  
+
       /* NOTE: we need the top bit for the dijkstra distance map. */
       BLI_assert(tri_faces[i] < 0x80000000);
-      
+
       if (!fill) {
-		map.rasterize_wires(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
-	  } else {
+        map.rasterize_wires(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
+      }
+      else {
         map.rasterize_tri(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
-	  }
+      }
     }
   }
 
@@ -599,7 +599,7 @@ void RE_generate_texturemargin_adjacentfaces(ImBuf *ibuf,
                                              const Mesh *mesh,
                                              StringRef uv_layer,
                                              const float uv_offset[2],
-											 bool conservative)
+                                             bool conservative)
 {
   const StringRef name = uv_layer.is_empty() ? mesh->active_uv_map_name() : uv_layer;
   const bke::AttributeAccessor attributes = mesh->attributes();
@@ -615,7 +615,7 @@ void RE_generate_texturemargin_adjacentfaces(ImBuf *ibuf,
                                          mesh->corner_verts(),
                                          uv_map,
                                          uv_offset,
-										 conservative);
+                                         conservative);
 }
 
 }  // namespace blender

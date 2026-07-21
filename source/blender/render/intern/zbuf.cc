@@ -241,79 +241,86 @@ static void zspan_cline(ZSpan *zspan,
                         void *handle,
                         float *v1,
                         float *v2,
-						float *uv1,
+                        float *uv1,
                         float *uv2,
                         void (*func)(void *, int, int, float, float))
 {
   float miny = min_ff(v1[1], v2[1]);
   float maxy = max_ff(v1[1], v2[1]);
-  
+
   int y0 = floor(miny);
   int y1 = floor(maxy);
-  
+
   /* Clip and cull the line. */
-  if (y0 < 0) y0 = 0;
-  if (y1 >= zspan->recty) y1 = zspan->recty - 1;
-  
-  if (y0 > y1) return;
-  
+  if (y0 < 0)
+    y0 = 0;
+  if (y1 >= zspan->recty)
+    y1 = zspan->recty - 1;
+
+  if (y0 > y1)
+    return;
+
   /* Line direction divided by length for uv interpolation. */
   float dir[2] = {v2[0] - v1[0], v2[1] - v1[1]};
   float len_sqr = dir[0] * dir[0] + dir[1] * dir[1];
-  
+
   if (len_sqr > FLT_EPSILON) {
     dir[0] /= len_sqr;
-	dir[1] /= len_sqr;
+    dir[1] /= len_sqr;
   }
-  
+
   /* Line equation. */
   float ax, bx;
-  
+
   if (maxy - miny > FLT_EPSILON) {
     ax = (v2[0] - v1[0]) / (v2[1] - v1[1]);
     bx = v1[0] - v1[1] * ax;
   }
-  
+
   for (; y0 <= y1; y0++) {
     float minx, maxx;
-	
-	/* Calculate line x range inside current scanline. */
-	if (maxy - miny > FLT_EPSILON) {
+
+    /* Calculate line x range inside current scanline. */
+    if (maxy - miny > FLT_EPSILON) {
       minx = clamp_f(y0, miny, maxy) * ax + bx;
       maxx = clamp_f(y0 + 1, miny, maxy) * ax + bx;
-	  
-	  if (minx > maxx) {
-	    float tmp = minx;
-		minx = maxx;
-		maxx = tmp;
-	  }
-	} else {
-	  minx = min_ff(v1[0], v2[0]);
-	  maxx = max_ff(v1[0], v2[0]);
-	}
-	
-	int x0 = floor(minx);
-	int x1 = floor(maxx);
-	
-	/* Clip and cull scanline. */
-    if (x0 < 0) x0 = 0;
-    if (x1 >= zspan->rectx) x1 = zspan->rectx - 1;
-	
-	if (x0 > x1) continue;
-	
-	for (; x0 <= x1; x0++) {
-	  /* Zscan polygon rasterizer uses pixel top left corner to sample triangles.
-	   * But bake.cc and texture_margin.cc add small -0.5f uv offset
-	   * effectively shifting sampling position to pixel center.
-	  */
-	  float w = (x0 - v1[0] + 0.5f) * dir[0] + (y0 - v1[1] + 0.5f) * dir[1];
-	  w = clamp_f(w, 0, 1);
-	  
-	  float u = (1 - w) * uv1[0] + w * uv2[0];
-	  float v = (1 - w) * uv1[1] + w * uv2[1];
-	  
-	  func(handle, x0, y0, u, v);
-	}
+
+      if (minx > maxx) {
+        float tmp = minx;
+        minx = maxx;
+        maxx = tmp;
+      }
+    }
+    else {
+      minx = min_ff(v1[0], v2[0]);
+      maxx = max_ff(v1[0], v2[0]);
+    }
+
+    int x0 = floor(minx);
+    int x1 = floor(maxx);
+
+    /* Clip and cull scanline. */
+    if (x0 < 0)
+      x0 = 0;
+    if (x1 >= zspan->rectx)
+      x1 = zspan->rectx - 1;
+
+    if (x0 > x1)
+      continue;
+
+    for (; x0 <= x1; x0++) {
+      /* Zscan polygon rasterizer uses pixel top left corner to sample triangles.
+       * But bake.cc and texture_margin.cc add small -0.5f uv offset
+       * effectively shifting sampling position to pixel center.
+       */
+      float w = (x0 - v1[0] + 0.5f) * dir[0] + (y0 - v1[1] + 0.5f) * dir[1];
+      w = clamp_f(w, 0, 1);
+
+      float u = (1 - w) * uv1[0] + w * uv2[0];
+      float v = (1 - w) * uv1[1] + w * uv2[1];
+
+      func(handle, x0, y0, u, v);
+    }
   }
 }
 
@@ -327,7 +334,7 @@ void zspan_cwireframe(ZSpan *zspan,
   float uv1[2] = {1, 0};
   float uv2[2] = {0, 1};
   float uv3[2] = {0, 0};
-  
+
   zspan_cline(zspan, handle, v1, v2, uv1, uv2, func);
   zspan_cline(zspan, handle, v2, v3, uv2, uv3, func);
   zspan_cline(zspan, handle, v3, v1, uv3, uv1, func);

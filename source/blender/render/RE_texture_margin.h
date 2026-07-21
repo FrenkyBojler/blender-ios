@@ -30,6 +30,6 @@ void RE_generate_texturemargin_adjacentfaces(struct ImBuf *ibuf,
                                              struct Mesh const *me,
                                              StringRef uv_layer,
                                              const float uv_offset[2],
-											 bool conservative);
+                                             bool conservative);
 
 }  // namespace blender

@@ -228,7 +228,7 @@ static bool write_internal_bake_pixels(Image *image,
                                        Mesh const *mesh_eval,
                                        const StringRef uv_layer,
                                        const float uv_offset[2],
-									   bool conservative)
+                                       bool conservative)
 {
   ImBuf *ibuf;
   void *lock;
@@ -311,7 +311,8 @@ static bool write_internal_bake_pixels(Image *image,
 
   /* margins */
   if (margin > 0) {
-    RE_bake_margin(ibuf, mask_buffer, margin, margin_type, mesh_eval, uv_layer, uv_offset, conservative);
+    RE_bake_margin(
+        ibuf, mask_buffer, margin, margin_type, mesh_eval, uv_layer, uv_offset, conservative);
   }
 
   IMB_partial_update_mark_full(ibuf);
@@ -351,7 +352,7 @@ static bool write_external_bake_pixels(const char *filepath,
                                        Mesh const *mesh_eval,
                                        const StringRef uv_layer,
                                        const float uv_offset[2],
-									   bool conservative)
+                                       bool conservative)
 {
   ImBuf *ibuf = nullptr;
   bool ok = false;
@@ -400,7 +401,8 @@ static bool write_external_bake_pixels(const char *filepath,
 
     mask_buffer = MEM_new_array_zeroed<char>(pixels_num, "Bake Mask");
     RE_bake_mask_fill(pixel_array, pixels_num, mask_buffer);
-    RE_bake_margin(ibuf, mask_buffer, margin, margin_type, mesh_eval, uv_layer, uv_offset, conservative);
+    RE_bake_margin(
+        ibuf, mask_buffer, margin, margin_type, mesh_eval, uv_layer, uv_offset, conservative);
 
     if (mask_buffer) {
       MEM_delete(mask_buffer);
@@ -829,7 +831,7 @@ static bool bake_targets_output_internal(const BakeAPIRender *bkr,
                                                mesh_eval,
                                                bkr->uv_layer,
                                                bk_image->uv_offset,
-											   bkr->conservative_raster);
+                                               bkr->conservative_raster);
 
     /* might be read by UI to set active image for display */
     bake_update_image(bkr->area, bk_image->image);
@@ -957,7 +959,7 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
                                                mesh_eval,
                                                bkr->uv_layer,
                                                bk_image->uv_offset,
-											   bkr->conservative_raster);
+                                               bkr->conservative_raster);
 
     if (!ok) {
       BKE_reportf(reports, RPT_ERROR, "Problem saving baked map in \"%s\"", filepath);
@@ -1341,7 +1343,12 @@ static void bake_targets_populate_pixels(const BakeAPIRender *bkr,
     bake_targets_populate_pixels_color_attributes(targets, ob, mesh_eval, pixel_array);
   }
   else {
-    RE_bake_pixels_populate(mesh_eval, pixel_array, targets->pixels_num, targets, bkr->uv_layer, bkr->conservative_raster);
+    RE_bake_pixels_populate(mesh_eval,
+                            pixel_array,
+                            targets->pixels_num,
+                            targets,
+                            bkr->uv_layer,
+                            bkr->conservative_raster);
   }
 }
 
@@ -1893,7 +1900,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "type");
     RNA_property_enum_identifier(C, op->ptr, prop, bkr->pass_type, &bkr->identifier);
   }
-  
+
   bkr->conservative_raster = RNA_boolean_get(op->ptr, "conservative_raster");
 
   CTX_data_selected_objects(C, &bkr->selected_objects);
@@ -2375,12 +2382,11 @@ void OBJECT_OT_bake(wmOperatorType *ot)
                  MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX,
                  "UV Layer",
                  "UV layer to override active");
-  RNA_def_boolean(
-                 ot->srna,
-                 "conservative_raster",
-                 false,
-                 "Conservative Rasterization",
-                 "Enables conservative rasterization to capture geometry on a subpixel level");
+  RNA_def_boolean(ot->srna,
+                  "conservative_raster",
+                  false,
+                  "Conservative Rasterization",
+                  "Enables conservative rasterization to capture geometry on a subpixel level");
 }
 
 }  // namespace blender::ed::object
