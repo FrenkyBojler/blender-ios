@@ -2196,6 +2196,7 @@ static bool markers_write_copy_paste_file(Main *bmain_src,
 
     Object *ob_src = id_cast<Object *>(id_src);
     BLI_assert(ob_src->type == OB_CAMERA);
+    UNUSED_VARS_NDEBUG(ob_src);
 
     /* We never paste these camera objects (which is why we don't need to copy deps like
      * camera-data). We just copy them to keep the marker bound, and do a lookup for any existing
