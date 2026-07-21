@@ -1840,7 +1840,7 @@ PyDoc_STRVAR(
     /* Wrap. */
     M_Geometry_delaunay_2d_cdt_doc,
     ".. function:: delaunay_2d_cdt(vert_coords, edges, faces, output_type, epsilon, "
-    "needed_ids=0, /)\n"
+    "need_ids=True, /)\n"
     "\n"
     "   Computes the Constrained Delaunay Triangulation of a set of vertices,\n"
     "   with edges and faces that must appear in the triangulation.\n"
@@ -1871,13 +1871,8 @@ PyDoc_STRVAR(
     "   :type output_type: int\n"
     "   :param epsilon: For nearness tests; should not be zero\n"
     "   :type epsilon: float\n"
-    "   :param needed_ids: are the orig output arrays needed?\n"
-    "   :type needed_ids: int. Bitmask of 0x1 => need orig_verts. "
-    "0x2 => need intersected edges. "
-    "0x4 => need original edges. "
-    "0x8 => need original faces. "
-    "0x10 => need original faces that go CW. "
-    "0x20 => only need on instance of each original.\n"
+    "   :param need_ids: are the orig output arrays needed?\n"
+    "   :type need_ids: bool\n"
     "   :return: Output tuple, (vert_coords, edges, faces, orig_verts, orig_edges, orig_faces)\n"
     "   :rtype: tuple["
     "list[:class:`mathutils.Vector`], "
@@ -1892,7 +1887,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   PyObject *vert_coords, *edges, *faces;
   int output_type;
   float epsilon;
-  int needed_ids = 0;
+  bool need_ids = true;
   float (*in_coords)[2] = nullptr;
   int (*in_edges)[2] = nullptr;
   Py_ssize_t vert_coords_len, edges_len;
@@ -1919,7 +1914,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
                         &output_type,
                         &epsilon,
                         PyC_ParseBool,
-                        &needed_ids))
+                        &need_ids))
   {
     return nullptr;
   }
@@ -1962,7 +1957,7 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
   in.face_offsets = face_offsets.as_span();
   in.face_vert_indices = face_vert_indices;
   in.epsilon = epsilon;
-  in.needed_ids = static_cast<CDT_ids_needed_type>(needed_ids);
+  in.needed_ids = need_ids ? (CDT_ORIG_VERTS | CDT_ORIG_EDGES | CDT_ORIG_FACES) : CDT_NO_ORIG_IDS;
 
   const meshintersect::CDT_result<double> res = meshintersect::delaunay_2d_calc(
       in, CDT_output_type(output_type));
