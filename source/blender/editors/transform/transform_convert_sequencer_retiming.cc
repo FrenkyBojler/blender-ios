@@ -122,21 +122,11 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
   seq::iterator_set_expand(ed, transformed_strips, seq::query_strip_direct_effect_chain);
 
-  /* First remove the marked strips from #transformed_strips to prevent dangling pointers.  */
-  // TODO: Hmm, no retimed strips should get deleted. Only transitions which aren't retimed.
-  transformed_strips.remove_if([&](Strip *strip) {
-    return flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete);
-  });
-
   VectorSet<Strip *> dependant;
   dependant.add_multiple(transformed_strips);
   dependant.remove_if([&](Strip *strip) { return seq::transform_strip_can_be_translated(strip); });
 
-  /* Then remove the actual strips. */
-  seq::edit_remove_flagged_strips(scene, seqbasep);
-  vse::sync_active_scene_and_time_with_scene_strip(*t->context);  // TODO: check
-
-  /* Last, handle overlap. */
+  /* Last, handle overlap. `transform_handle_overlap` removes invalid transitions. */
   if (seq_transform_check_overlap_flags(transformed_strips)) {
     const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &
                                    SEQ_MARKER_TRANS) != 0;

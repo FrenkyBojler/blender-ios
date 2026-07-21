@@ -347,16 +347,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
     return;
   }
 
-  /* First remove the marked strips from #transformed_strips to prevent dangling pointers.  */
-  transformed_strips.remove_if([](Strip *strip) {
-    return flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::MarkForDelete);
-  });
-
-  /* Then remove the actual strips. */
-  seq::edit_remove_flagged_strips(scene, seqbase_active_get(t));
-  vse::sync_active_scene_and_time_with_scene_strip(*t->context);  // TODO: check
-
-  /* Last, handle overlap. */
+  /* Last, handle overlap. `transform_handle_overlap` removes invalid transitions. */
   TransSeq *ts = static_cast<TransSeq *>(tc->custom.type.data);
   ListBaseT<Strip> *seqbasep = seqbase_active_get(t);
   const bool use_sync_markers = ((static_cast<SpaceSeq *>(t->area->spacedata.first))->flag &

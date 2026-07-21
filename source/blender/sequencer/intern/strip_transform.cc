@@ -109,7 +109,9 @@ void transform_set_overlap_flags(const Scene *scene,
     Strip *right = transition->input2;
     if (left->right_handle(scene) != right->left_handle() || left->channel != right->channel ||
         transition->left_handle() < left->left_handle() ||
-        transition->right_handle(scene) > right->right_handle(scene))
+        transition->right_handle(scene) > right->right_handle(scene) ||
+        transition->left_handle() > left->right_handle(scene) ||
+        transition->right_handle(scene) < right->left_handle())
     {
       edit_flag_for_removal(scene, seqbasep, transition);
     }
@@ -299,12 +301,22 @@ bool transform_seqbase_shuffle_time(Span<Strip *> strips_to_shuffle,
                                     ListBaseT<TimeMarker> *markers,
                                     const bool use_sync_markers)
 {
+  Editing *ed = seq::editing_get(evil_scene);
   int offset_l = shuffle_strip_time_offset_get(evil_scene, strips_to_shuffle, seqbasep, 'L');
   int offset_r = shuffle_strip_time_offset_get(evil_scene, strips_to_shuffle, seqbasep, 'R');
   int offset = (-offset_l < offset_r) ? offset_l : offset_r;
 
   if (offset) {
-    for (Strip *strip : strips_to_shuffle) {
+    /* If both transition inputs are being shuffled, move the transition with them. */
+    VectorSet<Strip *> strips_to_translate;
+    strips_to_translate.add_multiple(strips_to_shuffle);
+    seq::iterator_set_expand(ed, strips_to_translate, seq::query_strip_transitions);
+    strips_to_translate.remove_if([&](Strip *strip) {
+      return strip->is_transition() && !(strips_to_translate.contains(strip->input1) &&
+                                         strips_to_translate.contains(strip->input2));
+    });
+
+    for (Strip *strip : strips_to_translate) {
       transform_translate_strip(evil_scene, strip, offset);
       strip->runtime->flag &= ~StripRuntimeFlag::Overlap;
     }
@@ -619,6 +631,16 @@ void transform_handle_overlap(Scene *scene,
     }
     strip->runtime->flag &= ~StripRuntimeFlag::Overlap;
   }
+
+  /* Finally remove transition strips if the input strips are no longer adjacent. */
+  Editing *ed = seq::editing_get(scene);
+
+  VectorSet<Strip *> transform_expanded;
+  transform_expanded.add_multiple(transformed_strips);
+  seq::iterator_set_expand(ed, transform_expanded, seq::query_strip_direct_effect_chain);
+  transform_set_overlap_flags(scene, seqbasep, transform_expanded);
+
+  seq::edit_remove_flagged_strips(scene, seqbasep);
 }
 
 void transform_offset_after_frame(Scene *scene,

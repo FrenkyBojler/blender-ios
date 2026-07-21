@@ -267,6 +267,18 @@ VectorSet<Strip *> query_unselected_strips(ListBaseT<Strip> *seqbase)
   return strips;
 }
 
+void query_strip_transitions(Strip *strip, Editing *ed, VectorSet<Strip *> &r_strips)
+{
+  r_strips.add(strip);
+
+  Span<Strip *> effects = seq::lookup_effects_by_strip(ed, strip);
+  for (Strip *effect_strip : effects) {
+    if (effect_strip->is_transition()) {
+      r_strips.add(effect_strip);
+    }
+  }
+}
+
 void query_strip_direct_effect_chain(Strip *strip, Editing *ed, VectorSet<Strip *> &r_strips)
 {
   if (r_strips.contains(strip)) {
