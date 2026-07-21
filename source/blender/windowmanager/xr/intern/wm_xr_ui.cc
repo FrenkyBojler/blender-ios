@@ -1,4 +1,4 @@
-﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -1614,6 +1614,21 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
     return;
   }
 
+  if ((xr->session_settings.draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) == 0) {
+    if (surface_data->active_ui_region != nullptr &&
+        !surface_data->active_ui_region->ui_region_pointer.pressed)
+    {
+      wm_xr_ui_region_pointer_clear(surface_data->active_ui_region);
+      surface_data->active_ui_region = nullptr;
+    }
+    for (wmXrUiRegion *ui_region : ListBaseWrapper<wmXrUiRegion>(surface_data->ui_regions)) {
+      ui_region->ui_region_hovered = false;
+      ui_region->ui_region_hover_region = nullptr;
+      ui_region->ui_region_cursor_visible = false;
+    }
+    return;
+  }
+
   char subaction_path[64] = "";
   const wmXrController *controller = wm_xr_surface_interaction_controller_find(
       &xr->runtime->session_state, subaction_path);
@@ -1783,6 +1798,10 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
   if (C == nullptr || xr == nullptr || action == nullptr || subaction_path == nullptr ||
       surface_data == nullptr || ui_region == nullptr || ui_region->ui_region_host_win == nullptr)
   {
+    return false;
+  }
+
+  if ((xr->session_settings.draw_flags & V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS) == 0) {
     return false;
   }
 

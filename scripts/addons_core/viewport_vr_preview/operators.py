@@ -660,6 +660,18 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands(Operator):
         return self.execute(context)
 
 
+class VIEW3D_OT_vr_ui_visibility_toggle(Operator):
+    bl_idname = "view3d.vr_ui_visibility_toggle"
+    bl_label = "Toggle VR UI Visibility"
+    bl_description = "Toggle visibility of head-mounted XR custom overlays"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        xr_settings = context.window_manager.xr_session_settings
+        xr_settings.show_custom_overlays = not xr_settings.show_custom_overlays
+        return {'FINISHED'}
+
+
 # Location Scouting Captures
 def capture_camera_name(capture):
     return data_("Camera") + "_" + capture.name
@@ -1156,6 +1168,7 @@ classes = (
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action,
     VIEW3D_OT_vr_location_scouting_viewfinder_swap_hands,
+    VIEW3D_OT_vr_ui_visibility_toggle,
 
     VIEW3D_GT_vr_camera_cone,
     VIEW3D_GT_vr_controller_grip,

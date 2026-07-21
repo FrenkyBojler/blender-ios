@@ -16,7 +16,6 @@ from bpy.app.translations import (
 )
 from bpy.types import (
     Menu,
-    Operator,
     Panel,
     UIList,
 )
@@ -27,16 +26,71 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../s
 from space_view3d import VIEW3D_PT_object_type_visibility
 
 
-class VIEW3D_PT_vr_world_space_panel:
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'XR'
-    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
-
-
-class VRButtonsPanel(Panel):
+class VRButtonsPanel:
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "VR"
+
+
+class VIEW3D_PT_vr_world_space_panel(VRButtonsPanel):
+    bl_region_type = 'XR'
+    bl_category = ""
+    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
+
+
+def vr_world_space_panel_id(panel_id):
+    suffix = "_ws"
+    max_base_len = 64 - len(suffix)
+    return f"{panel_id[:max_base_len]}{suffix}"
+
+
+def vr_world_space_panel_class(panel_cls, *, class_name=None, **attrs):
+    if class_name is None:
+        class_name = vr_world_space_panel_id(panel_cls.__name__)
+    world_space_attrs = {
+        "__module__": __name__,
+        "bl_idname": class_name,
+        "bl_category": "",
+    }
+    for attr_name in (
+        "bl_label",
+        "bl_options",
+        "bl_order",
+        "bl_ui_units_x",
+        "bl_context",
+    ):
+        if hasattr(panel_cls, attr_name):
+            world_space_attrs[attr_name] = getattr(panel_cls, attr_name)
+    parent_id = getattr(panel_cls, "bl_parent_id", None)
+    if parent_id and "bl_parent_id" not in attrs:
+        world_space_attrs["bl_parent_id"] = vr_world_space_panel_id(parent_id)
+    for base_cls in reversed(panel_cls.mro()):
+        if base_cls in {object, Panel, bpy.types.Panel, VRButtonsPanel}:
+            continue
+        for attr_name, attr_value in base_cls.__dict__.items():
+            if attr_name.startswith("__"):
+                continue
+            if attr_name in world_space_attrs:
+                continue
+            if attr_name in {
+                "bl_rna",
+                "rna_type",
+                "is_registered",
+                "bl_space_type",
+                "bl_region_type",
+                "bl_category",
+                "bl_idname",
+                "bl_parent_id",
+                "bl_xr_panel_mount_point",
+            }:
+                continue
+            if attr_name.endswith("_panel_id") and isinstance(attr_value, str):
+                world_space_attrs[attr_name] = vr_world_space_panel_id(attr_value)
+                continue
+            if callable(attr_value) or isinstance(attr_value, (classmethod, staticmethod)):
+                world_space_attrs[attr_name] = attr_value
+    world_space_attrs.update(attrs)
+    return type(class_name, (VIEW3D_PT_vr_world_space_panel, Panel), world_space_attrs)
 
 
 # Session.
@@ -71,63 +125,61 @@ class VIEW3D_PT_vr_session(VRButtonsPanel, Panel):
 
 
 # View.
-class VIEW3D_PT_vr_session_view(VRButtonsPanel, Panel):
-    bl_label = "View"
+def draw_vr_session_view_panel(layout, session_settings, object_visibility_panel):
+    layout.use_property_split = True
+    layout.use_property_decorate = False  # No animation.
 
-    def draw(self, context):
-        layout = self.layout
-        session_settings = context.window_manager.xr_session_settings
+    col = layout.column(align=True, heading="Show")
+    col.prop(session_settings, "show_floor", text="Floor")
+    col.prop(session_settings, "show_passthrough", text="Passthrough")
+    col.prop(session_settings, "show_annotation", text="Annotations")
 
-        layout.use_property_split = True
-        layout.use_property_decorate = False  # No animation.
+    col.prop(session_settings, "show_selection", text="Selection")
+    col.prop(session_settings, "show_controllers", text="Controllers")
+    col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
+    col.prop(session_settings, "show_object_extras", text="Object Extras")
 
-        col = layout.column(align=True, heading="Show")
-        col.prop(session_settings, "show_floor", text="Floor")
-        col.prop(session_settings, "show_passthrough", text="Passthrough")
-        col.prop(session_settings, "show_annotation", text="Annotations")
-
-        col.prop(session_settings, "show_selection", text="Selection")
-        col.prop(session_settings, "show_controllers", text="Controllers")
-        col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
-        col.prop(session_settings, "show_object_extras", text="Object Extras")
-
+    if object_visibility_panel:
         col = col.row(align=True, heading=" ")
         col.scale_x = 2.0
         col.popover(
-            panel="VIEW3D_PT_vr_session_view_object_type_visibility",
+            panel=object_visibility_panel,
             icon_value=session_settings.icon_from_show_object_viewport,
             text="",
         )
 
-        col = layout.column(align=True)
-        col.prop(session_settings, "controller_draw_style", text="Controller Style")
+    col = layout.column(align=True)
+    col.prop(session_settings, "controller_draw_style", text="Controller Style")
 
-        col = layout.column(align=True)
-        col.prop(session_settings, "clip_start", text="Clip Start")
-        col.prop(session_settings, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
+    col = layout.column(align=True)
+    col.prop(session_settings, "clip_start", text="Clip Start")
+    col.prop(session_settings, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
 
-        col = layout.column(align=True)
-        col.prop(session_settings, "view_scale", text="View Scale")
+    col = layout.column(align=True)
+    col.prop(session_settings, "view_scale", text="View Scale")
 
-        col = layout.column(align=True)
-        col.prop(session_settings, "fly_speed", text="Fly Speed")
+    col = layout.column(align=True)
+    col.prop(session_settings, "fly_speed", text="Fly Speed")
+
+
+class VIEW3D_PT_vr_session_view(VRButtonsPanel, Panel):
+    bl_label = "View"
+    object_visibility_panel_id = "VIEW3D_PT_vr_session_view_object_type_visibility"
+
+    def draw(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
+        draw_vr_session_view_panel(
+            layout,
+            session_settings,
+            self.object_visibility_panel_id,
+        )
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
     def draw(self, context):
         session_settings = context.window_manager.xr_session_settings
         self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
-
-
-class VIEW3D_PT_vr_session_view_object_type_visibility_world_space(
-        VIEW3D_PT_vr_world_space_panel, VIEW3D_PT_object_type_visibility):
-    bl_label = VIEW3D_PT_vr_session_view_object_type_visibility.bl_label
-    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
-
-    def draw(self, context):
-        session_settings = context.window_manager.xr_session_settings
-        self.draw_ex(context, session_settings, False)  # Pass session settings instead of 3D view.
-
 
 # Location Scouting.
 class VIEW3D_UL_vr_captures(UIList):
@@ -170,8 +222,12 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
 
         col.separator()
 
-        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_UP', text="").backward = True
-        col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_DOWN', text="").backward = False
+        browse_up = col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_UP', text="")
+        if browse_up is not None:
+            browse_up.backward = True
+        browse_down = col.operator("view3d.vr_location_scouting_browse_captures", icon='TRIA_DOWN', text="")
+        if browse_down is not None:
+            browse_down.backward = False
 
         is_reviewing = context.window_manager.vr_capture_review_running
         capture_review_text = "Review VR Captures" if not is_reviewing else "Exit Review"
@@ -225,250 +281,6 @@ class VIEW3D_PT_vr_location_scouting_viewfinder_passepartout(VRButtonsPanel, Pan
 
         layout.prop(session_settings, "viewfinder_passepartout_overscan", text="Overscan")
         layout.prop(session_settings, "viewfinder_passepartout_opacity", text="Opacity")
-
-
-VR_TEMP_UI_ITEMS = (
-    ('ONE', "One", "First temporary UI test item"),
-    ('TWO', "Two", "Second temporary UI test item"),
-    ('THREE', "Three", "Third temporary UI test item"),
-    ('FOUR', "Four", "Fourth temporary UI test item"),
-)
-
-
-def draw_vr_temp_ui_tooltip_samples(layout, context):
-    wm = context.window_manager
-
-    col = layout.column(align=True)
-    col.operator("view3d.vr_temp_ui_tooltip", text="Tooltip Button", icon='INFO')
-    col.prop_search(wm, "vr_temp_ui_search_object", bpy.data, "objects", text="Object Search")
-
-
-class VIEW3D_OT_vr_temp_ui_report(Operator):
-    bl_idname = "view3d.vr_temp_ui_report"
-    bl_label = "XR Temp UI Action"
-    bl_description = "Simple action used by XR temporary UI test menus"
-
-    message: bpy.props.StringProperty(
-        name="Message",
-        default="XR temporary UI action",
-    )
-
-    def execute(self, _context):
-        self.report({'INFO'}, self.message)
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_tooltip(Operator):
-    bl_idname = "view3d.vr_temp_ui_tooltip"
-    bl_label = "XR Tooltip Sample"
-    bl_description = (
-        "Tooltip-focused XR temporary UI test button. Hover this control in the main panel, "
-        "popovers, popups, and props popups to verify tooltip regions stay in world space."
-    )
-
-    def execute(self, _context):
-        self.report({'INFO'}, "Tooltip sample pressed")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_enum(Operator):
-    bl_idname = "view3d.vr_temp_ui_enum"
-    bl_label = "XR Enum Menu Test"
-    bl_description = "Open an enum-menu temporary region from world-space UI"
-
-    choice: bpy.props.EnumProperty(
-        name="Choice",
-        items=VR_TEMP_UI_ITEMS,
-        default='ONE',
-    )
-
-    def execute(self, _context):
-        self.report({'INFO'}, f"Enum menu choice: {self.choice}")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_search(Operator):
-    bl_idname = "view3d.vr_temp_ui_search"
-    bl_label = "XR Search Popup Test"
-    bl_description = "Open a search-popup temporary region from world-space UI"
-    bl_property = "choice"
-
-    choice: bpy.props.EnumProperty(
-        name="Search",
-        items=VR_TEMP_UI_ITEMS,
-    )
-
-    def invoke(self, context, _event):
-        context.window_manager.invoke_search_popup(self)
-        return {'RUNNING_MODAL'}
-
-    def execute(self, _context):
-        self.report({'INFO'}, f"Search popup choice: {self.choice}")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_dialog(Operator):
-    bl_idname = "view3d.vr_temp_ui_dialog"
-    bl_label = "XR Dialog Test"
-    bl_description = "Open a dialog temporary region from world-space UI"
-
-    name: bpy.props.StringProperty(
-        name="Name",
-        default="XR Dialog",
-    )
-    amount: bpy.props.FloatProperty(
-        name="Amount",
-        default=0.5,
-        min=0.0,
-        max=1.0,
-    )
-    enabled: bpy.props.BoolProperty(
-        name="Enabled",
-        default=True,
-    )
-
-    def invoke(self, context, _event):
-        return context.window_manager.invoke_props_dialog(self, width=240)
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.prop(self, "name")
-        layout.prop(self, "amount")
-        layout.prop(self, "enabled")
-
-    def execute(self, _context):
-        self.report({'INFO'}, f"Dialog submitted: {self.name}")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_props_popup(Operator):
-    bl_idname = "view3d.vr_temp_ui_props_popup"
-    bl_label = "XR Props Popup Test"
-    bl_description = "Open an invoke_props_popup temporary region from world-space UI"
-
-    name: bpy.props.StringProperty(
-        name="Name",
-        default="XR Props Popup",
-    )
-    choice: bpy.props.EnumProperty(
-        name="Choice",
-        items=VR_TEMP_UI_ITEMS,
-        default='TWO',
-    )
-    enabled: bpy.props.BoolProperty(
-        name="Enabled",
-        default=True,
-    )
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_popup(self, event)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "name")
-        layout.prop(self, "choice")
-        layout.prop(self, "enabled")
-        layout.separator()
-        draw_vr_temp_ui_tooltip_samples(layout, context)
-
-    def execute(self, _context):
-        self.report({'INFO'}, f"Props popup choice: {self.choice}")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_popup(Operator):
-    bl_idname = "view3d.vr_temp_ui_popup"
-    bl_label = "XR Popup Test"
-    bl_description = "Open a popup temporary region from world-space UI"
-
-    name: bpy.props.StringProperty(
-        name="Label",
-        default="XR Popup",
-    )
-    show_extra: bpy.props.BoolProperty(
-        name="Show Extra Option",
-        default=False,
-    )
-
-    def invoke(self, context, _event):
-        return context.window_manager.invoke_popup(self, width=240)
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.label(text="Popup Content")
-        layout.prop(self, "name")
-        layout.prop(self, "show_extra")
-        layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Nested Enum Menu")
-        layout.popover(panel="VIEW3D_PT_vr_temp_ui_popover_world_space", text="Nested Popover")
-
-    def execute(self, _context):
-        self.report({'INFO'}, f"Popup confirmed: {self.name}")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_confirm(Operator):
-    bl_idname = "view3d.vr_temp_ui_confirm"
-    bl_label = "XR Confirm Test"
-    bl_description = "Open a confirm temporary region from world-space UI"
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
-
-    def execute(self, _context):
-        self.report({'INFO'}, "Confirm dialog accepted")
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_vr_temp_ui_popup_menu(Operator):
-    bl_idname = "view3d.vr_temp_ui_popup_menu"
-    bl_label = "XR Python Popup Menu Test"
-    bl_description = "Open a Python-defined popup_menu temporary region from world-space UI"
-
-    def invoke(self, context, _event):
-        def draw(menu, _context):
-            layout = menu.layout
-            props = layout.operator("view3d.vr_temp_ui_report", text="Popup Menu Action")
-            props.message = "Popup menu action"
-            layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
-            layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
-
-        context.window_manager.popup_menu(draw, title="XR Popup Menu", icon='INFO')
-        return {'FINISHED'}
-
-
-class VIEW3D_MT_vr_temp_ui_submenu(Menu):
-    bl_label = "XR Temp Submenu"
-
-    def draw(self, _context):
-        layout = self.layout
-        props = layout.operator("view3d.vr_temp_ui_report", text="Submenu Action A")
-        props.message = "Submenu action A"
-        props = layout.operator("view3d.vr_temp_ui_report", text="Submenu Action B")
-        props.message = "Submenu action B"
-
-
-class VIEW3D_MT_vr_temp_ui_menu(Menu):
-    bl_label = "XR Temp Menu"
-
-    def draw(self, _context):
-        layout = self.layout
-        props = layout.operator("view3d.vr_temp_ui_report", text="Menu Action")
-        props.message = "Menu action"
-        layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
-        layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
-
-
-class VIEW3D_PT_vr_temp_ui_popover_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
-    bl_label = "XR Temp Popover"
-    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.label(text="Popover Content")
-        layout.operator("view3d.vr_temp_ui_search", text="Search Popup")
-        layout.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
-        layout.menu("VIEW3D_MT_vr_temp_ui_submenu", text="Nested Menu")
-        layout.operator("view3d.vr_temp_ui_props_popup", text="Props Popup")
 
 
 # Landmarks.
@@ -591,9 +403,6 @@ class VIEW3D_PT_vr_viewport_feedback(VRButtonsPanel, Panel):
 
 # Info.
 class VIEW3D_PT_vr_info(VRButtonsPanel, Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "VR"
     bl_label = "VR Info"
 
     @classmethod
@@ -607,183 +416,6 @@ class VIEW3D_PT_vr_info(VRButtonsPanel, Panel):
         layout.label(icon='STATUS_ERROR', text=missing_support_string)
 
 
-class VIEW3D_PT_vr_session_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
-    bl_label = "VR Session"
-    bl_xr_panel_mount_point = 'LEFT_HAND'
-
-    def draw(self, context):
-        layout = self.layout
-        session_settings = context.window_manager.xr_session_settings
-        scene = context.scene
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False  # No animation.
-
-        is_session_running = bpy.types.XrSessionState.is_running(context)
-
-        # Using SNAP_FACE because it looks like a stop icon -- I shouldn't
-        # have commit rights...
-        toggle_info = ((iface_("Start VR Session"), 'PLAY') if not is_session_running
-                       else (iface_("Stop VR Session"), 'SNAP_FACE'))
-        layout.operator("wm.xr_session_toggle", text=toggle_info[0],
-                        translate=False, icon=toggle_info[1])
-
-        layout.separator()
-
-        col = layout.column(align=True, heading="Tracking")
-        col.prop(session_settings, "use_positional_tracking", text="Positional")
-        col.prop(session_settings, "use_absolute_tracking", text="Absolute")
-
-        col = layout.column(align=True, heading="Actions")
-        col.prop(scene, "vr_actions_enable")
-
-
-class VIEW3D_PT_vr_session_view_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
-    bl_label = "View"
-    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
-
-    def draw(self, context):
-        layout = self.layout
-        session_settings = context.window_manager.xr_session_settings
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False  # No animation.
-
-        col = layout.column(align=True, heading="Show")
-        col.prop(session_settings, "show_floor", text="Floor")
-        col.prop(session_settings, "show_passthrough", text="Passthrough")
-        col.prop(session_settings, "show_annotation", text="Annotations")
-
-        col.prop(session_settings, "show_selection", text="Selection")
-        col.prop(session_settings, "show_controllers", text="Controllers")
-        col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
-        col.prop(session_settings, "show_object_extras", text="Object Extras")
-
-        col = col.row(align=True, heading=" ")
-        col.scale_x = 2.0
-        col.popover(
-            panel="VIEW3D_PT_vr_session_view_object_type_visibility_world_space",
-            icon_value=session_settings.icon_from_show_object_viewport,
-            text="",
-        )
-
-        col = layout.column(align=True)
-        col.prop(session_settings, "controller_draw_style", text="Controller Style")
-
-        col = layout.column(align=True)
-        col.prop(session_settings, "clip_start", text="Clip Start")
-        col.prop(session_settings, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
-
-        col = layout.column(align=True)
-        col.prop(session_settings, "view_scale", text="View Scale")
-
-        col = layout.column(align=True)
-        col.prop(session_settings, "fly_speed", text="Fly Speed")
-
-class VIEW3D_PT_vr_landmarks_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
-    bl_label = "Landmarks"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_xr_panel_mount_point = 'LEFT_HAND'
-
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-        landmark_selected = properties.VRLandmark.get_selected_landmark(context)
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False  # No animation.
-
-        row = layout.row()
-
-        row.template_list("VIEW3D_UL_vr_landmarks", "", scene, "vr_landmarks",
-                          scene, "vr_landmarks_selected", rows=3)
-
-        col = row.column(align=True)
-        col.operator("view3d.vr_landmark_add", icon='ADD', text="")
-        col.operator("view3d.vr_landmark_remove", icon='REMOVE', text="")
-        col.operator("view3d.vr_landmark_from_session", icon='PLUS', text="")
-
-        col.menu("VIEW3D_MT_vr_landmark_menu", icon='DOWNARROW_HLT', text="")
-
-        if landmark_selected:
-            layout.prop(landmark_selected, "type")
-
-            if landmark_selected.type == 'OBJECT':
-                layout.prop(landmark_selected, "base_pose_object")
-                layout.prop(landmark_selected, "base_scale", text="Scale")
-            elif landmark_selected.type == 'CUSTOM':
-                layout.prop(landmark_selected,
-                            "base_pose_location", text="Location")
-                layout.prop(landmark_selected,
-                            "base_pose_angle", text="Angle")
-                layout.prop(landmark_selected,
-                            "base_scale", text="Scale")
-
-
-# Actions.
-class VIEW3D_PT_vr_actionmaps_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
-    bl_label = "Action Maps"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
-
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False  # No animation.
-
-        col = layout.column(align=True)
-        col.prop(scene, "vr_actions_use_gamepad", text="Gamepad")
-
-        col = layout.column(align=True, heading="Extensions")
-        col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")
-        col.prop(scene, "vr_actions_enable_vive_cosmos", text="HTC Vive Cosmos")
-        col.prop(scene, "vr_actions_enable_vive_focus", text="HTC Vive Focus")
-        col.prop(scene, "vr_actions_enable_huawei", text="Huawei")
-
-
-class VIEW3D_PT_vr_temp_ui_world_space(VIEW3D_PT_vr_world_space_panel, Panel):
-    bl_label = "Temp UI Tests"
-    bl_options = {'DEFAULT_CLOSED'}
-    bl_xr_panel_mount_point = 'HEAD_FOLLOW'
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.label(text="Menu / Popover")
-        row = layout.row(align=True)
-        row.menu("VIEW3D_MT_vr_temp_ui_menu", text="Menu")
-        row.popover(panel="VIEW3D_PT_vr_temp_ui_popover_world_space", text="Popover")
-        row.operator("view3d.vr_temp_ui_popup_menu", text="Popup Menu")
-
-        layout.separator()
-
-        layout.label(text="Popup Variants")
-        col = layout.column(align=True)
-        col.operator_menu_enum("view3d.vr_temp_ui_enum", "choice", text="Enum Menu")
-        col.operator("view3d.vr_temp_ui_search", text="Search Popup")
-        col.operator("view3d.vr_temp_ui_dialog", text="Dialog")
-        col.operator("view3d.vr_temp_ui_props_popup", text="Props Popup")
-        col.operator("view3d.vr_temp_ui_popup", text="Popup")
-        col.operator("view3d.vr_temp_ui_confirm", text="Confirm")
-
-        layout.separator()
-
-        layout.label(text="Tooltip / Search Cases")
-        draw_vr_temp_ui_tooltip_samples(layout, context)
-
-
-"""
-class VIEW3D_PT_vr_viewport_feedback_world_space(VIEW3D_PT_vr_viewport_feedback):
-    bl_region_type = 'XR'
-    bl_category = ""
-
-class VIEW3D_PT_vr_info_world_space(VIEW3D_PT_vr_info):
-    bl_region_type = 'XR'
-    bl_category = ""
-"""
-
 classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,
@@ -792,16 +424,6 @@ classes = (
     VIEW3D_PT_vr_location_scouting_captures,
     VIEW3D_PT_vr_location_scouting_viewfinder,
     VIEW3D_PT_vr_location_scouting_viewfinder_passepartout,
-    VIEW3D_PT_vr_session_view_object_type_visibility_world_space,
-    VIEW3D_OT_vr_temp_ui_report,
-    VIEW3D_OT_vr_temp_ui_tooltip,
-    VIEW3D_OT_vr_temp_ui_enum,
-    VIEW3D_OT_vr_temp_ui_search,
-    VIEW3D_OT_vr_temp_ui_dialog,
-    VIEW3D_OT_vr_temp_ui_props_popup,
-    VIEW3D_OT_vr_temp_ui_popup,
-    VIEW3D_OT_vr_temp_ui_confirm,
-    VIEW3D_OT_vr_temp_ui_popup_menu,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
     VIEW3D_PT_vr_viewport_feedback,
@@ -809,19 +431,26 @@ classes = (
     VIEW3D_UL_vr_landmarks,
     VIEW3D_UL_vr_captures,
     VIEW3D_MT_vr_landmark_menu,
-    VIEW3D_MT_vr_temp_ui_submenu,
-    VIEW3D_MT_vr_temp_ui_menu,
-    VIEW3D_PT_vr_session_world_space,
-    VIEW3D_PT_vr_session_view_world_space,
-    VIEW3D_PT_vr_temp_ui_popover_world_space,
-    VIEW3D_PT_vr_landmarks_world_space,
-    VIEW3D_PT_vr_actionmaps_world_space,
-    VIEW3D_PT_vr_temp_ui_world_space,
 )
 
+world_space_classes = (
+    vr_world_space_panel_class(VIEW3D_PT_vr_session),
+    vr_world_space_panel_class(VIEW3D_PT_vr_session_view_object_type_visibility),
+    vr_world_space_panel_class(VIEW3D_PT_vr_session_view),
+    vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting),
+    vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting_captures),
+    vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting_viewfinder),
+    vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting_viewfinder_passepartout),
+    vr_world_space_panel_class(VIEW3D_PT_vr_landmarks),
+    vr_world_space_panel_class(VIEW3D_PT_vr_actionmaps),
+    vr_world_space_panel_class(VIEW3D_PT_vr_viewport_feedback),
+)
 
 def register():
     for cls in classes:
+        bpy.utils.register_class(cls)
+
+    for cls in world_space_classes:
         bpy.utils.register_class(cls)
 
     # View3DShading is the only per 3D-View struct with custom property
@@ -842,17 +471,16 @@ def register():
         name="Show Location Scouting Captures",
         default=True
     )
-    bpy.types.WindowManager.vr_temp_ui_search_object = bpy.props.StringProperty(
-        name="XR Temp UI Object Search"
-    )
 
 
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
 
+    for cls in world_space_classes:
+        bpy.utils.unregister_class(cls)
+
     del bpy.types.View3DShading.vr_show_virtual_camera
     del bpy.types.View3DShading.vr_show_controllers
     del bpy.types.View3DShading.vr_show_landmarks
     del bpy.types.View3DShading.vr_show_captures
-    del bpy.types.WindowManager.vr_temp_ui_search_object

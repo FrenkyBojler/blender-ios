@@ -43,6 +43,7 @@ class VRDefaultActions(Enum):
     VIEWFINDER_APPLY_ACTION_UP = "viewfinder_apply_action_up"
     VIEWFINDER_APPLY_ACTION_DOWN = "viewfinder_apply_action_down"
     VIEWFINDER_SWAP_HANDS = "viewfinder_swap_hands"
+    TOGGLE_UI_VISIBILITY = "toggle_ui_visibility"
     SWAP_HANDS = "swap_hands"
     HAPTIC = "haptic"
     HAPTIC_LEFT = "haptic_left"
@@ -1566,10 +1567,10 @@ def vr_defaults_create_default(session_state):
                                       'ANY')
 
     ami = vr_defaults_action_add(am,
-                                 VRDefaultActions.VIEWFINDER_SWAP_HANDS.value,
+                                 VRDefaultActions.TOGGLE_UI_VISIBILITY.value,
                                  ["/user/hand/left",
                                   "/user/hand/right"],
-                                 "view3d.vr_location_scouting_viewfinder_swap_hands",
+                                 "view3d.vr_ui_visibility_toggle",
                                  'PRESS',
                                  False,
                                  "haptic",
