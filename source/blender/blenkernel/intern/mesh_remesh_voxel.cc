@@ -335,9 +335,7 @@ static void find_nearest_tris(const Span<float3> positions,
     const bvh::ClosestPointResult nearest = *bvhtree.closest_point(positions[i]);
     tris[i] = nearest.index;
     if (!bary_coords.is_empty()) {
-      bary_coords[i] = float3(nearest.bary_coord.x,
-                              nearest.bary_coord.y,
-                              1.0f - nearest.bary_coord.x - nearest.bary_coord.y);
+      bary_coords[i] = nearest.bary_coord;
     }
   }
 }

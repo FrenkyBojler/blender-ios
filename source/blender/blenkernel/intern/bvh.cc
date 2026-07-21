@@ -121,9 +121,9 @@ static bool rtc_progress_func(void * /*user_ptr*/, const double /*n*/)
  * Embree: `(1 - u - v) * P[0] + u * P[1] + v * P[2]`
  * Blender: `u * P[0] + v * P[1] + (1 - u - v) * P[2]`
  */
-static float2 bary_coord_embree_to_blender(const float u, const float v)
+static float3 bary_coord_embree_to_blender(const float u, const float v)
 {
-  return float2(1.0f - u - v, u);
+  return float3(1.0f - u - v, u, v);
 }
 
 #endif /* WITH_EMBREE */
@@ -409,12 +409,11 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
 
   RayHit hit;
   hit.normal = float3(bvh_hit.no);
-  const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+  hit.bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
       data->vert_positions,
       data->corner_verts,
       data->corner_tris[bvh_hit.index],
       hit.position(ray));
-  hit.bary_coord = bary_coord.xy();
   hit.index = bvh_hit.index;
   hit.distance = bvh_hit.dist;
   return hit;
@@ -511,12 +510,11 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
         }
         RayHit result;
         result.normal = float3(local_hit.no);
-        const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+        result.bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
             ctx.data->vert_positions,
             ctx.data->corner_verts,
             ctx.data->corner_tris[local_hit.index],
             result.position(ctx.ray));
-        result.bary_coord = bary_coord.xy();
         result.index = local_hit.index;
         result.distance = local_hit.dist;
         ctx.fn(result);
@@ -557,7 +555,7 @@ static bool closest_point_fn(RTCPointQueryFunctionArguments *args)
   if (distance < args->query->radius) {
     args->query->radius = distance;
     user_data.result.position = nearest_position;
-    user_data.result.bary_coord = bary_coord.xy();
+    user_data.result.bary_coord = bary_coord;
     user_data.result.index = args->primID;
     user_data.result.geomID = args->geomID;
     return true;
@@ -603,9 +601,8 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
   }
 
   ClosestPointResult result;
-  const float3 bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
+  result.bary_coord = bke::mesh_surface_sample::compute_bary_coord_in_triangle(
       data->vert_positions, data->corner_verts, data->corner_tris[nearest.index], result.position);
-  result.bary_coord = bary_coord.xy();
   result.index = nearest.index;
   result.geomID = 0;
   return result;

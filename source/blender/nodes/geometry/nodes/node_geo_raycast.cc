@@ -164,9 +164,7 @@ static void raycast_to_mesh(const IndexMask &mask,
         r_hit_distances[i] = hit->distance;
       }
       if (!r_bary_weights.is_empty()) {
-        r_bary_weights[i] = float3(hit->bary_coord[0],
-                                   hit->bary_coord[1],
-                                   1.0f - hit->bary_coord[0] - hit->bary_coord[1]);
+        r_bary_weights[i] = hit->bary_coord;
       }
     }
     else {

@@ -187,9 +187,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
         return;
       }
       triangle_index[i] = result->index;
-      bary_weights[i] = float3(result->bary_coord[0],
-                               result->bary_coord[1],
-                               1.0f - result->bary_coord[0] - result->bary_coord[1]);
+      bary_weights[i] = result->bary_coord;
       if (!is_valid_span.is_empty()) {
         is_valid_span[i] = true;
       }

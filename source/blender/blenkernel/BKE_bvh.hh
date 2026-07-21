@@ -38,11 +38,8 @@ struct Ray {
 struct RayHit {
   /* Ng. Not normalized. */
   float3 normal;
-  /**
-   * Triangle barycentric coordinates of the hit. The third component always makes the
-   * total 1.0.
-   */
-  float2 bary_coord;
+  /** Triangle barycentric coordinates of the hit. */
+  float3 bary_coord;
   int index;
   float distance;
   float3 position(const Ray &ray) const
@@ -54,11 +51,8 @@ struct RayHit {
 struct ClosestPointResult {
   /** Location of the closest point. */
   float3 position;
-  /**
-   * Triangle barycentric coordinates of the closest point. The third component always makes the
-   * total 1.0.
-   */
-  float2 bary_coord;
+  /** Triangle barycentric coordinates of the closest point. */
+  float3 bary_coord;
   uint32_t index;
   /* Currently unused. */
   uint32_t geomID;
