@@ -134,7 +134,7 @@ void deg_foreach_dependent_operation(const ComponentNode *start_component,
     queue.pop_front();
     if (!callback(op_node, user_data)) {
       /* Don't visit outgoing links when the callback returns false. */
-      break;
+      continue;
     }
     for (const Relation *rel : op_node->outlinks) {
       OperationNode *to_node = static_cast<OperationNode *>(rel->to);

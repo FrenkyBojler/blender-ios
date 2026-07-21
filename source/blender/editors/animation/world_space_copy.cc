@@ -295,7 +295,7 @@ static void ensure_baked_fcurves(Main &bmain,
       paste_fcu.fcurve = &fcurve;
       paste_fcu.created_on_paste = true;
     }
-    if (!paste_fcu.fcurve->bezt) {
+    if (paste_fcu.fcurve->fpt) {
       /* Avoid crashes with sampled FCurves. */
       continue;
     }
@@ -344,10 +344,10 @@ static bool is_fcurve_flat(FCurve &fcurve)
       /* Handles have no effect. */
       continue;
     }
-    if (fabs(reference_value - fcurve.bezt[i].vec[0][1]) > threshold) {
+    if (fabsf(reference_value - fcurve.bezt[i].vec[0][1]) > threshold) {
       return false;
     }
-    if (fabs(reference_value - fcurve.bezt[i].vec[2][1]) > threshold) {
+    if (fabsf(reference_value - fcurve.bezt[i].vec[2][1]) > threshold) {
       return false;
     }
   }
@@ -842,6 +842,7 @@ static wmOperatorStatus world_space_copy_exec(bContext *C, wmOperator *op)
     }
 
     default:
+      return OPERATOR_CANCELLED;
       break;
   }
   if (bounds.is_empty()) {

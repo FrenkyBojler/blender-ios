@@ -84,9 +84,9 @@ class WorldSpaceCopyTest(AbstractCopyPasteTest):
         obj.select_set(True)
         # Passing an invalid frame range will error.
         with self.assertRaises(RuntimeError):
-            bpy.ops.anim.world_space_copy(start=10, end=0)
+            bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=10, end=0)
         with self.assertRaises(RuntimeError):
-            bpy.ops.anim.world_space_copy(start=1, end=1)
+            bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=1, end=1)
         self.assertFalse(self._copybuffer_path.exists())
 
     def _test_for_single_entity_in_buffer(self, entity_name):
@@ -111,7 +111,7 @@ class WorldSpaceCopyTest(AbstractCopyPasteTest):
         obj = bpy.data.objects["armature_simple"]
         obj_name = obj.name
         obj.select_set(True)
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         self.assertTrue(self._copybuffer_path.exists())
 
         self._test_for_single_entity_in_buffer(obj_name)
@@ -123,7 +123,7 @@ class WorldSpaceCopyTest(AbstractCopyPasteTest):
         bpy.ops.object.mode_set(mode='POSE')
         pose_bone: bpy.types.PoseBone = obj.pose.bones[0]
         pose_bone.select = True
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         self.assertTrue(self._copybuffer_path.exists())
 
         self._test_for_single_entity_in_buffer(pose_bone.name)
@@ -133,7 +133,7 @@ class WorldSpaceCopyTest(AbstractCopyPasteTest):
         obj: bpy.types.Object = bpy.data.objects["armature_no_anim"]
         obj.select_set(True)
         obj_name = obj.name
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         self.assertTrue(self._copybuffer_path.exists())
         bpy.ops.wm.open_mainfile(filepath=self._copybuffer_path.as_posix())
         buffer_action = bpy.data.actions[0]
@@ -155,7 +155,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_obj.select_set(True)
         paste_obj.select_set(False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -172,7 +172,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_obj.select_set(True)
         paste_obj.select_set(False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -200,7 +200,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
         copy_bone.select = True
         paste_bone.select = False
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_bone.select = False
         paste_bone.select = True
@@ -221,7 +221,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         paste_bone: bpy.types.PoseBone = paste_obj.pose.bones[0]
         copy_bone.select = True
         paste_bone.select = False
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_bone.select = False
         paste_bone.select = True
@@ -246,7 +246,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         _set_select_all_bones(paste_obj, False)
         copy_bone.select = True
         paste_bone.select = False
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_bone.select = False
         paste_bone.select = True
@@ -267,7 +267,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         bpy.context.view_layer.objects.active = copy_obj
         paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
         paste_obj.select_set(False)
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -279,7 +279,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         """Copying between objects and bones works as long it is either 1:1 or the names match."""
         copy_obj: bpy.types.Object = bpy.data.objects["indirect_motion_parent"]
         copy_obj.select_set(True)
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         copy_obj.select_set(False)
 
         paste_obj: bpy.types.Object = bpy.data.objects["paste_armature_single_bone"]
@@ -310,7 +310,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
 
         copy_bone.select = True
         paste_bone.select = False
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_bone.select = False
         paste_bone.select = True
@@ -337,7 +337,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_bone: bpy.types.PoseBone = copy_obj.pose.bones[0]
         copy_bone.select = True
         _set_select_all_bones(paste_obj, False)
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         copy_bone.select = False
 
         # Copy Location Constraint
@@ -394,7 +394,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         _set_select_all_bones(copy_obj, True)
         _set_select_all_bones(paste_obj, False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         _set_select_all_bones(copy_obj, False)
         _set_select_all_bones(paste_obj, True)
@@ -422,7 +422,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         _set_select_all_bones(copy_obj, True)
         _set_select_all_bones(paste_obj, False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         _set_select_all_bones(copy_obj, False)
         _set_select_all_bones(paste_obj, True)
@@ -444,7 +444,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_bone.select = True
         paste_bone.select = False
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         copy_bone.select = False
         paste_bone.select = True
 
@@ -478,7 +478,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_bone.select = True
         paste_bone.select = False
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
         copy_matrices = []
         for frame in range(10):
             bpy.context.scene.frame_set(frame)
@@ -502,7 +502,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_obj.select_set(True)
         paste_obj.select_set(False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -519,7 +519,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_obj.select_set(True)
         paste_obj.select_set(False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -536,7 +536,7 @@ class WorldSpacePasteTest(AbstractCopyPasteTest):
         copy_obj.select_set(True)
         paste_obj.select_set(False)
 
-        bpy.ops.anim.world_space_copy(start=0, end=10)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=0, end=10)
 
         copy_obj.select_set(False)
         paste_obj.select_set(True)
@@ -563,7 +563,7 @@ class SingleFrameCopyPasteTest(AbstractCopyPasteTest):
 
         bpy.context.scene.frame_set(1)
         # This copies frame 10 even though we are not currently on that frame.
-        bpy.ops.anim.world_space_copy(start=10, end=11)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=10, end=11)
 
         copy_bone.select = False
         paste_bone.select = True
@@ -591,7 +591,7 @@ class SingleFrameCopyPasteTest(AbstractCopyPasteTest):
 
         bpy.context.scene.frame_set(10)
         copy_matrix: mathutils.Matrix = copy_obj.matrix_world @ copy_bone.matrix
-        bpy.ops.anim.world_space_copy(start=10, end=11)
+        bpy.ops.anim.world_space_copy(range_mode='CUSTOM', start=10, end=11)
 
         bpy.context.scene.frame_set(1)
         copy_bone.select = False
