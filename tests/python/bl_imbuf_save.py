@@ -268,6 +268,9 @@ class ImBufSaveTest(ImBufTest):
         self.check(src="rgba32", ext="webp", settings={"file_format": "WEBP", "color_mode": "RGBA", "quality": 100})
 
     def test_save_avif(self):
+        self.check(src="rgba08", ext="avif", settings={"file_format": "AVIF", "color_mode": "BW", "color_depth": "8", "quality": 90})
+        self.check(src="rgba32", ext="avif", settings={"file_format": "AVIF", "color_mode": "BW", "color_depth": "12", "quality": 90})
+
         self.check(src="rgba08", ext="avif", settings={"file_format": "AVIF", "color_mode": "RGB", "color_depth": "8", "quality": 90})
         self.check(src="rgba08", ext="avif", settings={"file_format": "AVIF", "color_mode": "RGBA", "color_depth": "8", "quality": 90})
         self.check(src="rgba08", ext="avif", settings={"file_format": "AVIF", "color_mode": "RGB", "color_depth": "10", "quality": 90})
@@ -277,6 +280,15 @@ class ImBufSaveTest(ImBufTest):
         self.check(src="rgba32", ext="avif", settings={"file_format": "AVIF", "color_mode": "RGBA", "color_depth": "8", "quality": 70})
         self.check(src="rgba32", ext="avif", settings={"file_format": "AVIF", "color_mode": "RGB", "color_depth": "10", "quality": 70})
         self.check(src="rgba32", ext="avif", settings={"file_format": "AVIF", "color_mode": "RGB", "color_depth": "12", "quality": 70})
+
+    def test_save_iris(self):
+        self.check(src="rgba08", ext="rgb", settings={"file_format": "IRIS", "color_mode": "BW"})
+        self.check(src="rgba08", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGB"})
+        self.check(src="rgba08", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGBA"})
+
+        self.check(src="rgba32", ext="rgb", settings={"file_format": "IRIS", "color_mode": "BW"})
+        self.check(src="rgba32", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGB"})
+        self.check(src="rgba32", ext="rgb", settings={"file_format": "IRIS", "color_mode": "RGBA"})
 # autopep8: on
 
 

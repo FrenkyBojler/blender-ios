@@ -299,8 +299,7 @@ typedef struct ThemeSpace {
   char background_type;
   char _pad0[3];
 
-  /** Panel title. */
-  unsigned char title[4];
+  /* General text color. */
   unsigned char text[4];
   unsigned char text_hi[4];
 
@@ -308,7 +307,6 @@ typedef struct ThemeSpace {
   /** Region background. */
   unsigned char header[4];
   /** Unused. */
-  unsigned char header_title[4];
   unsigned char header_text[4];
   unsigned char header_text_hi[4];
 
@@ -318,7 +316,7 @@ typedef struct ThemeSpace {
 
   unsigned char hilite[4];
   unsigned char grid[4], grid_major[4];
-  char _pad5[4];
+  float grid_axis_brightness;
 
   unsigned char view_overlay[4];
 

@@ -24,11 +24,11 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 
-#include "BLI_math_base_safe.h"
-#include "BLI_math_matrix.h"
+#include "BLI_math_base_safe.hh"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_rotation.h"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_rotation.hh"
+#include "BLI_math_rotation_c.hh"
 
 #include "RNA_access.hh"
 
@@ -733,9 +733,20 @@ class TransformGizmos : public NodeGizmos {
           }
           const float3x3 rotation_matrix = math::from_rotation<float3x3>(
               math::AxisAngle(local_scale_axis, math::to_vector<float3>(axis)));
-          const float3x3 scale_matrix = math::invert(rotation_matrix) *
-                                        math::from_scale<float3x3>(scale) * rotation_matrix;
-          value.view<3, 3>() = scale_matrix * value.view<3, 3>();
+          const float3x3 scaled = math::invert(rotation_matrix) *
+                                  math::from_scale<float3x3>(scale) * rotation_matrix *
+                                  value.view<3, 3>();
+
+          /* Apply only the new column lengths to the original directions to avoid
+           * rotation drift when repeatedly applying the scale transform, see #155866. */
+          for (int i = 0; i < 3; i++) {
+            const float3 col = float3(value[i]);
+            const float len_sq = math::length_squared(col);
+            if (len_sq > math::square(1e-6f)) {
+              const float len = math::sqrt(len_sq);
+              value[i] = float4(col * (math::length(float3(scaled[i])) / len), 0.0f);
+            }
+          }
           value_variant.set(value);
         });
       };

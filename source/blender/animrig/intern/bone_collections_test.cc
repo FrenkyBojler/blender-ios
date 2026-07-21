@@ -2,13 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_listbase.hh"
+#include "BLI_string.hh"
 
 #include "BLT_translation.hh"
 
 #include "BKE_armature.hh"
 #include "BKE_global.hh"
+#include "BKE_gtest_base.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -22,19 +23,21 @@
 
 namespace blender::animrig::tests {
 
-TEST(ANIM_bone_collections, bonecoll_new_free)
+class AnimBoneCollectionTest : public bke::BlenderGTestBase {};
+
+TEST_F(AnimBoneCollectionTest, bonecoll_new_free)
 {
   BoneCollection *bcoll = ANIM_bonecoll_new("some name");
   EXPECT_NE(nullptr, bcoll);
   EXPECT_EQ("some name", std::string(bcoll->name));
-  EXPECT_TRUE(BLI_listbase_is_empty(&bcoll->bones));
+  EXPECT_TRUE(bcoll->bones.is_empty());
   EXPECT_EQ(BONE_COLLECTION_VISIBLE | BONE_COLLECTION_SELECTABLE |
                 BONE_COLLECTION_ANCESTORS_VISIBLE,
             bcoll->flags);
   ANIM_bonecoll_free(bcoll);
 }
 
-TEST(ANIM_bone_collections, bonecoll_default_name)
+TEST_F(AnimBoneCollectionTest, bonecoll_default_name)
 {
   {
     BoneCollection *bcoll = ANIM_bonecoll_new("");
@@ -49,7 +52,7 @@ TEST(ANIM_bone_collections, bonecoll_default_name)
   }
 }
 
-class ArmatureBoneCollections : public testing::Test {
+class ArmatureBoneCollections : public bke::BlenderGTestBase {
  protected:
   bArmature arm = {};
   Bone bone1 = {}, bone2 = {}, bone3 = {};
@@ -76,9 +79,8 @@ class ArmatureBoneCollections : public testing::Test {
   {
     /* Avoid freeing the bones, as they are part of this struct and not owned by
      * the armature. */
-    BLI_listbase_clear(&arm.bonebase);
+    arm.bonebase.clear_no_delete();
 
-    BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
 
     BKE_main_free(bmain);
@@ -534,7 +536,7 @@ TEST_F(ArmatureBoneCollections, bones_assign_unassign)
   ANIM_armature_bonecoll_assign(bcoll, &bone1);
   ANIM_armature_bonecoll_assign(bcoll, &bone2);
 
-  ASSERT_EQ(2, BLI_listbase_count(&bcoll->bones)) << "expecting two bones in collection";
+  ASSERT_EQ(2, bcoll->bones.count()) << "expecting two bones in collection";
   EXPECT_EQ(&bone1, static_cast<BoneCollectionMember *>(BLI_findlink(&bcoll->bones, 0))->bone);
   EXPECT_EQ(&bone2, static_cast<BoneCollectionMember *>(BLI_findlink(&bcoll->bones, 1))->bone);
 
@@ -546,9 +548,9 @@ TEST_F(ArmatureBoneCollections, bones_assign_unassign)
   ANIM_armature_bonecoll_unassign(bcoll, &bone1);
   ANIM_armature_bonecoll_unassign(bcoll, &bone2);
 
-  EXPECT_EQ(0, BLI_listbase_count(&bone1.runtime.collections))
+  EXPECT_EQ(0, bone1.runtime.collections.count())
       << "expecting back-references in bone1 runtime data to be cleared when unassigned";
-  EXPECT_EQ(0, BLI_listbase_count(&bone2.runtime.collections))
+  EXPECT_EQ(0, bone2.runtime.collections.count())
       << "expecting back-references in bone2 runtime data to be cleared when unassigned";
 
   ANIM_armature_bonecoll_remove(&arm, bcoll);
@@ -562,10 +564,10 @@ TEST_F(ArmatureBoneCollections, bones_assign_remove)
   ANIM_armature_bonecoll_assign(bcoll, &bone2);
   ANIM_armature_bonecoll_remove(&arm, bcoll);
 
-  EXPECT_EQ(0, BLI_listbase_count(&bone1.runtime.collections))
+  EXPECT_EQ(0, bone1.runtime.collections.count())
       << "expecting back-references in bone1 runtime data to be cleared when the collection is "
          "removed";
-  EXPECT_EQ(0, BLI_listbase_count(&bone2.runtime.collections))
+  EXPECT_EQ(0, bone2.runtime.collections.count())
       << "expecting back-references in bone2 runtime data to be cleared when the collection is "
          "removed";
 }
@@ -1290,7 +1292,7 @@ TEST_F(ArmatureBoneCollections, internal__bonecolls_rotate_block)
   EXPECT_EQ(0, arm.collection_array[5]->child_index);
 }
 
-class ArmatureBoneCollectionsTestList : public testing::Test {
+class ArmatureBoneCollectionsTestList : public bke::BlenderGTestBase {
  protected:
   bArmature arm = {};
 
@@ -1320,7 +1322,6 @@ class ArmatureBoneCollectionsTestList : public testing::Test {
 
   void TearDown() override
   {
-    BKE_idtype_init();
     BKE_libblock_free_datablock(&arm.id, 0);
   }
 
