@@ -120,8 +120,6 @@ enum eDepsObjectComponentType {
   DEG_OB_COMP_SHADING,
   /* Cache Component */
   DEG_OB_COMP_CACHE,
-  /* ID Name Component */
-  DEG_OB_COMP_NAME,
 };
 
 void DEG_add_scene_relation(DepsNodeHandle *node_handle,

@@ -292,8 +292,6 @@ void invalidate_tagged_evaluated_data(Depsgraph *graph)
         case ID_RECALC_GEOMETRY:
           invalidate_tagged_evaluated_geometry(id_cow);
           break;
-        case ID_RECALC_NAME_CHANGE:
-          //invalidate_tagged_evaluated_geometry(id_cow);
         default:
           break;
       }

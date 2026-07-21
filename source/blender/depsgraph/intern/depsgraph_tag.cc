@@ -223,10 +223,7 @@ void depsgraph_tag_to_component_opcode(const ID *id,
       *operation_code = OperationCode::COMPOSITOR_EVAL;
       break;
 
-    case ID_RECALC_NAME_CHANGE:
-      *component_type = NodeType::ID_NAME;
-      break;
-
+    case ID_RECALC_PROVISION_28:
     case ID_RECALC_PROVISION_29:
     case ID_RECALC_PROVISION_30:
     case ID_RECALC_PROVISION_31:
@@ -435,8 +432,8 @@ const char *update_source_as_string(eUpdateSource source)
 
 int deg_recalc_flags_for_legacy_zero()
 {
-  const uint ID_RECALC_PROVISION_ALL = (ID_RECALC_PROVISION_29 | ID_RECALC_PROVISION_30 |
-                                        ID_RECALC_PROVISION_31);
+  const uint ID_RECALC_PROVISION_ALL = (ID_RECALC_PROVISION_28 | ID_RECALC_PROVISION_29 |
+                                        ID_RECALC_PROVISION_30 | ID_RECALC_PROVISION_31);
   return ID_RECALC_ALL & ~(ID_RECALC_PSYS_ALL | ID_RECALC_ANIMATION | ID_RECALC_FRAME_CHANGE |
                            ID_RECALC_SOURCE | ID_RECALC_EDITORS | ID_RECALC_PROVISION_ALL);
 }
@@ -829,9 +826,7 @@ const char *DEG_update_tag_as_string(IDRecalcFlag flag)
     case ID_RECALC_COMPOSITOR:
       return "ID_RECALC_COMPOSITOR";
 
-    case ID_RECALC_NAME_CHANGE:
-      return "ID_RECALC_NAME_CHANGE";
-
+    case ID_RECALC_PROVISION_28:
     case ID_RECALC_PROVISION_29:
     case ID_RECALC_PROVISION_30:
     case ID_RECALC_PROVISION_31:

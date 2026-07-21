@@ -1149,9 +1149,6 @@ enum IDRecalcFlag {
   /* The scene has changed in a way that affects the compositor. */
   ID_RECALC_COMPOSITOR = (1 << 27),
 
-  /* Name changed. */
-  ID_RECALC_NAME_CHANGE = (1 << 28),
-
   /* Provisioned flags.
    *
    * Not for actual use. The idea of them is to have all bits of the `IDRecalcFlag` defined to a

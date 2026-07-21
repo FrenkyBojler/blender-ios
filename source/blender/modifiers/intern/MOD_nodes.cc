@@ -163,8 +163,6 @@ static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
       DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
     }
   }
-
-  DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_NAME, "Nodes Modifier");
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)

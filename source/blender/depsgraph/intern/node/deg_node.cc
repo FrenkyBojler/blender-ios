@@ -106,8 +106,6 @@ const char *nodeTypeAsString(NodeType type)
     /* Total number of meaningful node types. */
     case NodeType::NUM_TYPES:
       return "SpecialCase";
-    case NodeType::ID_NAME:
-      return "ID_NAME";
   }
   BLI_assert_msg(0, "Unhandled node type, should never happen.");
   return "UNKNOWN";
@@ -225,8 +223,6 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
       return DEG_OB_COMP_SHADING;
     case NodeType::CACHE:
       return DEG_OB_COMP_CACHE;
-    case NodeType::ID_NAME:
-      return DEG_OB_COMP_NAME;
 
     case NodeType::OPERATION:
     case NodeType::TIMESOURCE:
