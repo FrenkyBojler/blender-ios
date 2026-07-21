@@ -868,9 +868,9 @@ def brush_settings(layout, context, brush, popover=False):
             layout.prop(brush, "tip_roundness", slider=True)
             layout.prop(brush, "tip_scale_x", slider=True)
 
-        # auto_smooth_factor and use_inverse_smooth_pressure
+        # auto_smooth_factor and use_smooth_pressure
         if capabilities.has_auto_smooth:
-            pressure_name = "use_inverse_smooth_pressure" if capabilities.has_auto_smooth_pressure else None
+            pressure_name = "use_smooth_pressure" if capabilities.has_auto_smooth_pressure else None
             unified_row = UnifiedPaintPanel.prop_unified(
                 layout,
                 context,
@@ -885,7 +885,7 @@ def brush_settings(layout, context, brush, popover=False):
                     context,
                     unified_row,
                     brush,
-                    pressure_name="use_inverse_smooth_pressure",
+                    pressure_name="use_smooth_pressure",
                     curve_visibility_name="show_auto_smooth_curve",
                     custom_curve_name="curve_auto_smooth",
                 )
