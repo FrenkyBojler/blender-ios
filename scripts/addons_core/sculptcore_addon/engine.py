@@ -4,9 +4,10 @@
 
 """
 Single load point for the SculptCore engine: imports the ``sculptcore``
-ctypes package (vendored ``lib/`` first, then ``$SCULPTCORE_PYTHON_PATH``
-for development checkouts), initializes the binding manager once, and
-declares the bulk c-api entry points the conversion layer uses.
+ctypes package (``$SCULPTCORE_PYTHON_PATH`` first so a development checkout
+overrides the bundle, then the vendored ``lib/`` staged by
+``make.mjs bundle``), initializes the binding manager once, and declares
+the bulk c-api entry points the conversion layer uses.
 
 The session registry lives here too: one ``session.Session`` per object
 currently in the mode, keyed by object name.
@@ -34,13 +35,15 @@ def _import_sculptcore():
     except ImportError:
         pass
 
+    # The dev checkout must win over the vendored bundle, or setting the env
+    # var silently stops working once a bundle has been staged.
     candidates = []
-    vendored = os.path.join(os.path.dirname(__file__), "lib")
-    if os.path.isdir(os.path.join(vendored, "sculptcore")):
-        candidates.append(vendored)
     dev_path = os.environ.get("SCULPTCORE_PYTHON_PATH")
     if dev_path:
         candidates.append(dev_path)
+    vendored = os.path.join(os.path.dirname(__file__), "lib")
+    if os.path.isdir(os.path.join(vendored, "sculptcore")):
+        candidates.append(vendored)
 
     for path in candidates:
         if path not in sys.path:

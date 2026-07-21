@@ -61,6 +61,9 @@ waveletNoiseTile.bin
 /scripts/addons_contrib/
 /tests/benchmarks/
 
+# SculptCore engine bundle staged by `node make.mjs bundle` (build product).
+/scripts/addons_core/sculptcore_addon/lib/
+
 # Ignore old submodules directories.
 # Eventually need to get rid of those, but for the first time of transition
 # avoid indidents when the folders exists after bisect and developers staging

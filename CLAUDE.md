@@ -83,28 +83,42 @@ engine (`extern/sculptcore/source/**`) reaches Blender by **rebuilding that
 DLL** — Blender itself needs no rebuild. A change to the addon's Python
 (`scripts/addons_core/sculptcore_addon/**`) needs nothing rebuilt at all.
 
-Build the DLL from the submodule with the Node dispatcher (see
+Build + stage everything with the Node dispatcher (see
 `extern/sculptcore/CLAUDE.md` for the full tool):
 
 ```
 cd extern/sculptcore
-node make.mjs build python   # -> extern/sculptcore/build/python/sculptcore_capi.dll
+node make.mjs bundle   # build the DLL, then vendor package + DLLs into the addon
 ```
 
-Deps (OpenBLAS/CHOLMOD) are statically linked into that DLL; `wgpu_native.dll`
-is staged beside it and must be findable at load time.
+`bundle` runs `build python` (skip with `--no-build`), then mirrors the
+`sculptcore` ctypes package plus `sculptcore_capi.dll` / `wgpu_native.dll`
+(`--pdb` adds the .pdb) into `sculptcore_addon/lib/sculptcore/` — in the
+source tree **and** every sibling build tree's addon copy (the one
+`blender.exe` actually runs). Deps (OpenBLAS/CHOLMOD) are statically linked
+into the DLL. If a running Blender holds the old DLL, bundle renames it aside
+and stages the new one; restart Blender to pick it up. The vendored `lib/` is
+gitignored — it is a build product, never committed.
 
-**How the pieces are discovered** (no vendoring needed for dev):
+**Launch** — no env vars needed after a `bundle`:
+
+```
+Start-Process "C:\dev\blender\build_windows_x64_clang_RelWithDebInfo\bin\blender.exe"
+```
+
+**How the pieces are discovered**:
 - The addon's `engine.py` imports the `sculptcore` package via, in order: an
-  already-importable `sculptcore`; a vendored copy at
-  `scripts/addons_core/sculptcore_addon/lib/sculptcore/`; or the directory in
-  `$SCULPTCORE_PYTHON_PATH`.
+  already-importable `sculptcore`; the directory in `$SCULPTCORE_PYTHON_PATH`
+  (dev override beats the bundle); or the vendored copy at
+  `scripts/addons_core/sculptcore_addon/lib/sculptcore/`.
 - The package's `_capi.py` finds the DLL via, in order: `$SCULPTCORE_CAPI_PATH`;
-  a copy beside the package; or `<sculptcore-repo>/build/python/` (where
-  `build python` puts it — so a source checkout resolves automatically).
+  a copy beside the package (the bundled case — `wgpu_native.dll` resolves via
+  `add_dll_directory` on that same directory); or
+  `<sculptcore-repo>/build/python/` (where `build python` puts it — so a
+  source checkout resolves automatically).
 
-**Launch Blender against the fresh build** — point the addon at the package and
-put the DLL's directory on `PATH` (for `wgpu_native.dll`), then start the exe:
+To iterate on the engine without touching the vendored copy, the old env-var
+flow still works and takes precedence:
 
 ```
 $env:SCULPTCORE_PYTHON_PATH = "C:\dev\blender\main\extern\sculptcore\python"
