@@ -3160,7 +3160,7 @@ enum class ActivationButtonState:int8_t {
  * active, it will be deactivated.
  * \param state: Activation state for button. Some states are specific to certain button types;
  * When an incompatible state is provided, the button will be activated as with
- * #ActivationButtonState::ActivationButtonState.
+ * #ActivationButtonState::Highlight.
  * \param index: Index of the button that references the RNA property.
  * \return The center point of the button when successfully activated.
  */
