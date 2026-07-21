@@ -27,7 +27,7 @@ void zbuf_free_span(struct ZSpan *zspan);
 
 /**
  * Scan-convert for strand triangles, calls function for each x, y coordinate
- * and gives UV barycentrics and z.
+ * and gives UV barycentrics.
  */
 void zspan_scanconvert(struct ZSpan *zspan,
                        void *handle,
@@ -35,5 +35,16 @@ void zspan_scanconvert(struct ZSpan *zspan,
                        float *v2,
                        float *v3,
                        void (*func)(void *, int, int, float, float));
+
+/**
+ * Conservatively rasterize triangle wireframe, calls function for each x, y coordinate
+ * and gives UV barycentrics.
+ */
+void zspan_cwireframe(ZSpan *zspan,
+                      void *handle,
+                      float *v1,
+                      float *v2,
+                      float *v3,
+                      void (*func)(void *, int, int, float, float));
 
 }  // namespace blender

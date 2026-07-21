@@ -104,7 +104,8 @@ void RE_bake_pixels_populate(struct Mesh *mesh,
                              struct BakePixel *pixel_array,
                              size_t pixels_num,
                              const struct BakeTargets *targets,
-                             StringRef uv_layer);
+                             StringRef uv_layer,
+							 bool conservative);
 
 void RE_bake_mask_fill(const BakePixel pixel_array[], size_t pixels_num, char *mask);
 
@@ -114,7 +115,8 @@ void RE_bake_margin(struct ImBuf *ibuf,
                     char margin_type,
                     const Mesh *mesh,
                     StringRef uv_layer,
-                    const float uv_offset[2]);
+                    const float uv_offset[2],
+					bool conservative);
 
 void RE_bake_normal_world_to_object(const BakePixel pixel_array[],
                                     size_t pixels_num,

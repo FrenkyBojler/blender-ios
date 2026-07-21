@@ -114,6 +114,17 @@ class TextureMarginMap {
     zspan_scanconvert(
         &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
   }
+  
+  void rasterize_wires(float *v1, float *v2, float *v3, uint32_t value, char *mask, bool writemask)
+  {
+    /* NOTE: This is not thread safe, because the value to be written by the rasterizer is
+     * a class member. If this is ever made multi-threaded each thread needs to get its own. */
+    value_to_store_ = value;
+    mask_ = mask;
+    write_mask_ = writemask;
+    zspan_cwireframe(
+        &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
+  }
 
   static void zscan_store_pixel(
       void *map, int x, int y, [[maybe_unused]] float u, [[maybe_unused]] float v)
@@ -504,7 +515,8 @@ static void generate_margin(ImBuf *ibuf,
                             const Span<int> corner_edges,
                             const Span<int> corner_verts,
                             const Span<float2> uv_map,
-                            const float uv_offset[2])
+                            const float uv_offset[2],
+							bool conservative)
 {
   Array<int3> corner_tris(poly_to_tri_count(faces.size(), corner_edges.size()));
   bke::mesh::corner_tris_calc(vert_positions, faces, corner_verts, corner_tris);
@@ -529,21 +541,33 @@ static void generate_margin(ImBuf *ibuf,
     const int3 tri = corner_tris[i];
     float vec[3][2];
 
-    for (int a = 0; a < 3; a++) {
-      const float *uv = uv_map[tri[a]];
-
-      /* NOTE(@ideasman42): workaround for pixel aligned UVs which are common and can screw up
-       * our intersection tests where a pixel gets in between 2 faces or the middle of a quad,
-       * camera aligned quads also have this problem but they are less common.
-       * Add a small offset to the UVs, fixes bug #18685. */
-      vec[a][0] = (uv[0] - uv_offset[0]) * float(ibuf->x) - (0.5f + 0.001f);
-      vec[a][1] = (uv[1] - uv_offset[1]) * float(ibuf->y) - (0.5f + 0.002f);
+    for (int fill = conservative ? 0 : 1; fill < 2; fill++) {
+      for (int a = 0; a < 3; a++) {
+        const float *uv = uv_map[tri[a]];
+  
+        vec[a][0] = (uv[0] - uv_offset[0]) * float(ibuf->x);
+        vec[a][1] = (uv[1] - uv_offset[1]) * float(ibuf->y);
+		
+		if (fill)
+		{
+          /* NOTE(@ideasman42): workaround for pixel aligned UVs which are common and can screw up
+           * our intersection tests where a pixel gets in between 2 faces or the middle of a quad,
+           * camera aligned quads also have this problem but they are less common.
+           * Add a small offset to the UVs, fixes bug #18685. */
+          vec[a][0] -= (0.5f + 0.001f);
+          vec[a][1] -= (0.5f + 0.002f);
+		}
+      }
+  
+      /* NOTE: we need the top bit for the dijkstra distance map. */
+      BLI_assert(tri_faces[i] < 0x80000000);
+      
+      if (!fill) {
+		map.rasterize_wires(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
+	  } else {
+        map.rasterize_tri(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
+	  }
     }
-
-    /* NOTE: we need the top bit for the dijkstra distance map. */
-    BLI_assert(tri_faces[i] < 0x80000000);
-
-    map.rasterize_tri(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
   }
 
   char *tmpmask = MEM_dupalloc(mask);
@@ -574,7 +598,8 @@ void RE_generate_texturemargin_adjacentfaces(ImBuf *ibuf,
                                              const int margin,
                                              const Mesh *mesh,
                                              StringRef uv_layer,
-                                             const float uv_offset[2])
+                                             const float uv_offset[2],
+											 bool conservative)
 {
   const StringRef name = uv_layer.is_empty() ? mesh->active_uv_map_name() : uv_layer;
   const bke::AttributeAccessor attributes = mesh->attributes();
@@ -589,7 +614,8 @@ void RE_generate_texturemargin_adjacentfaces(ImBuf *ibuf,
                                          mesh->corner_edges(),
                                          mesh->corner_verts(),
                                          uv_map,
-                                         uv_offset);
+                                         uv_offset,
+										 conservative);
 }
 
 }  // namespace blender
