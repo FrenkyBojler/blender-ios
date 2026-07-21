@@ -13,20 +13,25 @@ class GlobalTransformPanelMixin:
     bl_category = "Animation"
 
 
-class VIEW3D_PT_copy_global_transform(GlobalTransformPanelMixin, Panel):
-    bl_label = "Global Transform"
+class VIEW3D_PT_copy_world_space_animation(GlobalTransformPanelMixin, Panel):
+    bl_label = "World Space Animation"
 
     def draw(self, context: Context) -> None:
         layout = self.layout
-        scene = context.scene
 
         row = layout.row(align=True)
-        row.operator("anim.world_space_copy_current", icon='COPYDOWN', text="Current Frame")
         row.operator("anim.world_space_copy", icon='COPYDOWN', text="Playback Range").range_mode = 'PLAYBACK'
         row = layout.row(align=True)
         row.operator("anim.world_space_paste", icon='PASTEDOWN', text="Paste")
         row.operator("anim.world_space_paste", text="Paste Relative", icon='PASTEDOWN').offset = 'START'
-        layout.separator()
+
+
+class VIEW3D_PT_copy_global_transform(GlobalTransformPanelMixin, Panel):
+    bl_label = "World Space Transform"
+
+    def draw(self, context: Context) -> None:
+        layout = self.layout
+        scene = context.scene
 
         # No need to put "Global Transform" in the operator text, given that it's already in the panel title.
         layout.operator("object.copy_global_transform", text="Copy", icon='COPYDOWN')
@@ -179,6 +184,7 @@ class VIEW3D_PT_copy_global_transform_relative(GlobalTransformPanelMixin, Panel)
 
 
 classes = (
+    VIEW3D_PT_copy_world_space_animation,
     VIEW3D_PT_copy_global_transform,
     VIEW3D_PT_copy_global_transform_mirror,
     VIEW3D_PT_copy_global_transform_relative,
