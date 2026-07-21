@@ -166,7 +166,6 @@ eDepsSceneComponentType nodeTypeToSceneComponent(NodeType type)
     case NodeType::CACHE:
     case NodeType::NTREE_OUTPUT:
     case NodeType::NTREE_GEOMETRY_PREPROCESS:
-    case NodeType::ID_NAME:
       return DEG_SCENE_COMP_PARAMETERS;
 
     case NodeType::VISIBILITY:
@@ -198,8 +197,6 @@ NodeType nodeTypeFromObjectComponent(eDepsObjectComponentType component_type)
       return NodeType::SHADING;
     case DEG_OB_COMP_CACHE:
       return NodeType::CACHE;
-    case DEG_OB_COMP_NAME:
-      return NodeType::ID_NAME;
   }
   return NodeType::UNDEFINED;
 }

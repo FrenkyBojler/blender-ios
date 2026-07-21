@@ -2507,6 +2507,7 @@ IDNewNameResult BKE_id_rename(Main &bmain, ID &id, StringRefNull name, const IDN
       }
       default:
         DEG_id_tag_update(&id, ID_RECALC_GEOMETRY);
+        break;
     }
   };
 

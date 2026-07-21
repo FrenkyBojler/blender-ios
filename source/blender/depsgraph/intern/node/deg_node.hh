@@ -143,8 +143,6 @@ enum class NodeType {
   NTREE_OUTPUT,
   /* Preprocessing for geometry node trees before they can be evaluated. */
   NTREE_GEOMETRY_PREPROCESS,
-    /* ID-Block name. */
-  ID_NAME,
 
   /* Total number of meaningful node types. */
   NUM_TYPES,
