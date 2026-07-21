@@ -1189,8 +1189,6 @@ void accumulate_or_display_frag([[resource_table]] const FilmDisplay &srt,
     int2 input_bounds = textureSize(film.in_combined_tx, 0).xy - int2(1);
     if (any(lessThan(texel_film, int2(0))) || any(greaterThan(texel_film, input_bounds))) {
       frag_out.color = float4(0.0f);
-      // out_depth = -10000.0f;
-      /* Match clear value of depth pass. */
       out_depth = 1e10f;
     }
   }
