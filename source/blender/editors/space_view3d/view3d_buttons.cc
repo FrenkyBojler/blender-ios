@@ -2071,9 +2071,9 @@ static void v3d_transform_butsR(const bContext *C, ui::Layout &layout, PointerRN
       break;
   }
 
-  split = &layout.split(0.8f, false);
-  split->prop(ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
-  split->op_menu_enum(C, "ANIM_OT_rotation_mode_convert", "mode", "", ICON_DOWNARROW_HLT);
+  ui::Layout &row = layout.row(/*align=*/true);
+  row.prop(ptr, "rotation_mode", UI_ITEM_NONE, "", ICON_NONE);
+  row.op_menu_enum(C, "ANIM_OT_rotation_mode_convert", "mode", "", ICON_DOWNARROW_HLT);
 
   split = &layout.split(0.8f, false);
   colsub = &split->column(true);
