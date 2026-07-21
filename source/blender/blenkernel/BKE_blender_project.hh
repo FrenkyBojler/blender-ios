@@ -95,7 +95,23 @@ void with_blender_project_read_lock(FunctionRef<void()> lambda);
  */
 void with_blender_project_write_lock(FunctionRef<void()> lambda);
 
-// TODO: document.
+/* Makes a shortened version of a variable name, for use in compact display.
+ *
+ * For example, the name "project_root" becomes "pr" and "my_variable_name"
+ * becomes "mvn".
+ *
+ * This function is utf8 safe, but currently only gives reasonable abbreviations
+ * for ascii snake-case names.
+ *
+ * \param dst: destination char array for the generated short name. Does *not*
+ * get null terminated.
+ *
+ * \param dst_max_size: the size of the buffer that dst points to.
+ *
+ * \param name: the original variable name, to be abbreviated.
+ *
+ * \returns The length of the abbreviated variable name stored in dst.
+ */
 int abbreviate_variable_name(char *dst, int dst_max_size, StringRef name);
 
 }  // namespace bke
