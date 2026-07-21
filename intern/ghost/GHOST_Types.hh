@@ -1110,6 +1110,11 @@ struct GHOST_CSD_Params {
   /** Used for window interactions. */
   int cursor_drag_threshold;
   int cursor_double_click_ms;
+  /**
+   * Extra margin outside the visible window where the pointer still resolves to a resize border.
+   * Zero disables the extra margin.
+   */
+  int resize_margin_size;
 };
 
 #ifdef WITH_XR_OPENXR

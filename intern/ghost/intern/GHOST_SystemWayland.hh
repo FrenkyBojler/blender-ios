@@ -53,6 +53,18 @@ void ghost_wl_surface_tag_cursor_pointer(struct wl_surface *wl_surface);
 bool ghost_wl_surface_own_cursor_tablet(const struct wl_surface *wl_surface);
 void ghost_wl_surface_tag_cursor_tablet(struct wl_surface *wl_surface);
 
+#ifdef WITH_GHOST_CSD
+/**
+ * Tag for the invisible subsurface used to for the CSD resize border past the visible
+ * window (see #GWL_WindowCSD::margin_surface). Kept distinct from #ghost_wl_surface_tag so
+ * non-pointer input paths ignore it as they would any other foreign surface, since only pointer
+ * motion/press handling knows how to translate its coordinates back into the main surface's
+ * coordinate space.
+ */
+bool ghost_wl_surface_own_csd_margin(const struct wl_surface *wl_surface);
+void ghost_wl_surface_tag_csd_margin(struct wl_surface *wl_surface);
+#endif
+
 /* Scaling to: translates from WAYLAND into GHOST (viewport local) coordinates.
  * Scaling from: performs the reverse translation.
  *
@@ -267,6 +279,7 @@ class GHOST_SystemWayland : public GHOST_System {
 
   struct wl_display *wl_display_get();
   struct wl_compositor *wl_compositor_get();
+  struct wl_subcompositor *wl_subcompositor_get();
   struct zwp_primary_selection_device_manager_v1 *wp_primary_selection_manager_get();
   struct xdg_activation_v1 *xdg_activation_manager_get();
   struct zwp_pointer_gestures_v1 *wp_pointer_gestures_get();
@@ -285,6 +298,13 @@ class GHOST_SystemWayland : public GHOST_System {
   const std::span<GWL_Output *const> outputs_get() const;
 
   struct wl_shm *wl_shm_get() const;
+
+  /**
+   * Create a 1x1 fully transparent SHM buffer, ready to be scaled to any size via
+   * #wp_viewport_set_destination. Returns null on allocation failure. The caller owns the returned
+   * buffer.
+   */
+  struct wl_buffer *wl_buffer_create_argb_transparent();
 
   void ime_begin(const GHOST_WindowWayland *win,
                  int32_t x,

@@ -1529,6 +1529,7 @@ struct GWL_Display {
     wl_registry *registry = nullptr;
     wl_display *display = nullptr;
     wl_compositor *compositor = nullptr;
+    wl_subcompositor *subcompositor = nullptr;
     wl_shm *shm = nullptr;
 
     /* Managers. */
@@ -4549,6 +4550,43 @@ static const wl_surface_listener cursor_surface_listener = {
 static CLG_LogRef LOG_WL_POINTER = {"ghost.wl.handle.pointer"};
 #define LOG (&LOG_WL_POINTER)
 
+#ifdef WITH_GHOST_CSD
+/**
+ * True when `wl_surface` is #GWL_WindowCSD::margin_surface: a small invisible surface positioned
+ * just outside the visible window, used only to extend the CSD resize border past the window
+ * edge (see #GHOST_CSD_Params::resize_margin_size). Events must be translated into the main
+ * surface's coordinate space, see #gwl_window_csd_margin_event_xy_offset_get.
+ */
+static bool gwl_window_csd_margin_surface_check(const GWL_Seat *seat, const wl_surface *wl_surface)
+{
+  return seat->system->use_window_frame_csd_get() && wl_surface &&
+         ghost_wl_surface_own_csd_margin(wl_surface);
+}
+
+/**
+ * The offset (in physical pixels) to subtract from event coordinates reported against
+ * #GWL_WindowCSD::margin_surface so they land in the same coordinate space used for events
+ * against the main surface (see #gwl_window_csd_active_elem_motion).
+ */
+static int32_t gwl_window_csd_margin_event_xy_offset_get(const GWL_Seat *seat,
+                                                         GHOST_WindowWayland *win)
+{
+  return gwl_window_dpi_scale_value(win, seat->system->getWindowCSD().resize_margin_size);
+}
+
+/**
+ * Like #ghost_wl_surface_user_data, but for a `wl_surface` already known to be
+ * #GWL_WindowCSD::margin_surface (tagged separately, see #ghost_wl_surface_own_csd_margin).
+ */
+static GHOST_WindowWayland *ghost_wl_surface_csd_margin_user_data(wl_surface *wl_surface)
+{
+  GHOST_ASSERT(wl_surface, "wl_surface must not be nullptr");
+  GHOST_ASSERT(ghost_wl_surface_own_csd_margin(wl_surface),
+               "wl_surface is not the CSD margin surface");
+  return static_cast<GHOST_WindowWayland *>(wl_surface_get_user_data(wl_surface));
+}
+#endif /* WITH_GHOST_CSD */
+
 static void pointer_handle_enter(void *data,
                                  wl_pointer * /*wl_pointer*/,
                                  const uint32_t serial,
@@ -4559,14 +4597,25 @@ static void pointer_handle_enter(void *data,
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   const uint64_t event_ms = seat->system->getMilliSeconds();
 
+#ifdef WITH_GHOST_CSD
+  const bool is_csd_margin = gwl_window_csd_margin_surface_check(seat, wl_surface);
+#else
+  const bool is_csd_margin = false;
+#endif
+
   /* Null when just destroyed. */
-  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
+  if (!ghost_wl_surface_own_with_null_check(wl_surface) && !is_csd_margin) {
     CLOG_DEBUG(LOG, "enter (skipped)");
     return;
   }
   CLOG_DEBUG(LOG, "enter");
 
+#ifdef WITH_GHOST_CSD
+  GHOST_WindowWayland *win = is_csd_margin ? ghost_wl_surface_csd_margin_user_data(wl_surface) :
+                                             ghost_wl_surface_user_data(wl_surface);
+#else
   GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface);
+#endif
 
   seat->cursor_source_serial = serial;
   seat->pointer.serial = serial;
@@ -4582,9 +4631,15 @@ static void pointer_handle_enter(void *data,
   seat->system->seat_active_set(seat);
 
   bool cursor_shape_refresh = true;
-  const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
+  int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
 
 #ifdef WITH_GHOST_CSD
+  if (is_csd_margin) {
+    const int32_t margin = gwl_window_csd_margin_event_xy_offset_get(seat, win);
+    event_xy[0] -= margin;
+    event_xy[1] -= margin;
+  }
+
   if (seat->system->use_window_frame_csd_get()) {
     /* On enter there is logically no prior state that needs to be taken into account.
      * Note that this is mostly likely cleared when leaving, setting here to account
@@ -4613,7 +4668,14 @@ static void pointer_handle_leave(void *data,
   /* First clear the `pointer.wl_surface`, since the window won't exist when closing the window. */
   GWL_Seat *seat = static_cast<GWL_Seat *>(data);
   seat->pointer.wl.surface_window = nullptr;
-  if (!ghost_wl_surface_own_with_null_check(wl_surface)) {
+
+#ifdef WITH_GHOST_CSD
+  const bool is_csd_margin = gwl_window_csd_margin_surface_check(seat, wl_surface);
+#else
+  const bool is_csd_margin = false;
+#endif
+
+  if (!ghost_wl_surface_own_with_null_check(wl_surface) && !is_csd_margin) {
     CLOG_DEBUG(LOG, "leave (skipped)");
     return;
   }
@@ -4621,7 +4683,8 @@ static void pointer_handle_leave(void *data,
 
 #ifdef WITH_GHOST_CSD
   if (seat->system->use_window_frame_csd_get()) {
-    GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface);
+    GHOST_WindowWayland *win = is_csd_margin ? ghost_wl_surface_csd_margin_user_data(wl_surface) :
+                                               ghost_wl_surface_user_data(wl_surface);
     gwl_window_csd_active_elem_clear(win);
     gwl_window_csd_buttons_clear(win);
   }
@@ -4727,7 +4790,19 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
   CLOG_DEBUG(LOG, "frame");
 
   if (wl_surface *wl_surface_focus = seat->pointer.wl.surface_window) {
+#ifdef WITH_GHOST_CSD
+    const bool is_csd_margin = gwl_window_csd_margin_surface_check(seat, wl_surface_focus);
+    GHOST_WindowWayland *win = is_csd_margin ?
+                                   ghost_wl_surface_csd_margin_user_data(wl_surface_focus) :
+                                   ghost_wl_surface_user_data(wl_surface_focus);
+    /* Non-zero while the pointer is over #GWL_WindowCSD::margin_surface: subtract from event
+     * coordinates so they land in the same coordinate space used for the main surface. */
+    const int32_t csd_margin_offset = is_csd_margin ?
+                                          gwl_window_csd_margin_event_xy_offset_get(seat, win) :
+                                          0;
+#else
     GHOST_WindowWayland *win = ghost_wl_surface_user_data(wl_surface_focus);
+#endif
     for (int ty_index = 0; ty_index < seat->pointer_events.frame_pending.frame_types_num;
          ty_index++)
     {
@@ -4740,7 +4815,11 @@ static void pointer_handle_frame(void *data, wl_pointer * /*wl_pointer*/)
         using enum GWL_Pointer_EventTypes;
         /* Use motion for pressure and tilt as there are no explicit event types for these. */
         case Motion: {
-          const int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
+          int event_xy[2] = {WL_FIXED_TO_INT_FOR_WINDOW_V2(win, seat->pointer.xy)};
+#ifdef WITH_GHOST_CSD
+          event_xy[0] -= csd_margin_offset;
+          event_xy[1] -= csd_margin_offset;
+#endif
           seat->system->pushEvent_maybe_pending(std::make_unique<GHOST_EventCursor>(
               event_ms, GHOST_kEventCursorMove, win, UNPACK2(event_xy), GHOST_TABLET_DATA_NONE));
 #ifdef WITH_GHOST_CSD
@@ -7499,6 +7578,26 @@ static void gwl_registry_compositor_remove(GWL_Display *display,
   *value_p = nullptr;
 }
 
+/* #GWL_Display.wl_subcompositor */
+
+static void gwl_registry_subcompositor_add(GWL_Display *display,
+                                           const GWL_RegisteryAdd_Params &params)
+{
+  const uint version = GWL_IFACE_VERSION_CLAMP(params.version, 1u, 1u);
+
+  display->wl.subcompositor = static_cast<wl_subcompositor *>(
+      wl_registry_bind(display->wl.registry, params.name, &wl_subcompositor_interface, version));
+  gwl_registry_entry_add(display, params, nullptr);
+}
+static void gwl_registry_subcompositor_remove(GWL_Display *display,
+                                              void * /*user_data*/,
+                                              const bool /*on_exit*/)
+{
+  wl_subcompositor **value_p = &display->wl.subcompositor;
+  wl_subcompositor_destroy(*value_p);
+  *value_p = nullptr;
+}
+
 /* #GWL_Display.xdg_decor.shell */
 
 static void gwl_registry_xdg_wm_base_add(GWL_Display *display,
@@ -8171,6 +8270,12 @@ static const GWL_RegistryHandler gwl_registry_handlers[] = {
         /*add_fn*/ gwl_registry_compositor_add,
         /*update_fn*/ nullptr,
         /*remove_fn*/ gwl_registry_compositor_remove,
+    },
+    {
+        /*interface_p*/ &wl_subcompositor_interface.name,
+        /*add_fn*/ gwl_registry_subcompositor_add,
+        /*update_fn*/ nullptr,
+        /*remove_fn*/ gwl_registry_subcompositor_remove,
     },
     {
         /*interface_p*/ &wl_shm_interface.name,
@@ -10084,6 +10189,9 @@ static const char *ghost_wl_output_tag_id = "GHOST-output";
 static const char *ghost_wl_surface_tag_id = "GHOST-window";
 static const char *ghost_wl_surface_cursor_pointer_tag_id = "GHOST-cursor-pointer";
 static const char *ghost_wl_surface_cursor_tablet_tag_id = "GHOST-cursor-tablet";
+#ifdef WITH_GHOST_CSD
+static const char *ghost_wl_surface_csd_margin_tag_id = "GHOST-csd-margin";
+#endif
 
 bool ghost_wl_output_own(const wl_output *wl_output)
 {
@@ -10115,6 +10223,14 @@ bool ghost_wl_surface_own_cursor_tablet(const wl_surface *wl_surface)
   return wl_proxy_get_tag(const_cast<wl_proxy *>(proxy)) == &ghost_wl_surface_cursor_tablet_tag_id;
 }
 
+#ifdef WITH_GHOST_CSD
+bool ghost_wl_surface_own_csd_margin(const wl_surface *wl_surface)
+{
+  const wl_proxy *proxy = reinterpret_cast<const wl_proxy *>(wl_surface);
+  return wl_proxy_get_tag(const_cast<wl_proxy *>(proxy)) == &ghost_wl_surface_csd_margin_tag_id;
+}
+#endif
+
 void ghost_wl_output_tag(wl_output *wl_output)
 {
   wl_proxy *proxy = reinterpret_cast<wl_proxy *>(wl_output);
@@ -10139,6 +10255,14 @@ void ghost_wl_surface_tag_cursor_tablet(wl_surface *wl_surface)
   wl_proxy_set_tag(proxy, &ghost_wl_surface_cursor_tablet_tag_id);
 }
 
+#ifdef WITH_GHOST_CSD
+void ghost_wl_surface_tag_csd_margin(wl_surface *wl_surface)
+{
+  wl_proxy *proxy = reinterpret_cast<wl_proxy *>(wl_surface);
+  wl_proxy_set_tag(proxy, &ghost_wl_surface_csd_margin_tag_id);
+}
+#endif
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -10155,6 +10279,11 @@ wl_display *GHOST_SystemWayland::wl_display_get()
 wl_compositor *GHOST_SystemWayland::wl_compositor_get()
 {
   return display_->wl.compositor;
+}
+
+wl_subcompositor *GHOST_SystemWayland::wl_subcompositor_get()
+{
+  return display_->wl.subcompositor;
 }
 
 zwp_primary_selection_device_manager_v1 *GHOST_SystemWayland::wp_primary_selection_manager_get()
@@ -10242,6 +10371,21 @@ wl_shm *GHOST_SystemWayland::wl_shm_get() const
 GHOST_TimerManager *GHOST_SystemWayland::key_repeat_timer_manager()
 {
   return display_->key_repeat_timer_manager;
+}
+
+wl_buffer *GHOST_SystemWayland::wl_buffer_create_argb_transparent()
+{
+  const int32_t size_xy[2] = {1, 1};
+  void *buffer_data = nullptr;
+  size_t buffer_data_size = 0;
+  wl_buffer *buffer = ghost_wl_buffer_create_for_image(
+      display_->wl.shm, size_xy, WL_SHM_FORMAT_ARGB8888, &buffer_data, &buffer_data_size);
+  if (buffer == nullptr) [[unlikely]] {
+    return nullptr;
+  }
+  memset(buffer_data, 0, buffer_data_size);
+  munmap(buffer_data, buffer_data_size);
+  return buffer;
 }
 
 void GHOST_SystemWayland::xdg_toplevel_icon_update(GHOST_WindowWayland *window,
