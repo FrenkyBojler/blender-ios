@@ -145,6 +145,8 @@ enum eWorkSpaceFlags : int {
   WORKSPACE_USE_PIN_SCENE = (1 << 2),
   /* Used for syncing time between sequencer scene strips and the active scene. */
   WORKSPACE_SYNC_SCENE_TIME = (1 << 3),
+  /* Used for syncing playback frame range between sequencer scene strips and the active scene. */
+  WORKSPACE_SYNC_SCENE_RANGE = (1 << 4),
 };
 ENUM_OPERATORS(eWorkSpaceFlags)
 

@@ -452,7 +452,7 @@ static void scene_strip_visible_frame_range(const Scene *sequencer_scene,
 bool get_scene_strip_frame_range_for_sync(const bContext &C, float *r_start, float *r_end)
 {
   const WorkSpace *workspace = CTX_wm_workspace(&C);
-  if (!workspace || (workspace->flags & WORKSPACE_SYNC_SCENE_TIME) == 0) {
+  if (workspace == nullptr) {
     return false;
   }
   const Scene *sequencer_scene = workspace->sequencer_scene;
@@ -543,13 +543,13 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     }
   }
 
-  if (active_scene->r.flag & SCER_LIMIT_PREVIEW_TO_SCENE_STRIP) {
-    float start_frame, end_frame;
-    scene_strip_visible_frame_range(sequencer_scene, scene_strip, &start_frame, &end_frame);
-    active_scene->r.flag |= SCER_PRV_RANGE;
-    active_scene->r.psfra = round_fl_to_int(start_frame);
-    active_scene->r.pefra = round_fl_to_int(end_frame);
-  }
+  // if (active_scene->r.flag & SCER_LIMIT_PREVIEW_TO_SCENE_STRIP) {
+  //   float start_frame, end_frame;
+  //   scene_strip_visible_frame_range(sequencer_scene, scene_strip, &start_frame, &end_frame);
+  //   active_scene->r.flag |= SCER_PRV_RANGE;
+  //   active_scene->r.psfra = round_fl_to_int(start_frame);
+  //   active_scene->r.pefra = round_fl_to_int(end_frame);
+  // }
 
   DEG_id_tag_update(&active_scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(&C, NC_WINDOW, nullptr);

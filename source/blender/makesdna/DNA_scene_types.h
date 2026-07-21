@@ -714,8 +714,6 @@ enum eRender_Flag : short {
   SCER_ALLOW_PREROLL = 1 << 2,
   /** Show/use sub-frames (for checking motion blur). */
   SCER_SHOW_SUBFRAME = 1 << 3,
-  // todo(habib): docu
-  SCER_LIMIT_PREVIEW_TO_SCENE_STRIP = 1 << 4,
 };
 ENUM_OPERATORS(eRender_Flag)
 

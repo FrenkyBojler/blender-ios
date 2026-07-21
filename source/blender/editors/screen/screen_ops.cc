@@ -6528,8 +6528,13 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   bool do_stop_playback = false;
 
   /* Handle reaching the extreme frames. */
-  const int start_frame = scene->playback_start();
-  const int end_frame = scene->playback_end();
+  float start_frame = scene->playback_start();
+  float end_frame = scene->playback_end();
+  const WorkSpace *workspace = CTX_wm_workspace(C);
+  if (workspace->flags & WORKSPACE_SYNC_SCENE_RANGE && sad->from_anim_edit) {
+    ed::vse::get_scene_strip_frame_range_for_sync(*C, &start_frame, &end_frame);
+  }
+
   const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;
   const bool is_extreme_frame = is_playing_forward ? scene->r.cfra > end_frame :
                                                      scene->r.cfra < start_frame;
