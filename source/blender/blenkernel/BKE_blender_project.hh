@@ -80,6 +80,13 @@ class BlenderProject {
   StringRefNull get_name() const;
   StringRefNull get_root_path() const;
 
+  /**
+   * Get the array index of the given variable.
+   *
+   * \return If the variable is found, the index of the variable.  If not found, -1.
+   */
+  int find_variable_index(IDProperty *var);
+
   IDProperty *new_variable(StringRef name, eIDPropertyType type);
 
   /**
@@ -98,6 +105,14 @@ class BlenderProject {
    * Both from_index and to_index must be valid indices in the list.
    */
   void move_variable(int from_index, int to_index);
+
+  /**
+   * Rename the variable at the given index.
+   *
+   * If `name` does not adhere to naming requirements, it is automatically
+   * altered to meet them by substituting invalid characters.
+   */
+  bool rename_variable(int variable_index, StringRef name);
 };
 
 /**

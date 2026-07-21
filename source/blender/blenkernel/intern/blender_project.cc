@@ -18,6 +18,7 @@
 #include "BLI_function_ref.hh"
 #include "BLI_string.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utils.hh"
 
 namespace blender {
 
@@ -86,6 +87,22 @@ StringRefNull BlenderProject::get_root_path() const
   return StringRefNull(this->root_path_);
 }
 
+int BlenderProject::find_variable_index(IDProperty *var)
+{
+  BLI_assert(var != nullptr);
+  if (var == nullptr) {
+    return -1;
+  }
+
+  for (int i : this->variables.index_range()) {
+    if (this->variables[i].get() == var) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
 IDProperty *BlenderProject::new_variable(StringRef name, eIDPropertyType type)
 {
   std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> prop;
@@ -123,15 +140,14 @@ IDProperty *BlenderProject::new_variable(StringRef name, eIDPropertyType type)
 
 int BlenderProject::remove_variable(IDProperty *var)
 {
-  for (int i : this->variables.index_range()) {
-    if (this->variables[i].get() == var) {
-      this->variables.remove(i);
-      this->is_dirty = true;
-      return i;
-    }
+  const int index = find_variable_index(var);
+  if (index == -1) {
+    return -1;
   }
 
-  return -1;
+  this->variables.remove(index);
+  this->is_dirty = true;
+  return index;
 }
 
 void BlenderProject::move_variable(int from_index, int to_index)
@@ -156,6 +172,38 @@ void BlenderProject::move_variable(int from_index, int to_index)
   }
 
   this->is_dirty = true;
+}
+
+bool BlenderProject::rename_variable(int variable_index, StringRef name)
+{
+  BLI_assert(variable_index >= 0 && variable_index < this->variables.size());
+  if (variable_index < 0 || variable_index >= this->variables.size()) {
+    return false;
+  }
+
+  auto check_name_is_used = [&](const StringRefNull name) -> bool {
+    for (const std::unique_ptr<IDProperty, idprop::IDPropertyDeleter> &other_var : this->variables)
+    {
+      if (other_var.get() == this->variables[variable_index].get()) {
+        /* Skip this var itself. */
+        continue;
+      }
+      if (other_var->name == name) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  std::string new_name = ensure_is_valid_project_variable_name(name);
+  this->variables[variable_index]->name[0] = '\0';
+  BLI_uniquename_cb(check_name_is_used,
+                    new_name.c_str(),
+                    '_',
+                    this->variables[variable_index]->name,
+                    sizeof(IDProperty::name));
+
+  return true;
 }
 
 void with_blender_project_read_lock(FunctionRef<void()> lambda)
