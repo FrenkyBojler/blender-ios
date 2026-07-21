@@ -37,7 +37,11 @@ class SculptCoreBrushTool(bpy.types.WorkSpaceTool):
     def draw_settings(context, layout, _tool):
         # Mirrors _draw_tool_settings_context_mode.SCULPT: brush popup
         # selector, then unified-aware size/strength with their unified and
-        # pen-pressure toggles.
+        # pen-pressure toggles. The same draw runs in the 3D viewport's
+        # horizontal tool header and in the Properties editor's Active Tool tab;
+        # the pressure-response-curve expander only makes sense in the vertical
+        # Properties layout (it is too cramped in the header, which is why
+        # vanilla drops it there too), so it is gated on the editor type.
         from bl_ui.properties_paint_common import BrushAssetShelf, UnifiedPaintPanel
 
         paint = context.tool_settings.sculpt
@@ -47,24 +51,39 @@ class SculptCoreBrushTool(bpy.types.WorkSpaceTool):
             return
         capabilities = brush.sculpt_capabilities
         ups = paint.unified_paint_settings
+        in_properties = context.area is not None and context.area.type == 'PROPERTIES'
 
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
             size = "unprojected_size"
-        UnifiedPaintPanel.prop_unified(
+        size_row = UnifiedPaintPanel.prop_unified(
             layout, context, brush, size,
             pressure_name="use_pressure_size",
             unified_name="use_unified_size",
             text="Size", slider=True, header=True,
         )
+        if in_properties:
+            UnifiedPaintPanel.prop_custom_pressure(
+                layout, context, size_row, brush,
+                pressure_name="use_pressure_size",
+                curve_visibility_name="show_size_curve",
+                custom_curve_name="curve_size",
+            )
         pressure_name = "use_pressure_strength" if capabilities.has_strength_pressure else None
-        UnifiedPaintPanel.prop_unified(
+        strength_row = UnifiedPaintPanel.prop_unified(
             layout, context, brush, "strength",
             pressure_name=pressure_name,
             unified_name="use_unified_strength",
             text="Strength", header=True,
         )
+        if pressure_name and in_properties:
+            UnifiedPaintPanel.prop_custom_pressure(
+                layout, context, strength_row, brush,
+                pressure_name=pressure_name,
+                curve_visibility_name="show_strength_curve",
+                custom_curve_name="curve_strength",
+            )
         if capabilities.has_direction:
             layout.row().prop(brush, "direction", expand=True, text="")
 

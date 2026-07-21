@@ -189,6 +189,63 @@ def _apply_cavity(settings, sc_brush):
         value = cumap.evaluate(curve, i / (n - 1))
         sc_brush.setCavityCurveEntry(i, min(1.0, max(0.0, value)))
 
+
+# Pen-pressure response curves. Blender maps tablet pressure to a strength /
+# size factor through the Brush.curve_strength / Brush.curve_size
+# CurveMappings (vanilla BKE_curvemapping_evaluateF(curve, 0, pressure)). The
+# engine mirrors this with a per-device response table (prop_dynamics.h
+# DynamicDevice.curveTable); the smooth brush folds pressure in Python-side, so
+# the same table is also sampled directly. Baked once per stroke, never per dab.
+_PRESSURE_CURVE_SIZE = 256
+
+
+def sample_pressure_curve(cumap):
+    """Sample a Blender pressure CurveMapping into a list mapping pressure
+    (0..1, in ``_PRESSURE_CURVE_SIZE`` steps) to a response factor, matching
+    vanilla's ``BKE_curvemapping_evaluateF(curve, 0, pressure)``."""
+    cumap.update()
+    curve = cumap.curves[0]
+    n = _PRESSURE_CURVE_SIZE
+    return [cumap.evaluate(curve, i / (n - 1)) for i in range(n)]
+
+
+def eval_pressure_lut(lut, pressure):
+    """Look up a pressure factor in a table from ``sample_pressure_curve``,
+    using the same clamped linear interpolation as the engine's ``deviceFactor``
+    so the Python-side (smooth) and engine-side paths agree."""
+    n = len(lut)
+    x = min(1.0, max(0.0, pressure)) * (n - 1)
+    i = int(x)
+    if i >= n - 1:
+        return lut[n - 1]
+    t = x - i
+    return lut[i] * (1.0 - t) + lut[i + 1] * t
+
+
+def apply_pressure_dynamics(bl_brush, sc_brush, *, use_strength, use_size):
+    """Configure the engine's per-stroke pressure dynamics: a MULTIPLY device
+    layer per pressure-enabled channel, carrying the baked response curve from
+    the matching Brush CurveMapping. Runs once per stroke (the 256-sample bakes
+    are far too slow per dab); the stroke operator refills the device sample
+    with the event pressure each dab. The clears always run so a channel toggled
+    off — or a grab-class stroke that passes both flags false — leaves no stale
+    dynamic behind."""
+    sc_brush.clearPropDynamics(PROP_STRENGTH)
+    sc_brush.clearPropDynamics(PROP_RADIUS)
+    if use_strength:
+        _add_pressure_dynamic(sc_brush, PROP_STRENGTH, bl_brush.curve_strength)
+    if use_size:
+        _add_pressure_dynamic(sc_brush, PROP_RADIUS, bl_brush.curve_size)
+
+
+def _add_pressure_dynamic(sc_brush, prop_id, cumap):
+    sc_brush.addPropDynamic(prop_id, DEVICE_PRESSURE, MIX_MULTIPLY, 1.0)
+    table = sample_pressure_curve(cumap)
+    n = len(table)
+    for i, value in enumerate(table):
+        sc_brush.setPropDynamicSample(prop_id, DEVICE_PRESSURE, i, n, value)
+
+
 # For UI / diagnostics: every mapped type (supported or not).
 KERNEL_BY_TYPE = {t: v[0] for t, v in _MAP.items()}
 

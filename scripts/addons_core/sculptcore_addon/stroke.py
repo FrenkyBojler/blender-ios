@@ -21,7 +21,7 @@ is scriptable end-to-end.
 
 import bpy
 
-from . import convert, engine, mapping, stroke_math, symmetry, texture, undo
+from . import convert, cursor, engine, mapping, stroke_math, symmetry, texture, undo
 
 
 def _float3(mgr, x, y, z):
@@ -431,26 +431,28 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         self._stroke_method = self.brush.stroke_method
         self._preview_method = (not self._grab_class
                                 and self._stroke_method in {'ANCHORED', 'DRAG_DOT'})
-        # Tablet pressure (M4): configure the engine's per-stroke device
-        # dynamics (identity response curve + multiply = linear, the vanilla
-        # semantics); each dab refills the device samples with the event
-        # pressure. Mouse events report pressure 1.0, so the stack is then a
-        # no-op. Grab-class strokes never push samples, so they get no
-        # dynamics (a configured layer with no sample would apply stale
-        # device state); the clears always run to drop the previous stroke's.
+        # Tablet pressure (M4): Blender maps pressure to strength/size through
+        # the Brush.curve_strength / curve_size response curves, baked once here
+        # (never per dab) into Python-side LUTs. The smooth brush folds pressure
+        # in through them (it re-runs the kernel per relaxation pass, whose
+        # per-node loadProps would re-consume an engine device sample); the
+        # normal path additionally drives the engine device dynamics (each dab
+        # refills the sample; mouse reports 1.0, a no-op). The cursor overlay
+        # scales its radius by the size LUT. Grab-class strokes get no pressure.
         sc_brush = _ensure_brush(self.session)
-        sc_brush.clearPropDynamics(mapping.PROP_STRENGTH)
-        sc_brush.clearPropDynamics(mapping.PROP_RADIUS)
-        self._use_pressure = False
-        if not self._grab_class:
-            if self.brush.use_pressure_strength:
-                sc_brush.addPropDynamic(
-                    mapping.PROP_STRENGTH, mapping.DEVICE_PRESSURE, mapping.MIX_MULTIPLY, 1.0)
-                self._use_pressure = True
-            if self.brush.use_pressure_size:
-                sc_brush.addPropDynamic(
-                    mapping.PROP_RADIUS, mapping.DEVICE_PRESSURE, mapping.MIX_MULTIPLY, 1.0)
-                self._use_pressure = True
+        use_strength = not self._grab_class and self.brush.use_pressure_strength
+        use_size = not self._grab_class and self.brush.use_pressure_size
+        self._use_pressure = use_strength or use_size
+        self._pressure_strength_lut = (
+            mapping.sample_pressure_curve(self.brush.curve_strength) if use_strength else None)
+        self._pressure_size_lut = (
+            mapping.sample_pressure_curve(self.brush.curve_size) if use_size else None)
+        if self._smooth_stroke:
+            sc_brush.clearPropDynamics(mapping.PROP_STRENGTH)
+            sc_brush.clearPropDynamics(mapping.PROP_RADIUS)
+        else:
+            mapping.apply_pressure_dynamics(
+                self.brush, sc_brush, use_strength=use_strength, use_size=use_size)
         # Brush texture (Phase 2): bind or clear per stroke; view-pinned
         # mappings also need the current perspective matrix.
         texture.apply_texture(self.brush, sc_brush)
@@ -564,6 +566,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
                      accumulate=accumulate)
         context.window_manager.modal_handler_add(self)
         # First dab at the invoke location.
+        self._publish_cursor_pressure(event.pressure)
         if self._preview_method:
             self._dab_preview(context, event)
         else:
@@ -677,15 +680,17 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
 
         if self._smooth_stroke:
             # Multi-pass smooth (vanilla semantics): strength maps to N
-            # relaxation passes at explicit per-pass strengths. Pressure and
-            # the overlap factor fold into the base python-side — the engine
-            # device stack would re-consume the pressure sample every pass.
+            # relaxation passes at explicit per-pass strengths. Pressure and the
+            # overlap factor fold into the base Python-side (smooth registers no
+            # engine dynamics — see invoke); the pressure factor comes from the
+            # baked curve_strength / curve_size response LUTs.
             strength = self.brush.strength
             if unified.use_unified_strength:
                 strength = unified.strength
-            if self._use_pressure and self.brush.use_pressure_strength:
-                strength *= pressure
-            self.session.brush_obj.clearDeviceInputs()
+            if self._pressure_strength_lut is not None:
+                strength *= mapping.eval_pressure_lut(self._pressure_strength_lut, pressure)
+            if self._pressure_size_lut is not None:
+                world_radius *= mapping.eval_pressure_lut(self._pressure_size_lut, pressure)
             for pass_strength in smooth_iteration_strengths(strength * self._overlap):
                 # Smoothing has no inverse (see apply_dab_state): ignore Ctrl
                 # and the brush direction for the smooth passes.
@@ -724,6 +729,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
 
     def _finish(self, context, status):
         ob = context.active_object
+        cursor.set_size_scale(1.0)
         # On commit, flush the trailing spline segment held back by the
         # 1-segment lookahead (right-clamped); cancel drops it.
         if status == 'FINISHED' and not self._grab_class:
@@ -799,13 +805,28 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         if executor.previewActive():
             executor.rollbackPreviewDab()
         unified = context.tool_settings.sculpt.unified_paint_settings
-        mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
-                                world_radius=world_radius, invert=invert, strength_scale=self._overlap,
-                                allow_invert=not self._smooth_stroke)
-        if self._use_pressure:
-            sc = self.session.brush_obj
-            sc.clearDeviceInputs()
-            sc.pushDeviceInput(mapping.DEVICE_PRESSURE, event.pressure)
+        if self._smooth_stroke:
+            # Smooth registers no engine dynamics (see invoke): fold pressure
+            # into strength / radius Python-side through the baked LUTs.
+            strength = self.brush.strength
+            if unified.use_unified_strength:
+                strength = unified.strength
+            strength *= self._overlap
+            if self._pressure_strength_lut is not None:
+                strength *= mapping.eval_pressure_lut(self._pressure_strength_lut, event.pressure)
+            if self._pressure_size_lut is not None:
+                world_radius *= mapping.eval_pressure_lut(self._pressure_size_lut, event.pressure)
+            mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                    world_radius=world_radius, invert=invert,
+                                    strength_override=strength, allow_invert=False)
+        else:
+            mapping.apply_dab_state(self.brush, unified, self.session.brush_obj,
+                                    world_radius=world_radius, invert=invert,
+                                    strength_scale=self._overlap, allow_invert=True)
+            if self._use_pressure:
+                sc = self.session.brush_obj
+                sc.clearDeviceInputs()
+                sc.pushDeviceInput(mapping.DEVICE_PRESSURE, event.pressure)
         self._preview_apply_image(center, normal, world_radius, extend=False)
         # Mirror images share the one preview bracket, so one rollback reverts
         # the whole group.
@@ -820,6 +841,7 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         pushes an undo step; cancel rolls it back and pushes nothing (the mesh
         is left exactly as the stroke began)."""
         ob = context.active_object
+        cursor.set_size_scale(1.0)
         executor = _ensure_executor(self.session)
         if executor.previewActive():
             if commit:
@@ -836,8 +858,18 @@ class SCULPTCORE_OT_brush_stroke(bpy.types.Operator):
         context.area.tag_redraw()
         return {'FINISHED' if commit else 'CANCELLED'}
 
+    def _publish_cursor_pressure(self, pressure):
+        """Scale the viewport cursor circle by the current size-pressure factor
+        so it tracks the pen like the deformation does (1.0 when size pressure
+        is off)."""
+        scale = 1.0
+        if self._pressure_size_lut is not None:
+            scale = mapping.eval_pressure_lut(self._pressure_size_lut, pressure)
+        cursor.set_size_scale(scale)
+
     def modal(self, context, event):
         if event.type == 'MOUSEMOVE':
+            self._publish_cursor_pressure(event.pressure)
             if self._preview_method:
                 self._dab_preview(context, event)
             else:

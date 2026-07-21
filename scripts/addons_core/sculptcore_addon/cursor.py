@@ -15,6 +15,18 @@ _shader = None
 _batch = None
 _failed = False
 
+# Live size-pressure factor published by the stroke operator so the cursor
+# circle tracks the pen the same way the deformation does; 1.0 when idle or
+# when size pressure is off.
+_size_scale = 1.0
+
+
+def set_size_scale(scale):
+    """Set the cursor radius multiplier (the stroke operator's size-pressure
+    factor). Reset to 1.0 when a stroke ends."""
+    global _size_scale
+    _size_scale = scale
+
 
 def _ensure_batch():
     global _shader, _batch
@@ -45,7 +57,7 @@ def draw(context, x, y):
     if brush is None:
         return
     unified = sculpt.unified_paint_settings
-    radius = unified.size if unified.use_unified_size else brush.size
+    radius = (unified.size if unified.use_unified_size else brush.size) * _size_scale
 
     try:
         import gpu
