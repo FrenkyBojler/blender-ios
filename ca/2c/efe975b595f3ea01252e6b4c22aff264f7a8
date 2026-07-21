@@ -1,1 +1,1 @@
-Referenced by pull request #161745, RNA: Prevent regular properties to access meta-data PointerRNA.
+Referenced by pull request #161745, RNA: Prevent regular properties from accessing meta-data PointerRNA.
