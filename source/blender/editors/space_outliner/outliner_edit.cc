@@ -1617,7 +1617,7 @@ void outliner_scroll_to_active(SpaceOutliner *space_outliner, ARegion *region, s
   const View2D *v2d = &region->v2d;
   TreeElement *active_te = nullptr;
 
-  tree_iterator::all_open(*space_outliner, [&](TreeElement *te) {
+  tree_iterator::all(space_outliner->runtime->tree, [&](TreeElement *te) {
     TreeStoreElem *tselem = TREESTORE(te);
     if (tselem->flag & TSE_ACTIVE) {
       if (tselem->type == TSE_SOME_ID) {
