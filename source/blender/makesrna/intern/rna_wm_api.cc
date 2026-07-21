@@ -283,7 +283,7 @@ static void rna_WM_try_activate_rna_button(blender::wmWindowManager * /*wm*/,
     return;
   }
   std::optional<int2> xy = ui::try_activate_rna_button(
-      C, region, ui::HandleButtonState(state), ptr, prop, warp_cursor_at_button, index);
+      C, region, ui::ActivationButtonState(state), ptr, prop, warp_cursor_at_button, index);
 
   if (!xy) {
     return;
@@ -1037,17 +1037,10 @@ const EnumPropertyItem rna_operator_popup_icon_items[] = {
 };
 
 const EnumPropertyItem rna_button_activation[] = {
-    /* {int(ui::BUTTON_STATE_INIT), "INIT", 0, "Init", ""}, */
-    {int(0), "HIGHLIGHT", 0, "HIGHLIGHT", ""},
-    /* {int(ui::BUTTON_STATE_WAIT_FLASH), "WAIT_FLASH", 0, "WAIT_FLASH", ""},*/
-    /* {int(ui::BUTTON_STATE_WAIT_RELEASE), "WAIT_RELEASE", 0, "WAIT_RELEASE", ""},*/
-    {int(ui::BUTTON_STATE_WAIT_KEY_EVENT), "WAIT_KEY_EVENT", 0, "WAIT_KEY_EVENT", ""},
-    {int(ui::BUTTON_STATE_NUM_EDITING), "NUM_EDITING", 0, "NUM_EDITING", ""},
-    {int(ui::BUTTON_STATE_TEXT_EDITING), "TEXT_EDITING", 0, "TEXT_EDITING", ""},
-    /* {int(ui::BUTTON_STATE_TEXT_SELECTING), "TEXT_SELECTING", 0, "TEXT_SELECTING", ""}, */
-    /* {int(ui::BUTTON_STATE_MENU_OPEN), "MENU_OPEN", 0, "MENU_OPEN", ""}, */
-    /* {int(ui::BUTTON_STATE_WAIT_DRAG), "WAIT_DRAG", 0, "WAIT_DRAG", ""}, */
-    /* {int(ui::BUTTON_STATE_EXIT), "EXIT", 0, "EXIT", ""},*/
+    {int(ui::ActivationButtonState::Highlight), "HIGHLIGHT", 0, "HIGHLIGHT", ""},
+    {int(ui::ActivationButtonState::WaitKeyEvent), "WAIT_KEY_EVENT", 0, "WAIT_KEY_EVENT", ""},
+    {int(ui::ActivationButtonState::NumEditing), "NUM_EDITING", 0, "NUM_EDITING", ""},
+    {int(ui::ActivationButtonState::TextEditing), "TEXT_EDITING", 0, "TEXT_EDITING", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 

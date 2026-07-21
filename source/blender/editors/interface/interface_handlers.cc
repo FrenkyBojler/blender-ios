@@ -13634,15 +13634,29 @@ static void block_interaction_begin_ensure(bContext *C,
 
 std::optional<int2> try_activate_rna_button(bContext *C,
                                             ARegion *region,
-                                            HandleButtonState state,
+                                            ActivationButtonState target_state,
                                             PointerRNA *ptr,
                                             PropertyRNA *prop,
                                             bool warp_cursor_at_button,
                                             int index)
 {
+  HandleButtonState state = [target_state]() {
+    switch (target_state) {
+      case ActivationButtonState::WaitKeyEvent:
+        return BUTTON_STATE_WAIT_KEY_EVENT;
+      case ActivationButtonState::NumEditing:
+        return BUTTON_STATE_NUM_EDITING;
+      case ActivationButtonState::TextEditing:
+        return BUTTON_STATE_TEXT_EDITING;
+      default:
+        return BUTTON_STATE_HIGHLIGHT;
+    }
+  }();
+
   if (region->runtime->do_draw & RGN_DRAWING) {
     return std::nullopt;
   }
+
   wmWindow *win = CTX_wm_window(C);
   bScreen *screen = CTX_wm_screen(C);
   ED_screen_areas_iter (win, screen, area) {
@@ -13672,11 +13686,11 @@ std::optional<int2> try_activate_rna_button(bContext *C,
 
   Button *button = nullptr;
   for (Block &block : region->runtime->uiblocks) {
-    auto but_itr = std::find_if(
-        block.buttons.begin(), block.buttons.end(), [&](const std::unique_ptr<Button> &but) {
+    auto but_itr = std::ranges::find_if(
+        block.buttons_ptrs, [&](const std::unique_ptr<Button> &but) {
           return but->rnapoin.data == ptr->data && but->rnaprop == prop && but->rnaindex == index;
         });
-    if (but_itr != block.buttons.end()) {
+    if (but_itr != block.buttons_ptrs.end()) {
       button = but_itr->get();
       break;
     }
@@ -13708,7 +13722,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
   CTX_wm_area_set(C, area);
   CTX_wm_region_set(C, region);
   /* Init button active data with state as #BUTTON_STATE_HIGHLIGHT */
-  ui_handle_button_activate(C, region, button, BUTTON_ACTIVATE);
+  handle_button_activate(C, region, button, BUTTON_ACTIVATE);
 
   const rctf button_rect = button->rect;
   /* Temporally override button position so its already in view when putting mouse over. */
@@ -13753,7 +13767,7 @@ std::optional<int2> try_activate_rna_button(bContext *C,
     event.xy[1] = BLI_rctf_cent_y(&button_view_rect);
     /* Use `ui_do_button` for #BUTTON_STATE_NUM_EDITING with a dummy event, some buttons do some
      * aditional configurations on left click to start editing. */
-    ui_do_button(C, button->block, button, &event);
+    do_button(C, button->block, button, &event);
   }
 
   if (state == BUTTON_STATE_WAIT_KEY_EVENT &&
