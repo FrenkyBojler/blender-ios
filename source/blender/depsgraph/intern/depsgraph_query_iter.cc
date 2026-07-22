@@ -103,6 +103,30 @@ void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object)
   data->dupli_object_next_index = 0;
 }
 
+/* Objects tagged as Cycles render-instance sources have their instances read
+ * directly by the render engine from the evaluated geometry set. Expanding
+ * them into a DupliObject list here would be pure duplicate work: the engine
+ * would receive every instance twice, and the expansion this whole path exists
+ * to avoid would still be paid.
+ *
+ * Note this deliberately lives in the iterator rather than in the engine --
+ * the engine cannot prevent the expansion, because the iterator drives it. */
+static bool deg_object_skips_dupli_expansion(const Object *object)
+{
+  const ID *id = &object->id;
+  if (id->properties == nullptr) {
+    return false;
+  }
+  const IDProperty *prop = IDP_GetPropertyFromGroup(id->properties, "cycles_render_instancer");
+  if (prop == nullptr) {
+    return false;
+  }
+  if (prop->type != IDP_BOOLEAN && prop->type != IDP_INT) {
+    return false;
+  }
+  return prop->data.val != 0;
+}
+
 /* Returns false when iterator is exhausted. */
 bool deg_iterator_duplis_step(DEGObjectIterData *data)
 {
@@ -247,7 +271,8 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
 
     if (ob_visibility & OB_VISIBLE_INSTANCES) {
       if ((data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) &&
-          ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
+          ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr) &&
+          !deg_object_skips_dupli_expansion(object))
       {
         BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
         object_duplilist(data->graph, object, data->settings->included_objects, data->dupli_list);

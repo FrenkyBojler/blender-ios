@@ -155,6 +155,18 @@ void BlenderSync::sync_recalc(blender::Depsgraph &b_depsgraph,
         object_map.set_recalc(b_ob);
       }
 
+      /* Track render instancers separately: their instance objects live in
+       * flat per-instancer storage rather than object_map, so they need their
+       * own dirty signal to decide whether the per-instance loop can be
+       * skipped entirely. Without this, touching any object in the scene
+       * re-runs every instancer's loop. */
+      if ((b_id->recalc & (blender::ID_RECALC_GEOMETRY | blender::ID_RECALC_TRANSFORM |
+                           blender::ID_RECALC_SHADING)) != 0 ||
+          (b_ob->data && (b_ob->data->recalc & blender::ID_RECALC_ALL) != 0))
+      {
+        render_instances_recalc.insert(b_ob);
+      }
+
       if (can_have_geometry || is_light) {
         const bool updated_geometry = (b_id->recalc & blender::ID_RECALC_GEOMETRY) != 0 ||
                                       (b_ob->data &&

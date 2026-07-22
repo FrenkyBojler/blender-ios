@@ -20,6 +20,9 @@
 namespace blender {
 struct DEGObjectIterData;
 struct MeshSequenceCacheModifier;
+namespace bke {
+class InstanceReference;
+}
 }  // namespace blender
 
 CCL_NAMESPACE_BEGIN
@@ -177,6 +180,50 @@ class BlenderSync {
   bool sync_object_attributes(blender::Object &b_ob,
                               blender::DEGObjectIterData &b_deg_iter_data,
                               Object *object);
+
+  /* Render instances: build instance objects directly from the instances
+   * geometry nodes already produced, bypassing object_duplilist.
+   * See object.cpp. */
+  bool object_is_render_instancer(blender::Object &b_ob);
+  void sync_render_instances(blender::Depsgraph &b_depsgraph,
+                             blender::ViewLayer &b_view_layer,
+                             blender::Object &b_ob,
+                             float motion_time);
+
+  /* Instance objects are held in a flat array per instancer rather than in
+   * object_map. object_map is an ordered map whose per-instance lookup cost
+   * dominates instance sync at scale (~80% of the loop at 490k), and indexing
+   * a vector by instance index is O(1). It also lets an unchanged instancer be
+   * kept alive in bulk instead of re-marking every object as used. */
+  struct RenderInstanceSet {
+    vector<Object *> objects;
+    bool used = false;
+  };
+
+  /* One reference can expand to several pieces of geometry: a collection
+   * reference yields one per member, and a geometry set may hold nested
+   * instances. Each entry carries the geometry plus its transform relative to
+   * the instance. */
+  struct RenderInstanceProto {
+    Geometry *geometry;
+    Transform local;
+    /* Ray visibility of the prototype itself; combined with the instancer's. */
+    PathRayVisibility visibility;
+    bool is_shadow_catcher;
+  };
+  void render_instances_collect_prototypes(const blender::bke::InstanceReference &b_reference,
+                                           const Transform &local,
+                                           blender::Object &b_instancer,
+                                           vector<RenderInstanceProto> &r_protos,
+                                           int depth);
+  map<void *, RenderInstanceSet> render_instance_sets;
+  /* Instancers whose transform/geometry/shading the depsgraph tagged this
+   * update. Populated in sync_recalc, consumed in sync_render_instances so an
+   * untouched instancer can skip its whole per-instance loop, and cleared in
+   * render_instances_post_sync. */
+  set<void *> render_instances_recalc;
+  void render_instances_pre_sync();
+  void render_instances_post_sync();
 
   /* Volume */
   void sync_volume(BObjectInfo &b_ob_info, Volume *volume);
