@@ -234,8 +234,7 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
 
   /* Create a constant link with some zero value. The value is arbitrary and ignored. See the
    * method description. */
-  const ResultType type = get_node_socket_result_type(&input);
-  GPUNodeLink *link;
+  GPUNodeLink *link = nullptr;
 
   switch (input.type) {
     case SOCK_INT:
@@ -257,15 +256,19 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
       break;
   }
 
+  const ResultType type = get_node_socket_result_type(&input);
   GPU_link(material_, get_set_function_name(type), link, &stack.link);
 }
 
 /* Initializes the given GPU node stack from the default value of the given input socket
  * and creates a constant or uniform link that references the typed stack storage. */
-static GPUNodeLink *initialize_input_stack_value(const bNodeSocket &input,
-                                                 GPUNodeStack &stack,
-                                                 const bool use_as_constant)
+static GPUNodeLink *get_input_value_link(const bNodeSocket &input, GPUNodeStack &stack)
 {
+
+  /* Use a constant for socket types that rarely change like booleans and menus, and use a
+   * uniform for socket types that might change a lot to avoid excessive shader recompilation. */
+  const bool use_as_constant = ELEM(input.type, SOCK_BOOLEAN, SOCK_MENU);
+
   switch (input.type) {
     case SOCK_INT: {
       stack.integer_data.x = input.default_value_typed<bNodeSocketValueInt>()->value;
@@ -284,19 +287,19 @@ static GPUNodeLink *initialize_input_stack_value(const bNodeSocket &input,
         case 2: {
           const int2 value = int2(storage->value);
           copy_v2_v2_int(&stack.integer_data.x, &value.x);
-          break;
+          return use_as_constant ? GPU_constant(&stack.integer_data.x) :
+                                   GPU_uniform(&stack.integer_data.x);
         }
         case 3: {
           const int3 value = int3(storage->value);
           copy_v3_v3_int(&stack.integer_data.x, &value.x);
-          break;
+          return use_as_constant ? GPU_constant(&stack.integer_data.x) :
+                                   GPU_uniform(&stack.integer_data.x);
         }
         default:
-          BLI_assert_unreachable();
-          return nullptr;
+          break;
       }
-      return use_as_constant ? GPU_constant(&stack.integer_data.x) :
-                               GPU_uniform(&stack.integer_data.x);
+      break;
     }
     case SOCK_BOOLEAN: {
       stack.boolean_data = input.default_value_typed<bNodeSocketValueBoolean>()->value;
@@ -328,8 +331,7 @@ static GPUNodeLink *initialize_input_stack_value(const bNodeSocket &input,
     }
     case SOCK_MATRIX:
       /* Matrix sockets do not have default values. */
-      BLI_assert_unreachable();
-      return nullptr;
+      break;
     case SOCK_STRING:
     case SOCK_OBJECT:
     case SOCK_IMAGE:
@@ -339,12 +341,13 @@ static GPUNodeLink *initialize_input_stack_value(const bNodeSocket &input,
     case SOCK_MASK:
       /* Single only types do not support GPU code path. */
       BLI_assert(Result::is_single_value_only_type(get_node_socket_result_type(&input)));
-      BLI_assert_unreachable();
-      return nullptr;
+      break;
     default:
-      BLI_assert_unreachable();
-      return nullptr;
+      break;
   }
+
+  BLI_assert_unreachable();
+  return nullptr;
 }
 
 void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
@@ -358,11 +361,7 @@ void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
     return;
   }
 
-  /* Create a constant or a uniform link that carry the value of the input. Use a constant for
-   * socket types that rarely change like booleans and menus, while use a uniform for socket type
-   * that might change a lot to avoid excessive shader recompilation. */
-  const bool use_as_constant = ELEM(input.type, SOCK_BOOLEAN, SOCK_MENU);
-  GPUNodeLink *link = initialize_input_stack_value(input, stack, use_as_constant);
+  GPUNodeLink *link = get_input_value_link(input, stack);
 
   const ResultType type = get_node_socket_result_type(&input);
   const char *function_name = get_set_function_name(type);
@@ -614,6 +613,23 @@ void ShaderOperation::populate_operation_result(const bNodeSocket &output_socket
   GPU_material_add_output_link_composite(material_, storer_output_link);
 }
 
+static GPUNodeLink *get_default_input_value_link(const ResultType type)
+{
+  const void *value = Result::cpp_type(type).default_value();
+  switch (type) {
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Int3:
+    case ResultType::Int4:
+    case ResultType::Menu:
+      return GPU_constant(static_cast<const int *>(value));
+    case ResultType::Bool:
+      return GPU_constant(static_cast<const bool *>(value));
+    default:
+      return GPU_constant(static_cast<const float *>(value));
+  }
+}
+
 void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bNodeSocket &output)
 {
   const ResultType source_type = get_node_socket_result_type(&output);
@@ -628,29 +644,10 @@ void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bN
   /* Conversion is not possible, link a zero constant instead. */
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   if (!conversions.is_convertible(Result::cpp_type(source_type), Result::cpp_type(target_type))) {
-    const char *function_name = get_set_function_name(target_type);
-    GPUNodeLink *default_link = nullptr;
-    switch (target_type) {
-      case ResultType::Int:
-      case ResultType::Int2:
-      case ResultType::Int3:
-      case ResultType::Int4:
-      case ResultType::Menu:
-        input_stack.integer_data = int4(0);
-        default_link = GPU_constant(&input_stack.integer_data.x);
-        break;
-      case ResultType::Bool:
-        input_stack.boolean_data = false;
-        default_link = GPU_constant(&input_stack.boolean_data);
-        break;
-      default: {
-        const float *default_value = static_cast<const float *>(
-            Result::cpp_type(target_type).default_value());
-        default_link = GPU_constant(default_value);
-        break;
-      }
-    }
-    GPU_link(material_, function_name, default_link, &input_stack.link);
+    GPU_link(material_,
+             get_set_function_name(target_type),
+             get_default_input_value_link(target_type),
+             &input_stack.link);
     return;
   }
 
