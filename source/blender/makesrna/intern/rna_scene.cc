@@ -1295,7 +1295,23 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *scene_ptr,
     id_us_min(&effect->node_group->id);
   }
   effect->node_group = node_tree;
-  id_us_plus(&effect->node_group->id);
+  if (effect->node_group) {
+    id_us_plus(&effect->node_group->id);
+  }
+}
+
+void rna_Scene_compositing_node_group_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
+{
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+
+  DEG_relations_tag_update(bmain);
+  DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
+
+  SceneCompositorEffect *effect = bke::compositor::get_active_effect(*scene);
+  if (effect) {
+    bke::compositor::update_effect_node_group_interface(*bmain, *scene, *effect);
+  }
 }
 
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
@@ -9480,7 +9496,7 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Compositor Nodes");
-  RNA_def_property_update(prop, 0, "rna_Scene_compositor_update");
+  RNA_def_property_update(prop, 0, "rna_Scene_compositing_node_group_update");
   RNA_def_property_pointer_funcs(prop,
                                  "rna_Scene_compositing_node_group_get",
                                  "rna_Scene_compositing_node_group_set",

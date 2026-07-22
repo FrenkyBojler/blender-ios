@@ -8,6 +8,7 @@
 
 #include "intern/builder/deg_builder_nodes.h"
 
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.hh"
@@ -79,6 +80,9 @@ void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
                      });
 
   for (SceneCompositorEffect &effect : scene->compositor_effects) {
+    if (!effect.node_group || ID_MISSING(effect.node_group)) {
+      continue;
+    }
     build_nodetree(effect.node_group);
     build_idproperties(effect.system_properties);
   }

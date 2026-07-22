@@ -297,6 +297,10 @@ static wmOperatorStatus new_compositor_effect_node_group_exec(bContext *C, wmOpe
     SceneCompositorEffect &effect = bke::compositor::new_effect(*scene, "Scene Compositor Effect");
     active_effect = &effect;
   }
+
+  if (active_effect->node_group) {
+    id_us_min(&active_effect->node_group->id);
+  }
   active_effect->node_group = node_group;
 
   DEG_relations_tag_update(bmain);
@@ -532,7 +536,8 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
   }
 
   tree.catalogs.foreach_root_item([&](const asset_system::AssetCatalogTreeItem &item) {
-    ed::asset::draw_menu_for_catalog(item, "SEQUENCER_MT_add_effect_catalog_assets", layout);
+    ed::asset::draw_menu_for_catalog(
+        item, "SCENE_MT_add_compositor_effect_catalog_assets", layout);
   });
 
   if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(C))) {
