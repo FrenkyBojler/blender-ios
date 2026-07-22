@@ -683,6 +683,11 @@ ccl_device_forceinline float4 camera_motion_vector_direction(KernelGlobals kg, c
     tfm = kernel_data.cam.motion_pass_post;
     motion_post = normalize(transform_direction(&tfm, D));
   }
+  else if (kernel_data.cam.type == CAMERA_ORTHOGRAPHIC) {
+    /* For one orthographic camera matrix, all rays meet at the same point at infinity. There is no
+     * reasonable value for the motion vector to compute. */
+    return zero_float4();
+  }
   else if (kernel_data.cam.type != CAMERA_PANORAMA) {
     /* Perspective and orthographics camera use the world-to-raster matrix. */
     ProjectionTransform projection = kernel_data.cam.worldtoraster;
@@ -693,11 +698,6 @@ ccl_device_forceinline float4 camera_motion_vector_direction(KernelGlobals kg, c
 
     projection = kernel_data.cam.perspective_post;
     motion_post = transform_perspective_direction(&projection, D);
-  }
-  else if (kernel_data.cam.type == CAMERA_ORTHOGRAPHIC) {
-    /* For one orthographic camera matrix, all rays meet at the same point at infinity. There is no
-     * reasonable value for the motion vector to compute. */
-    return zero_float4();
   }
   else {
     /* Panorama cameras have their own inverse mappings. */
