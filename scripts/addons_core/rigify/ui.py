@@ -1288,7 +1288,7 @@ def draw_rigify_menu(self, context):
 class EncodeWidget(bpy.types.Operator):
     """Create Python code that will generate the selected metarig"""
     bl_idname = "mesh.rigify_encode_mesh_widget"
-    bl_label = "Rigify Encode Widget"
+    bl_label = "Encode Widget"
     bl_options = {'UNDO'}
 
     @classmethod
