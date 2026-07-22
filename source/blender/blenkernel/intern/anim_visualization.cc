@@ -22,7 +22,8 @@
 namespace blender {
 
 struct MotionpathRuntime {
-  int foo;
+  struct wmWindowManager *wm;
+  Scene *job_owner;
 };
 
 /* ******************************************************************** */

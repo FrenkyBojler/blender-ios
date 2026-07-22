@@ -6,12 +6,14 @@
 #include <thread>
 
 #include "BLI_bounds.hh"
+#include "BLI_threads.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_types.hh"
 #include "WM_api.hh"
@@ -50,10 +52,30 @@ struct WorkerData {
    * are safe to read in the main thread. */
   std::atomic<Bounds<int>> evaluated_range;
 
+  TicketMutex *data_mutex;
   /* The depsgraph to evaluate in the background. All copy on eval nodes have to be
    * evaluated before it is sent to the thread. */
   Depsgraph *dg = nullptr;
   Vector<TargetData> target_data;
+
+  WorkerData()
+  {
+    data_mutex = BLI_ticket_mutex_alloc();
+  }
+
+  ~WorkerData()
+  {
+    BLI_ticket_mutex_free(data_mutex);
+  }
+
+  void lock()
+  {
+    BLI_ticket_mutex_lock(data_mutex);
+  }
+  void unlock()
+  {
+    BLI_ticket_mutex_unlock(data_mutex);
+  }
 };
 
 struct BGEvalJobData {
@@ -68,13 +90,14 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
   eval_data->restart.store(false, std::memory_order_release);
   const int center_frame = eval_data->evaluation_center.load(std::memory_order_acquire);
-
+  eval_data->lock();
   DEG_evaluate_on_framechange(eval_data->dg, center_frame);
   for (TargetData &target_data : eval_data->target_data) {
     const EvaluationTarget &target = target_data.target;
     void *target_buffer = target_data.buffer;
     target_data.eval(eval_data->dg, *target.id, center_frame, target_buffer);
   }
+  eval_data->unlock();
 
   Bounds<int> evaluated_range = {center_frame, center_frame};
 
@@ -97,6 +120,7 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
 
     all_done_left = true;
     all_done_right = true;
+    eval_data->lock();
     DEG_evaluate_on_framechange(eval_data->dg, frame);
     for (TargetData &target_data : eval_data->target_data) {
       const EvaluationTarget &target = target_data.target;
@@ -105,16 +129,15 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
       if (!modified_data) {
         if (frame < center_frame) {
           target_data.finished_left = true;
-          printf("finished left on %d\n", frame);
         }
         else {
           target_data.finished_right = true;
-          printf("finished right on %d\n", frame);
         }
       }
       all_done_left &= target_data.finished_left;
       all_done_right &= target_data.finished_right;
     }
+    eval_data->unlock();
     eval_data->evaluated_range.store(evaluated_range, std::memory_order_release);
     worker_status->do_update = true;
 
@@ -124,6 +147,25 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
     /* TODO remove before flight. */
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
+}
+
+static Depsgraph *build_worker_depsgraph(Main &bmain,
+                                         Scene &scene,
+                                         ViewLayer &view_layer,
+                                         const Set<EvaluationTarget> &targets)
+{
+  Vector<ID *> ids;
+  ids.reserve(targets.size());
+  for (const EvaluationTarget &target : targets) {
+    ids.append(target.id);
+  }
+  Depsgraph *dg = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
+  /* TODO merge ID list with existing IDs. */
+  DEG_graph_build_from_ids(dg, ids);
+  /* Evaluate once on the main thread so the copy on eval nodes have run. */
+  DEG_evaluate_on_refresh(dg);
+  /* Don't allow reading main from the worker thread. */
+  DEG_set_allow_read_from_main(dg, false);
 }
 
 static void update_job(void *job_data)
@@ -170,29 +212,32 @@ void background_eval_register(Main &bmain,
 
   if (WM_jobs_is_running(wm_job)) {
     BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(WM_jobs_customdata_get(wm_job));
-    const bool id_already_registered = eval_data->active_targets.contains(target);
-    if (id_already_registered) {
+    if (eval_data->active_targets.contains(target)) {
       eval_data->worker_data.restart.store(true, std::memory_order_release);
       return;
     }
-    /* If the job is running and the ID is not yet registered, we have to kill it so we can modify
-     * BGEvalJobData without race conditions. This is a blocking call. */
-    WM_jobs_kill_type(&wm, &scene, WM_JOB_TYPE_MOTION_PATH_EVAL);
+
+    eval_data->worker_data.lock();
+
+    /* Add the target to the target list. */
+    eval_data->active_targets.add(target);
+    DEG_graph_free(eval_data->worker_data.dg);
+    eval_data->worker_data.dg = build_worker_depsgraph(
+        bmain, scene, view_layer, eval_data->active_targets);
+    eval_data->worker_data.target_data.append(
+        {target, target_buffer, eval_cb, update_cb, finish_cb});
+
+    eval_data->worker_data.restart.store(true, std::memory_order_release);
+    eval_data->worker_data.unlock();
+    return;
   }
 
   BGEvalJobData *eval_data = MEM_new<BGEvalJobData>(__func__);
   eval_data->active_targets.add(target);
   eval_data->worker_data.target_data.append(
       {target, target_buffer, eval_cb, update_cb, finish_cb});
-
-  Depsgraph *dg = DEG_graph_new(&bmain, &scene, &view_layer, DAG_EVAL_VIEWPORT);
-  /* TODO merge ID list with existing IDs. */
-  DEG_graph_build_from_ids(dg, {target.id});
-  /* Evaluate once on the main thread so the copy on eval nodes have run. */
-  DEG_evaluate_on_refresh(dg);
-  /* Don't allow reading main from the worker thread. */
-  DEG_set_allow_read_from_main(dg, false);
-  eval_data->worker_data.dg = dg;
+  eval_data->worker_data.dg = build_worker_depsgraph(
+      bmain, scene, view_layer, eval_data->active_targets);
   const int center_frame = BKE_scene_frame_get(&scene);
   eval_data->worker_data.evaluation_center.store(center_frame, std::memory_order_release);
   eval_data->worker_data.evaluated_range.store({center_frame, center_frame},
@@ -216,7 +261,32 @@ void background_eval_deregister(wmWindowManager &wm,
     return;
   }
 
-  /* TODO */
+  BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(WM_jobs_customdata_get(wm_job));
+  if (!eval_data->active_targets.contains(target)) {
+    /* Given target not registered. */
+    return;
+  }
+
+  eval_data->worker_data.lock();
+
+  eval_data->active_targets.remove(target);
+  int target_index = 0;
+  for (TargetData &target_data : eval_data->worker_data.target_data) {
+    if (target_data.target == target) {
+      break;
+    }
+    target_index++;
+  }
+  eval_data->worker_data.target_data.remove_and_reorder(target_index);
+  Main *bmain = DEG_get_bmain(eval_data->worker_data.dg);
+  ViewLayer *view_layer = DEG_get_input_view_layer(eval_data->worker_data.dg);
+  DEG_graph_free(eval_data->worker_data.dg);
+  eval_data->worker_data.dg = build_worker_depsgraph(
+      *bmain, scene, *view_layer, eval_data->active_targets);
+
+  /* No need to restart the job since this no data was added to the worker that would need
+   * evaluation. */
+  eval_data->worker_data.unlock();
 }
 
 }  // namespace animviz
