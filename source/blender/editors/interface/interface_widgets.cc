@@ -2814,6 +2814,14 @@ static void widget_draw_multiline_text(const uiFontStyle *fstyle,
           fstyle->uifont_id, line.begin(), line.size(), okwidth, &strwidth);
       str = str.substr(0, drawstr_len);
     }
+    /* Trim trailing whitespace. */
+    const int find_non_whitespace_end = StringRef(str).find_last_not_of(" \t\r\n");
+    if (find_non_whitespace_end != StringRef::not_found) {
+      str = line.substr(0, find_non_whitespace_end + 1);
+    }
+    else {
+      str = "";
+    }
     StringRef ellipsis = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
     str += ellipsis;
     fontstyle_draw_ex(fstyle,
