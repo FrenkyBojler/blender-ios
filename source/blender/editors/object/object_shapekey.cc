@@ -404,20 +404,18 @@ static wmOperatorStatus shape_key_copy_exec(bContext *C, wmOperator * /*op*/)
   /* List selected shape keys. */
   blender::Vector<KeyBlock *> to_duplicate;
   for (auto [index, keyblock] : key->block.enumerate()) {
+    const bool is_selected = shape_key_is_selected(*ob, keyblock, index);
+
+    /* Deselect all keys, so that only new ones are selected. */
+    keyblock.flag &= ~KEYBLOCK_SEL;
+
     if (index == 0) {
       /* Never duplicate the base key, it's special. */
       continue;
     }
-    if (shape_key_is_selected(*ob, keyblock, index)) {
+    if (is_selected) {
       to_duplicate.append(&keyblock);
     }
-  }
-
-  /* Deselect all keys, so that only new ones are selected. */
-  for (KeyBlock *kb_src = static_cast<KeyBlock *>(key->block.first); kb_src != nullptr;
-       kb_src = kb_src->next)
-  {
-    kb_src->flag &= ~KEYBLOCK_SEL;
   }
 
   KeyBlock *kb_new = nullptr;
