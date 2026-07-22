@@ -149,9 +149,9 @@ static void zbuf_add_to_span(ZSpan *zspan, const float v1[2], const float v2[2])
 
 void zspan_rasterize_triangle(ZSpan *zspan,
                               void *handle,
-                              float *v1,
-                              float *v2,
-                              float *v3,
+                              float *v1_in,
+                              float *v2_in,
+                              float *v3_in,
                               void (*func)(void *, int, int, float, float))
 {
   float x0, y0, x1, y1, x2, y2, z0, z1, z2;
@@ -161,6 +161,22 @@ void zspan_rasterize_triangle(ZSpan *zspan,
 
   /* init */
   zbuf_init_span(zspan);
+
+  /* NOTE(@ideasman42): workaround for pixel aligned UVs which are common and can screw
+   * up our intersection tests where a pixel gets in between 2 faces or the middle of a
+   * quad, camera aligned quads also have this problem but they are less common. Add a
+   * small offset to the UVs, fixes bug #18685.
+   * This effectively shifts sampling point from top left corner to the texel center. */
+  float v1[2], v2[2], v3[2];
+
+  v1[0] = v1_in[0] - (0.5f + 0.001f);
+  v1[1] = v1_in[1] - (0.5f + 0.002f);
+
+  v2[0] = v2_in[0] - (0.5f + 0.001f);
+  v2[1] = v2_in[1] - (0.5f + 0.002f);
+
+  v3[0] = v3_in[0] - (0.5f + 0.001f);
+  v3[1] = v3_in[1] - (0.5f + 0.002f);
 
   /* set spans */
   zbuf_add_to_span(zspan, v1, v2);
@@ -309,10 +325,6 @@ static void zspan_rasterize_conservative_line(ZSpan *zspan,
       continue;
 
     for (; x0 <= x1; x0++) {
-      /* Zscan polygon rasterizer uses pixel top left corner to sample triangles.
-       * But bake.cc and texture_margin.cc add small -0.5f uv offset
-       * effectively shifting sampling position to pixel center.
-       */
       float w = (x0 - v1[0] + 0.5f) * dir[0] + (y0 - v1[1] + 0.5f) * dir[1];
       w = clamp_f(w, 0, 1);
 
