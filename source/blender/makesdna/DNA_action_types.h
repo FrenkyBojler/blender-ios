@@ -34,6 +34,7 @@ struct FCurve;
 struct GHash;
 struct Object;
 struct SpaceLink;
+struct MotionpathRuntime;
 namespace gpu {
 class VertBuf;
 class Batch;
@@ -623,7 +624,7 @@ struct bMotionPath {
   gpu::VertBuf *points_vbo = nullptr;
   gpu::Batch *batch_line = nullptr;
   gpu::Batch *batch_points = nullptr;
-  void *_pad = nullptr;
+  MotionpathRuntime *runtime = nullptr;
 };
 
 /* Visualization General --------------------------- */
