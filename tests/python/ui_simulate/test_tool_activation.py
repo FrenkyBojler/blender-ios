@@ -19,12 +19,6 @@ def _setup_editor_area(area_type):
     yield
 
     space = area.spaces.active
-    if hasattr(space, "show_region_header"):
-        space.show_region_header = True
-    if hasattr(space, "show_region_tool_header"):
-        space.show_region_tool_header = True
-    if hasattr(space, "show_region_ui"):
-        space.show_region_ui = True
     if hasattr(space, "show_region_toolbar"):
         space.show_region_toolbar = True
     yield
@@ -49,6 +43,30 @@ def _setup_view3d(tool_mode):
 
     else:
         raise RuntimeError(f"Unsupported mode {tool_mode}")
+
+    return e, t, window, area
+
+
+def _setup_image_editor(mode):
+    import bpy
+
+    e, t, window, area = yield from _setup_editor_area("IMAGE_EDITOR")
+    space = area.spaces.active
+
+    bpy.ops.mesh.primitive_cube_add()
+    space.image = bpy.data.images.new("TestImage", width=256, height=256)
+
+    if mode == "VIEW":
+        space.mode = "VIEW"
+    elif mode == "PAINT":
+        bpy.ops.object.mode_set(mode="TEXTURE_PAINT")
+        space.mode = "PAINT"
+    elif mode == "UV":
+        bpy.ops.object.mode_set(mode="EDIT")
+        space.mode = "UV"
+    elif mode == "MASK":
+        space.mode = "MASK"
+        space.mask = bpy.data.masks.new("TestMask")
 
     return e, t, window, area
 
@@ -135,6 +153,9 @@ def _activate_tools_for_context(space_type, *, mode=None, setup_fn=None):
     if space_type == "SEQUENCE_EDITOR":
         mode = area.spaces.active.view_type
         region = next(r for r in area.regions if r.type == "WINDOW")
+    elif space_type == "IMAGE_EDITOR":
+        mode = area.spaces.active.mode
+        region = next(r for r in area.regions if r.type == "WINDOW")
     else:
         region = None
 
@@ -178,11 +199,16 @@ def view3d_tool_settings_header_regression():
 
 
 def image_editor_tool_settings_header_regression():
-    yield from _activate_tools_for_context("IMAGE_EDITOR", mode=None, setup_fn=lambda: _setup_editor_area("IMAGE_EDITOR"))
+    for mode in ("VIEW", "PAINT", "UV", "MASK"):
+        yield from _activate_tools_for_context(
+            "IMAGE_EDITOR",
+            mode=mode,
+            setup_fn=lambda mode=mode: _setup_image_editor(mode),
+        )
 
 
 def node_editor_tool_settings_header_regression():
-    yield from _activate_tools_for_context("NODE_EDITOR", mode=None, setup_fn=lambda: _setup_editor_area("NODE_EDITOR"))
+    yield from _activate_tools_for_context("NODE_EDITOR")
 
 
 def sequencer_tool_settings_header_regression():
