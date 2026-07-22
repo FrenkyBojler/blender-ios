@@ -1036,7 +1036,7 @@ class KDTreeTesting(unittest.TestCase):
             (1, 1),
         )
 
-        k = kdtree.KDTree(2, 2)
+        k = kdtree.KDTree(2, dimensions=2)
         for i, co in enumerate(coords_2d):
             k.insert(co, i)
         k.balance()
@@ -1049,7 +1049,7 @@ class KDTreeTesting(unittest.TestCase):
 
         # Single element.
         co = (5, 6)
-        k = kdtree.KDTree(1, 2)
+        k = kdtree.KDTree(1, dimensions=2)
         k.insert(co, 0)
         k.balance()
 

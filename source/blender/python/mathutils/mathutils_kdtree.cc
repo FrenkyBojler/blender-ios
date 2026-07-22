@@ -28,7 +28,7 @@ namespace blender {
 
 struct PyKDTree {
   PyObject_HEAD
-  /* Used for 2- or 3-dimensional KDTrees. */
+  /* Used for 2D/3D KDTrees. */
   void *obj;
   uint maxsize;
   uint count;
@@ -94,9 +94,9 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
 
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
-                                   "I" /* `size` */
-                                   "|" /* Optional arguments. */
-                                   "i" /* `dimensions` */
+                                   "I"  /* `size` */
+                                   "|$" /* Optional, keyword only arguments. */
+                                   "i"  /* `dimensions` */
                                    ":KDTree",
                                    const_cast<char **>(keywords),
                                    &maxsize,
@@ -111,15 +111,15 @@ static int PyKDTree__tp_init(PyKDTree *self, PyObject *args, PyObject *kwargs)
   }
 
   if (!ELEM(dimensions, 2, 3)) {
-    PyErr_SetString(PyExc_RuntimeError, "dimensions must be 2 or 3");
+    PyErr_SetString(PyExc_ValueError, "dimensions must be 2 or 3");
     return -1;
   }
 
   if (dimensions == 2) {
-    self->obj = (void *)kdtree_new<float2>(maxsize);
+    self->obj = kdtree_new<float2>(maxsize);
   }
   else {
-    self->obj = (void *)kdtree_new<float3>(maxsize);
+    self->obj = kdtree_new<float3>(maxsize);
   }
 
   self->maxsize = maxsize;
@@ -156,7 +156,7 @@ PyDoc_STRVAR(
     "\n"
     "   Insert a point into the KDTree.\n"
     "\n"
-    "   :param co: Point (2d or 3d) position.\n"
+    "   :param co: Point position. Can be 2D or 3D, based on the KDTree dimensions.\n"
     "   :type co: Sequence[float]\n"
     "   :param index: The index of the point (must be non-negative).\n"
     "   :type index: int\n");
@@ -273,7 +273,7 @@ PyDoc_STRVAR(
     "\n"
     "   Find nearest point to ``co``.\n"
     "\n"
-    "   :param co: 2D or 3D coordinate.\n"
+    "   :param co: Point position. Can be 2D or 3D, based on the KDTree dimensions.\n"
     "   :type co: Sequence[float]\n"
     "   :param filter: function which takes an index and returns True for indices to "
     "include in the search.\n"
@@ -376,7 +376,7 @@ PyDoc_STRVAR(
     "\n"
     "   Find nearest ``n`` points to ``co``.\n"
     "\n"
-    "   :param co: 2D or 3D coordinate.\n"
+    "   :param co: Point position. Can be 2D or 3D, based on the KDTree dimensions.\n"
     "   :type co: Sequence[float]\n"
     "   :param n: Number of points to find.\n"
     "   :type n: int\n"
@@ -463,7 +463,7 @@ PyDoc_STRVAR(
     "\n"
     "   Find all points within ``radius`` of ``co``.\n"
     "\n"
-    "   :param co: 2D or 3D coordinate.\n"
+    "   :param co: Point position. Can be 2D or 3D, based on the KDTree dimensions.\n"
     "   :type co: Sequence[float]\n"
     "   :param radius: Maximum distance to search for points.\n"
     "   :type radius: float\n"
@@ -587,9 +587,9 @@ static PyMethodDef PyKDTree_methods[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     py_KDtree_doc,
-    ".. class:: KDTree(size, dimensions=3)\n"
+    ".. class:: KDTree(size, *, dimensions=3)\n"
     "\n"
-    "   KDTree(size, dimensions=3) -> new kd-tree initialized to hold up to ``size`` items.\n"
+    "   KDTree(size, *, dimensions=3) -> new kd-tree initialized to hold up to ``size`` items.\n"
     "\n"
     "   :param size: Maximum number of items.\n"
     "   :type size: int\n"
@@ -655,7 +655,7 @@ PyTypeObject PyKDTree_Type = {
 PyDoc_STRVAR(
     /* Wrap. */
     py_kdtree_doc,
-    "Generic 3-dimensional kd-tree to perform spatial searches.");
+    "Generic 2D/3D kd-tree to perform spatial searches.");
 static PyModuleDef kdtree_moduledef = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "mathutils.kdtree",
