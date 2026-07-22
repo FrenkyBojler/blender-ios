@@ -16,10 +16,10 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_listbase.h"
-#include "BLI_math_vector.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
@@ -162,6 +162,7 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           ts = &btheme->space_info;
           break;
         case SPACE_USERPREF:
+        case SPACE_PROJECT:
           ts = &btheme->space_preferences;
           break;
         case SPACE_CONSOLE:
@@ -227,19 +228,12 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_TEXT:
           if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
-              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
+              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF, SPACE_PROJECT))
           {
             cp = btheme->tui.panel_text;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = btheme->regions.channels.text;
-          }
-          else if (ELEM(g_theme_state.regionid,
-                        RGN_TYPE_HEADER,
-                        RGN_TYPE_FOOTER,
-                        RGN_TYPE_ASSET_SHELF_HEADER))
-          {
-            cp = ts->header_text;
           }
           else {
             cp = ts->text;
@@ -249,44 +243,13 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = btheme->regions.channels.text_selected;
           }
-          else if (ELEM(g_theme_state.regionid,
-                        RGN_TYPE_HEADER,
-                        RGN_TYPE_FOOTER,
-                        RGN_TYPE_ASSET_SHELF_HEADER))
-          {
-            cp = ts->header_text_hi;
-          }
           else {
             cp = ts->text_hi;
-          }
-          break;
-        case TH_TITLE:
-          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS, RGN_TYPE_CHANNELS) ||
-              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
-          {
-            cp = btheme->tui.panel_title;
-          }
-          else if (ELEM(g_theme_state.regionid,
-                        RGN_TYPE_HEADER,
-                        RGN_TYPE_FOOTER,
-                        RGN_TYPE_ASSET_SHELF_HEADER))
-          {
-            cp = ts->header_title;
-          }
-          else {
-            cp = ts->title;
           }
           break;
 
         case TH_HEADER:
           cp = ts->header;
-          break;
-
-        case TH_HEADER_TEXT:
-          cp = ts->header_text;
-          break;
-        case TH_HEADER_TEXT_HI:
-          cp = ts->header_text_hi;
           break;
 
         case TH_PANEL_HEADER:
@@ -380,7 +343,12 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->empty;
           break;
         case TH_SELECT:
-          cp = ts->select;
+          if (g_theme_state.spacetype == SPACE_IMAGE) {
+            cp = btheme->space_view3d.select;
+          }
+          else {
+            cp = ts->select;
+          }
           break;
         case TH_ACTIVE:
           cp = ts->active;
@@ -392,7 +360,12 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
           cp = btheme->common.anim.channel_group_active;
           break;
         case TH_TRANSFORM:
-          cp = ts->transform;
+          if (g_theme_state.spacetype == SPACE_IMAGE) {
+            cp = btheme->space_view3d.transform;
+          }
+          else {
+            cp = ts->transform;
+          }
           break;
         case TH_VERTEX:
           cp = ts->vertex;

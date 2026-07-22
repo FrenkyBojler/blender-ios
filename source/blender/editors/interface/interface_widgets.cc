@@ -20,13 +20,13 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_color_types.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.hh"
+#include "BLI_math_color_c.hh"
+#include "BLI_math_vector_c.hh"
+#include "BLI_rect.hh"
+#include "BLI_string.hh"
+#include "BLI_string_utf8.hh"
+#include "BLI_utildefines.hh"
 
 #include "BKE_context.hh"
 
@@ -39,6 +39,7 @@
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
+#include "buttons/interface_label.hh"
 #include "buttons/interface_textbox.hh"
 #include "interface_intern.hh"
 
@@ -127,7 +128,7 @@ enum class WidgetStyle {
  */
 struct WidgetStateInfo {
   /** Copy of #Button.flag (possibly with overrides for drawing). */
-  int but_flag;
+  int64_t but_flag;
   /** Copy of #Button.drawflag (possibly with overrides for drawing). */
   int but_drawflag;
   /** Copy of #Button.emboss. */
@@ -1355,7 +1356,7 @@ static void widget_draw_icon(
     return;
   }
 
-  const float aspect = but->block->aspect * UI_INV_SCALE_FAC;
+  const float aspect = (1.0f / but->icon_scale) * but->block->aspect * UI_INV_SCALE_FAC;
   const float height = ICON_DEFAULT_HEIGHT / aspect;
   bool force_outline = false;
 
@@ -2070,7 +2071,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   int selsta = but->selsta, selend = but->selend;
 #ifdef WITH_INPUT_IME
   /* If is IME compositing, move the cursor. */
-  if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+  if (ime_data && !ime_data->composite.empty() && ime_data->cursor_pos != -1) {
     but_pos += ime_data->cursor_pos;
     /* Translate selection if the IME composite string is inserted before the selection. */
     if (selsta != selend) {
@@ -2133,7 +2134,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     scissor_textbox.ymin = rect.ymin;
     scissor_textbox.ymax = scissor_textbox.ymin + BLI_rcti_size_y(&rect);
     BLI_rcti_isect(&scissor_rect, &scissor_textbox, &scissor_textbox);
-    /* Textbox text isn't clipped, apply scissors to avoid text overflowing the scrollbar. */
+    /* Text-box text isn't clipped, apply scissors to avoid text overflowing the scrollbar. */
     GPU_scissor(scissor_textbox.xmin,
                 scissor_textbox.ymin,
                 BLI_rcti_size_x(&scissor_textbox),
@@ -2418,7 +2419,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
   /* Special case: when we're entering text for multiple buttons,
    * don't draw the text for any of the multi-editing buttons */
-  if (UNLIKELY(but->flag & BUT_DRAG_MULTI)) {
+  if (but->flag & BUT_DRAG_MULTI) [[unlikely]] {
     Button *but_edit = button_drag_multi_edit_get(but);
     if (but_edit) {
       drawstr = but_edit->editstr;
@@ -2436,7 +2437,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       /* FIXME: IME is modifying `const char *drawstr`! */
       ime_data = button_ime_data_get(but);
 
-      if (ime_data && ime_data->composite.size()) {
+      if (ime_data && !ime_data->composite.empty()) {
         /* insert composite string into cursor pos */
         char tmp_drawstr[UI_MAX_DRAW_STR];
         STRNCPY(tmp_drawstr, drawstr);
@@ -2527,7 +2528,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
 #ifdef WITH_INPUT_IME
     /* If is IME compositing, move the cursor. */
-    if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+    if (ime_data && !ime_data->composite.empty() && ime_data->cursor_pos != -1) {
       but_pos_ofs += ime_data->cursor_pos;
     }
 #endif
@@ -2576,7 +2577,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (ime_reposition_window) {
       button_ime_reposition(but, ime_win_x, ime_win_y, false);
     }
-    if (ime_data && ime_data->composite.size()) {
+    if (ime_data && !ime_data->composite.empty()) {
       /* Composite underline. */
       widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
     }
@@ -2748,6 +2749,83 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     FontStyleDrawParams params{};
     params.align = UI_STYLE_TEXT_RIGHT;
     fontstyle_draw(fstyle, rect, drawstr_right, UI_MAX_DRAW_STR, col, &params);
+  }
+}
+
+static void widget_draw_multiline_text(const uiFontStyle *fstyle,
+                                       const uiWidgetColors *wcol,
+                                       Button *but,
+                                       rcti *rect)
+{
+  /* Draw multiline text. */
+  ButtonLabel *multiline_label = static_cast<ButtonLabel *>(but);
+  const int total_lines = multiline_label->wrap_cache->wrapped_lines.size();
+  const int lines = multiline_label->max_lines > 0 ?
+                        std::min(multiline_label->max_lines, total_lines) :
+                        total_lines;
+
+  const float line_height = ui::fontstyle_height_max(UI_FSTYLE_WIDGET) / but->block->aspect;
+  const float padding = (std::max(UI_UNIT_Y - line_height, 0.0f) / 2.0f) / but->block->aspect;
+
+  FontStyleDrawParams params{};
+  params.align = multiline_label->text_align;
+  params.word_clip = false;
+
+  float ymax = rect->ymax - padding;
+  rcti line_rect = *rect;
+  int sccissors[4];
+  GPU_scissor_get(sccissors);
+  int sccisors_ymin = sccissors[1];
+  int sccisors_ymax = sccisors_ymin + sccissors[3];
+
+  for (const int i : multiline_label->wrap_cache->wrapped_lines.index_range().take_front(lines)) {
+    StringRef line = multiline_label->wrap_cache->wrapped_lines[i];
+    line_rect.ymax = ymax;
+    ymax -= line_height;
+    line_rect.ymin = ymax;
+    /* Break when there is not more space to draw. */
+    if (line_rect.ymax < sccisors_ymin) {
+      break;
+    }
+    /* Skip the line if the line is not in visible bounds. */
+    if (line_rect.ymin > sccisors_ymax) {
+      continue;
+    }
+    if (i < (lines - 1) || total_lines == lines) {
+      fontstyle_draw_ex(fstyle,
+                        &line_rect,
+                        line.begin(),
+                        line.size(),
+                        wcol->text,
+                        &params,
+                        nullptr,
+                        nullptr,
+                        nullptr);
+      continue;
+    }
+    /* Add ellipsis when not all lines are drawn.  */
+    float strwidth = BLF_width(fstyle->uifont_id, line.begin(), line.size(), nullptr);
+
+    const int border = UI_TEXT_CLIP_MARGIN + 1;
+    const int okwidth = max_ii(BLI_rcti_size_x(&line_rect) - border, 0);
+    std::string str = line;
+    if (strwidth > okwidth) {
+      int drawstr_len = BLF_width_to_strlen(
+          fstyle->uifont_id, line.begin(), line.size(), okwidth, &strwidth);
+      str = str.substr(0, drawstr_len);
+    }
+    StringRef ellipsis = BLI_STR_UTF8_HORIZONTAL_ELLIPSIS;
+    str += ellipsis;
+    fontstyle_draw_ex(fstyle,
+                      &line_rect,
+                      str.data(),
+                      str.size(),
+                      wcol->text,
+                      &params,
+                      nullptr,
+                      nullptr,
+                      nullptr);
+    break;
   }
 }
 
@@ -2984,7 +3062,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     }
   }
 
-  /* Textbox wraps content in lines, skip clipping text.  */
+  /* Text-box wraps content in lines, skip clipping text.  */
   if (but->type == ButtonType::TextBox) {
   }
   else if (but->text_direction != TextDirection::Default) {
@@ -3014,11 +3092,14 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   if (ELEM(but->text_direction, TextDirection::Down, TextDirection::Up)) {
     widget_draw_vertical_text(fstyle, wcol, but, rect);
   }
-  else if (but->type != ButtonType::TextBox) {
-    widget_draw_text(fstyle, wcol, but, rect);
+  else if (button_label_is_multiline(but)) {
+    widget_draw_multiline_text(fstyle, wcol, but, rect);
+  }
+  else if (but->type == ButtonType::TextBox) {
+    widget_draw_textbox(fstyle, wcol, but, rect);
   }
   else {
-    widget_draw_textbox(fstyle, wcol, but, rect);
+    widget_draw_text(fstyle, wcol, but, rect);
   }
 
   button_text_password_hide(password_str, but, true);
@@ -5107,11 +5188,31 @@ static void widget_roundbut_exec(Button *but,
     shape_preset_init_hold_action(&wtb.tria1, rect, 0.75f, 'r');
   }
 
-  const float rad = widget_radius_from_zoom(zoom, wcol);
+  float rad = widget_radius_from_zoom(zoom, wcol);
+
+  wtb.draw_emboss = draw_emboss(but);
+
+  if (const ButtonPush *push_but = dynamic_cast<ButtonPush *>(but)) {
+    if (push_but->draw_as_overlay) {
+      /* Enforce a full circle. */
+      rad = BLI_rcti_size_y(rect) * 0.5f;
+      roundboxalign = CNR_ALL;
+      wtb.draw_inner = true;
+      wtb.draw_outline = false;
+      wtb.draw_emboss = true;
+      /* Use a black transparent background and a white icon color, to ensure good contrast. */
+      const uchar background_col[4] = {0, 0, 0, (but->flag & UI_HOVER) ? uchar(120) : uchar(100)};
+      copy_v4_v4_uchar(wcol->inner, background_col);
+      copy_v4_v4_uchar(wcol->inner_sel, background_col);
+      const uchar foreground_col[4] = {
+          255, 255, 255, (but->flag & UI_HOVER) ? uchar(255) : uchar(230)};
+      copy_v4_v4_uchar(wcol->text, foreground_col);
+      copy_v4_v4_uchar(wcol->text_sel, foreground_col);
+    }
+  }
 
   /* half rounded */
   round_box_edges(&wtb, roundboxalign, rect, rad);
-  wtb.draw_emboss = draw_emboss(but);
   widgetbase_draw(&wtb, wcol);
 }
 
@@ -6249,7 +6350,7 @@ void draw_menu_item(const uiFontStyle *fstyle,
                     const bool use_unpadded,
                     const char *name,
                     int iconid,
-                    int but_flag,
+                    int64_t but_flag,
                     MenuItemSeparatorType separator_type,
                     int *r_xmax)
 {
@@ -6436,7 +6537,7 @@ void draw_preview_item(const uiFontStyle *fstyle,
                        const float zoom,
                        const char *name,
                        int iconid,
-                       int but_flag,
+                       int64_t but_flag,
                        FontStyleAlign text_align)
 {
   WidgetType *wt = widget_type(WidgetStyle::MenuItemUnpadded);
