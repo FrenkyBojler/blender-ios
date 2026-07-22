@@ -650,7 +650,9 @@ void register_motionpath_async(Main &bmain,
   buffer->bone_name = bone_name.has_value() ? *bone_name : "";
   buffer->start_frame = motion_path.start_frame;
   buffer->points.reinitialize(motion_path.length);
-  buffer->points.fill({0, 0, 0});
+  for (const int i : IndexRange(motion_path.length)) {
+    copy_v3_v3(buffer->points[i], motion_path.points[i].co);
+  }
   buffer->flags.reinitialize(motion_path.length);
   animviz::background_eval_register(bmain,
                                     wm,

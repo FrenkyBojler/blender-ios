@@ -76,6 +76,16 @@ struct WorkerData {
   {
     BLI_ticket_mutex_unlock(data_mutex);
   }
+
+  int find_target_index(const EvaluationTarget &target) const
+  {
+    for (const int i : this->target_data.index_range()) {
+      if (this->target_data[i].target == target) {
+        return i;
+      }
+    }
+    return -1;
+  }
 };
 
 struct BGEvalJobData {
@@ -88,6 +98,7 @@ struct BGEvalJobData {
 static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
 {
   WorkerData *eval_data = static_cast<WorkerData *>(job_data);
+restart:
   eval_data->restart.store(false, std::memory_order_release);
   const int center_frame = eval_data->evaluation_center.load(std::memory_order_acquire);
   eval_data->lock();
@@ -140,6 +151,9 @@ static void run_job(void *job_data, wmJobWorkerStatus *worker_status)
     eval_data->unlock();
     eval_data->evaluated_range.store(evaluated_range, std::memory_order_release);
     worker_status->do_update = true;
+    if (eval_data->restart.load(std::memory_order_acquire)) {
+      goto restart;
+    }
 
     if (all_done_left && all_done_right) {
       break;
@@ -166,6 +180,7 @@ static Depsgraph *build_worker_depsgraph(Main &bmain,
   DEG_evaluate_on_refresh(dg);
   /* Don't allow reading main from the worker thread. */
   DEG_set_allow_read_from_main(dg, false);
+  return dg;
 }
 
 static void update_job(void *job_data)
@@ -213,7 +228,16 @@ void background_eval_register(Main &bmain,
   if (WM_jobs_is_running(wm_job)) {
     BGEvalJobData *eval_data = static_cast<BGEvalJobData *>(WM_jobs_customdata_get(wm_job));
     if (eval_data->active_targets.contains(target)) {
+      eval_data->worker_data.lock();
+      const int target_index = eval_data->worker_data.find_target_index(target);
+      BLI_assert(target_index != -1);
+      TargetData &data = eval_data->worker_data.target_data[target_index];
+      data.finish(*target.id, data.buffer);
+      data.buffer = target_buffer;
+      data.finished_left = false;
+      data.finished_right = false;
       eval_data->worker_data.restart.store(true, std::memory_order_release);
+      eval_data->worker_data.unlock();
       return;
     }
 
@@ -270,13 +294,8 @@ void background_eval_deregister(wmWindowManager &wm,
   eval_data->worker_data.lock();
 
   eval_data->active_targets.remove(target);
-  int target_index = 0;
-  for (TargetData &target_data : eval_data->worker_data.target_data) {
-    if (target_data.target == target) {
-      break;
-    }
-    target_index++;
-  }
+  const int target_index = eval_data->worker_data.find_target_index(target);
+  BLI_assert(target_index != -1);
   eval_data->worker_data.target_data.remove_and_reorder(target_index);
   Main *bmain = DEG_get_bmain(eval_data->worker_data.dg);
   ViewLayer *view_layer = DEG_get_input_view_layer(eval_data->worker_data.dg);
