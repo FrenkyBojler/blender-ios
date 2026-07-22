@@ -1770,6 +1770,9 @@ static void draw_seq_transitions(const TimelineDrawContext &ctx,
     if (strip.is_muted) {
       background[3] = MUTE_ALPHA;
     }
+    else if (!selected) {
+      background[3] = 0xcc;
+    }
 
     data.col_background = color_pack(background);
     data.col_transition_in = color_pack(transition_in);

@@ -65,7 +65,7 @@ float4 draw_transition()
   bool selected = (strip.flags & GPU_SEQ_FLAG_SELECTED) != 0;
   bool active_strip = (strip.flags & GPU_SEQ_FLAG_ACTIVE) != 0;
 
-  float outline_width = selected && active_strip ? 3.0f : 2.0f;
+  float outline_width = selected ? 3.0f : 2.0f;
 
   /* Distance to whole strip shape. */
   float sdf = sdf_rounded_box(pos - center, size, radius);
@@ -114,7 +114,14 @@ float4 draw_transition()
   /* Mask out the contents within the rounded rectangle. */
   col.a *= box_inner;
 
-  return blend_color(outline, col);
+  col = blend_color(outline, col);
+
+  /* Inset line. */
+  if (selected) {
+    col = add_outline(sdf_inner, -1.0f, 0.0f, col, float4(0, 0, 0, 0.33f));
+  }
+
+  return col;
 }
 
 void main()
