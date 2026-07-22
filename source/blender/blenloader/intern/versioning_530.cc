@@ -190,7 +190,7 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         brush.curve_hardness = BKE_paint_default_curve();
       }
       if (brush.curve_auto_smooth == nullptr) {
-        brush.curve_auto_smooth = BKE_paint_default_curve();
+        brush.curve_auto_smooth = BKE_paint_default_curve_inverted();
       }
     }
   }
