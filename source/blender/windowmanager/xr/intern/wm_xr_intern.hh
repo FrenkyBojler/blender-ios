@@ -1,4 +1,4 @@
-﻿/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -178,7 +178,6 @@ struct wmXrViewportPair {
 struct wmXrUiRegionPointerState {
   bool pressed;
   char subaction_path[64];
-  char action_idname[128];
   struct ARegion *region;
 };
 
@@ -390,6 +389,10 @@ void wm_xr_temp_region_draw_to_world_quad(const float viewmat[4][4],
                                           const wmXrUiRegion *panel,
                                           const wmXrTempRegion *temp_region);
 void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr);
+bool wm_xr_surface_interaction_owns_subaction(const wmXrData *xr,
+                                              const wmXrAction *action,
+                                              const char *subaction_path,
+                                              short event_val);
 bool wm_xr_surface_interaction_apply_action(const bContext *C,
                                             wmXrData *xr,
                                             const wmXrAction *action,

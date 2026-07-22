@@ -60,6 +60,58 @@ namespace blender {
 static wmSurface *g_xr_surface = nullptr;
 static CLG_LogRef LOG = {"wm.xr"};
 
+struct wmXrConsumedSubaction {
+  wmXrConsumedSubaction *next, *prev;
+  char *subaction_path;
+};
+
+static bool wm_xr_session_ui_consumed_subaction_contains(const ListBase &subaction_paths,
+                                                         const char *subaction_path)
+{
+  for (const wmXrConsumedSubaction *consumed_subaction :
+       ConstListBaseWrapper<wmXrConsumedSubaction>(subaction_paths))
+  {
+    if (STREQ(consumed_subaction->subaction_path, subaction_path)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void wm_xr_session_ui_consumed_subaction_add(ListBase &subaction_paths,
+                                                    const char *subaction_path)
+{
+  if (!wm_xr_session_ui_consumed_subaction_contains(subaction_paths, subaction_path)) {
+    wmXrConsumedSubaction *consumed_subaction = MEM_new<wmXrConsumedSubaction>(__func__);
+    consumed_subaction->subaction_path = BLI_strdup(subaction_path);
+    BLI_addtail(&subaction_paths, consumed_subaction);
+  }
+}
+
+static void wm_xr_session_ui_consumed_subaction_clear(ListBase &subaction_paths)
+{
+  for (wmXrConsumedSubaction *consumed_subaction :
+       ListBaseWrapper<wmXrConsumedSubaction>(subaction_paths))
+  {
+    MEM_delete_void(static_cast<void *>(consumed_subaction->subaction_path));
+  }
+  BLI_freelistN(&subaction_paths);
+  BLI_listbase_clear(&subaction_paths);
+}
+
+static ListBase *wm_xr_session_ui_consumed_subactions_for_event_val(ListBase &press_subactions,
+                                                                    ListBase &release_subactions,
+                                                                    const short event_val)
+{
+  if (event_val == KM_PRESS) {
+    return &press_subactions;
+  }
+  if (event_val == KM_RELEASE) {
+    return &release_subactions;
+  }
+  return nullptr;
+}
+
 /* -------------------------------------------------------------------- */
 
 static void wm_xr_session_create_cb()
@@ -1526,6 +1578,9 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
   /* Check haptic action timers. */
   wm_xr_session_haptic_timers_check(active_haptic_actions, time_now);
 
+  ListBase ui_consumed_press_subactions = {nullptr, nullptr};
+  ListBase ui_consumed_release_subactions = {nullptr, nullptr};
+
   for (uint action_idx = 0; action_idx < count; ++action_idx) {
     wmXrAction *action = actions[action_idx];
     if (action && action->ot) {
@@ -1558,14 +1613,26 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
         if ((val != KM_NOTHING) &&
             (!modal || (is_active_modal_action && is_active_modal_subaction)))
         {
+          const char *subaction_path = action->subaction_paths[subaction_idx];
+          ListBase *ui_consumed_subactions = wm_xr_session_ui_consumed_subactions_for_event_val(
+              ui_consumed_press_subactions, ui_consumed_release_subactions, val);
+
+          const bool ui_owned_subaction = wm_xr_surface_interaction_owns_subaction(
+                                              xr, action, subaction_path, val) ||
+                                          (ui_consumed_subactions != nullptr &&
+                                           wm_xr_session_ui_consumed_subaction_contains(
+                                               *ui_consumed_subactions, subaction_path));
           const bool consumed_by_ui_region = wm_xr_surface_interaction_apply_action(
-              C, xr, action, action->subaction_paths[subaction_idx], val);
-          if (consumed_by_ui_region) {
+              C, xr, action, subaction_path, val);
+          if (ui_owned_subaction && ui_consumed_subactions != nullptr) {
+            wm_xr_session_ui_consumed_subaction_add(*ui_consumed_subactions, subaction_path);
+          }
+          if (consumed_by_ui_region || ui_owned_subaction) {
             continue;
           }
 
-          const GHOST_XrPose *aim_pose = wm_xr_session_controller_aim_pose_find(
-              session_state, action->subaction_paths[subaction_idx]);
+          const GHOST_XrPose *aim_pose = wm_xr_session_controller_aim_pose_find(session_state,
+                                                                                subaction_path);
           const GHOST_XrPose *aim_pose_other = nullptr;
           uint subaction_idx_other = 0;
 
@@ -1586,6 +1653,8 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
     }
   }
 
+  wm_xr_session_ui_consumed_subaction_clear(ui_consumed_press_subactions);
+  wm_xr_session_ui_consumed_subaction_clear(ui_consumed_release_subactions);
   MEM_delete(actions);
 }
 

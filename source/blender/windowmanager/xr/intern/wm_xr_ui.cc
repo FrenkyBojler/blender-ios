@@ -42,6 +42,7 @@
 #include "GHOST_Xr-api.hh"
 
 #include "GPU_batch_presets.hh"
+#include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
@@ -1184,7 +1185,6 @@ static void wm_xr_ui_region_pointer_clear(wmXrUiRegion *ui_region)
   ui_region->ui_region_hover_subaction_path[0] = '\0';
   ui_region->ui_region_pointer.pressed = false;
   ui_region->ui_region_pointer.subaction_path[0] = '\0';
-  ui_region->ui_region_pointer.action_idname[0] = '\0';
   ui_region->ui_region_pointer.region = nullptr;
 }
 
@@ -1790,16 +1790,15 @@ void wm_xr_surface_interaction_update(const bContext *C, wmXrData *xr)
       hit_ui_region->ui_region_hover_subaction_path, subaction_path, XR_MAX_USER_PATH_LENGTH);
 }
 
-bool wm_xr_surface_interaction_apply_action(const bContext *C,
-                                            wmXrData *xr,
-                                            const wmXrAction *action,
-                                            const char *subaction_path,
-                                            short event_val)
+bool wm_xr_surface_interaction_owns_subaction(const wmXrData *xr,
+                                              const wmXrAction *action,
+                                              const char *subaction_path,
+                                              short event_val)
 {
   wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
   wmXrUiRegion *ui_region = surface_data ? surface_data->active_ui_region : nullptr;
-  if (C == nullptr || xr == nullptr || action == nullptr || subaction_path == nullptr ||
-      surface_data == nullptr || ui_region == nullptr || ui_region->ui_region_host_win == nullptr)
+  if (xr == nullptr || action == nullptr || subaction_path == nullptr || surface_data == nullptr ||
+      ui_region == nullptr || ui_region->ui_region_host_win == nullptr)
   {
     return false;
   }
@@ -1812,14 +1811,44 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     return false;
   }
 
+  if (!wm_xr_surface_action_is_ui_region_click_compatible(action)) {
+    return false;
+  }
+
+  const bool ui_region_hover_owns_subaction = ui_region->ui_region_hovered &&
+                                              ui_region->ui_region_hover_region != nullptr;
+  const bool ui_region_pointer_owns_subaction = ui_region->ui_region_pointer.pressed &&
+                                                STREQ(ui_region->ui_region_pointer.subaction_path,
+                                                      subaction_path);
+
+  if (event_val == KM_PRESS) {
+    return ui_region_pointer_owns_subaction || ui_region_hover_owns_subaction;
+  }
+  return ui_region_pointer_owns_subaction;
+}
+
+bool wm_xr_surface_interaction_apply_action(const bContext *C,
+                                            wmXrData *xr,
+                                            const wmXrAction *action,
+                                            const char *subaction_path,
+                                            short event_val)
+{
+  wmXrSurfaceData *surface_data = WM_xr_surface_data_get();
+  wmXrUiRegion *ui_region = surface_data ? surface_data->active_ui_region : nullptr;
+  if (C == nullptr || action == nullptr ||
+      !wm_xr_surface_interaction_owns_subaction(xr, action, subaction_path, event_val) ||
+      surface_data == nullptr || ui_region == nullptr)
+  {
+    return false;
+  }
+
   /* A press that begins over the ui_region may start capture. After that, only the matching
    * release for that captured action/subaction is rerouted to the ui_region. */
   if (event_val == KM_PRESS) {
     const bool action_is_ui_region_click = wm_xr_surface_action_is_ui_region_click_compatible(
         action);
-    if (ui_region->ui_region_pointer.pressed && action->ot != nullptr &&
-        STREQ(ui_region->ui_region_pointer.subaction_path, subaction_path) &&
-        STREQ(ui_region->ui_region_pointer.action_idname, action->ot->idname))
+    if (ui_region->ui_region_pointer.pressed &&
+        STREQ(ui_region->ui_region_pointer.subaction_path, subaction_path))
     {
       /* Keep consuming held press events for an active ui_region drag so the ui_region interaction
        * keeps ownership of this controller until release. */
@@ -1844,18 +1873,13 @@ bool wm_xr_surface_interaction_apply_action(const bContext *C,
     ui_region->ui_region_pointer.region = target_region;
     BLI_strncpy(
         ui_region->ui_region_pointer.subaction_path, subaction_path, XR_MAX_USER_PATH_LENGTH);
-    BLI_strncpy(ui_region->ui_region_pointer.action_idname,
-                action->ot->idname,
-                sizeof(ui_region->ui_region_pointer.action_idname));
     ED_region_tag_redraw(ui_region->ui_region_host_region);
     ui_region->ui_region_dirty = true;
     return true;
   }
 
   if (event_val == KM_RELEASE && ui_region->ui_region_pointer.pressed &&
-      STREQ(ui_region->ui_region_pointer.subaction_path, subaction_path) &&
-      action->ot != nullptr &&
-      STREQ(ui_region->ui_region_pointer.action_idname, action->ot->idname))
+      STREQ(ui_region->ui_region_pointer.subaction_path, subaction_path))
   {
     ARegion *target_region = ui_region->ui_region_pointer.region ?
                                  ui_region->ui_region_pointer.region :
@@ -1901,6 +1925,15 @@ void wm_xr_draw_ui_regions_world_space(const bContext *C, ARegion * /*region*/, 
   if (!surface_data) {
     return;
   }
+
+  gpu::FrameBuffer *prev_framebuffer = GPU_framebuffer_active_get();
+  int prev_viewport[4];
+  GPU_viewport_size_get_i(prev_viewport);
+  float prev_model_view[4][4];
+  float prev_projection[4][4];
+  GPU_matrix_model_view_get(prev_model_view);
+  GPU_matrix_projection_get(prev_projection);
+
   bool found_host = false;
   for (wmXrUiRegion *ui_region : ListBaseWrapper<wmXrUiRegion>(surface_data->ui_regions)) {
     if (ui_region->ui_region_host_win != CTX_wm_window(C)) {
@@ -1924,6 +1957,17 @@ void wm_xr_draw_ui_regions_world_space(const bContext *C, ARegion * /*region*/, 
   if (!found_host) {
     CLOG_ERROR(&LOG, "XR ui_region host not registered");
   }
+
+  if (prev_framebuffer != nullptr) {
+    GPU_framebuffer_bind(prev_framebuffer);
+  }
+  else {
+    GPU_framebuffer_restore();
+  }
+  GPU_viewport(prev_viewport[0], prev_viewport[1], prev_viewport[2], prev_viewport[3]);
+  GPU_scissor_test(false);
+  GPU_matrix_projection_set(prev_projection);
+  GPU_matrix_set(prev_model_view);
 }
 
 }  // namespace blender
