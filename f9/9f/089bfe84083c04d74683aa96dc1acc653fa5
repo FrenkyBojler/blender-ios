@@ -3,3 +3,4 @@ Referenced by issue #155798, subdiv broken
 Referenced by issue #156603, Sharp Edges No Longer Work Properly
 Referenced by issue #161468, B 5.2.0 LTS - VSE regression - color strips are width,height = 1,1 when added via .new_effect(...)
 Referenced by issue #161761, Eraser end of pen functions like drawing end of pen
+Referenced by issue #161788, Video Import Bug
