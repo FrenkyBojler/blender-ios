@@ -403,7 +403,7 @@ static wmOperatorStatus shape_key_copy_exec(bContext *C, wmOperator * /*op*/)
 
   /* List selected shape keys. */
   blender::Vector<KeyBlock *> to_duplicate;
-  for (auto &&[index, keyblock] : key->block.enumerate()) {
+  for (auto [index, keyblock] : key->block.enumerate()) {
     if (index == 0) {
       /* Never duplicate the base key, it's special. */
       continue;
