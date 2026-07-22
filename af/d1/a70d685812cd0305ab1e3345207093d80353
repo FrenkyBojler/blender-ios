@@ -1,2 +1,3 @@
 Referenced by issue #160604, Crash when frame_change_pre handler reads bpy.context.scene after opening file with Online Access enabled
 Referenced by issue #142243, EEVEE VRAM Accumulation with Vulkan Backend
+Referenced by issue #161761, Eraser end of pen functions like drawing end of pen
