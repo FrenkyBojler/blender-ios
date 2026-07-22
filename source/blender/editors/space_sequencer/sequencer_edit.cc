@@ -449,7 +449,7 @@ static void scene_strip_visible_frame_range(const Scene *sequencer_scene,
   *r_end = end_frame;
 }
 
-bool get_scene_strip_frame_range_for_sync(const bContext &C, float *r_start, float *r_end)
+bool get_scene_strip_frame_for_range_sync(const bContext &C, float *r_start, float *r_end)
 {
   const WorkSpace *workspace = CTX_wm_workspace(&C);
   if (workspace == nullptr) {

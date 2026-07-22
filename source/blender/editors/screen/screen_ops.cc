@@ -6531,8 +6531,21 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   float start_frame = scene->playback_start();
   float end_frame = scene->playback_end();
   const WorkSpace *workspace = CTX_wm_workspace(C);
+  // todo(habib): move to separate function
+  // todo(habib): support other relevant editors
+  // todo(habib): sad->from_anim_edit not enough, pass dedicated bool check
   if (workspace->flags & WORKSPACE_SYNC_SCENE_RANGE && sad->from_anim_edit) {
-    ed::vse::get_scene_strip_frame_range_for_sync(*C, &start_frame, &end_frame);
+    float workspace_frame_start, workspace_frame_end;
+    if (ed::vse::get_scene_strip_frame_for_range_sync(
+            *C, &workspace_frame_start, &workspace_frame_end))
+    {
+      if (workspace_frame_start > start_frame) {
+        start_frame = workspace_frame_start;
+      }
+      if (workspace_frame_end < end_frame) {
+        end_frame = workspace_frame_end;
+      }
+    }
   }
 
   const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;

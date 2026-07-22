@@ -16,6 +16,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_workspace_types.h"
 
 #include "BLI_listbase.hh"
 #include "BLI_math_rotation_c.hh"
@@ -116,8 +117,12 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
   {
     return;
   }
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  if ((workspace->flags & WORKSPACE_SYNC_SCENE_RANGE) == 0) {
+    return;
+  }
   float start_frame, end_frame;
-  if (!ed::vse::get_scene_strip_frame_range_for_sync(*C, &start_frame, &end_frame)) {
+  if (!ed::vse::get_scene_strip_frame_for_range_sync(*C, &start_frame, &end_frame)) {
     return;
   }
   GPU_blend(GPU_BLEND_ALPHA);

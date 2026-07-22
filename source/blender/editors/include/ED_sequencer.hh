@@ -89,7 +89,7 @@ bool is_scene_time_sync_needed(const bContext &C);
  */
 const Strip *get_scene_strip_for_time_sync(const Scene *sequencer_scene);
 
-bool get_scene_strip_frame_range_for_sync(const bContext &C, float *r_start, float *r_end);
+bool get_scene_strip_frame_for_range_sync(const bContext &C, float *r_start, float *r_end);
 void sync_active_scene_and_time_with_scene_strip(bContext &C);
 
 }  // namespace ed::vse
