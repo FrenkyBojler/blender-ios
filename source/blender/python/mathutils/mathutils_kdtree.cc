@@ -65,7 +65,6 @@ static PyObject *kdtree_nearest_to_py(const KDTreeNearest<CoordT> *nearest)
 template<typename CoordT>
 static PyObject *kdtree_nearest_to_py_and_check(const KDTreeNearest<CoordT> *nearest)
 {
-
   PyObject *py_retval = PyTuple_New(3);
 
   if (nearest->index != -1) {
@@ -286,7 +285,6 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
 {
   PyObject *py_co, *py_filter = Py_None;
   float co[3];
-
   const char *keywords[] = {"co", "filter", nullptr};
 
   if (!PyArg_ParseTupleAndKeywords(args,
@@ -315,12 +313,10 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
 
   if (self->dimensions == 2) {
     KDTree<float2> *kdtree2d = reinterpret_cast<KDTree<float2> *>(self->obj);
-
     KDTreeNearest<float2> nearest;
     nearest.index = -1;
 
     if (py_filter == Py_None) {
-
       kdtree_find_nearest<float2>(kdtree2d, co, &nearest);
     }
     else {
@@ -388,10 +384,8 @@ PyDoc_STRVAR(
     "   :rtype: list[tuple[:class:`Vector`, int, float]]\n");
 static PyObject *py_kdtree_find_n(PyKDTree *self, PyObject *args, PyObject *kwargs)
 {
-
   PyObject *py_co;
   float co[3];
-
   uint n;
   const char *keywords[] = {"co", "n", nullptr};
 
@@ -479,7 +473,6 @@ static PyObject *py_kdtree_find_range(PyKDTree *self, PyObject *args, PyObject *
 {
   PyObject *py_co;
   float co[3];
-
   float radius;
 
   const char *keywords[] = {"co", "radius", nullptr};
@@ -580,7 +573,6 @@ static PyMethodDef PyKDTree_methods[] = {
      reinterpret_cast<PyCFunction>(py_kdtree_find_range),
      METH_VARARGS | METH_KEYWORDS,
      py_kdtree_find_range_doc},
-
     {nullptr, nullptr, 0, nullptr},
 };
 
