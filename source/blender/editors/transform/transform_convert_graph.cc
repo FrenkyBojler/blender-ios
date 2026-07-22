@@ -684,7 +684,8 @@ static void flushTransGraphData(TransInfo *t)
    * needed because a handle's final (scaled/rotated) position may be flushed after its key.
    * This way, things stay independent of the order of the rest of the code (there's a difference
    * between the proportional editing and the regular editing, for example). */
-  Vector<float> key_snap_time_offset(tc->data_len, 0.0f);
+  const bool may_snap = (t->tsnap.flag & SCE_SNAP) && (t->state != TRANS_CANCEL);
+  Vector<float> key_snap_time_offset(may_snap ? tc->data_len : 0, 0.0f);
 
   /* Flush to 2d vector from internally used 3d vector. */
   for (a = 0,
@@ -704,8 +705,7 @@ static void flushTransGraphData(TransInfo *t)
      * - Only apply to keyframes (but never to handles).
      * - Don't do this when canceling, or else these changes won't go away.
      */
-    const bool do_snap = (t->tsnap.flag & SCE_SNAP) && (t->state != TRANS_CANCEL) &&
-                         !(td->flag & TD_NOTIMESNAP);
+    const bool do_snap = may_snap && !(td->flag & TD_NOTIMESNAP);
     const float presnap_loc = td2d->loc[0];
     if (do_snap) {
       transform_snap_anim_flush_data(t, td, snap_mode, td->loc);
@@ -739,20 +739,23 @@ static void flushTransGraphData(TransInfo *t)
     transform_convert_flush_handle2D(td, td2d, inv_unit_scale);
   }
 
-  /* Second pass of snapping handling for handles: shift each key's handles by the snapping offset
-   * applied to that key, so their position relative to the key is maintained. Handles flagged with
-   * #TD_MOVEHANDLE1 / #TD_MOVEHANDLE2 are already moved by the full key delta (including snapping)
-   * during translation, so they are skipped here to avoid applying the offset twice. */
-  for (a = 0, td = tc->data, td2d = tc->data_2d; a < tc->data_len; a++, td++, td2d++) {
-    const float offset = key_snap_time_offset[a];
-    if (offset == 0.0f) {
-      continue;
-    }
-    if (td2d->h1 && !(td->flag & TD_MOVEHANDLE1)) {
-      td2d->h1[0] += offset;
-    }
-    if (td2d->h2 && !(td->flag & TD_MOVEHANDLE2)) {
-      td2d->h2[0] += offset;
+  if (may_snap) {
+    /* Second pass of snapping handling for handles: shift each key's handles by the snapping
+     * offset applied to that key, so their position relative to the key is maintained. Handles
+     * flagged with #TD_MOVEHANDLE1 / #TD_MOVEHANDLE2 are already moved by the full key delta
+     * (including snapping) during translation, so they are skipped here to avoid applying the
+     * offset twice. */
+    for (a = 0, td = tc->data, td2d = tc->data_2d; a < tc->data_len; a++, td++, td2d++) {
+      const float offset = key_snap_time_offset[a];
+      if (offset == 0.0f) {
+        continue;
+      }
+      if (td2d->h1 && !(td->flag & TD_MOVEHANDLE1)) {
+        td2d->h1[0] += offset;
+      }
+      if (td2d->h2 && !(td->flag & TD_MOVEHANDLE2)) {
+        td2d->h2[0] += offset;
+      }
     }
   }
 }
