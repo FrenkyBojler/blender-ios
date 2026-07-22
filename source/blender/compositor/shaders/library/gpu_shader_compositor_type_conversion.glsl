@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_math_matrix_construct_lib.glsl"
+#include "gpu_shader_math_matrix_normalize_lib.glsl"
 #include "gpu_shader_math_rotation_conversion_lib.glsl"
 
 /* --------------------------------------------------------------------
@@ -427,7 +428,9 @@ int3 bool_to_int3(bool value)
 
 float4 float4x4_to_quaternion(float4x4 mat)
 {
-  float3x3 mat_3x3 = normalize(to_float3x3(mat));
+
+  float3 unused_size;
+  float3x3 mat_3x3 = normalize_and_get_size(to_float3x3(mat), unused_size);
   return to_quaternion(to_euler(mat_3x3)).as_float4();
 }
 
