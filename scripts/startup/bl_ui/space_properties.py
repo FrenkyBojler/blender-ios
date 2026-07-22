@@ -62,6 +62,7 @@ class PROPERTIES_HT_header(Header):
                 row.label(icon='BLANK1')
 
             layout.prop(view, "search_filter", icon='VIEWZOOM', text="")
+
         layout.separator_spacer()
 
         layout.popover(panel="PROPERTIES_PT_options", text="")
