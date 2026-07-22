@@ -797,16 +797,18 @@ static void paste_world_space(Main &bmain,
                         transform_fcurves.scale,
                         *transform_fcurves.channelbag);
   }
-  if (sorted_transformables.size() == transformables.size()) {
-    BKE_reportf(
-        &reports, RPT_INFO, "Pasted all %d entries from clipboard", int(transformables.size()));
+  if (sorted_transformables.size() == clipboard_data.size()) {
+    BKE_reportf(&reports,
+                RPT_INFO,
+                "Pasted all %d entries from clipboard",
+                int(sorted_transformables.size()));
   }
   else {
     BKE_reportf(&reports,
                 RPT_INFO,
                 "Pasted %d/%d entries from clipboard",
                 int(sorted_transformables.size()),
-                int(transformables.size()));
+                int(clipboard_data.size()));
   }
   DEG_graph_free(depsgraph);
 }
