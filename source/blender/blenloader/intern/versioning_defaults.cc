@@ -378,6 +378,9 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
       }
     }
   }
+  if (STRPREFIX(workspace->id.name + 2, "Storyboarding")) {
+    workspace->flags |= WORKSPACE_SYNC_SCENE_RANGE;
+  }
 }
 
 static void blo_update_defaults_paint(Paint *paint)
