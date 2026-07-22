@@ -164,16 +164,47 @@ def draw_vr_session_view_panel(layout, session_settings, object_visibility_panel
 
 class VIEW3D_PT_vr_session_view(VRButtonsPanel, Panel):
     bl_label = "View"
-    object_visibility_panel_id = "VIEW3D_PT_vr_session_view_object_type_visibility"
 
     def draw(self, context):
         layout = self.layout
         session_settings = context.window_manager.xr_session_settings
-        draw_vr_session_view_panel(
-            layout,
-            session_settings,
-            self.object_visibility_panel_id,
-        )
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        col = layout.column(align=True, heading="Show")
+        col.prop(session_settings, "show_floor", text="Floor")
+        col.prop(session_settings, "show_passthrough", text="Passthrough")
+        col.prop(session_settings, "show_annotation", text="Annotations")
+
+        col.prop(session_settings, "show_selection", text="Selection")
+        col.prop(session_settings, "show_controllers", text="Controllers")
+        col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
+        col.prop(session_settings, "show_object_extras", text="Object Extras")
+
+        # Drawing object visibility panel in XR will cause issues.
+        # Only draw it when rendering to desktop.
+        if self.bl_region_type != "XR":
+            col = col.row(align=True, heading=" ")
+            col.scale_x = 2.0
+            col.popover(
+                panel="VIEW3D_PT_vr_session_view_object_type_visibility",
+                icon_value=session_settings.icon_from_show_object_viewport,
+                text="",
+            )
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "controller_draw_style", text="Controller Style")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "clip_start", text="Clip Start")
+        col.prop(session_settings, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "view_scale", text="View Scale")
+
+        col = layout.column(align=True)
+        col.prop(session_settings, "fly_speed", text="Fly Speed")
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
@@ -435,7 +466,6 @@ classes = (
 
 world_space_classes = (
     vr_world_space_panel_class(VIEW3D_PT_vr_session, bl_xr_panel_mount_point='LEFT_HAND'),
-    vr_world_space_panel_class(VIEW3D_PT_vr_session_view_object_type_visibility),
     vr_world_space_panel_class(VIEW3D_PT_vr_session_view),
     vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting),
     vr_world_space_panel_class(VIEW3D_PT_vr_location_scouting_captures),
