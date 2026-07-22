@@ -327,7 +327,10 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
       PyKDTree_NearestData data{py_filter, false};
 
       kdtree_find_nearest_cb<float2>(
-          kdtree2d, co, &nearest, [&](int index, const float2 &co_nearest, float dist_sq) {
+          kdtree2d,
+          co,
+          &nearest,
+          [&](int index, const float2 & /*co_nearest*/, float /*dist_sq*/) {
             return py_find_nearest_cb(&data, index);
           });
 
@@ -349,7 +352,10 @@ static PyObject *py_kdtree_find(PyKDTree *self, PyObject *args, PyObject *kwargs
       PyKDTree_NearestData data{py_filter, false};
 
       kdtree_find_nearest_cb<float3>(
-          kdtree3d, co, &nearest, [&](int index, const float3 &co_nearest, float dist_sq) {
+          kdtree3d,
+          co,
+          &nearest,
+          [&](int index, const float3 & /*co_nearest*/, float /*dist_sq*/) {
             return py_find_nearest_cb(&data, index);
           });
 
