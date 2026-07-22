@@ -88,6 +88,7 @@ void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
 void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot);
+void GREASE_PENCIL_XR_OT_brush_stroke_xr(wmOperatorType *ot);
 
 void ED_undosys_type_grease_pencil(UndoType *ut);
 

@@ -4315,6 +4315,7 @@ void wm_operatortypes_register()
 
 #ifdef WITH_XR_OPENXR
   wm_xr_operatortypes_register();
+  WM_operatortype_append(GREASE_PENCIL_XR_OT_brush_stroke_xr);
 #endif
 
   /* Gizmos. */

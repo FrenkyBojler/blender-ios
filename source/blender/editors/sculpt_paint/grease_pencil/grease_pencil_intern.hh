@@ -36,8 +36,10 @@ using DeltaProjectionFunc =
     std::function<float3(const float3 position, const float2 &screen_delta)>;
 
 struct InputSample {
-  float2 mouse_position;
-  float pressure;
+  float2 mouse_position = float2(0.0f, 0.0f);
+  float3 controller_position = float3(0.0f, 0.0f, 0.0f);
+  float pressure = 0.0f;
+  bool is_xr = false;
 };
 
 class GreasePencilStrokeOperation : public PaintModeData {

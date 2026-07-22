@@ -4060,8 +4060,12 @@ static bool wm_event_xr_handler_matches_actiondata(const wmEventHandler_Op *op_h
   }
 
   const bool handler_op_type_match = (op_handler->op->type == actiondata->ot);
-  const bool handler_op_properties_match = IDP_EqualsProperties(op_handler->op->properties,
-                                                                actiondata->op_properties);
+  const bool is_grease_pencil_xr_stroke = handler_op_type_match &&
+                                          STREQ(op_handler->op->type->idname,
+                                                "GREASE_PENCIL_XR_OT_brush_stroke_xr");
+  const bool handler_op_properties_match = is_grease_pencil_xr_stroke ||
+                                           IDP_EqualsProperties(op_handler->op->properties,
+                                                               actiondata->op_properties);
 
   return (handler_op_type_match && handler_op_properties_match);
 }
