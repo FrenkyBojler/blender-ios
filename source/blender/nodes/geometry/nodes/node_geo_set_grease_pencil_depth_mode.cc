@@ -57,38 +57,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(geometry_set));
 }
 
-static int rna_SetGPDepth_depth_order_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
-{
-  bNode *node = static_cast<bNode *>(ptr->data);
-  const bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Depth Order"_ustr);
-  return socket->default_value_typed<bNodeSocketValueMenu>()->value;
-}
-
-static void rna_SetGPDepth_depth_order_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
-{
-  bNode *node = static_cast<bNode *>(ptr->data);
-  bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Depth Order"_ustr);
-  socket->default_value_typed<bNodeSocketValueMenu>()->value = value;
-}
-
-static void node_rna(StructRNA *srna)
-{
-  PropertyRNA *prop = RNA_def_node_enum(srna,
-                                        "depth_order",
-                                        "Depth Order",
-                                        "",
-                                        rna_enum_stroke_depth_order_items,
-                                        NOD_inline_enum_accessors(custom1));
-  RNA_def_property_enum_funcs_runtime(prop,
-                                      rna_SetGPDepth_depth_order_get,
-                                      rna_SetGPDepth_depth_order_set,
-                                      nullptr,
-                                      nullptr,
-                                      nullptr);
-
-  RNA_def_property_deprecated_runtime(prop, "Replaced by '.inputs[\"Depth Order\"]'.", 530, 600);
-}
-
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -102,8 +70,6 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register);
 

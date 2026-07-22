@@ -19,22 +19,8 @@
 namespace blender::nodes::node_geo_set_grease_pencil_color_cc {
 
 enum class Mode : int8_t {
-  Stroke = 0,
-  Fill = 1,
-};
-
-static const EnumPropertyItem mode_items[] = {
-    {int(Mode::Stroke),
-     "STROKE",
-     ICON_GP_DRAW_STROKE,
-     "Stroke",
-     "Set the color and opacity for the points of the stroke"},
-    {int(Mode::Fill),
-     "FILL",
-     ICON_GP_DRAW_FILL,
-     "Fill",
-     "Set the color and opacity for the stroke fills"},
-    {0, nullptr, 0, nullptr, nullptr},
+  Stroke = GEO_NODE_GP_STROKE,
+  Fill = GEO_NODE_GP_FILL,
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -51,7 +37,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .hide_value()
       .evaluated_geometry_field();
-  b.add_input<decl::Menu>("Mode"_ustr).static_items(mode_items).optional_label();
+  b.add_input<decl::Menu>("Mode"_ustr)
+      .static_items(rna_enum_node_gp_stroke_type_items)
+      .optional_label();
   b.add_input<decl::Color>("Color"_ustr)
       .default_value(ColorGeometry4f(1.0f, 1.0f, 1.0f, 1.0f))
       .evaluated_geometry_field()
@@ -116,32 +104,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(geometry_set));
 }
 
-static int rna_SetGPColor_mode_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
-{
-  bNode *node = static_cast<bNode *>(ptr->data);
-  const bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
-  return socket->default_value_typed<bNodeSocketValueMenu>()->value;
-}
-
-static void rna_SetGPColor_mode_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
-{
-  bNode *node = static_cast<bNode *>(ptr->data);
-  bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
-  socket->default_value_typed<bNodeSocketValueMenu>()->value = value;
-}
-
-static void node_rna(StructRNA *srna)
-{
-  PropertyRNA *prop;
-  prop = RNA_def_node_enum(
-      srna, "mode", "Mode", "", mode_items, NOD_inline_enum_accessors(custom1));
-
-  RNA_def_property_enum_funcs_runtime(
-      prop, rna_SetGPColor_mode_get, rna_SetGPColor_mode_set, nullptr, nullptr, nullptr);
-
-  RNA_def_property_deprecated_runtime(prop, "Replaced by '.inputs[\"Mode\"]'.", 530, 600);
-}
-
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -155,8 +117,6 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.default_width = bke::NodeWidth::_180;
   bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 

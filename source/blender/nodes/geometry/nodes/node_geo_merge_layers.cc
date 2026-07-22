@@ -19,23 +19,8 @@ namespace blender::nodes::node_geo_merge_layers_cc {
 NODE_STORAGE_FUNCS(NodeGeometryMergeLayers);
 
 enum class MergeLayerMode {
-  ByName = 0,
-  ByID = 1,
-};
-
-static const EnumPropertyItem mode_items[] = {
-    {int(MergeLayerMode::ByName),
-     "MERGE_BY_NAME",
-     0,
-     "By Name",
-     "Combine all layers which have the same name"},
-    {int(MergeLayerMode::ByID),
-     "MERGE_BY_ID",
-     0,
-     "By Group ID",
-     "Provide a custom group ID for each layer and all layers with the same ID will be merged "
-     "into one"},
-    {0, nullptr, 0, nullptr, nullptr},
+  ByName = GEO_NODE_MERGE_LAYERS_BY_NAME,
+  ByID = GEO_NODE_MERGE_LAYERS_BY_ID,
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -52,7 +37,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .hide_value()
       .evaluated_geometry_field();
-  b.add_input<decl::Menu>("Mode"_ustr).static_items(mode_items).optional_label();
+  b.add_input<decl::Menu>("Mode"_ustr)
+      .static_items(rna_enum_node_gp_merge_mode_items)
+      .optional_label();
   b.add_input<decl::Int>("Group ID"_ustr)
       .hide_value()
       .evaluated_geometry_field()
@@ -163,36 +150,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Grease Pencil"_ustr, std::move(main_geometry));
 }
 
-static int rna_MergeLayers_mode_get(PointerRNA *ptr, PropertyRNA * /*prop*/)
-{
-  bNode *node = static_cast<bNode *>(ptr->data);
-  const bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
-  return socket->default_value_typed<bNodeSocketValueMenu>()->value;
-}
-
-static void rna_MergeLayers_mode_set(PointerRNA *ptr, PropertyRNA * /*prop*/, int value)
-{
-  bNode *node = static_cast<bNode *>(ptr->data);
-  bNodeSocket *socket = bke::node_find_socket(*node, SOCK_IN, "Mode"_ustr);
-  socket->default_value_typed<bNodeSocketValueMenu>()->value = value;
-}
-
-static void node_rna(StructRNA *srna)
-{
-  PropertyRNA *prop = RNA_def_node_enum(srna,
-                                        "mode",
-                                        "Mode",
-                                        "Determines how to choose which layers are merged",
-                                        mode_items,
-                                        NOD_storage_enum_accessors(mode),
-                                        int(MergeLayerMode::ByName),
-                                        nullptr);
-  RNA_def_property_enum_funcs_runtime(
-      prop, rna_MergeLayers_mode_get, rna_MergeLayers_mode_set, nullptr, nullptr, nullptr);
-
-  RNA_def_property_deprecated_runtime(prop, "Replaced by '.inputs[\"Mode\"]'.", 530, 600);
-}
-
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -208,8 +165,6 @@ static void node_register()
   bke::node_type_storage(
       ntype, "NodeGeometryMergeLayers", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 

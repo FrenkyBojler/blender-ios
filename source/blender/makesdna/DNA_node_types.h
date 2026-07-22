@@ -1404,6 +1404,16 @@ enum NodeGeometryTransformMode {
   GEO_NODE_TRANSFORM_MODE_MATRIX = 1,
 };
 
+enum NodeGeometryMergeLayersMode {
+  GEO_NODE_MERGE_LAYERS_BY_NAME = 0,
+  GEO_NODE_MERGE_LAYERS_BY_ID = 1,
+};
+
+enum NodeGeometryGPStrokeType : int8_t {
+  GEO_NODE_GP_STROKE = 0,
+  GEO_NODE_GP_FILL = 1,
+};
+
 struct bNodeStack {
   float vec[4] = {};
   float min = 0, max = 0;
