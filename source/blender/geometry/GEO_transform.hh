@@ -18,6 +18,7 @@ struct GeometrySet;
 
 namespace geometry {
 
+void transform_mesh(Mesh &mesh, const float4x4 matrix);
 void transform_mesh(Mesh &mesh, float3 translation, math::Quaternion rotation, float3 scale);
 
 struct TransformGeometryErrors {

@@ -307,6 +307,15 @@ std::optional<TransformGeometryErrors> transform_geometry(bke::GeometrySet &geom
   return std::nullopt;
 }
 
+void transform_mesh(Mesh &mesh, const float4x4 matrix)
+{
+  float3 loc, scale;
+  math::Quaternion rot;
+
+  math::to_loc_rot_scale(matrix, loc, rot, scale);
+  geometry::transform_mesh(mesh, loc, rot, scale);
+}
+
 void transform_mesh(Mesh &mesh,
                     const float3 translation,
                     const math::Quaternion rotation,

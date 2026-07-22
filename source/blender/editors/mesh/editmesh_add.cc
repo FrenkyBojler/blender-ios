@@ -168,6 +168,16 @@ static void make_prim_finish_sculpt(bContext *C, Object *ob, BMesh *bm)
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, object_mesh);
 }
 
+static void make_prim_transform_geometry(
+    const Object *obedit, Mesh *primitive, float3 loc, float3 rot, float3 scale)
+{
+  const float4x4 world = math::from_loc_rot_scale<float4x4>(
+      loc, math::to_quaternion(math::EulerXYZ(rot)), scale);
+  const float4x4 local = math::invert(obedit->object_to_world()) * world;
+
+  geometry::transform_mesh(*primitive, local);
+}
+
 static void make_prim_finish_geometry(bContext *C, Object *ob, Mesh *primitive_mesh)
 {
   Mesh *object_mesh = id_cast<Mesh *>(ob->data);
@@ -388,17 +398,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
     Mesh *primitive = geometry::create_cuboid_mesh(
         float3(size, size, size), vertices, vertices, vertices, uv_map);
 
-    float4x4 world = math::from_loc_rot_scale<float4x4>(
-        float3(loc), math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), float3(scale));
-
-    float4x4 local = math::invert(obedit->object_to_world()) * world;
-    float3 local_loc, local_scale;
-    math::Quaternion local_rot;
-
-    math::to_loc_rot_scale(local, local_loc, local_rot, local_scale);
-
-    geometry::transform_mesh(*primitive, local_loc, local_rot, local_scale);
-
+    make_prim_transform_geometry(obedit, primitive, loc, rot, scale);
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -598,17 +598,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
         static_cast<geometry::ConeFillType>(end_fill_type),
         attributes);
 
-    float4x4 world = math::from_loc_rot_scale<float4x4>(
-        float3(loc), math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), float3(scale));
-
-    float4x4 local = math::invert(obedit->object_to_world()) * world;
-    float3 local_loc, local_scale;
-    math::Quaternion local_rot;
-
-    math::to_loc_rot_scale(local, local_loc, local_rot, local_scale);
-
-    geometry::transform_mesh(*primitive, local_loc, local_rot, local_scale);
-
+    make_prim_transform_geometry(obedit, primitive, loc, rot, scale);
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -744,17 +734,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
         static_cast<geometry::ConeFillType>(end_fill_type),
         attributes);
 
-    float4x4 world = math::from_loc_rot_scale<float4x4>(
-        float3(loc), math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), float3(scale));
-
-    float4x4 local = math::invert(obedit->object_to_world()) * world;
-    float3 local_loc, local_scale;
-    math::Quaternion local_rot;
-
-    math::to_loc_rot_scale(local, local_loc, local_rot, local_scale);
-
-    geometry::transform_mesh(*primitive, local_loc, local_rot, local_scale);
-
+    make_prim_transform_geometry(obedit, primitive, loc, rot, scale);
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -987,17 +967,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
                                                       RNA_int_get(op->ptr, "ring_count"),
                                                       uv_map);
 
-    float4x4 world = math::from_loc_rot_scale<float4x4>(
-        float3(loc), math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), float3(scale));
-
-    float4x4 local = math::invert(obedit->object_to_world()) * world;
-    float3 local_loc, local_scale;
-    math::Quaternion local_rot;
-
-    math::to_loc_rot_scale(local, local_loc, local_rot, local_scale);
-
-    geometry::transform_mesh(*primitive, local_loc, local_rot, local_scale);
-
+    make_prim_transform_geometry(obedit, primitive, loc, rot, scale);
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
@@ -1085,17 +1055,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
     Mesh *primitive = geometry::create_ico_sphere_mesh(
         RNA_int_get(op->ptr, "subdivisions"), RNA_float_get(op->ptr, "radius"), uv_map);
 
-    float4x4 world = math::from_loc_rot_scale<float4x4>(
-        float3(loc), math::to_quaternion(math::EulerXYZ(rot[0], rot[1], rot[2])), float3(scale));
-
-    float4x4 local = math::invert(obedit->object_to_world()) * world;
-    float3 local_loc, local_scale;
-    math::Quaternion local_rot;
-
-    math::to_loc_rot_scale(local, local_loc, local_rot, local_scale);
-
-    geometry::transform_mesh(*primitive, local_loc, local_rot, local_scale);
-
+    make_prim_transform_geometry(obedit, primitive, loc, rot, scale);
     make_prim_finish_geometry(C, obedit, primitive);
   }
   else {
