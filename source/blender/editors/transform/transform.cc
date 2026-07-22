@@ -227,9 +227,7 @@ void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy)
       convertViewVec2D_mask(&t->region->v2d, r_vec, dx, dy);
 
       Scene *scene = CTX_data_sequencer_scene(t->context);
-      int r_width, r_height;
-      BKE_render_resolution(&scene->r, false, &r_width, &r_height);
-      float maxdim = max_ff(r_width, r_height);
+      float maxdim = max_ff(scene->r.xsch, scene->r.ysch);
       r_vec[0] /= maxdim;
       r_vec[1] /= maxdim;
     }

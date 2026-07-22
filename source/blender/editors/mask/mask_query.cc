@@ -757,7 +757,7 @@ void ED_mask_get_size(const bContext *C, int *r_width, int *r_height)
       }
       case SPACE_SEQ: {
         Scene *scene = CTX_data_sequencer_scene(C);
-        BKE_render_resolution(&scene->r, false, r_width, r_height);
+        ed::vse::get_size(scene, r_width, r_height);
         break;
       }
       case SPACE_IMAGE: {
@@ -873,7 +873,7 @@ void ED_mask_pixelspace_factor(const bContext *C, float *r_scalex, float *r_scal
         int width, height;
 
         ui::view2d_scale_get(&region->v2d, r_scalex, r_scaley);
-        BKE_render_resolution(&scene->r, false, &width, &height);
+        ed::vse::get_size(scene, &width, &height);
         ed::vse::get_aspect(scene, &aspx, &aspy);
         float maxdim = max_ff(static_cast<float>(width), static_cast<float>(height));
 

@@ -877,9 +877,8 @@ void drawPropCircle(TransInfo *t)
       GPU_matrix_scale_2f(1.0f / t->aspect[0], 1.0f / t->aspect[1]);
     }
     else if (t->spacetype == SPACE_SEQ) {
-      int r_width, r_height;
-      BKE_render_resolution(&t->scene->r, false, &r_width, &r_height);
-      float maxdim = max_ff((float)r_width, (float)r_height);
+      Scene *scene = t->scene;
+      float maxdim = max_ff(static_cast<float>(scene->r.xsch), static_cast<float>(scene->r.ysch));
       GPU_matrix_scale_2f(maxdim, maxdim);
     }
 

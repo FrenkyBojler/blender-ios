@@ -57,6 +57,7 @@ void sequencer_strip_add_mask_modifier(Scene *scene, Strip *strip, Mask *mask);
 void mouse_position(Scene *scene, const ARegion *region, const int mval[2], float r_co[2]);
 void point_position(Scene *scene, const ARegion *region, float x, float y, float *r_x, float *r_y);
 void point_position__reverse(Scene *scene, const ARegion *region, const float *co, float *r_co);
+void get_size(const Scene *scene, int *r_width, int *r_height);
 void get_zoom(Scene *scene, const ARegion *region, float *r_zoomx, float *r_zoomy);
 void get_aspect(Scene *scene, float *r_aspx, float *r_aspy);
 
