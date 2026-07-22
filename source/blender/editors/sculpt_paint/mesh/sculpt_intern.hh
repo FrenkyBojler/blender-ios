@@ -774,7 +774,7 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
  * Calculates whether the node intersects a local-space volume.
  * By default, this is the [-1, 1] x [-1, 1] x [-1, 1] cube centered at the origin, but the
  * dimensions can be specified.
- * If test_z_axis is false, then the brush is treated as a half-infinite cuboid along the view
+ * If test_z_axis is false, then the brush is treated as an infinite cuboid along the view
  * direction.
  */
 bool node_in_box(const float4x4 &mat,

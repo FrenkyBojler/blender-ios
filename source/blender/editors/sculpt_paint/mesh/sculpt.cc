@@ -2617,17 +2617,6 @@ bool node_in_box(const float4x4 &mat,
   const float3 &node_y_axis = mat.y_axis();
   const float3 &node_z_axis = mat.z_axis();
 
-  if (!test_z_axis) {
-    /* The brush is treated as a half-infinite cuboid along the view direction. This returns false
-     * when the node is "behind" the brush.  */
-    const float length_z = math::abs(node_x_axis.z) * node_half_lengths.x +
-                           math::abs(node_y_axis.z) * node_half_lengths.y +
-                           math::abs(node_z_axis.z) * node_half_lengths.z;
-    if (!(node_center.z - length_z < 1.0f)) {
-      return false;
-    }
-  }
-
   auto axis_separates_boxes = [&](const float3 &axis) {
     const float radius1 = math::dot(math::abs(axis), brush_half_lengths);
     const float radius2 = math::abs(math::dot(axis, node_x_axis)) * node_half_lengths.x +
