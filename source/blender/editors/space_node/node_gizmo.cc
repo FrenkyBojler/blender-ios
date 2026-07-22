@@ -178,4 +178,6 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt)
 
 /** \} */
 
+// todo(habib): implement translate gizmo.
+
 }  // namespace blender::ed::space_node
