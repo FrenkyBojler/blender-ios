@@ -785,6 +785,13 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    bl_animation_convert
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_convert.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
     bl_animation_keyframing
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_keyframing.py
     --
@@ -1723,6 +1730,7 @@ if(WITH_UI_TESTS)
     test_undo.view3d_mesh_particle_edit_mode_simple
     test_undo.view3d_multi_mode_multi_window
     test_undo.view3d_multi_mode_select
+    test_undo.view3d_particle_edit_undo_from_texture_paint
     test_undo.view3d_sculpt_dyntopo_and_edit
     test_undo.view3d_sculpt_dyntopo_simple
     test_undo.view3d_sculpt_dyntopo_stroke_toggle
