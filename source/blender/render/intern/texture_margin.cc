@@ -104,26 +104,23 @@ class TextureMarginMap {
     return pixel_data_[y * w_ + x];
   }
 
-  void rasterize_tri(float *v1, float *v2, float *v3, uint32_t value, char *mask, bool writemask)
+  void rasterize_tri(
+      float *v1, float *v2, float *v3, uint32_t value, char *mask, bool writemask, bool fill)
   {
     /* NOTE: This is not thread safe, because the value to be written by the rasterizer is
      * a class member. If this is ever made multi-threaded each thread needs to get its own. */
     value_to_store_ = value;
     mask_ = mask;
     write_mask_ = writemask;
-    zspan_scanconvert(
-        &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
-  }
 
-  void rasterize_wires(float *v1, float *v2, float *v3, uint32_t value, char *mask, bool writemask)
-  {
-    /* NOTE: This is not thread safe, because the value to be written by the rasterizer is
-     * a class member. If this is ever made multi-threaded each thread needs to get its own. */
-    value_to_store_ = value;
-    mask_ = mask;
-    write_mask_ = writemask;
-    zspan_cwireframe(
-        &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
+    if (fill) {
+      zspan_scanconvert(
+          &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
+    }
+    else {
+      zspan_cwireframe(
+          &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
+    }
   }
 
   static void zscan_store_pixel(
@@ -561,12 +558,7 @@ static void generate_margin(ImBuf *ibuf,
       /* NOTE: we need the top bit for the dijkstra distance map. */
       BLI_assert(tri_faces[i] < 0x80000000);
 
-      if (!fill) {
-        map.rasterize_wires(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
-      }
-      else {
-        map.rasterize_tri(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask);
-      }
+      map.rasterize_tri(vec[0], vec[1], vec[2], tri_faces[i], mask, draw_new_mask, fill);
     }
   }
 
