@@ -748,8 +748,12 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
                                bool has_transparent_shadows,
                                bool has_time_dependent_shadows)
 {
+  if (is_alpha_blend && !inst_.is_baking()) {
+    tilemap_usage_transparent_ps_->draw(box_batch_, ob_handle.res_handle);
+  }
+
   bool is_shadow_caster = !(ob_handle.object->visibility_flag & OB_HIDE_SHADOW);
-  if (!is_shadow_caster && !is_alpha_blend) {
+  if (!is_shadow_caster) {
     return;
   }
 
@@ -780,10 +784,6 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
     if (is_shadow_caster) {
       curr_casters_.append(instance_handle.raw());
     }
-  }
-
-  if (is_alpha_blend && !inst_.is_baking()) {
-    tilemap_usage_transparent_ps_->draw(box_batch_, ob_handle.res_handle);
   }
 }
 
@@ -899,7 +899,7 @@ void ShadowModule::end_sync()
         sub.bind_ssbo("casters_id_buf", curr_casters_);
         sub.bind_ssbo("bounds_buf", &manager.bounds_buf.current());
         /* Bind again using a writable binding. */
-        sub.bind_ssbo("light_buf_write", inst_.lights.culling_light_buf_);
+        sub.bind_ssbo("light_buf_write", &inst_.lights.culling_light_buf_);
         sub.push_constant("resource_len", int(curr_casters_.size()));
         sub.bind_resources(inst_.lights);
         sub.dispatch(int3(
@@ -1098,7 +1098,7 @@ void ShadowModule::end_sync()
         sub.bind_ssbo("tilemaps_buf", tilemap_pool.tilemaps_data);
         sub.bind_resources(inst_.lights);
         /* Bind again using a writable binding. */
-        sub.bind_ssbo("light_buf_write", inst_.lights.culling_light_buf_);
+        sub.bind_ssbo("light_buf_write", &inst_.lights.culling_light_buf_);
         sub.dispatch(int3(1));
         sub.barrier(GPU_BARRIER_TEXTURE_FETCH);
       }
@@ -1166,23 +1166,6 @@ void ShadowModule::debug_end_sync()
   debug_draw_ps_.bind_resources(inst_.lights);
   debug_draw_ps_.bind_resources(inst_.shadows);
   debug_draw_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
-}
-
-float ShadowModule::screen_pixel_radius(const float4x4 &wininv,
-                                        bool is_perspective,
-                                        const int2 &extent)
-{
-  float min_dim = float(min_ii(extent.x, extent.y));
-  float3 p0 = float3(-1.0f, -1.0f, 0.0f);
-  float3 p1 = float3(float2(min_dim / extent) * 2.0f - 1.0f, 0.0f);
-  p0 = math::project_point(wininv, p0);
-  p1 = math::project_point(wininv, p1);
-  /* Compute radius at unit plane from the camera. This is NOT the perspective division. */
-  if (is_perspective) {
-    p0 = p0 / p0.z;
-    p1 = p1 / p1.z;
-  }
-  return math::distance(p0, p1) / min_dim;
 }
 
 bool ShadowModule::shadow_update_finished(int loop_count)
@@ -1292,7 +1275,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
 
 void ShadowModule::set_view(View &view, int2 extent)
 {
-  data_.film_pixel_radius = screen_pixel_radius(view.wininv(), view.is_persp(), extent);
+  data_.film_pixel_radius = view.screen_pixel_radius(extent);
 }
 
 void ShadowModule::render(View &view, int2 extent)
