@@ -102,6 +102,7 @@ pxr::GfCamera gf_camera(const Depsgraph *depsgraph,
 {
   const RegionView3D *region_data = static_cast<const RegionView3D *>(region->regiondata);
   const Scene *scene = DEG_get_evaluated_scene(depsgraph);
+  const ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
   CameraParams params;
   BKE_camera_params_init(&params);
@@ -112,7 +113,11 @@ pxr::GfCamera gf_camera(const Depsgraph *depsgraph,
 
   /* Ensure viewport is in active camera view mode. */
   if (region_data->persp == RV3D_CAMOB) {
-    gf_camera_fill_dof_data(scene->camera, &camera);
+    Object *camera_obj = scene->camera;
+    if (view_layer->camera_override) {
+      camera_obj = view_layer->camera_override;
+    }
+    gf_camera_fill_dof_data(camera_obj, &camera);
   }
 
   return camera;

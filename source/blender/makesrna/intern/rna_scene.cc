@@ -5051,6 +5051,13 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
     RNA_def_property_ui_text(prop, "World Override", "Override world in this view layer");
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_override_update");
 
+    prop = RNA_def_property(srna, "camera_override", PROP_POINTER, PROP_NONE);
+    RNA_def_property_struct_type(prop, "Object");
+    RNA_def_property_flag(prop, PROP_EDITABLE);
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    RNA_def_property_ui_text(prop, "Camera Override", "Override camera object in this view layer");
+    RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_override_update");
+
     prop = RNA_def_property(srna, "samples", PROP_INT, PROP_UNSIGNED);
     RNA_def_property_ui_text(prop,
                              "Samples",

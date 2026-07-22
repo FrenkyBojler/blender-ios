@@ -25,6 +25,14 @@
 
 namespace blender::render::hydra {
 
+static const Object *get_camera(const Scene *scene, const ViewLayer *view_layer)
+{
+  if (view_layer->camera_override) {
+    return view_layer->camera_override;
+  }
+  return scene->camera;
+}
+
 void FinalEngine::render()
 {
   const ViewLayer *view_layer = DEG_get_evaluated_view_layer(depsgraph_);
@@ -44,7 +52,7 @@ void FinalEngine::render()
   int width = image_res[0] * border[2];
   int height = image_res[1] * border[3];
 
-  pxr::GfCamera camera = gf_camera(scene_->camera, image_res, border);
+  pxr::GfCamera camera = gf_camera(get_camera(scene_, view_layer), image_res, border);
 
   free_camera_delegate_->SetCamera(camera);
   render_task_delegate_->set_viewport(pxr::GfVec4d(0, 0, width, height));

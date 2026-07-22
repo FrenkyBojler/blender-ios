@@ -287,6 +287,7 @@ struct ViewLayer {
 
   struct Material *mat_override = nullptr;
   struct World *world_override = nullptr;
+  Object *camera_override = nullptr;
   /** Equivalent to data-blocks user-defined ID properties. */
   struct IDProperty *id_properties = nullptr;
   /** Equivalent to data-blocks system-defined ID properties. */

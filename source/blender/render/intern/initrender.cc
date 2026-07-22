@@ -21,6 +21,8 @@
 #include "BKE_camera.h"
 
 /* this module */
+#include "DEG_depsgraph_query.hh"
+#include "RE_engine.h"
 #include "RE_pipeline.h"
 #include "render_types.h"
 

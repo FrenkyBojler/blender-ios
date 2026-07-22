@@ -140,6 +140,10 @@ void DepsgraphNodeBuilder::build_view_layer(Scene *scene,
   if (view_layer->world_override != nullptr) {
     build_world(view_layer->world_override);
   }
+  /* Camera override */
+  if (view_layer->camera_override != nullptr) {
+    build_object(-1, view_layer->camera_override, DEG_ID_LINKED_INDIRECTLY, true);
+  }
   /* Freestyle linesets. */
   for (FreestyleLineSet &fls : view_layer->freestyle_config.linesets) {
     build_freestyle_lineset(&fls);

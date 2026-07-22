@@ -560,6 +560,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus(id_cast<ID *>(view_layer_dst->mat_override));
+    id_us_plus(id_cast<ID *>(view_layer_dst->camera_override));
   }
 }
 

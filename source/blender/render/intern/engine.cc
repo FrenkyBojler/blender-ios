@@ -887,6 +887,12 @@ static void engine_render_view_layer(Render *re,
   }
   engine_depsgraph_init(engine, view_layer);
 
+  Object *old_camera = RE_GetCamera(re);
+  if (view_layer->camera_override != nullptr && view_layer->camera_override != old_camera) {
+    RE_SetOverrideCamera(re, view_layer->camera_override);
+    RE_SetCamera(re, view_layer->camera_override);
+  }
+
   /* Sync data to engine, within draw lock so scene data can be accessed safely. */
   if (use_engine) {
     const bool use_gpu_context = (engine->type->flag & RE_USE_GPU_CONTEXT);
@@ -960,6 +966,11 @@ static void engine_render_view_layer(Render *re,
       CLOG_INFO(&LOG, "Rendering grease pencil");
       DRW_render_gpencil(engine, engine->depsgraph);
     }
+  }
+
+  if (old_camera != re->camera_override) {
+    RE_SetOverrideCamera(re, nullptr);
+    RE_SetCamera(re, old_camera);
   }
 
   /* Free dependency graph, if engine has not done it already. */

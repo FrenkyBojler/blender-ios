@@ -349,6 +349,7 @@ class VIEWLAYER_PT_override(ViewLayerButtonsPanel, Panel):
 
         layout.prop(view_layer, "material_override")
         layout.prop(view_layer, "world_override")
+        layout.prop(view_layer, "camera_override")
         layout.prop(view_layer, "samples")
 
 

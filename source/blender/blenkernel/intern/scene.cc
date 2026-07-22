@@ -886,6 +886,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   for (ViewLayer &view_layer : scene->view_layers) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.mat_override, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.world_override, IDWALK_CB_USER);
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, view_layer.camera_override, IDWALK_CB_USER);
     BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
         data,
         IDP_foreach_property(view_layer.id_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
