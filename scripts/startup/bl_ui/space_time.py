@@ -277,7 +277,7 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
                 panel.prop(st, "show_scrubbing_region", text="Scrubbing Region")
                 col = panel.column(heading="Sync")
                 col.prop(context.workspace, "use_scene_time_sync", text="Scene Time")
-                col.prop(context.workspace, "use_scene_range_sync", text="Scene Playback Frame")
+                col.prop(context.workspace, "use_scene_range_sync", text="Scene Strip Range")
 
         layout.separator()
 
