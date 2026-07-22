@@ -2262,6 +2262,11 @@ static int panel_drag_collapse_handler(bContext *C, const wmEvent *event, void *
 
 void panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
+  ARegion *region = CTX_wm_region(C);
+  if (region != nullptr && region->regiontype == RGN_TYPE_XR) {
+    return;
+  }
+
   wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->runtime->eventstate;
   PanelDragCollapseHandle *dragcol_data = MEM_new_zeroed<PanelDragCollapseHandle>(__func__);
