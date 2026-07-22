@@ -151,7 +151,7 @@ def test_modifiers_constraints_draw():
                     bone.constraints.new(type=const_type)
                 except (RuntimeError, TypeError):
                     unsupported_constraints.append(const_type)
-    
+
     t.assertFalse(
         unsupported_constraints,
         (
