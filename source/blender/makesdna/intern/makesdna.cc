@@ -526,19 +526,27 @@ static int compute_type_size_and_alignment(TypeTable &table,
 /** \name DNA File Writing
  * \{ */
 
-/** Construct the DNA.c file */
-static void dna_write(FILE *file, const void *pntr, const int size)
+/** Construct the blob of dna.cc file */
+static void dna_write(FILE *file, const void *pntr, const int size, const bool is_last = false)
 {
   constexpr int MAX_DNA_LINE_LENGTH = 20;
   static int linelength = 0;
   const char *data = static_cast<const char *>(pntr);
 
   for (int i = 0; i < size; i++) {
-    fprintf(file, "%d, ", data[i]);
+    if (is_last && i == size - 1) {
+      fprintf(file, "%d", data[i]);
+    }
+    else {
+      fprintf(file, "%d,", data[i]);
+    }
     linelength++;
     if (linelength >= MAX_DNA_LINE_LENGTH) {
       fprintf(file, "\n");
       linelength = 0;
+    }
+    else {
+      fprintf(file, " ");
     }
   }
 }
@@ -652,12 +660,14 @@ static void write_sdna_blob(FILE *file,
   dna_write(file, raw_data_header, 4);
 
   for (const dna::ParsedStruct &ps : parsed_structs) {
+    const bool is_last_struct = (&ps == &parsed_structs.last());
     const short header[2] = {short(table.lookup_index(ps.type_name)), short(ps.members.size())};
     dna_write(file, header, 4);
     for (const dna::ParsedMember &pm : ps.members) {
+      const bool is_last_member = (&pm == &ps.members.last());
       const short pair[2] = {short(table.lookup_index(pm.type_name)),
                              short(member_names.index_of_as(pm.member_name))};
-      dna_write(file, pair, 4);
+      dna_write(file, pair, 4, is_last_struct && is_last_member);
     }
   }
 
@@ -928,7 +938,7 @@ static void make_bad_file(const StringRefNull filename, int line)
 {
   FILE *fp = fopen(filename.c_str(), "w");
   fprintf(fp,
-          "#error \"Error! can't make correct DNA.c file from %s:%d, check alignment.\"\n",
+          "#error \"Error! can't make correct dna.cc file from %s:%d, check alignment.\"\n",
           __FILE__,
           line);
   fclose(fp);
