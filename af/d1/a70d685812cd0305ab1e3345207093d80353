@@ -1,4 +1,4 @@
 Referenced by issue #160604, Crash when frame_change_pre handler reads bpy.context.scene after opening file with Online Access enabled
 Referenced by issue #142243, EEVEE VRAM Accumulation with Vulkan Backend
 Referenced by issue #161761, Eraser end of pen functions like drawing end of pen
-Referenced by issue #161788, Video Import Bug
+Referenced by issue #161788, Importing videos that contains additional data streams can cause additional strips to be added alongside the video
