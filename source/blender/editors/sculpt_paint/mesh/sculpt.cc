@@ -2890,7 +2890,7 @@ static void calc_local_from_screen(const ViewContext &vc,
  * Calculates the local matrix of the brush and its inverse, which are used to transform points
  * from object-space to brush-space and vice versa respectively.
  *
- * @param tip_normal Tip normal is the scupt normal under spherical falloff, but when under
+ * \param tip_normal Tip normal is the scupt normal under spherical falloff, but when under
  * projected falloff, it is the view normal.
  */
 static void calc_brush_local_mat(const float rotation,
