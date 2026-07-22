@@ -1,1 +1,1 @@
-Referenced by pull request #161786, Fix #161775: Avoid null render stats callback string
+Referenced by pull request #161786, Fix #161775: Crash in bpy.app.handlers.render_stats in animation render
