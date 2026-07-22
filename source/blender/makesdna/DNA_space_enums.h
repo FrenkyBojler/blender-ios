@@ -123,12 +123,11 @@ enum eSpaceButtons_Context : short {
 enum eSpaceButtons_Flag : char {
   /* SB_PRV_OSA = (1 << 0), */ /* UNUSED */
   SB_PIN_CONTEXT = (1 << 1),
-  SB_FLAG_UNUSED_2 = (1 << 2),
+  SB_SHOW_CONTEXT_PATH = (1 << 2),
   SB_FLAG_UNUSED_3 = (1 << 3),
   /** Do not add materials, particles, etc. in TemplateTextureUser list. */
   SB_TEX_USER_LIMITED = (1 << 3),
   SB_SHADING_CONTEXT = (1 << 4),
-  SB_SHOW_BREADCRUMBS = (1 << 5),
 };
 ENUM_OPERATORS(eSpaceButtons_Flag)
 

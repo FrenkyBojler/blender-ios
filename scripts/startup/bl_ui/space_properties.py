@@ -63,13 +63,7 @@ class PROPERTIES_HT_header(Header):
 
             layout.prop(view, "search_filter", icon='VIEWZOOM', text="")
         layout.separator_spacer()
-        row = layout.row(align=True)
-        row.operator(
-            "buttons.toggle_pin",
-            text="",
-            icon='PINNED' if view.use_pin_id else 'UNPINNED',
-            depress=view.use_pin_id,
-        )
+
         layout.popover(panel="PROPERTIES_PT_options", text="")
 
 
@@ -125,8 +119,8 @@ class PROPERTIES_PT_options(Panel):
         col.label(text="Sync with Outliner")
         col.row().prop(space, "outliner_sync", expand=True)
 
-        col.separator()
-        col.prop(space, "show_breadcrumbs")
+        col.prop(space, "show_context_path")
+        col.prop(space, "use_pin_id")
 
 
 class PropertiesAnimationMixin:

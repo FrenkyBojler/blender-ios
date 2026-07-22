@@ -14,6 +14,7 @@
 
 namespace blender {
 
+struct ID;
 struct ScrArea;
 struct SpaceProperties;
 struct bContext;
@@ -45,5 +46,7 @@ void ED_buttons_set_context(const bContext *C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
                             eSpaceButtons_Context context);
+
+ID *ED_buttons_context_id_path(const bContext *C);
 
 }  // namespace blender

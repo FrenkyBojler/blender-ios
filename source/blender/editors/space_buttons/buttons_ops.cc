@@ -31,6 +31,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_buttons.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
@@ -118,7 +119,7 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 
   /* Create the new ID pointer and set the pin ID with RNA
    * so we can use the property's RNA update functionality. */
-  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(C) : nullptr;
+  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? ED_buttons_context_id_path(C) : nullptr;
   PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
 

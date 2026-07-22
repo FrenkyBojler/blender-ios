@@ -4591,7 +4591,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             }
             case SPACE_PROPERTIES: {
               SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(&sl);
-              sbuts->flag &= ~(SB_FLAG_UNUSED_2 | SB_FLAG_UNUSED_3);
+              sbuts->flag &= ~(SB_SHOW_CONTEXT_PATH | SB_FLAG_UNUSED_3);
               break;
             }
             case SPACE_NLA: {

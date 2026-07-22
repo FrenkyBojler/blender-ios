@@ -1271,7 +1271,8 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 static bool buttons_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  return sbuts->mainb != BCONTEXT_TOOL && (sbuts->flag & SB_SHOW_BREADCRUMBS);
+  return sbuts->mainb != BCONTEXT_TOOL &&
+        (sbuts->flag & (SB_PIN_CONTEXT | SB_SHOW_CONTEXT_PATH));
 }
 
 static void buttons_panel_context_draw(const bContext *C, Panel *panel)
@@ -1353,9 +1354,10 @@ void buttons_context_register(ARegionType *art)
   pt->draw = buttons_panel_context_draw;
   pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;
   BLI_addtail(&art->paneltypes, pt);
+  WM_paneltype_add(pt);
 }
 
-ID *buttons_context_id_path(const bContext *C)
+ID *ED_buttons_context_id_path(const bContext *C)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);

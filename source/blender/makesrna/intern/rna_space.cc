@@ -2336,6 +2336,30 @@ static void rna_SpaceProperties_pin_id_update(Main * /*bmain*/, Scene * /*scene*
   }
 }
 
+static void rna_SpaceProperties_use_pin_id_update(bContext *C, PointerRNA *ptr)
+{
+  SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
+
+  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? ED_buttons_context_id_path(C) : nullptr;
+  PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
+  RNA_pointer_set(ptr, "pin_id", new_id_ptr);
+}
+
+static int rna_SpaceProperties_show_context_editable(const PointerRNA *ptr,
+                                                         const char **r_info)
+{
+  const SpaceProperties *sbuts = static_cast<const SpaceProperties *>(ptr->data);
+
+  if (sbuts->flag & SB_PIN_CONTEXT) {
+    if (r_info) {
+      *r_info = N_("Can't be hidden while the context is pinned");
+    }
+    return 0;
+  }
+
+  return PROP_EDITABLE;
+}
+
 static void rna_SpaceProperties_context_set(PointerRNA *ptr, int value)
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
@@ -6245,6 +6269,17 @@ static void rna_def_space_properties(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_pin_id", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SB_PIN_CONTEXT);
   RNA_def_property_ui_text(prop, "Pin ID", "Use the pinned context");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceProperties_use_pin_id_update");
+
+  prop = RNA_def_property(srna, "show_context_path", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SB_SHOW_CONTEXT_PATH);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_editable_func(prop, "rna_SpaceProperties_show_context_editable");
+  RNA_def_property_ui_text(
+      prop, "Show Context Path and Pin", "show context path and pinning panel");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 
   /* Property search. */
 
@@ -6278,10 +6313,6 @@ static void rna_def_space_properties(BlenderRNA *brna)
                            "Change to the corresponding tab when outliner data icons are clicked");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 
-  prop = RNA_def_property(srna, "show_breadcrumbs", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SB_SHOW_BREADCRUMBS);
-  RNA_def_property_ui_text(prop, "Show Breadcrumbs", "Show context breadcrumbs panel");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 }
 
 static void rna_def_space_image_overlay(BlenderRNA *brna)
