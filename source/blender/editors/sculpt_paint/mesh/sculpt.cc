@@ -2890,7 +2890,7 @@ static void calc_local_from_screen(const ViewContext &vc,
  * Calculates the local matrix of the brush and its inverse, which are used to transform points
  * from object-space to brush-space and vice versa respectively.
  *
- * \param tip_normal Tip normal is the scupt normal under spherical falloff, but when under
+ * \param tip_normal Tip normal is the sculpt normal under spherical falloff, but when under
  * projected falloff, it is the view normal.
  */
 static void calc_brush_local_mat(const float rotation,
@@ -3415,8 +3415,6 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   /* TODO: Test if gather_generic_cube is good enough for the case above. If true, move the
    * following above radius_scale definition. */
   else if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    /* Tip normal is the scupt normal under spherical falloff, but when under projected falloff, it
-     * is the view normal. */
     float3 tip_normal = ss.cache->view_normal_symm;
 
     if (brush.falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE) {
