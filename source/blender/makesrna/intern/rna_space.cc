@@ -835,7 +835,7 @@ static ScrArea *rna_area_from_space(const PointerRNA *ptr)
   BLI_assert(RNA_struct_is_a(ptr->type, RNA_Space));
   SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
 
-  switch (GS(ptr->owner_id)) {
+  switch (GS(ptr->owner_id->name)) {
     case ID_WM: {
       const wmWindowManager *wm = id_cast<wmWindowManager *>(ptr->owner_id);
       for (const wmWindow &win : wm->windows) {
@@ -854,6 +854,7 @@ static ScrArea *rna_area_from_space(const PointerRNA *ptr)
     default:
       break;
   }
+  BLI_assert_unreachable();
   return nullptr;
 }
 
