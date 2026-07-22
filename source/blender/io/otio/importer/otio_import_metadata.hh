@@ -31,5 +31,7 @@ struct TransitionMetadata {
 
 TransitionMetadata fetch_transition_metadata(Transition *transition);
 void set_strip_metadata(Item *item, Strip *strip);
+void set_glow_metadata(otio::Effect *otio_effect, Strip *effect_strip);
+void set_gaussian_blur_metadata(otio::Effect *otio_effect, Strip *effect_strip);
 
 }  // namespace blender::io::otio

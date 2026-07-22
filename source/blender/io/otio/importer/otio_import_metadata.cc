@@ -23,6 +23,7 @@
 
 #include <opentimelineio/anyDictionary.h>
 #include <opentimelineio/anyVector.h>
+#include <opentimelineio/effect.h>
 
 #include "otio_import_metadata.hh"
 
@@ -502,5 +503,35 @@ void set_strip_metadata(Item *item, Strip *strip)
   set_strip_metadata_compositing(metadata, strip);
   set_strip_metadata_color(metadata, strip);
   set_strip_metadata_modifiers(metadata, strip);
+}
+
+void set_glow_metadata(otio::Effect *otio_effect, Strip *effect_strip)
+{
+  AnyDictionary metadata;
+  if (!any_cast_set(otio_effect->metadata(), "blender", metadata)) {
+    return;
+  }
+
+  GlowVars *glow = static_cast<GlowVars *>(effect_strip->effectdata);
+
+  any_cast_set(metadata, "fMini", glow->fMini);
+  any_cast_set(metadata, "fClamp", glow->fClamp);
+  any_cast_set(metadata, "fBoost", glow->fBoost);
+  any_cast_set(metadata, "dDist", glow->dDist);
+  any_cast_set(metadata, "dQuality", glow->dQuality);
+  any_cast_set(metadata, "bNoComp", glow->bNoComp);
+}
+
+void set_gaussian_blur_metadata(otio::Effect *otio_effect, Strip *effect_strip)
+{
+  AnyDictionary metadata;
+  if (!any_cast_set(otio_effect->metadata(), "blender", metadata)) {
+    return;
+  }
+
+  GaussianBlurVars *blur = static_cast<GaussianBlurVars *>(effect_strip->effectdata);
+
+  any_cast_set(metadata, "size_x", blur->size_x);
+  any_cast_set(metadata, "size_y", blur->size_y);
 }
 }  // namespace blender::io::otio
