@@ -560,14 +560,6 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
     }
   }
 
-  // if (active_scene->r.flag & SCER_LIMIT_PREVIEW_TO_SCENE_STRIP) {
-  //   float start_frame, end_frame;
-  //   scene_strip_visible_frame_range(sequencer_scene, scene_strip, &start_frame, &end_frame);
-  //   active_scene->r.flag |= SCER_PRV_RANGE;
-  //   active_scene->r.psfra = round_fl_to_int(start_frame);
-  //   active_scene->r.pefra = round_fl_to_int(end_frame);
-  // }
-
   DEG_id_tag_update(&active_scene->id, ID_RECALC_FRAME_CHANGE);
   WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, nullptr);

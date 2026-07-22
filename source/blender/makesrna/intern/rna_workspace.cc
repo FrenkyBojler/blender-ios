@@ -519,7 +519,6 @@ static void rna_def_workspace(BlenderRNA *brna)
       prop,
       "Limit Playback Range to Scene Strip",
       "If scene is instanciated in Sequencer Editor, sync its playback frame range.");
-  // todo(habib): proper update
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_WINDOW, "rna_workspace_sync_scene_time_update");
 
