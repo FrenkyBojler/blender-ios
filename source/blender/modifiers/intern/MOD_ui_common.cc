@@ -6,8 +6,8 @@
  * \ingroup modifiers
  */
 
-#include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
+#include "BLI_listbase.hh"
+#include "BLI_string_utf8.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -92,7 +92,7 @@ void modifier_error_message_draw(ui::Layout &layout, PointerRNA *ptr)
   ModifierData *md = static_cast<ModifierData *>(ptr->data);
   if (md->error) {
     ui::Layout &row = layout.row(false);
-    row.label(RPT_(md->error), ICON_ERROR);
+    row.label(RPT_(md->error), ICON_STATUS_ERROR);
   }
 }
 
@@ -324,7 +324,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
 
   ui::panel_context_pointer_set(panel, "modifier", ptr);
 
-  const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
+  const ModifierTypeInfo *mti = BKE_modifier_get_info(md->type);
   Scene *scene = CTX_data_scene(C);
   int index = BLI_findindex(&ob->modifiers, md);
 
