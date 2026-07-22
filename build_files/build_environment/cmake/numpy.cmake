@@ -55,14 +55,12 @@ ExternalProject_Add(external_numpy
   INSTALL_COMMAND ""
 )
 
-if(NOT WITH_APPLE_CROSSPLATFORM)
 add_dependencies(
   external_numpy
   external_python
   external_python_site_packages
   external_cython
 )
-endif()
 
 if(WITH_APPLE_CROSSPLATFORM)
   ExternalProject_Add_Step(external_numpy after_install
