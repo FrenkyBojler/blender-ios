@@ -887,8 +887,8 @@ static void engine_render_view_layer(Render *re,
   }
   engine_depsgraph_init(engine, view_layer);
 
-  Object *old_camera = RE_GetCamera(re);
-  if (view_layer->camera_override != nullptr && view_layer->camera_override != old_camera) {
+  Object *old_camera_override = re->camera_override;
+  if (view_layer->camera_override != nullptr && view_layer->camera_override != RE_GetCamera(re)) {
     RE_SetOverrideCamera(re, view_layer->camera_override);
     RE_SetCamera(re, view_layer->camera_override);
   }
@@ -968,9 +968,9 @@ static void engine_render_view_layer(Render *re,
     }
   }
 
-  if (old_camera != re->camera_override) {
-    RE_SetOverrideCamera(re, nullptr);
-    RE_SetCamera(re, old_camera);
+  if (old_camera_override != re->camera_override) {
+    RE_SetOverrideCamera(re, old_camera_override);
+    RE_SetCamera(re, RE_GetCamera(re));
   }
 
   /* Free dependency graph, if engine has not done it already. */
