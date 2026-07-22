@@ -1046,6 +1046,9 @@ static bool outliner_element_visible_get(const Main &bmain,
     {
       return false;
     }
+    else if ((type == TSE_POSE_BASE) && (exclude_filter & SO_FILTER_NO_POSE_BONES)) {
+      return false;
+    }
   }
 
   return true;

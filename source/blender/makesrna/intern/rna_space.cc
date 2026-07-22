@@ -4735,6 +4735,11 @@ static void rna_def_space_outliner(BlenderRNA *brna)
       prop, nullptr, "filter", SO_FILTER_NO_GREASE_PENCIL_EFFECTS);
   RNA_def_property_ui_text(prop, "Show Grease Pencil Effects", "Show grease pencil effects");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+
+  prop = RNA_def_property(srna, "use_filter_pose_bones", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "filter", SO_FILTER_NO_POSE_BONES);
+  RNA_def_property_ui_text(prop, "Show Pose Bones", "Show pose bones of armatures");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 }
 
 static void rna_def_space_view3d_shading(BlenderRNA *brna)
