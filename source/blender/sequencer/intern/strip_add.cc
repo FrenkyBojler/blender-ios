@@ -187,8 +187,11 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
     strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
 
-  if (strip->is_transition()) {
+  if ((strip->input1 != nullptr) && (strip->input2 != nullptr) &&
+      seq::strip_type_can_be_transition(strip->type))
+  {
     strip->len = 1;
+    strip->flag |= SEQ_SAME_CHANNEL_TRANSITION;
     const Strip *input1 = load_data->effect.input1;
     const Strip *input2 = load_data->effect.input2;
     const int length = load_data->effect.length;

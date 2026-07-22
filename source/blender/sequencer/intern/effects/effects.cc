@@ -403,7 +403,8 @@ Strip *get_transition_between(Scene *scene, Strip *input1, Strip *input2)
 bool Strip::is_transition() const
 {
   return (this->input1 != nullptr) && (this->input2 != nullptr) &&
-         seq::strip_type_can_be_transition(this->type);
+         seq::strip_type_can_be_transition(this->type) &&
+         flag_is_set(this->flag, SEQ_SAME_CHANNEL_TRANSITION);
 }
 
 }  // namespace blender

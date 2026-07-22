@@ -3150,7 +3150,8 @@ static wmOperatorStatus sequencer_select_by_type_exec(bContext *C, wmOperator *o
 
     bool match;
     if (type == SEQ_SELECT_TYPE_TRANSITION) {
-      match = strip->is_transition();
+      match = (strip->input1 != nullptr) && (strip->input2 != nullptr) &&
+              seq::strip_type_can_be_transition(strip->type);
     }
     else if (type == SEQ_SELECT_TYPE_EFFECT) {
       match = strip->is_effect() && !ELEM(strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT) &&

@@ -59,7 +59,7 @@ enum eStripFlag : uint32_t {
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_SHOW_RETIMING = (1 << 19),
-  /* (1 << 20) unused, set to zero by versioning code. */
+  SEQ_SAME_CHANNEL_TRANSITION = (1 << 20),
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
