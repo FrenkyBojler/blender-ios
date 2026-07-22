@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <sstream>
 
 #include <fmt/format.h>
@@ -1545,29 +1546,12 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
   block_flag_enable(block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_NUMSELECT | ui::BLOCK_POPUP);
 
   ui::fontstyle_set(&style->widget);
-  /* Width based on the text lengths. */
-  int text_width = std::max(
-      120 * UI_SCALE_FAC,
-      BLF_width(style->widget.uifont_id, data->title.c_str(), BLF_DRAW_STR_DUMMY_MAX));
-
-  /* Break Message into multiple lines. */
-  Vector<std::string> message_lines;
-  StringRef messaged_trimmed = StringRef(data->message).trim();
-  std::istringstream message_stream(messaged_trimmed);
-  std::string line;
-  while (std::getline(message_stream, line)) {
-    message_lines.append(line);
-    text_width = std::max(
-        text_width, int(BLF_width(style->widget.uifont_id, line.c_str(), BLF_DRAW_STR_DUMMY_MAX)));
-  }
-
-  int dialog_width = std::max(text_width + int(style->columnspace * 2.5), data->width);
 
   /* Adjust width if the button text is long. */
   const int longest_button_text = std::max(
       BLF_width(style->widget.uifont_id, data->confirm_text.c_str(), BLF_DRAW_STR_DUMMY_MAX),
       BLF_width(style->widget.uifont_id, IFACE_("Cancel"), BLF_DRAW_STR_DUMMY_MAX));
-  dialog_width = std::max(dialog_width, 3 * longest_button_text);
+  const int dialog_width = std::max(data->width, 3 * longest_button_text);
 
   ui::Layout &layout = [&]() -> ui::Layout & {
     if (data->icon != ui::AlertIcon::None) {
@@ -1589,19 +1573,14 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
     uiItemL_ex(&layout, data->title, ICON_NONE, true, false);
 
     /* Line under the title if there are properties but no message body. */
-    if (data->include_properties && message_lines.size() == 0) {
+    if (data->include_properties && data->message.empty()) {
       layout.separator(0.2f, ui::LayoutSeparatorType::Line);
     };
   }
 
   /* Message lines. */
-  if (message_lines.size() > 0) {
-    ui::Layout &lines = layout.column(false);
-    lines.scale_y_set(0.65f);
-    lines.separator(0.1f);
-    for (auto &st : message_lines) {
-      lines.label(st, ICON_NONE);
-    }
+  if (!data->message.empty()) {
+    layout.label_multiline(data->message, ICON_NONE);
   }
 
   if (data->include_properties) {

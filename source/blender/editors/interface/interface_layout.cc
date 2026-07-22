@@ -5760,7 +5760,17 @@ static int item_estimate_fit_text_extra_width(Item &item)
                                                       std::make_optional(
                                                           RNA_property_type(button.rnaprop)) :
                                                       std::nullopt;
-    if (button.type == ButtonType::Label) {
+    if (button_label_is_multiline(&button)) {
+      /* Break the multi-line string into multiple lines and get it widest size. */
+      std::istringstream multiline_label_stream(StringRef(button.str).trim());
+      std::string line;
+      while (std::getline(multiline_label_stream, line)) {
+        const int line_width = text_icon_full_width(
+            line, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
+        full_width = std::max(full_width, line_width);
+      }
+    }
+    else if (button.type == ButtonType::Label) {
       full_width = text_icon_full_width(button.str, button.icon, text_pad_none, UI_FSTYLE_WIDGET);
     }
     else if (prop_type && *prop_type == PROP_BOOLEAN) {
