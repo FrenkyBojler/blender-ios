@@ -534,11 +534,11 @@ static void generate_margin(ImBuf *ibuf,
     draw_new_mask = true;
   }
 
-  for (const int i : corner_tris.index_range()) {
-    const int3 tri = corner_tris[i];
-    float vec[3][2];
+  for (int fill = conservative ? 0 : 1; fill < 2; fill++) {
+    for (const int i : corner_tris.index_range()) {
+      const int3 tri = corner_tris[i];
+      float vec[3][2];
 
-    for (int fill = conservative ? 0 : 1; fill < 2; fill++) {
       for (int a = 0; a < 3; a++) {
         const float *uv = uv_map[tri[a]];
 
