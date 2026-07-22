@@ -702,7 +702,7 @@ class FalloffPanel(BrushPanel):
             return False
         if cls.get_brush_mode(context) == 'SCULPT_CURVES':
             brush = settings.brush
-            if brush.curves_sculpt_brush_type in {'ADD', 'DELETE'}:
+            if brush.curves_sculpt_brush_type in {'ADD', 'DELETE', 'CUT'}:
                 return False
         return True
 
@@ -1411,7 +1411,6 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         container.prop(brush, "image_brush_type")
 
         capabilities = brush.image_paint_capabilities
-        use_accumulate = capabilities.has_accumulate
 
         if mode == 'PAINT_2D':
             container.prop(brush, "use_paint_antialiasing")
