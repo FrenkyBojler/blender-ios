@@ -1647,33 +1647,6 @@ void RNA_def_property_deprecated(PropertyRNA *prop,
 }
 #endif
 
-void RNA_def_property_deprecated_runtime(PropertyRNA *prop,
-                                         const char *note,
-                                         const short version,
-                                         const short removal_version)
-{
-  BLI_assert(prop->deprecated == nullptr);
-  BLI_assert(note != nullptr);
-  BLI_assert(version > 0);
-  BLI_assert(removal_version > version);
-
-  /* Note: srna identifier is not easily available here without
-   * additional lookups, so we use the property identifier. */
-  if (removal_version <= BLENDER_VERSION) {
-    fprintf(stderr,
-            "\nWARNING: \"%s\" deprecation starting at %d.%d marks this property to be removed "
-            "in the current Blender version!\n\n",
-            prop->identifier,
-            version / 100,
-            version % 100);
-  }
-  DeprecatedRNA *deprecated = MEM_new_zeroed<DeprecatedRNA>("DeprecatedRNA_runtime");
-  deprecated->note = note;
-  deprecated->version = version;
-  deprecated->removal_version = removal_version;
-  prop->deprecated = deprecated;
-}
-
 void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive)
 {
   prop->icon = icon;
