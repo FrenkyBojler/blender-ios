@@ -525,6 +525,9 @@ static void copy_world_space(Main &bmain,
   BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), clipboard_name);
   BLI_assert(copybuffer.is_valid());
   copybuffer.write_as_copypaste_buffer(filepath, reports);
+  if (added_names.size() == transformables.size()) {
+    BKE_reportf(&reports, RPT_INFO, "Copied %d entries into clipboard", int(added_names.size()));
+  }
 }
 
 /* Build a map of the transformable name to the name in the clipboard to read from. */
@@ -794,7 +797,17 @@ static void paste_world_space(Main &bmain,
                         transform_fcurves.scale,
                         *transform_fcurves.channelbag);
   }
-
+  if (sorted_transformables.size() == transformables.size()) {
+    BKE_reportf(
+        &reports, RPT_INFO, "Pasted all %d entries from clipboard", int(transformables.size()));
+  }
+  else {
+    BKE_reportf(&reports,
+                RPT_INFO,
+                "Pasted %d/%d entries from clipboard",
+                int(sorted_transformables.size()),
+                int(transformables.size()));
+  }
   DEG_graph_free(depsgraph);
 }
 
