@@ -171,6 +171,13 @@ class Camera : public Node {
 
   ProjectionTransform full_rastertocamera;
 
+  /* Fully-resolved transforms of the previous frame, used to compute interactive viewport motion
+   * vectors. Unlike the camera matrix these also capture viewplane changes (orthographic pan/zoom,
+   * camera zoom, lens shift), which would otherwise produce no motion. */
+  ProjectionTransform previous_worldtoraster;
+  Transform previous_worldtocamera;
+  bool has_previous_transforms;
+
   float3 dx;
   float3 dy;
 

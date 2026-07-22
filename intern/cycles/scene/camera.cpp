@@ -183,6 +183,10 @@ Camera::Camera() : Node(get_node_type())
 
   full_rastertocamera = projection_identity();
 
+  previous_worldtoraster = projection_identity();
+  previous_worldtocamera = transform_identity();
+  has_previous_transforms = false;
+
   dx = zero_float3();
   dy = zero_float3();
 
@@ -361,7 +365,21 @@ void Camera::update(Scene *scene)
     have_motion = have_motion || motion[i] != matrix;
   }
 
-  if (need_motion == Scene::MOTION_PASS || need_motion == Scene::MOTION_PASS_INTERACTIVE) {
+  if (need_motion == Scene::MOTION_PASS_INTERACTIVE) {
+    /* Use the fully-resolved transforms of the previous frame for viewport motion. Unlike the
+     * camera matrix these also capture viewplane changes (orthographic pan/zoom, camera zoom, lens
+     * shift) that do not modify the camera matrix and would otherwise produce zero motion vectors.
+     * There is only a previous and a current frame in the viewport (i.e., no forward motion), so
+     * "post" is set to the current frame. */
+    kcam->motion_pass_pre = has_previous_transforms ? previous_worldtocamera : kcam->worldtocamera;
+    kcam->motion_pass_post = kcam->worldtocamera;
+    if (camera_type != CAMERA_PANORAMA && camera_type != CAMERA_CUSTOM) {
+      kcam->perspective_pre = has_previous_transforms ? previous_worldtoraster :
+                                                        kcam->worldtoraster;
+      kcam->perspective_post = kcam->worldtoraster;
+    }
+  }
+  else if (need_motion == Scene::MOTION_PASS) {
     if (have_motion) {
       kcam->motion_pass_pre = transform_inverse(motion[0]);
       kcam->motion_pass_post = transform_inverse(motion[motion.size() - 1]);
@@ -518,6 +536,20 @@ void Camera::update_interactive_motion()
   }
 
   set_fov_pre(fov);
+
+  /* If the fully-resolved projection changed this frame, request one more update so the motion
+   * vectors are cleared once viewport navigation stops. The camera-matrix change above already
+   * triggers this via set_motion(), but viewplane-only changes (orthographic pan/zoom, camera
+   * zoom, lens shift) do not, so detect them here explicitly. */
+  if (has_previous_transforms &&
+      memcmp(&previous_worldtoraster, &worldtoraster, sizeof(ProjectionTransform)) != 0)
+  {
+    tag_modified();
+  }
+
+  previous_worldtoraster = worldtoraster;
+  previous_worldtocamera = worldtocamera;
+  has_previous_transforms = true;
 }
 
 void Camera::device_update(Device * /*device*/, DeviceScene *dscene, Scene *scene)
