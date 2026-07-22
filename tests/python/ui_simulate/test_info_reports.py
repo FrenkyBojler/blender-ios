@@ -70,6 +70,9 @@ def _setup_info_area():
         # CTX_wm_reports(). Safe to ignore here.
         pass
 
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.ops.transform.translate(value=(1.0, 2.0, 3.0))
+
     yield
     return e, t, window, area
 
