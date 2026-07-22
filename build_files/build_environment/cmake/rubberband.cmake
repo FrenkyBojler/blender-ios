@@ -57,15 +57,12 @@ ExternalProject_Add(external_rubberband
   INSTALL_DIR ${LIBDIR}/rubberband
 )
 
-# NOTE: For Apple-crossplatform builds, we will rely on host python being built for cross-compilation
-if(NOT WITH_APPLE_CROSSPLATFORM)
-  add_dependencies(
-    external_rubberband
-    external_fftw
-    # Needed for `MESON`.
-    external_python_site_packages
-  )
-endif()
+add_dependencies(
+  external_rubberband
+  external_fftw
+  # Needed for `MESON`.
+  external_python_site_packages
+)
 
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
