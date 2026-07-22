@@ -60,6 +60,11 @@ bool Geometry::need_attribute(Scene *scene, ustring name)
     }
   }
 
+  const AttributeStandard std = Attribute::name_standard(name.c_str());
+  if (std != ATTR_STD_NONE && need_attribute(scene, std)) {
+    return true;
+  }
+
   return false;
 }
 

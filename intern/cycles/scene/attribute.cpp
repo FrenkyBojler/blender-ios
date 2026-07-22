@@ -1041,7 +1041,11 @@ Attribute *AttributeSet::find(AttributeRequest &req)
   if (req.std == ATTR_STD_NONE) {
     return find(req.name);
   }
-  return find(req.std);
+  Attribute *attr = find(req.std);
+  if (attr) {
+    return attr;
+  }
+  return find(ustring(Attribute::standard_name(req.std)));
 }
 
 void AttributeSet::remove(Attribute *attribute)
