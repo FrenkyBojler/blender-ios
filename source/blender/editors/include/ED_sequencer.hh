@@ -10,6 +10,7 @@
 
 #include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
+#include "DNA_mask_types.h"
 
 namespace blender {
 
@@ -48,6 +49,9 @@ bool deselect_all_strips(const Scene *scene);
 bool maskedit_mask_poll(bContext *C);
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene);
 bool maskedit_poll(bContext *C);
+bool maskedit_visible_splines_poll(bContext *C);
+void set_mask(bContext *C, Mask *mask);
+void sequencer_strip_add_mask_modifier(Scene *scene, Strip *strip, Mask *mask);
 
 /*Add description*/
 void mouse_position(Scene *scene, const ARegion *region, const int mval[2], float r_co[2]);

@@ -353,8 +353,8 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
       Mask *mask = seq::active_mask_get(scene);
       if (mask) {
         CTX_data_id_pointer_set(result, &mask->id);
+        return CTX_RESULT_OK;
       }
-      return CTX_RESULT_OK;
     }
   }
 
@@ -1056,6 +1056,7 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
       switch(wmn->action) {
         case NA_EDITED:
         case NA_ADDED:
+        case NA_SELECTED:
           // Scene *scene = const_cast<Scene *>(params->scene);
           // Editing *ed = seq::editing_get(scene);
           // Strip *active_strip = ed->act_strip;

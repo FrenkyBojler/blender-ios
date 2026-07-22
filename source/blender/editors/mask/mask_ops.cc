@@ -37,6 +37,7 @@
 #include "ED_image.hh"
 #include "ED_mask.hh"
 #include "ED_select_utils.hh"
+#include "ED_sequencer.hh"
 
 #include "ANIM_keyframing.hh"
 
@@ -68,7 +69,7 @@ Mask *ED_mask_new(bContext *C, const char *name)
         break;
       }
       case SPACE_SEQ: {
-        /* do nothing */
+        ed::vse::set_mask(C, mask);
         break;
       }
       case SPACE_IMAGE: {

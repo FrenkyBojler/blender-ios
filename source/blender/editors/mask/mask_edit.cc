@@ -50,7 +50,7 @@ bool ED_maskedit_visible_splines_poll(bContext *C)
       case SPACE_CLIP:
         return ED_space_clip_maskedit_visible_splines_poll(C);
       case SPACE_SEQ:
-        return ed::vse::maskedit_poll(C);
+        return ed::vse::maskedit_visible_splines_poll(C);
       case SPACE_IMAGE:
         return ED_space_image_maskedit_visible_splines_poll(C);
     }

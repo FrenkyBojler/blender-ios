@@ -34,6 +34,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_sound.hh"
@@ -45,6 +46,7 @@
 #include "SEQ_edit.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
@@ -108,7 +110,6 @@ bool check_show_maskedit(SpaceSeq *sseq, Scene *scene)
 bool maskedit_poll(bContext *C)
 {
   SpaceSeq *sseq = CTX_wm_space_seq(C);
-
   if (sseq) {
     Scene *scene = CTX_data_sequencer_scene(C);
     return check_show_maskedit(sseq, scene);
@@ -117,12 +118,46 @@ bool maskedit_poll(bContext *C)
   return false;
 }
 
-/*
-void sequencer_strip_add_mask_modifier(Strip *strip, Mask *mask)
+bool maskedit_visible_splines_poll(bContext *C)
 {
-  strip->mask = mask;
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (scene) {
+    Strip *strip_act = seq::select_active_get(scene);
+    return seq::strip_supports_modifiers(strip_act);
+  }
+
+  return false;
 }
 
+void set_mask(bContext *C, Mask *mask)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip_act = seq::select_active_get(scene);
+  strip_act->mask = mask;
+
+  /* weak, but same as image/space */
+  id_us_ensure_real(id_cast<ID *>(strip_act->mask));
+
+  sequencer_strip_add_mask_modifier(scene, strip_act, mask);
+
+  if (C) {
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_EDITED, scene);
+  }
+}
+
+void sequencer_strip_add_mask_modifier(Scene *scene, Strip *strip, Mask *mask)
+{
+  StripModifierData *smd = seq::modifier_new(strip, "Mask", eSeqModifierType_Mask);
+
+  if (smd != nullptr) {
+    smd->mask_id = mask;
+    smd->mask_input_type = STRIP_MASK_INPUT_ID; 
+  }
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+}
+
+/*
 bool sequencer_strip_check_mask_modifier(Strip *strip, Mask *mask)
 {
   if (mask == strip->modifiers->one_of_the_mask) {

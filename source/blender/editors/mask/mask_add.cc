@@ -996,7 +996,8 @@ static wmOperatorStatus interactive_circle_add_modal(bContext *C, wmOperator *op
         /* use HD_VECT here and switch to HD_AUTO afterwards,
          because handles behave weirdly when points overlap. */
         create_primitive_from_points(C, op, points, num_points, HD_VECT);
-        
+
+        mask = CTX_data_edit_mask(C);
         MaskLayer *mask_layer = BKE_mask_layer_active(mask);
         mask_data->spline = mask_layer->act_spline;
         mask_data->is_created = true;
@@ -1119,7 +1120,8 @@ static wmOperatorStatus interactive_square_add_modal(bContext *C, wmOperator *op
         const float points[4][2] = {{0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}};
         int num_points = ARRAY_SIZE(points);
         create_primitive_from_points(C, op, points, num_points, HD_VECT);
-        
+
+        mask = CTX_data_edit_mask(C);
         MaskLayer *mask_layer = BKE_mask_layer_active(mask);
         mask_data->spline = mask_layer->act_spline;
         mask_data->is_created = true;
