@@ -6,13 +6,18 @@ if(NOT WIN32)
 
   if(WITH_APPLE_CROSSPLATFORM)
     # Building for non-local architecture.
-    set(CROSS_COMPILE_FLAGS 
+    set(CROSS_COMPILE_FLAGS
       --host=arm
       --with-ogg-includes=${LIBDIR}/ogg/include
       --with-ogg-libraries=${LIBDIR}/ogg/lib
     )
+    set(CROSS_COMPILE_FUNC_CONFIGS
+      # Disabling std-c23
+      export ac_cv_prog_cc_c23=no
+    )
   else()
     set(CROSS_COMPILE_FLAGS)
+    set(CROSS_COMPILE_FUNC_CONFIGS)
   endif()
 
   ExternalProject_Add(external_flac
@@ -21,7 +26,7 @@ if(NOT WIN32)
     URL_HASH ${FLAC_HASH_TYPE}=${FLAC_HASH}
     PREFIX ${BUILD_DIR}/flac
 
-    CONFIGURE_COMMAND ${CONFIGURE_ENV} &&
+    CONFIGURE_COMMAND ${CONFIGURE_ENV} && ${CROSS_COMPILE_FUNC_CONFIGS} &&
       cd ${BUILD_DIR}/flac/src/external_flac/ &&
       ${CONFIGURE_COMMAND} --prefix=${LIBDIR}/flac --disable-shared --enable-static  ${CROSS_COMPILE_FLAGS}
 
