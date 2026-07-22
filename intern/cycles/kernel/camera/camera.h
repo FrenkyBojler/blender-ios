@@ -696,7 +696,7 @@ ccl_device_forceinline float4 camera_motion_vector_direction(KernelGlobals kg, c
   }
   else if (kernel_data.cam.type == CAMERA_ORTHOGRAPHIC) {
     /* For one orthographic camera matrix, all rays meet at the same point at infinity. There is no
-     * reasonable value fort the motion vector to compute. */
+     * reasonable value for the motion vector to compute. */
     return zero_float4();
   }
   else {
