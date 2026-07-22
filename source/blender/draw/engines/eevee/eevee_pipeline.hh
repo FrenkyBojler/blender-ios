@@ -382,8 +382,7 @@ class DeferredLayer : DeferredLayerBase {
    * NOTE: Not to be confused with the render passes.
    * NOTE: Using array of texture instead of texture array to allow to use TextureFromPool.
    */
-  TextureFromPool direct_radiance_txs_[3] = {
-      {"direct_radiance_1"}, {"direct_radiance_2"}, {"direct_radiance_3"}};
+  TextureFromPool direct_radiance_txs_ = {"direct_radiance"};
   /* NOTE: Only used when `use_split_radiance` is true. */
   TextureFromPool indirect_radiance_txs_[3] = {
       {"indirect_radiance_1"}, {"indirect_radiance_2"}, {"indirect_radiance_3"}};
