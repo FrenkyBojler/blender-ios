@@ -147,12 +147,12 @@ static void zbuf_add_to_span(ZSpan *zspan, const float v1[2], const float v2[2])
 /* Functions                                                 */
 /*-----------------------------------------------------------*/
 
-void zspan_scanconvert(ZSpan *zspan,
-                       void *handle,
-                       float *v1,
-                       float *v2,
-                       float *v3,
-                       void (*func)(void *, int, int, float, float))
+void zspan_rasterize_triangle(ZSpan *zspan,
+                              void *handle,
+                              float *v1,
+                              float *v2,
+                              float *v3,
+                              void (*func)(void *, int, int, float, float))
 {
   float x0, y0, x1, y1, x2, y2, z0, z1, z2;
   float u, v, uxd, uyd, vxd, vyd, uy0, vy0, xx1;
@@ -237,13 +237,13 @@ void zspan_scanconvert(ZSpan *zspan,
   }
 }
 
-static void zspan_cline(ZSpan *zspan,
-                        void *handle,
-                        float *v1,
-                        float *v2,
-                        float *uv1,
-                        float *uv2,
-                        void (*func)(void *, int, int, float, float))
+static void zspan_rasterize_conservative_line(ZSpan *zspan,
+                                              void *handle,
+                                              float *v1,
+                                              float *v2,
+                                              float *uv1,
+                                              float *uv2,
+                                              void (*func)(void *, int, int, float, float))
 {
   float miny = min_ff(v1[1], v2[1]);
   float maxy = max_ff(v1[1], v2[1]);
@@ -324,20 +324,20 @@ static void zspan_cline(ZSpan *zspan,
   }
 }
 
-void zspan_cwireframe(ZSpan *zspan,
-                      void *handle,
-                      float *v1,
-                      float *v2,
-                      float *v3,
-                      void (*func)(void *, int, int, float, float))
+void zspan_rasterize_conservative_wireframe(ZSpan *zspan,
+                                            void *handle,
+                                            float *v1,
+                                            float *v2,
+                                            float *v3,
+                                            void (*func)(void *, int, int, float, float))
 {
   float uv1[2] = {1, 0};
   float uv2[2] = {0, 1};
   float uv3[2] = {0, 0};
 
-  zspan_cline(zspan, handle, v1, v2, uv1, uv2, func);
-  zspan_cline(zspan, handle, v2, v3, uv2, uv3, func);
-  zspan_cline(zspan, handle, v3, v1, uv3, uv1, func);
+  zspan_rasterize_conservative_line(zspan, handle, v1, v2, uv1, uv2, func);
+  zspan_rasterize_conservative_line(zspan, handle, v2, v3, uv2, uv3, func);
+  zspan_rasterize_conservative_line(zspan, handle, v3, v1, uv3, uv1, func);
 }
 
 }  // namespace blender

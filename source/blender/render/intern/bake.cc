@@ -796,20 +796,20 @@ void RE_bake_pixels_populate(Mesh *mesh,
         bake_differentials(&bd, vec[0], vec[1], vec[2]);
 
         if (!fill) {
-          zspan_cwireframe(&bd.zspan[image_id],
-                           static_cast<void *>(&bd),
-                           vec[0],
-                           vec[1],
-                           vec[2],
-                           store_bake_pixel);
+          zspan_rasterize_conservative_wireframe(&bd.zspan[image_id],
+                                                 static_cast<void *>(&bd),
+                                                 vec[0],
+                                                 vec[1],
+                                                 vec[2],
+                                                 store_bake_pixel);
         }
         else {
-          zspan_scanconvert(&bd.zspan[image_id],
-                            static_cast<void *>(&bd),
-                            vec[0],
-                            vec[1],
-                            vec[2],
-                            store_bake_pixel);
+          zspan_rasterize_triangle(&bd.zspan[image_id],
+                                   static_cast<void *>(&bd),
+                                   vec[0],
+                                   vec[1],
+                                   vec[2],
+                                   store_bake_pixel);
         }
       }
     }

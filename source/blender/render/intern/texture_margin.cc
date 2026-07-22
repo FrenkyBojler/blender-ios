@@ -114,11 +114,11 @@ class TextureMarginMap {
     write_mask_ = writemask;
 
     if (fill) {
-      zspan_scanconvert(
+      zspan_rasterize_triangle(
           &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
     }
     else {
-      zspan_cwireframe(
+      zspan_rasterize_conservative_wireframe(
           &zspan_, this, &(v1[0]), &(v2[0]), &(v3[0]), TextureMarginMap::zscan_store_pixel);
     }
   }
