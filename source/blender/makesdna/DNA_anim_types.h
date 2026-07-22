@@ -407,6 +407,18 @@ struct FCurve {
   float prev_norm_factor = 0, prev_offset = 0;
 
   bke::FCurveRuntime *runtime = nullptr;
+
+#ifdef __cplusplus
+  /** Set the RNA path for this F-Curve. */
+  void set_rna_path(StringRef path);
+  /**
+   * Set the RNA path for this F-Curve, taking ownership of the C-string, which must be allocated
+   * by the guarded allocator.
+   */
+  void set_rna_path_move(char *path);
+  /** Get the RNA path for this F-Curve. */
+  StringRefNull rna_path() const;
+#endif
 };
 
 /* ************************************************ */
