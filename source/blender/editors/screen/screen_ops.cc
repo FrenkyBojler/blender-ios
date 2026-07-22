@@ -6527,14 +6527,11 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
    * this function. */
   bool do_stop_playback = false;
 
-  /* Handle reaching the extreme frames. */
   float start_frame = scene->playback_start();
   float end_frame = scene->playback_end();
-  const WorkSpace *workspace = CTX_wm_workspace(C);
-  // todo(habib): move to separate function
-  // todo(habib): support other relevant editors
-  // todo(habib): sad->from_anim_edit not enough, pass dedicated bool check
-  if (workspace->flags & WORKSPACE_SYNC_SCENE_RANGE && sad->from_anim_edit) {
+
+  if (sad->do_scene_strip_range_sync) {
+    /* Limit the playback frame range to the scene's strip range. */
     float workspace_frame_start, workspace_frame_end;
     if (ed::vse::get_scene_strip_frame_for_range_sync(
             *C, &workspace_frame_start, &workspace_frame_end))
@@ -6548,6 +6545,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     }
   }
 
+  /* Handle reaching the extreme frames. */
   const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;
   const bool is_extreme_frame = is_playing_forward ? scene->r.cfra > end_frame :
                                                      scene->r.cfra < start_frame;

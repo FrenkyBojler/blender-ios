@@ -378,6 +378,23 @@ bool is_scene_time_sync_needed(const bContext &C)
   return true;
 }
 
+bool is_scene_frame_range_sync_needed(const bContext &C)
+{
+  WorkSpace *workspace = CTX_wm_workspace(&C);
+  if (!workspace || !workspace->sequencer_scene) {
+    return false;
+  }
+  if ((workspace->flags & WORKSPACE_SYNC_SCENE_RANGE) == 0) {
+    return false;
+  }
+  SpaceSeq *sseq = CTX_wm_space_seq(&C);
+  if (sseq) {
+    /* Scene frame range syncing should be triggered from all editors except the video sequencer.*/
+    return false;
+  }
+  return true;
+}
+
 static Scene *get_sequencer_scene_for_time_sync(const bContext &C)
 {
   wmWindowManager *wm = CTX_wm_manager(&C);
