@@ -1,1 +1,2 @@
 Referenced by pull request #161786, Fix #161775: Crash in bpy.app.handlers.render_stats in animation render
+Referenced by commit de622bf21627af8ee2548b5123b7e0146a814ae4, Fix #161775: Crash in bpy.app.handlers.render_stats in animation render
