@@ -38,6 +38,7 @@
 #include "ED_view3d_offscreen.hh"
 #include "UI_interface_c.hh"
 #include "UI_view2d.hh"
+#include "interface_intern.hh"
 
 #include "GHOST_Xr-api.hh"
 
@@ -86,6 +87,8 @@ struct wmXrUiRegionHostContextOverride {
   }
 };
 
+/* Switches the context to a world space temp region for the duration of this object's lifecycle.
+ */
 struct wmXrTempRegionContextOverride {
   bContext *C;
   wmWindow *prev_win;
@@ -115,6 +118,52 @@ struct wmXrTempRegionContextOverride {
     CTX_wm_area_set(C, prev_area);
     CTX_wm_region_set(C, prev_region);
     CTX_wm_region_popup_set(C, prev_region_popup);
+  }
+};
+
+static bool wm_xr_button_uses_selected_draw_override(const ui::Button &but)
+{
+  return ELEM(but.type,
+              ui::ButtonType::Toggle,
+              ui::ButtonType::ToggleN,
+              ui::ButtonType::IconToggle,
+              ui::ButtonType::IconToggleN,
+              ui::ButtonType::ButToggle,
+              ui::ButtonType::Checkbox,
+              ui::ButtonType::CheckboxN);
+}
+
+/* Temporarily marks checked buttons as `selected` for the lifetime of this object.
+ * This is used when rendering a world space ARegion, in order to ensure that
+ * selected buttons appear properly selected. */
+struct wmXrSelectedToggleDrawStateScope {
+  Vector<ui::Button *> draw_selected_buttons;
+
+  explicit wmXrSelectedToggleDrawStateScope(ARegion *region)
+  {
+    if (region == nullptr || region->runtime == nullptr) {
+      return;
+    }
+
+    for (ui::Block &block : region->runtime->uiblocks) {
+      for (ui::Button &but : block.buttons()) {
+        if (!wm_xr_button_uses_selected_draw_override(but) || !ui::button_is_pushed(&but) ||
+            (but.flag & (ui::UI_SELECT | ui::UI_SELECT_DRAW)) != 0)
+        {
+          continue;
+        }
+
+        ui::button_flag_enable(&but, ui::UI_SELECT_DRAW);
+        draw_selected_buttons.append(&but);
+      }
+    }
+  }
+
+  ~wmXrSelectedToggleDrawStateScope()
+  {
+    for (ui::Button *but : draw_selected_buttons) {
+      ui::button_flag_disable(but, ui::UI_SELECT_DRAW);
+    }
   }
 };
 
@@ -1515,6 +1564,10 @@ static bool wm_xr_ui_region_cache_update(const bContext *C, wmXrUiRegion *ui_reg
       return false;
     }
 
+    /* Ensure semantically checked XR toggles draw as selected in the cached world-space UI even
+     * when their runtime button flags only carry hover state at this point in the draw pipeline.
+     */
+    wmXrSelectedToggleDrawStateScope selected_toggle_draw_state_scope(xr_region);
     ED_region_panels_draw_offscreen(C, xr_region, &ui_region_rect, ui_region->ui_region_offscreen);
   }
   ui_region->ui_region_rect = ui_region_rect;
