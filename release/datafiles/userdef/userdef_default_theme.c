@@ -561,6 +561,7 @@ const bTheme U_theme_default = {
     .scene = RGBA(0x999999ff),
     .audio = RGBA(0x568f6dff),
     .effect = RGBA(0x7b5f80ff),
+    .transition_effect = RGBA(0x867accff),
     .transition = RGBA(0xffffffff),
     .transition_outline = RGBA(0xffffff99),
     .transition_in = RGBA(0xffffff33),

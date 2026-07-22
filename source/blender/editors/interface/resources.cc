@@ -754,6 +754,9 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case TH_SEQ_EFFECT:
           cp = ts->effect;
           break;
+        case TH_SEQ_TRANSITION_EFFECT:
+          cp = ts->transition_effect;
+          break;
         case TH_SEQ_TRANSITION:
           cp = ts->transition;
           break;
