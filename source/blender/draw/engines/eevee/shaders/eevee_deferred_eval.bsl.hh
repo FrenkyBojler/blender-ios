@@ -86,7 +86,6 @@ struct LightEval {
 
   void write_radiance_direct(uchar layer_index, int2 texel, float3 radiance)
   {
-    /* TODO(fclem): Layered texture. */
     uint data = rgb9e5_encode(radiance);
     imageStore(direct_radiance_imgs, int3(texel, layer_index), uint4(data));
   }
