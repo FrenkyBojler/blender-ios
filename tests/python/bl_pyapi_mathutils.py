@@ -1197,10 +1197,23 @@ class TesselatePolygon(unittest.TestCase):
         polyline = [
             Vector((-0.14401324093341827, 0.1266411542892456)),
             Vector((-0.14401324093341827, 0.13)),
+            Vector((0.13532273471355438, 0.13)),
+            Vector((0.13532273471355438, 0.1266411542892456)),
+        ]
+        expect = [(1, 3, 0), (3, 1, 2)]
+        self.assertEqual(expect, geometry.tessellate_polygon([polyline]))
+
+    def test_2d_self_intersect(self):
+        # A self-intersecting "bowtie" outline. A correct even-odd fill requires the edge
+        # intersection point, which is not part of the input, so the triangles that would
+        # use it cannot be expressed as input indices and are omitted.
+        polyline = [
+            Vector((-0.14401324093341827, 0.1266411542892456)),
+            Vector((-0.14401324093341827, 0.13)),
             Vector((0.13532273471355438, 0.1266411542892456)),
             Vector((0.13532273471355438, 0.13)),
         ]
-        expect = [(0, 1, 2), (0, 3, 2)]
+        expect = []
         self.assertEqual(expect, geometry.tessellate_polygon([polyline]))
 
     def test_3d(self):
@@ -1210,7 +1223,7 @@ class TesselatePolygon(unittest.TestCase):
             Vector((0.13532273471355438, 0.1266411542892456, 0.13966798782348633)),
             Vector((0.13532273471355438, 0.1266411542892456, -0.13966798782348633)),
         ]
-        expect = [(2, 3, 0), (2, 0, 1)]
+        expect = [(3, 1, 2), (1, 3, 0)]
         self.assertEqual(expect, geometry.tessellate_polygon([polyline]))
 
     def test_3d_degenerate(self):
@@ -1220,10 +1233,44 @@ class TesselatePolygon(unittest.TestCase):
             Vector((0.13532273471355438, -0.15269476175308228, -0.13966798782348633)),
             Vector((-0.14401324093341827, -0.15269476175308228, -0.13966798782348633)),
         ]
-        # If this returns a proper result, rather than [(0, 0, 0)], it could mean that
-        # degenerate geometry is handled properly.
-        expect = [(0, 0, 0)]
+        # Degenerate (zero-area) input yields no triangles rather than a bogus
+        # degenerate triangle such as [(0, 0, 0)].
+        expect = []
         self.assertEqual(expect, geometry.tessellate_polygon([polyline]))
+
+    def test_hole_precision_160745(self):
+        # A square with a rectangular hole whose fine "teeth" sit at a large coordinate
+        # offset with sub-unit spacing. The legacy scan-fill solver looped on the
+        # near-collinear hole vertices and emitted a run of degenerate triangles until a
+        # safeguard aborted it (#160745). The same topology at a small scale worked.
+        outer = [
+            Vector((-75.81, -75.81)), Vector((-75.81, 75.81)),
+            Vector((75.81, 75.81)), Vector((75.81, -75.81)),
+        ]
+        hole = [
+            Vector((-75.47, -75.47)), Vector((75.47, -75.47)),
+            Vector((75.47, 75.47)), Vector((-75.47, 75.47)),
+            Vector((-75.47, 49.75)), Vector((-73.81, 49.75)),
+            Vector((-73.81, 49.41)), Vector((-75.47, 49.41)),
+            Vector((-75.47, 48.41)), Vector((-73.81, 48.41)),
+            Vector((-73.81, 48.07)), Vector((-75.47, 48.07)),
+        ]
+        tris = geometry.tessellate_polygon([outer, hole])
+
+        # A triangulation of this 16-vertex square-with-hole (no added points) always
+        # has exactly 16 triangles, independent of the diagonals chosen.
+        self.assertEqual(16, len(tris))
+        seen = set()
+        for tri in tris:
+            # No degenerate triangle (repeated index) ...
+            self.assertEqual(3, len(set(tri)), f"degenerate triangle {tri}")
+            # ... and no triangle emitted twice (the failure mode of #160745).
+            key = frozenset(tri)
+            self.assertNotIn(key, seen, f"duplicate triangle {tri}")
+            seen.add(key)
+            # Every index refers to a real input vertex.
+            for idx in tri:
+                self.assertTrue(0 <= idx < len(outer) + len(hole))
 
 
 if __name__ == '__main__':

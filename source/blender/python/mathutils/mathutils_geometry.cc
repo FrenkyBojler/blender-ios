@@ -19,12 +19,12 @@
 #  include "BLI_listbase.hh"
 
 #  include "BKE_curve.hh"
-#  include "BKE_displist.h"
 
 #  include "MEM_guardedalloc.h"
 #endif /* !MATH_STANDALONE */
 
 #include "BLI_math_geom_c.hh"
+#include "BLI_math_matrix_c.hh"
 #include "BLI_math_vector_c.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_utildefines.hh"
@@ -1510,116 +1510,163 @@ PyDoc_STRVAR(
     ".. function:: tessellate_polygon(polylines, /)\n"
     "\n"
     "   Takes a list of polylines (each point a pair or triplet of numbers) and returns "
-    "the point indices for a polyline filled with triangles. Does not handle degenerate "
-    "geometry (such as zero-length lines due to consecutive identical points).\n"
+    "the point indices for a polyline filled with triangles. Degenerate (zero area) input "
+    "yields no triangles. Self-intersecting outlines are not supported: since the result "
+    "only refers to the input points, triangles that would require the edge intersection "
+    "points (which are not part of the input) are omitted.\n"
     "\n"
     "   :param polylines: Polygons where each polygon is a sequence of 2D or 3D points.\n"
     "   :type polylines: Sequence[Sequence[Sequence[float]]]\n"
     "   :return: A list of triangles.\n"
     "   :rtype: list[tuple[int, int, int]]\n");
-/* PolyFill function, uses Blenders scan-fill to fill multiple poly lines. */
+/* Fills multiple poly lines using the robust exact-predicate Constrained Delaunay
+ * Triangulation solver. The returned triangles reference the original input point
+ * indices (via the CDT output-to-input vertex map), keeping the long-standing contract.
+ * The legacy scan-fill path this replaced could loop on near-collinear vertices at large
+ * coordinates and emit degenerate triangles, see: #160745. */
 static PyObject *M_Geometry_tessellate_polygon(PyObject * /*self*/, PyObject *polyLineSeq)
 {
-  PyObject *tri_list; /* Return this list of triangles. */
-  PyObject *polyLine, *polyVec;
-  int i, len_polylines, len_polypoints;
-  bool list_parse_error = false;
-  bool is_2d = true;
-
-  /* Display #ListBase. */
-  ListBaseT<DispList> dispbase = {nullptr, nullptr};
-  DispList *dl;
-  float *fp; /* Pointer to the array of malloced dl->verts to set the points from the vectors. */
-  int totpoints = 0;
-
   if (!PySequence_Check(polyLineSeq)) {
     PyErr_SetString(PyExc_TypeError, "expected a sequence of poly lines");
     return nullptr;
   }
 
-  len_polylines = PySequence_Size(polyLineSeq);
+  const int len_polylines = PySequence_Size(polyLineSeq);
 
-  for (i = 0; i < len_polylines; i++) {
-    polyLine = PySequence_GetItem(polyLineSeq, i);
+  /* Flatten all polyline points into a single list. A point's position in this list is
+   * the index reported back to the caller, so the input order must be preserved. */
+  Vector<float3> coords;
+  Vector<int> poly_counts;
+  bool is_2d = true;
+
+  for (int i = 0; i < len_polylines; i++) {
+    PyObject *polyLine = PySequence_GetItem(polyLineSeq, i);
     if (!PySequence_Check(polyLine)) {
-      BKE_displist_free(&dispbase);
       Py_XDECREF(polyLine); /* May be null so use #Py_XDECREF. */
       PyErr_SetString(PyExc_TypeError,
                       "One or more of the polylines is not a sequence of mathutils.Vector's");
       return nullptr;
     }
 
-    len_polypoints = PySequence_Size(polyLine);
-    if (len_polypoints > 0) { /* don't bother adding edges as polylines */
-      dl = MEM_new_zeroed<DispList>("poly disp");
-      BLI_addtail(&dispbase, dl);
-      dl->nr = len_polypoints;
-      dl->type = DL_POLY;
-      dl->parts = 1; /* no faces, 1 edge loop */
-      dl->col = 0;   /* no material */
-      dl->verts = fp = MEM_new_array_uninitialized<float>(3 * size_t(len_polypoints), "dl verts");
-      dl->index = MEM_new_array_zeroed<int>(3 * size_t(len_polypoints), "dl index");
-
-      for (int index = 0; index < len_polypoints; index++, fp += 3) {
-        polyVec = PySequence_GetItem(polyLine, index);
+    const int len_polypoints = PySequence_Size(polyLine);
+    if (len_polypoints > 0) { /* Don't bother adding edges as polylines. */
+      poly_counts.append(len_polypoints);
+      for (int index = 0; index < len_polypoints; index++) {
+        PyObject *polyVec = PySequence_GetItem(polyLine, index);
+        float co[3];
         const int polyVec_len = mathutils_array_parse(
-            fp, 2, 3 | MU_ARRAY_SPILL, polyVec, "tessellate_polygon: parse coord");
+            co, 2, 3 | MU_ARRAY_SPILL, polyVec, "tessellate_polygon: parse coord");
         Py_DECREF(polyVec);
 
         if (polyVec_len == -1) [[unlikely]] {
-          list_parse_error = true;
+          Py_DECREF(polyLine);
+          return nullptr;
         }
-        else if (polyVec_len == 2) {
-          fp[2] = 0.0f;
+        if (polyVec_len == 2) {
+          co[2] = 0.0f;
         }
         else if (polyVec_len == 3) {
           is_2d = false;
         }
-
-        totpoints++;
+        coords.append(float3(co[0], co[1], co[2]));
       }
     }
     Py_DECREF(polyLine);
   }
 
-  if (list_parse_error) {
-    BKE_displist_free(&dispbase); /* possible some dl was allocated */
+  const int totpoints = int(coords.size());
+  if (totpoints == 0) {
+    /* No points, do this so scripts don't barf. */
+    return PyList_New(0);
+  }
+
+  /* The CDT solver works in 2D, so project the points onto a plane first: -Z for 2D
+   * input, the best-fit plane (Newell's method) for 3D. This matches the projection the
+   * previous scan-fill path used, which also keeps the output triangle winding
+   * consistent with what this function historically returned. */
+  float n[3] = {0.0f, 0.0f, -1.0f};
+  if (!is_2d) {
+    zero_v3(n);
+    const float *v_prev = coords.last();
+    for (const float3 &co : coords) {
+      add_newell_cross_v3_v3v3(n, v_prev, co);
+      v_prev = co;
+    }
+    if (normalize_v3(n) == 0.0f) {
+      /* Degenerate input (all points collinear or coincident): any projection yields
+       * zero area and no triangles, use the -Z default. */
+      n[0] = n[1] = 0.0f;
+      n[2] = -1.0f;
+    }
+  }
+  float mat_2d[3][3];
+  axis_dominant_v3_to_m3_negate(mat_2d, n);
+
+  Array<double2> verts_2d(totpoints);
+  for (const int i : coords.index_range()) {
+    float xy[2];
+    mul_v2_m3v3(xy, mat_2d, coords[i]);
+    verts_2d[i] = double2(xy[0], xy[1]);
+  }
+
+  /* One CDT face per polyline. Because the faces are built in the same order the points
+   * were flattened, and each face spans a contiguous block, the face-vertex indices are
+   * simply the identity mapping into the flat vertex list. */
+  Array<int> face_offset_data(poly_counts.size() + 1);
+  for (const int p : poly_counts.index_range()) {
+    face_offset_data[p] = poly_counts[p];
+  }
+  const OffsetIndices<int> face_offsets = offset_indices::accumulate_counts_to_offsets(
+      face_offset_data);
+
+  Array<int> face_vert_indices(totpoints);
+  for (const int i : IndexRange(totpoints)) {
+    face_vert_indices[i] = i;
+  }
+
+  meshintersect::CDT_input<double> input;
+  input.vert = verts_2d;
+  input.face_offsets = face_offsets;
+  input.face_vert_indices = face_vert_indices;
+  input.epsilon = 1e-8;
+  input.need_ids = true;
+
+  const meshintersect::CDT_result<double> result = meshintersect::delaunay_2d_calc(
+      input, CDT_INSIDE_WITH_HOLES);
+
+  /* Map each output triangle back to original input point indices. For valid (non
+   * self-intersecting) input, every output vertex has exactly one input origin. */
+  Vector<int3> tris;
+  tris.reserve(result.face.size());
+  for (const Vector<int> &face : result.face) {
+    BLI_assert(face.size() == 3);
+    int3 tri;
+    bool ok = true;
+    for (int j = 0; j < 3; j++) {
+      const Vector<uint32_t> &orig = result.vert_orig[face[j]];
+      if (orig.is_empty()) [[unlikely]] {
+        /* Intersection vertex from self-intersecting input has no input index. */
+        ok = false;
+        break;
+      }
+      tri[j] = int(orig[0]);
+    }
+    if (ok) {
+      /* Swap the last two indices: CDT emits faces with the opposite orientation to the
+       * legacy scan-fill output in the projected space, keep the winding this function
+       * historically returned (#displist_fill_cdt_process_group does the same). */
+      tris.append({tri[0], tri[2], tri[1]});
+    }
+  }
+
+  PyObject *tri_list = PyList_New(tris.size());
+  if (!tri_list) {
+    PyErr_SetString(PyExc_RuntimeError, "failed to make a new list");
     return nullptr;
   }
-  if (totpoints) {
-    /* now make the list to return */
-    float down_vec[3] = {0, 0, -1};
-    BKE_displist_fill(&dispbase,
-                      &dispbase,
-                      is_2d ? down_vec : nullptr,
-                      false,
-                      CU_FILL_SOLVER_SWEEP_LINE,
-                      CU_FILL_RULE_EVEN_ODD);
-
-    /* The faces are stored in a new DisplayList
-     * that's added to the head of the #ListBase. */
-    dl = static_cast<DispList *>(dispbase.first);
-
-    tri_list = PyList_New(dl->parts);
-    if (!tri_list) {
-      BKE_displist_free(&dispbase);
-      PyErr_SetString(PyExc_RuntimeError, "failed to make a new list");
-      return nullptr;
-    }
-
-    int *dl_face = dl->index;
-    for (int index = 0; index < dl->parts; index++) {
-      PyList_SET_ITEM(tri_list, index, PyC_Tuple_Pack_I32({dl_face[0], dl_face[1], dl_face[2]}));
-      dl_face += 3;
-    }
-    BKE_displist_free(&dispbase);
+  for (const int i : tris.index_range()) {
+    PyList_SET_ITEM(tri_list, i, PyC_Tuple_Pack_I32({tris[i][0], tris[i][1], tris[i][2]}));
   }
-  else {
-    /* no points, do this so scripts don't barf */
-    BKE_displist_free(&dispbase); /* possible some dl was allocated */
-    tri_list = PyList_New(0);
-  }
-
   return tri_list;
 }
 
