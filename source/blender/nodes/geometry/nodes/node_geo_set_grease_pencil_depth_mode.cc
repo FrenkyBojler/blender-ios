@@ -85,6 +85,8 @@ static void node_rna(StructRNA *srna)
                                       nullptr,
                                       nullptr,
                                       nullptr);
+
+  RNA_def_property_deprecated_runtime(prop, "Replaced by '.inputs[\"Depth Order\"]'.", 530, 600);
 }
 
 static void node_register()

@@ -514,6 +514,10 @@ void RNA_def_property_deprecated(PropertyRNA *prop,
                                  const char *note,
                                  short version,
                                  short removal_version);
+void RNA_def_property_deprecated_runtime(PropertyRNA *prop,
+                                         const char *note,
+                                         short version,
+                                         short removal_version);
 
 /**
  * The values here are a little confusing:

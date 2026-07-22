@@ -189,6 +189,8 @@ static void node_rna(StructRNA *srna)
                                         nullptr);
   RNA_def_property_enum_funcs_runtime(
       prop, rna_MergeLayers_mode_get, rna_MergeLayers_mode_set, nullptr, nullptr, nullptr);
+
+  RNA_def_property_deprecated_runtime(prop, "Replaced by '.inputs[\"Mode\"]'.", 530, 600);
 }
 
 static void node_register()
