@@ -22,7 +22,7 @@ struct Mesh;
  * \param margin: the size of the margin in pixels.
  * \param me: the mesh to use the polygons of.
  * \param uv_layer: The UV layer to use.
- * \param conservative: is conservative rasterization should be used.
+ * \param conservative: if conservative rasterization should be used.
  */
 void RE_generate_texturemargin_adjacentfaces(struct ImBuf *ibuf,
                                              char *mask,
