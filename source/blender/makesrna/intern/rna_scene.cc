@@ -3192,9 +3192,11 @@ static bool rna_SceneCompositorEffect_node_group_poll(PointerRNA * /*ptr*/, Poin
 }
 
 static void rna_SceneCompositorEffect_node_group_update(Main *bmain,
-                                                        Scene *scene,
+                                                        Scene * /*scene*/,
                                                         PointerRNA *effect_ptr)
 {
+  Scene *scene = id_cast<Scene *>(effect_ptr->owner_id);
+
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_COMPOSITOR);
   WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, scene);
