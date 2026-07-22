@@ -1106,9 +1106,11 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
 
 /* Get the set of all scenes that needs to be rendered by the given compositor node group in the
  * given pipeline scene. If the node group is the root one, is_root_node_group will be true. */
-static VectorSet<Scene *> get_scenes_that_needs_render_by_node_group(Scene &pipeline_scene,
-                                                                     const bNodeTree &node_group,
-                                                                     const bool is_root_node_group)
+static VectorSet<Scene *> get_scenes_that_needs_render_by_node_group(
+    Scene &pipeline_scene,
+    const bNodeTree &node_group,
+    const bool is_root_node_group,
+    VectorSet<const bNodeTree *> &node_trees_already_searched)
 {
   VectorSet<Scene *> needed_scenes_to_render;
   node_group.ensure_topology_cache();
@@ -1143,8 +1145,13 @@ static VectorSet<Scene *> get_scenes_that_needs_render_by_node_group(Scene &pipe
     }
 
     const bNodeTree &child_node_group = *id_cast<const bNodeTree *>(node->id);
-    needed_scenes_to_render.add_multiple(
-        get_scenes_that_needs_render_by_node_group(pipeline_scene, child_node_group, false));
+    if (node_trees_already_searched.contains(&child_node_group)) {
+      continue;
+    }
+    node_trees_already_searched.add_new(&child_node_group);
+
+    needed_scenes_to_render.add_multiple(get_scenes_that_needs_render_by_node_group(
+        pipeline_scene, child_node_group, false, node_trees_already_searched));
   }
 
   return needed_scenes_to_render;
@@ -1172,8 +1179,38 @@ static VectorSet<Scene *> get_scenes_that_needs_render_by_compositor(Scene &pipe
     return VectorSet<Scene *>();
   }
 
+  VectorSet<const bNodeTree *> node_trees_already_searched;
   return get_scenes_that_needs_render_by_node_group(
-      pipeline_scene, *pipeline_scene.compositing_node_group, true);
+      pipeline_scene, *pipeline_scene.compositing_node_group, true, node_trees_already_searched);
+}
+
+/* Render all scenes needed by the compositor. */
+static void do_render_compositor_scenes(Render *re, VectorSet<Scene *> &needed_scenes_to_render)
+{
+  bool a_scene_was_rendered = false;
+  for (Scene *scene : needed_scenes_to_render) {
+    /* The provided needed_scenes_to_render might contain evaluated scenes, so get the original
+     * scene instead, because we will be doing raw pointer comparison below and the render function
+     * expects original scenes. */
+    Scene *original_scene = DEG_get_original(scene);
+
+    /* The pipeline scene was already rendered. */
+    if (original_scene == re->scene) {
+      continue;
+    }
+
+    if (!render_scene_has_layers_to_render(scene, nullptr)) {
+      continue;
+    }
+
+    do_render_compositor_scene(re, original_scene, re->scene->r.cfra);
+    a_scene_was_rendered = true;
+  }
+
+  /* If a scene was rendered, switch back to the current scene. */
+  if (a_scene_was_rendered) {
+    re->display->current_scene_update(re->scene);
+  }
 }
 
 /** Returns true if the node tree has a group output node. */
@@ -1191,30 +1228,6 @@ static bool node_tree_has_group_output(const bNodeTree *node_tree)
   }
 
   return false;
-}
-
-/* Render all scenes needed by the compositor. */
-static void do_render_compositor_scenes(Render *re, VectorSet<Scene *> &needed_scenes_to_render)
-{
-  bool a_scene_was_rendered = false;
-  for (Scene *scene : needed_scenes_to_render) {
-    /* The pipeline scene was already rendered. */
-    if (scene == re->scene) {
-      continue;
-    }
-
-    if (!render_scene_has_layers_to_render(scene, nullptr)) {
-      continue;
-    }
-
-    a_scene_was_rendered = true;
-    do_render_compositor_scene(re, scene, re->scene->r.cfra);
-  }
-
-  /* If a scene was rendered, switch back to the current scene. */
-  if (a_scene_was_rendered) {
-    re->display->current_scene_update(re->scene);
-  }
 }
 
 /* Render compositor nodes, along with any scenes required for them.
