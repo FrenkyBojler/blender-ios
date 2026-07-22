@@ -2354,14 +2354,15 @@ static void rna_SpaceProperties_pin_id_update(Main * /*bmain*/, Scene * /*scene*
 static void rna_SpaceProperties_use_pin_id_update(bContext *C, PointerRNA *ptr)
 {
   SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
-
+  if (sbuts->flag & SB_PIN_CONTEXT) {
+    sbuts->flag |= SB_SHOW_CONTEXT_PATH;
+  }
   ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? ED_buttons_context_id_path(C) : nullptr;
   PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(ptr, "pin_id", new_id_ptr);
 }
 
-static int rna_SpaceProperties_show_context_editable(const PointerRNA *ptr,
-                                                         const char **r_info)
+static int rna_SpaceProperties_show_context_editable(const PointerRNA *ptr, const char **r_info)
 {
   const SpaceProperties *sbuts = static_cast<const SpaceProperties *>(ptr->data);
 
@@ -6291,7 +6292,7 @@ static void rna_def_space_properties(BlenderRNA *brna)
   RNA_def_property_boolean_default(prop, true);
   RNA_def_property_editable_func(prop, "rna_SpaceProperties_show_context_editable");
   RNA_def_property_ui_text(
-      prop, "Show Context Path and Pin", "show context path and pinning panel");
+      prop, "Show Context Path and Pin", "Show context path and pinning panel");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 
   /* Property search. */
@@ -6325,7 +6326,6 @@ static void rna_def_space_properties(BlenderRNA *brna)
                            "Outliner Sync",
                            "Change to the corresponding tab when outliner data icons are clicked");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
-
 }
 
 static void rna_def_space_image_overlay(BlenderRNA *brna)

@@ -1271,8 +1271,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 static bool buttons_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  return sbuts->mainb != BCONTEXT_TOOL &&
-        (sbuts->flag & (SB_PIN_CONTEXT | SB_SHOW_CONTEXT_PATH));
+  return sbuts->mainb != BCONTEXT_TOOL && (sbuts->flag & (SB_PIN_CONTEXT | SB_SHOW_CONTEXT_PATH));
 }
 
 static void buttons_panel_context_draw(const bContext *C, Panel *panel)
@@ -1342,6 +1341,13 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     first = false;
   }
+
+  ui::Layout &pin_row = row.row(false);
+  pin_row.alignment_set(ui::LayoutAlign::Right);
+  pin_row.separator_spacer();
+  pin_row.emboss_set(ui::EmbossType::None);
+  pin_row.op(
+      "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
 }
 
 void buttons_context_register(ARegionType *art)

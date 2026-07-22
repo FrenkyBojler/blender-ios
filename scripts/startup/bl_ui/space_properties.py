@@ -120,7 +120,7 @@ class PROPERTIES_PT_options(Panel):
         col.row().prop(space, "outliner_sync", expand=True)
 
         col.prop(space, "show_context_path")
-        col.prop(space, "use_pin_id")
+        col.prop(space, "use_pin_id", text="Pin Context")
 
 
 class PropertiesAnimationMixin:
