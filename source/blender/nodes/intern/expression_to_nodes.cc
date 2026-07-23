@@ -44,6 +44,7 @@ struct NodeAndSocket {
 /** A value type does not necessarily have to correspond to a single socket. */
 enum class ValueType {
   Float,
+  Vec2,
   Vec3,
   String,
   Rgb,
@@ -79,6 +80,8 @@ static std::optional<eNodeSocketDatatype> value_to_closest_socket_type(const Val
   switch (type) {
     case ValueType::Float:
       return SOCK_FLOAT;
+    case ValueType::Vec2:
+      return SOCK_VECTOR;
     case ValueType::Vec3:
       return SOCK_VECTOR;
     case ValueType::String:
@@ -95,9 +98,38 @@ static std::optional<eNodeSocketDatatype> value_to_closest_socket_type(const Val
   return std::nullopt;
 }
 
+static StringRefNull get_value_type_name(const ValueType type)
+{
+  switch (type) {
+    case ValueType::Float:
+      return "float";
+    case ValueType::Vec2:
+      return "vec2";
+    case ValueType::Vec3:
+      return "vec3";
+    case ValueType::String:
+      return "string";
+    case ValueType::Rgb:
+      return "rgb";
+    case ValueType::Rgba:
+      return "rgba";
+    case ValueType::Boolean:
+      return "bool";
+    case ValueType::Integer:
+      return "int";
+  }
+  return "";
+}
+
 class Value {
  public:
   ValueType type;
+  /**
+   * Usually, a single value corresponds to a single socket. However, in general, this is not
+   * necessarily the case. For example, a 4d vector might be represented by a 3d vector and a float
+   * socket. This allows supporting intermediate types in expressions that are not supported by the
+   * underlying node tree type.
+   */
   Vector<NodeAndSocket, 1> sockets;
 
   Value(ValueType type, bNode &node, bNodeSocket &socket) : type(type), sockets({{&node, &socket}})
@@ -143,9 +175,21 @@ struct InsertCallParams {
     this->inputs.append(std::move(value));
   }
 
+  void add_input(bNode &node, bNodeSocket &socket, const ValueType type)
+  {
+    this->add_input(Value(type, node, socket));
+  }
+
   void add_input(bNode &node, bNodeSocket &socket)
   {
-    this->add_input(Value(*socket_to_value_type(*tree.typeinfo, socket), node, socket));
+    this->add_input(node, socket, *socket_to_value_type(*tree.typeinfo, socket));
+  }
+
+  void add_input(bNode &node, const int index, const ValueType type)
+  {
+    bNodeSocket *socket = find_available_socket_by_index(node.inputs, index);
+    BLI_assert(socket);
+    this->add_input(node, *socket, type);
   }
 
   void add_input(bNode &node, const int index)
@@ -162,9 +206,21 @@ struct InsertCallParams {
     this->output = std::move(value);
   }
 
+  void set_output(bNode &node, bNodeSocket &socket, const ValueType type)
+  {
+    this->set_output(Value(type, node, socket));
+  }
+
   void set_output(bNode &node, bNodeSocket &socket)
   {
-    this->set_output(Value(*socket_to_value_type(*tree.typeinfo, socket), node, socket));
+    this->set_output(node, socket, *socket_to_value_type(*tree.typeinfo, socket));
+  }
+
+  void set_output(bNode &node, const int index, const ValueType type)
+  {
+    bNodeSocket *socket = find_available_socket_by_index(node.outputs, index);
+    BLI_assert(socket);
+    this->set_output(node, *socket, type);
   }
 
   void set_output(bNode &node, const int index)
@@ -226,20 +282,58 @@ class FunctionSymbol {
   }
 };
 
+using ImplicitConversionFn = std::function<Value(const Value &value, ValueType to_type)>;
+
 class SymbolTable {
  private:
   MultiValueMap<std::string, FunctionSymbol> function_;
+  Map<std::pair<ValueType, ValueType>, ImplicitConversionFn> implicit_conversions_;
 
-  enum class MatchingType {
-    None = 0,
-    WithImplicitConversions = 1,
-    Exact = 2,
+  struct MatchResult {
+    Vector<bool> param_needs_conversion;
+
+    bool is_better_than(const MatchResult &other) const
+    {
+      int self_conversion_num = 0;
+      int other_conversion_num = 0;
+      for (const int i : this->param_needs_conversion.index_range()) {
+        const bool self_needs_conversion = this->param_needs_conversion[i];
+        const bool other_needs_conversion = other.param_needs_conversion[i];
+        if (self_needs_conversion && !other_needs_conversion) {
+          return false;
+        }
+        self_conversion_num += self_needs_conversion;
+        other_conversion_num += other_needs_conversion;
+      }
+      return self_conversion_num < other_conversion_num;
+    }
   };
 
  public:
   void add(FunctionSymbol function_symbol)
   {
     function_.add(function_symbol.name, std::move(function_symbol));
+  }
+
+  void add_implicit_conversion(const ValueType from_type, const ValueType to_type)
+  {
+    this->add_custom_implicit_conversion(
+        from_type, to_type, [to_type](const Value &value, ValueType /*to_type*/) {
+          return Value(to_type, value.sockets);
+        });
+  }
+
+  void add_custom_implicit_conversion(const ValueType from_type,
+                                      const ValueType to_type,
+                                      ImplicitConversionFn fn)
+  {
+    implicit_conversions_.add_new(std::pair(from_type, to_type), std::move(fn));
+  }
+
+  const ImplicitConversionFn *lookup_implicit_conversion(const ValueType from_type,
+                                                         const ValueType to_type) const
+  {
+    return implicit_conversions_.lookup_ptr(std::pair(from_type, to_type));
   }
 
   const FunctionSymbol *lookup_function(const StringRef name,
@@ -252,22 +346,30 @@ class SymbolTable {
       r_error = fmt::format("{}: '{}'", TIP_("Unknown function"), name);
       return nullptr;
     }
-    MatchingType best_matching_type = MatchingType::None;
+    std::optional<MatchResult> best_match;
     Vector<const FunctionSymbol *> best_matching_functions;
     for (const FunctionSymbol &function : candidates) {
-      const MatchingType matching_type = this->compute_matching_type(
+      const std::optional<MatchResult> match = this->compute_match(
           function, tree_type, input_types);
-      if (matching_type == MatchingType::None) {
+      if (!match) {
         continue;
       }
-      if (matching_type == best_matching_type) {
+      if (!best_match) {
+        best_match = std::move(*match);
         best_matching_functions.append(&function);
+        continue;
       }
-      else if (matching_type > best_matching_type) {
-        best_matching_type = matching_type;
+      if (match->is_better_than(*best_match)) {
+        best_match = std::move(*match);
         best_matching_functions.clear();
         best_matching_functions.append(&function);
+        continue;
       }
+      if (best_match->is_better_than(*match)) {
+        continue;
+      }
+      /* Both functions are equally good matches. */
+      best_matching_functions.append(&function);
     }
 
     if (best_matching_functions.is_empty()) {
@@ -282,14 +384,14 @@ class SymbolTable {
     return selected_function;
   }
 
-  MatchingType compute_matching_type(const FunctionSymbol &function,
-                                     const bke::bNodeTreeType &tree_type,
-                                     const Span<ValueType> input_types) const
+  std::optional<MatchResult> compute_match(const FunctionSymbol &function,
+                                           const bke::bNodeTreeType & /*tree_type*/,
+                                           const Span<ValueType> input_types) const
   {
     if (function.params.size() != input_types.size()) {
-      return MatchingType::None;
+      return std::nullopt;
     }
-    bool all_exact = true;
+    Vector<bool> param_needs_conversion(input_types.size(), false);
     for (const int i : IndexRange(input_types.size())) {
       const ValueType input_type = input_types[i];
       const FunctionSymbolParam &param = function.params[i];
@@ -297,25 +399,14 @@ class SymbolTable {
         continue;
       }
       if (param.needs_exact) {
-        return MatchingType::None;
-        continue;
+        return std::nullopt;
       }
-      const std::optional<eNodeSocketDatatype> from_socket_type = value_to_closest_socket_type(
-          input_type);
-      const std::optional<eNodeSocketDatatype> to_socket_type = value_to_closest_socket_type(
-          param.type);
-      if (!from_socket_type || !to_socket_type) {
-        return MatchingType::None;
+      if (!this->lookup_implicit_conversion(input_type, param.type)) {
+        return std::nullopt;
       }
-      if (!tree_type.validate_link(*from_socket_type, *to_socket_type)) {
-        return MatchingType::None;
-      }
-      all_exact = false;
+      param_needs_conversion[i] = true;
     }
-    if (all_exact) {
-      return MatchingType::Exact;
-    }
-    return MatchingType::WithImplicitConversions;
+    return MatchResult{std::move(param_needs_conversion)};
   }
 };
 
@@ -327,7 +418,7 @@ class AstToNodeGroupBuilder {
   const Span<ast::Expr *> root_exprs_;
   const Span<int> expr_indices_;
   const SymbolTable &symbol_table_;
-  const BuildOptions &options_;
+  [[maybe_unused]] const BuildOptions &options_;
 
   bNodeTree &r_tree_;
   std::string &r_error_;
@@ -385,10 +476,13 @@ class AstToNodeGroupBuilder {
         if (!expr_result) {
           return;
         }
-        Value output_value(*socket_to_value_type(*r_tree_.typeinfo, *group_output_socket),
+        BLI_assert(!expr_result->sockets.is_empty());
+        const NodeAndSocket &expr_socket = expr_result->sockets[0];
+        bke::node_add_link(r_tree_,
+                           *expr_socket.node,
+                           *expr_socket.socket,
                            group_output_node,
                            *group_output_socket);
-        this->link_values(*expr_result, output_value);
         group_output_socket = group_output_socket->next;
       }
     }
@@ -510,6 +604,18 @@ class AstToNodeGroupBuilder {
       BLI_assert(!r_error_.empty());
       return {};
     }
+
+    for (const int i : args.index_range()) {
+      const ValueType arg_type = arg_types[i];
+      const ValueType param_type = function->params[i].type;
+      if (arg_type != param_type) {
+        std::optional<Value> converted_value = this->implicitly_convert(arg_values[i], param_type);
+        /* Should always work, otherwise the function lookup should have failed already. */
+        BLI_assert(converted_value);
+        arg_values[i] = std::move(*converted_value);
+      }
+    }
+
     InsertCallParams insert_params{*this, r_tree_};
     function->insert(insert_params);
     BLI_assert(insert_params.inputs.size() == args.size());
@@ -528,6 +634,7 @@ class AstToNodeGroupBuilder {
 
   void link_values(const Value &from, const Value &to)
   {
+    BLI_assert(from.type == to.type);
     BLI_assert(from.sockets.size() == to.sockets.size());
     for (const int i : from.sockets.index_range()) {
       const NodeAndSocket &from_socket = from.sockets[i];
@@ -535,6 +642,24 @@ class AstToNodeGroupBuilder {
       bke::node_add_link(
           r_tree_, *from_socket.node, *from_socket.socket, *to_socket.node, *to_socket.socket);
     }
+  }
+
+  std::optional<Value> implicitly_convert(const Value &value, const ValueType to_type)
+  {
+    const ValueType from_type = value.type;
+    if (from_type == to_type) {
+      return value;
+    }
+    const ImplicitConversionFn *fn = symbol_table_.lookup_implicit_conversion(from_type, to_type);
+    if (!fn) {
+      r_error_ = fmt::format("{}: {} -> {}",
+                             TIP_("No implicit conversion"),
+                             get_value_type_name(from_type),
+                             get_value_type_name(to_type));
+      return std::nullopt;
+    }
+    std::optional<Value> converted_value = (*fn)(value, to_type);
+    return converted_value;
   }
 };
 
@@ -551,19 +676,26 @@ static FunctionSymbol float_math_function(const StringRef name,
   });
 }
 
-static FunctionSymbol vector_math_function(const StringRef name,
-                                           const NodeVectorMathOperation op,
-                                           const int inputs_num)
+static FunctionSymbol vector_math_element_wise(const StringRef name,
+                                               const NodeVectorMathOperation op,
+                                               const ValueType vector_type,
+                                               const Span<ValueType> input_types)
 {
-  Vector<FunctionSymbolParam> param_types(inputs_num, {ValueType::Vec3});
-  return FunctionSymbol(name,
-                        std::move(param_types),
-                        [op](InsertCallParams &params) {
-                          bNode &math_node = params.add_node("ShaderNodeVectorMath"_ustr);
-                          math_node.custom1 = op;
-                          params.update_node_sockets(math_node);
-                          params.use_node_sockets(math_node);
-                        }
+  Vector<FunctionSymbolParam> param_types(input_types.size());
+  for (const int i : input_types.index_range()) {
+    param_types[i] = FunctionSymbolParam{input_types[i]};
+  }
+  return FunctionSymbol(
+      name,
+      std::move(param_types),
+      [op, vector_type, input_types = Vector<ValueType>(input_types)](InsertCallParams &params) {
+        bNode &math_node = params.add_node("ShaderNodeVectorMath"_ustr);
+        math_node.custom1 = op;
+        for (const int i : input_types.index_range()) {
+          params.add_input(math_node, i, input_types[i]);
+        }
+        params.set_output(math_node, 0, vector_type);
+      }
 
   );
 }
@@ -625,15 +757,15 @@ static FunctionSymbol ternary_conditional_operator(const ValueType type)
   return FunctionSymbol(
       "?:", {{ValueType::Boolean}, {type}, {type}}, [type](InsertCallParams &params) {
         const eNodeSocketDatatype socket_type = *value_to_closest_socket_type(type);
-        if (params.tree.type == NTREE_GEOMETRY) {
+        if (ELEM(params.tree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
           bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
           auto &storage = *static_cast<NodeSwitch *>(node.storage);
           storage.input_type = socket_type;
           params.update_node_sockets(node);
           params.add_input(node, 0);
-          params.add_input(node, 2);
-          params.add_input(node, 1);
-          params.use_node_output(node);
+          params.add_input(node, 2, type);
+          params.add_input(node, 1, type);
+          params.set_output(node, 0, type);
           return;
         }
         bNode &node = params.add_node("ShaderNodeMix"_ustr);
@@ -652,11 +784,22 @@ static FunctionSymbol ternary_conditional_operator(const ValueType type)
         params.add_input(node, 0);
         params.add_input(node, 1);
         params.add_input(node, 2);
-        params.use_node_output(node);
+        params.set_output(node, 0, type);
       });
 }
 
-static FunctionSymbol create_vec3_function()
+static FunctionSymbol vec2_from_scalars()
+{
+  return FunctionSymbol(
+      "vec2", {{ValueType::Float}, {ValueType::Float}}, [](InsertCallParams &params) {
+        bNode &node = params.add_node("ShaderNodeCombineXYZ"_ustr);
+        params.add_input(node, 0);
+        params.add_input(node, 1);
+        params.set_output(node, 0, ValueType::Vec2);
+      });
+}
+
+static FunctionSymbol vec3_from_scalars()
 {
   return FunctionSymbol("vec3",
                         {{ValueType::Float}, {ValueType::Float}, {ValueType::Float}},
@@ -664,6 +807,15 @@ static FunctionSymbol create_vec3_function()
                           bNode &node = params.add_node("ShaderNodeCombineXYZ"_ustr);
                           params.use_node_sockets(node);
                         });
+}
+
+static FunctionSymbol vec3_from_vec2()
+{
+  return FunctionSymbol("vec3", {{ValueType::Vec2}}, [](InsertCallParams &params) {
+    bNode &node = params.add_node("NodeReroute"_ustr);
+    params.add_input(node, 0, ValueType::Vec2);
+    params.set_output(node, 0, ValueType::Vec3);
+  });
 }
 
 static UString get_combine_color_node_idname(const int tree_type)
@@ -680,7 +832,7 @@ static UString get_combine_color_node_idname(const int tree_type)
   return {};
 }
 
-static FunctionSymbol create_rgb_function()
+static FunctionSymbol rgb_from_scalars()
 {
   return FunctionSymbol("rgb",
                         {{ValueType::Float}, {ValueType::Float}, {ValueType::Float}},
@@ -694,7 +846,7 @@ static FunctionSymbol create_rgb_function()
                         });
 }
 
-static FunctionSymbol create_rgba_function()
+static FunctionSymbol rgba_from_scalars()
 {
   return FunctionSymbol(
       "rgba",
@@ -742,14 +894,25 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(float_math_function("cos", NODE_MATH_COSINE, 1));
   symbols.add(negate_float_function());
 
-  symbols.add(vector_math_function("+", NODE_VECTOR_MATH_ADD, 2));
-  symbols.add(vector_math_function("-", NODE_VECTOR_MATH_SUBTRACT, 2));
-  symbols.add(vector_math_function("*", NODE_VECTOR_MATH_MULTIPLY, 2));
-  symbols.add(vector_math_function("/", NODE_VECTOR_MATH_DIVIDE, 2));
+  for (const ValueType type : {ValueType::Vec2, ValueType::Vec3}) {
+    for (const std::array<ValueType, 2> input_types : Span<std::array<ValueType, 2>>({
+             {type, type},
+             {type, ValueType::Float},
+             {ValueType::Float, type},
+         }))
+    {
+      symbols.add(vector_math_element_wise("+", NODE_VECTOR_MATH_ADD, type, input_types));
+      symbols.add(vector_math_element_wise("-", NODE_VECTOR_MATH_SUBTRACT, type, input_types));
+      symbols.add(vector_math_element_wise("*", NODE_VECTOR_MATH_MULTIPLY, type, input_types));
+      symbols.add(vector_math_element_wise("/", NODE_VECTOR_MATH_DIVIDE, type, input_types));
+    }
+  }
 
-  symbols.add(create_vec3_function());
-  symbols.add(create_rgb_function());
-  symbols.add(create_rgba_function());
+  symbols.add(vec2_from_scalars());
+  symbols.add(vec3_from_scalars());
+  symbols.add(vec3_from_vec2());
+  symbols.add(rgb_from_scalars());
+  symbols.add(rgba_from_scalars());
 
   for (const ValueType type : {ValueType::Vec3, ValueType::Rgb, ValueType::Rgba}) {
     symbols.add(vector_member_access(type, 0));
@@ -773,6 +936,19 @@ static void init_symbol_table(SymbolTable &symbols)
                                ValueType::Integer})
   {
     symbols.add(ternary_conditional_operator(type));
+  }
+
+  {
+    std::array implicit_convertable_types = {
+        ValueType::Float, ValueType::Integer, ValueType::Boolean};
+    for (const ValueType from_type : implicit_convertable_types) {
+      for (const ValueType to_type : implicit_convertable_types) {
+        if (from_type == to_type) {
+          continue;
+        }
+        symbols.add_implicit_conversion(from_type, to_type);
+      }
+    }
   }
 }
 
