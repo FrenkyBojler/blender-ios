@@ -1,0 +1,70 @@
+name: Build Blender iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-15
+
+    env:
+      BUILD_DIR: build_ios
+      CONFIG: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          brew install ninja cmake
+          git lfs install
+          git lfs pull
+
+      - name: Update Blender libraries
+        run: |
+          make update
+
+      - name: Configure iOS build
+        run: |
+          cmake \
+            -S . \
+            -B $BUILD_DIR \
+            -G Xcode \
+            -DWITH_APPLE_CROSSPLATFORM=ON \
+            -DAPPLE_TARGET_DEVICE=ios \
+            -DWITH_IOS=ON \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Blender
+        run: |
+          cmake --build $BUILD_DIR \
+            --config Release \
+            --target Blender
+
+      - name: Find app bundle
+        run: |
+          find $BUILD_DIR -name "*.app" -print
+
+      - name: Create IPA
+        run: |
+          APP=$(find $BUILD_DIR -name "*.app" | head -n 1)
+
+          echo "Using app:"
+          echo "$APP"
+
+          mkdir Payload
+          cp -R "$APP" Payload/
+
+          zip -r Blender-iOS.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blender-iOS-IPA
+          path: Blender-iOS.ipa
