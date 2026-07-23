@@ -18,7 +18,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_material_list {
+namespace blender::nodes::node_geo_geometry_materials {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -48,31 +48,34 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   Material **materials = nullptr;
-  short count = 0;
+  int count = 0;
 
   switch (component) {
     case GeometryComponent::Type::Curve: {
       const Curves &curves = *geometry_set.get_curves();
       materials = curves.mat;
       count = curves.totcol;
-    } break;
+      break;
+    }
     case GeometryComponent::Type::GreasePencil: {
       const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
       materials = grease_pencil.material_array;
       count = grease_pencil.material_array_num;
-    } break;
+      break;
+    }
     case GeometryComponent::Type::Mesh: {
       const Mesh &mesh = *geometry_set.get_mesh();
       materials = mesh.mat;
       count = mesh.totcol;
-    } break;
+      break;
+    }
     case GeometryComponent::Type::PointCloud: {
       const PointCloud &point_cloud = *geometry_set.get_pointcloud();
       materials = point_cloud.mat;
       count = point_cloud.totcol;
-    } break;
+      break;
+    }
     default:
-      BLI_assert_unreachable();
       break;
   }
 
@@ -83,7 +86,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const CPPType &type = CPPType::get<Material *>();
   GArray<> array(type, count, NoInitialization());
-  type.move_assign_n(materials, array.data(), count);
+  type.copy_construct_n(materials, array.data(), count);
   params.set_output("Materials"_ustr, GList::from_garray(std::move(array)));
 }
 
@@ -91,8 +94,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeMaterialList"_ustr);
-  ntype.ui_name = "Material List";
+  geo_node_type_base(&ntype, "GeometryNodeGeometryMaterials"_ustr);
+  ntype.ui_name = "Geometry Materials";
   ntype.ui_description = "Get a list of the materials used by a geometry component";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
@@ -101,4 +104,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_material_list
+}  // namespace blender::nodes::node_geo_geometry_materials
