@@ -2074,6 +2074,7 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
       wl_subsurface_destroy(xdg_csd.margin_subsurface);
     }
     if (xdg_csd.margin_surface) {
+      system_->window_surface_unref(xdg_csd.margin_surface);
       wl_surface_destroy(xdg_csd.margin_surface);
     }
     delete window_->xdg_csd;
