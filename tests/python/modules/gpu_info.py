@@ -32,4 +32,7 @@ print(json.dumps({
 }))
 print('</GPU_INFO>')
 
+# Manually flush the output so other scripts have reliable access to it. Works around #161830
+sys.stdout.flush()
+
 sys.exit(0)
