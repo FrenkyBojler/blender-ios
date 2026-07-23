@@ -275,13 +275,15 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
    * than being found on adding later... */
   wmKeyMap *km = WM_keymap_guess_opname(C, idname);
   KeyMapItem_Params params{};
-  params.type = EVENT_NONE;
+  params.type = EVT_AKEY;
   params.value = KM_PRESS;
   params.modifier = 0;
   params.direction = KM_ANY;
   wmKeyMapItem *kmi = WM_keymap_add_item(km, idname, &params);
   const int kmi_id = kmi->id;
 
+  wmKeyMapItem *kmi_copy = wm_keymap_item_copy(kmi);
+  
   /* This takes ownership of prop, or prop can be nullptr for reset. */
   WM_keymap_item_properties_reset(kmi, prop);
 
@@ -291,6 +293,10 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 
   km = WM_keymap_guess_opname(C, idname);
   kmi = WM_keymap_item_find_id(km, kmi_id);
+
+  if (kmi == nullptr) {
+    kmi = wm_keymap_find_item_equals(km, kmi_copy);
+  }
   BLI_assert(kmi != nullptr);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, RNA_KeyMapItem, kmi);
@@ -319,6 +325,7 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   g_kmi_id_hack = kmi_id;
 #endif
 
+  wm_keymap_item_free_data(kmi_copy);
   return block;
 }
 

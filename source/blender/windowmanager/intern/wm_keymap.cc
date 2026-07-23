@@ -64,7 +64,7 @@ struct wmKeyMapItemFind_Params {
  * Item in a keymap, that maps from an event to an operator or modal map item.
  * \{ */
 
-static wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi)
+wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi)
 {
   wmKeyMapItem *kmin = MEM_dupalloc(kmi);
 
@@ -89,7 +89,7 @@ static wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi)
   return kmin;
 }
 
-static void wm_keymap_item_free_data(wmKeyMapItem *kmi)
+void wm_keymap_item_free_data(wmKeyMapItem *kmi)
 {
   /* Not the `kmi` itself. */
   if (kmi->ptr) {
@@ -626,7 +626,7 @@ static void wm_keymap_addon_add(wmKeyMap *keymap, wmKeyMap *addonmap)
   }
 }
 
-static wmKeyMapItem *wm_keymap_find_item_equals(wmKeyMap *km, const wmKeyMapItem *needle)
+wmKeyMapItem *wm_keymap_find_item_equals(wmKeyMap *km, const wmKeyMapItem *needle)
 {
   for (wmKeyMapItem &kmi : km->items) {
     if (wm_keymap_item_equals(&kmi, needle)) {

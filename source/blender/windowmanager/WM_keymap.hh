@@ -123,7 +123,9 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap);
 
 wmKeyMapItem *WM_keymap_item_find_id(wmKeyMap *keymap, int id);
 bool WM_keymap_item_compare(const wmKeyMapItem *k1, const wmKeyMapItem *k2);
-
+wmKeyMapItem *wm_keymap_find_item_equals(wmKeyMap *km, const wmKeyMapItem *needle);
+void wm_keymap_item_free_data(wmKeyMapItem *kmi);
+wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi);
 /**
  * Return the user key-map item from `km_base` based on `km_match` & `kmi_match`,
  * currently the supported use case is looking up "User" key-map items from "Add-on" key-maps.
