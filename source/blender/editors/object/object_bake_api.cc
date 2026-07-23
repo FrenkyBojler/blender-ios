@@ -1391,6 +1391,10 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
   Scene *scene = bkr->scene;
   ViewLayer *view_layer = bkr->view_layer;
 
+  if (bake_has_been_canceled(bkr)) {
+    return OPERATOR_CANCELLED;
+  }
+
   /* We build a depsgraph for the baking,
    * so we don't need to change the original data to adjust visibility and modifiers. */
   Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
@@ -1524,11 +1528,6 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     bake_targets_populate_pixels(bkr, &targets, ob_low, me_low_eval, pixel_array_low);
   }
 
-  if (bake_has_been_canceled(bkr)) {
-    op_result = OPERATOR_CANCELLED;
-    goto cleanup;
-  }
-
   if (bkr->is_selected_to_active) {
     int i = 0;
 
@@ -1658,11 +1657,6 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
     pixel_array_high = MEM_new_array_uninitialized<BakePixel>(targets.pixels_num,
                                                               "bake pixels high poly");
 
-    if (bake_has_been_canceled(bkr)) {
-      op_result = OPERATOR_CANCELLED;
-      goto cleanup;
-    }
-
     if (!RE_bake_pixels_populate_from_objects(
             me_low_eval,
             pixel_array_low,
@@ -1678,11 +1672,6 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
             me_cage_eval))
     {
       BKE_report(reports, RPT_ERROR, "Error handling selected objects");
-      goto cleanup;
-    }
-
-    if (bake_has_been_canceled(bkr)) {
-      op_result = OPERATOR_CANCELLED;
       goto cleanup;
     }
 
@@ -1723,11 +1712,6 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
       BKE_report(reports, RPT_ERROR, "Current render engine does not support baking");
       goto cleanup;
     }
-  }
-
-  if (bake_has_been_canceled(bkr)) {
-    op_result = OPERATOR_CANCELLED;
-    goto cleanup;
   }
 
   /* normal space conversion
@@ -1811,11 +1795,6 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
       default:
         break;
     }
-  }
-
-  if (bake_has_been_canceled(bkr)) {
-    op_result = OPERATOR_CANCELLED;
-    goto cleanup;
   }
 
   if (!ok) {
