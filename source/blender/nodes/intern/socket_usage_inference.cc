@@ -72,6 +72,7 @@ class SocketUsageInferencerImpl {
    * or not.
    */
   bool ignore_top_level_node_muting_ = false;
+
   Map<SocketInContext, std::shared_ptr<expression::ExpressionNodeGroup>>
       expression_node_groups_cache_;
 

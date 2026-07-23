@@ -580,10 +580,6 @@ class ShaderNodesInliner {
       this->handle_output_socket__menu_switch(socket);
       return;
     }
-    if (node->is_type("GeometryNodeInputNamedAttribute"_ustr)) {
-      this->handle_output_socket__named_attribute(socket);
-      return;
-    }
     if (node->is_type("FunctionNodeInputMenu"_ustr)) {
       this->handle_output_socket__input_menu(socket);
       return;
@@ -1163,52 +1159,6 @@ class ShaderNodesInliner {
     /* Set the value of the mask output. */
     const bool is_selected = selected_index == socket->index() - 1;
     this->store_socket_value(socket, {PrimitiveSocketValue{is_selected}});
-  }
-
-  void handle_output_socket__named_attribute(const SocketInContext &socket)
-  {
-    const NodeInContext node = socket.owner_node();
-    if (socket->identifier == StringRef("Exists")) {
-      this->store_socket_value_fallback(socket);
-      this->report_error(node, TIP_("Exists output is not supported in shader nodes"));
-      return;
-    }
-    const auto &storage = *static_cast<const NodeGeometryInputNamedAttribute *>(node->storage);
-    const SocketInContext attribute_name_input = node.input_socket(0);
-    const SocketValue *attribute_name_value = value_by_socket_.lookup_ptr(attribute_name_input);
-    if (!attribute_name_value) {
-      this->schedule_socket(attribute_name_input);
-      return;
-    }
-    const std::optional<PrimitiveSocketValue> attribute_name_opt =
-        attribute_name_value->to_primitive(*attribute_name_input.socket->typeinfo);
-    if (!attribute_name_opt) {
-      this->store_socket_value_fallback(socket);
-      this->report_error(node, TIP_("Attribute name has to be a constant value"));
-      return;
-    }
-    const std::string attribute_name = std::get<std::string>(attribute_name_opt->value);
-    bNode &new_node = *this->add_node("ShaderNodeAttribute"_ustr);
-    auto &new_node_storage = *static_cast<NodeShaderAttribute *>(new_node.storage);
-    STRNCPY(new_node_storage.name, attribute_name.c_str());
-
-    const eCustomDataType data_type = eCustomDataType(storage.data_type);
-    if (ELEM(data_type, CD_PROP_FLOAT, CD_PROP_INT32, CD_PROP_BOOL)) {
-      bNodeSocket &float_output = *bke::node_find_socket(new_node, SOCK_OUT, "Factor"_ustr);
-      this->store_socket_value(socket, {LinkedSocketValue{&new_node, &float_output}});
-      return;
-    }
-    if (data_type == CD_PROP_FLOAT3) {
-      bNodeSocket &vector_output = *bke::node_find_socket(new_node, SOCK_OUT, "Vector"_ustr);
-      this->store_socket_value(socket, {LinkedSocketValue{&new_node, &vector_output}});
-      return;
-    }
-    if (data_type == CD_PROP_COLOR) {
-      bNodeSocket &color_output = *bke::node_find_socket(new_node, SOCK_OUT, "Color"_ustr);
-      this->store_socket_value(socket, {LinkedSocketValue{&new_node, &color_output}});
-      return;
-    }
-    this->store_socket_value_fallback(socket);
   }
 
   void handle_output_socket__input_menu(const SocketInContext &socket)

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -189,12 +189,8 @@ class ExpressionOperation : public NodeOperation {
 
     const bke::GroupNodeComputeContext compute_context(
         &this->get_compute_context(), this->node().identifier, &this->node().owner_tree());
-    NodeGroupOperation operation(this->context(),
-                                 node_group,
-                                 NodeGroupOutputTypes::GroupOutputNode,
-                                 bke::NODE_INSTANCE_KEY_BASE,
-                                 this->get_instance_key(),
-                                 compute_context);
+    NodeGroupOperation operation(
+        this->context(), node_group, NodeGroupOutputTypes::None, compute_context);
 
     this->set_reference_counts(operation, node_group);
     Vector<std::unique_ptr<Result>> temporary_inputs = this->map_inputs(operation, node_group);
