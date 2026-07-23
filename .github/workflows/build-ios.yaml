@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  ios:
+  build-ios:
     runs-on: macos-15
 
     env:
@@ -16,16 +16,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          lfs: true
           fetch-depth: 1
 
       - name: Install dependencies
         run: |
-          brew install ninja cmake
+          brew install cmake ninja
 
       - name: Update Blender libraries
         run: |
-          make update
-          make update_platform
+          make update PLATFORM=ios_arm64
+
+      - name: Verify iOS libraries
+        run: |
+          ls -lah lib
+          ls -lah lib/ios_arm64
 
       - name: Configure iOS build
         run: |
@@ -38,15 +43,23 @@ jobs:
             -DWITH_IOS=ON \
             -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_CYCLES=OFF \
+            -DWITH_PYTHON=OFF \
+            -DWITH_USD=OFF \
+            -DWITH_ALEMBIC=OFF \
+            -DWITH_OPENVDB=OFF \
+            -DWITH_OPENIMAGEIO=OFF
 
       - name: Build Blender
         run: |
-          cmake --build $BUILD_DIR \
+          cmake \
+            --build $BUILD_DIR \
             --config Release \
-            --target Blender
+            --target Blender \
+            -- -parallelizeTargets
 
-      - name: Find app bundle
+      - name: Find Blender app
         run: |
           find $BUILD_DIR -name "*.app" -print
 
@@ -54,10 +67,12 @@ jobs:
         run: |
           APP=$(find $BUILD_DIR -name "*.app" | head -n 1)
 
-          echo "Using app:"
-          echo "$APP"
+          if [ -z "$APP" ]; then
+            echo "No .app found"
+            exit 1
+          fi
 
-          mkdir Payload
+          mkdir -p Payload
           cp -R "$APP" Payload/
 
           zip -r Blender-iOS.ipa Payload
@@ -65,5 +80,5 @@ jobs:
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Blender-iOS-IPA
+          name: Blender-iOS
           path: Blender-iOS.ipa
