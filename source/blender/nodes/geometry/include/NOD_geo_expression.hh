@@ -151,9 +151,13 @@ struct ExpressionItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static void copy_item(const NodeExpressionItem &src, NodeExpressionItem &dst)
   {
     dst = src;
+    dst.name = BLI_strdup_null(dst.name);
   }
 
-  static void destruct_item(NodeExpressionItem * /*item*/) {}
+  static void destruct_item(NodeExpressionItem *item)
+  {
+    MEM_delete(item->name);
+  }
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
   static void blend_read_data_item(BlendDataReader *reader, ItemT &item);
