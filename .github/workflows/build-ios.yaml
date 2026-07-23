@@ -25,6 +25,7 @@ jobs:
       - name: Update Blender libraries
         run: |
           make update
+          make update_platform
 
       - name: Configure iOS build
         run: |
