@@ -122,7 +122,7 @@ struct BakeAPIRender {
   bool *do_update;
 
   /* To check for job cancelation. */
-  wmWindowManager *wm;
+  bool *stop;
 
   /* Operator state. */
   ReportList *reports;
@@ -169,7 +169,7 @@ static wmOperatorStatus bake_modal(bContext *C, wmOperator * /*op*/, const wmEve
 static bool bake_has_been_canceled(const BakeAPIRender *bkr)
 {
   /* brk can be null when called via bake_exec. */
-  return G.is_break || (bkr != nullptr && WM_jobs_is_stopped(bkr->wm, bkr->scene));
+  return G.is_break || (bkr != nullptr && (bkr->stop && *(bkr->stop)));
 }
 
 /**
@@ -1885,7 +1885,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   bkr->view_layer = CTX_data_view_layer(C);
   bkr->scene = CTX_data_scene(C);
   bkr->area = screen ? BKE_screen_find_big_area(screen, SPACE_IMAGE, 10) : nullptr;
-  bkr->wm = CTX_wm_manager(C);
+  bkr->stop = nullptr;
 
   bkr->pass_type = eScenePassType(RNA_enum_get(op->ptr, "type"));
   bkr->pass_filter = RNA_enum_get(op->ptr, "pass_filter");
@@ -2015,6 +2015,7 @@ static void bake_startjob(void *bkv, wmJobWorkerStatus *worker_status)
   /* setup new render */
   bkr->do_update = &worker_status->do_update;
   bkr->progress = &worker_status->progress;
+  bkr->stop = &worker_status->stop;
 
   RE_SetReports(bkr->render, bkr->reports);
 
