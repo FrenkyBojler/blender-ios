@@ -283,7 +283,7 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   const int kmi_id = kmi->id;
 
   wmKeyMapItem *kmi_copy = wm_keymap_item_copy(kmi);
-  
+
   /* This takes ownership of prop, or prop can be nullptr for reset. */
   WM_keymap_item_properties_reset(kmi, prop);
 
