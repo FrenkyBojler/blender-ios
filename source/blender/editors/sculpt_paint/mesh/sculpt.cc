@@ -3774,9 +3774,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
       brush.autosmooth_factor > 0)
   {
-    if (bke::brush::supports_auto_smooth_pressure(brush) &&
-        brush.flag & BRUSH_SMOOTH_PRESSURE)
-    {
+    if (bke::brush::supports_auto_smooth_pressure(brush) && brush.flag & BRUSH_SMOOTH_PRESSURE) {
       const float auto_smooth_factor = brush.autosmooth_factor *
                                        BKE_curvemapping_evaluateF(
                                            brush.curve_auto_smooth, 0, ss.cache->pressure);
