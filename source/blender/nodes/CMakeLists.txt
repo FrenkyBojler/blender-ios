@@ -243,6 +243,7 @@ if(WITH_GTESTS)
     intern/expression_parse_tests.cc
     intern/geometry_nodes_bundle_tests.cc
     intern/node_iterator_tests.cc
+    intern/node_structure_type_inferencing_tests.cc
   )
   set(TEST_LIB
     ${LIB}
