@@ -584,7 +584,7 @@ const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem rna_enum_node_gp_merge_mode_items[] = {
+const EnumPropertyItem rna_enum_node_gp_merge_mode_items[] = {
     {GEO_NODE_MERGE_LAYERS_BY_NAME,
      "MERGE_BY_NAME",
      0,
@@ -599,7 +599,7 @@ static const EnumPropertyItem rna_enum_node_gp_merge_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem rna_enum_node_gp_stroke_type_items[] = {
+const EnumPropertyItem rna_enum_node_gp_stroke_type_items[] = {
     {GEO_NODE_GP_STROKE,
      "STROKE",
      ICON_GP_DRAW_STROKE,
@@ -7729,7 +7729,7 @@ static void def_geo_simulation_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, nullptr);
 }
 
-static void def_geo_merge_layers(BlenderRNA *brna, StructRNA *srna)
+static void def_geo_merge_layers(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_gp_merge_mode_items);
@@ -7740,7 +7740,7 @@ static void def_geo_merge_layers(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_deprecated(prop, "Replaced by '.inputs[\"Mode\"]'.", 530, 600);
 }
 
-static void def_geo_set_gp_color(BlenderRNA *brna, StructRNA *srna)
+static void def_geo_set_gp_color(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_gp_stroke_type_items);
@@ -7750,7 +7750,7 @@ static void def_geo_set_gp_color(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_deprecated(prop, "Replaced by '.inputs[\"Mode\"]'.", 530, 600);
 }
 
-static void def_geo_set_gp_depth(BlenderRNA *brna, StructRNA *srna)
+static void def_geo_set_gp_depth(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop = RNA_def_property(srna, "depth_order", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_stroke_depth_order_items);
