@@ -463,23 +463,6 @@ static FunctionSymbol vector_member_access(const int index)
       });
 }
 
-static FunctionSymbol attribute_access(const StringRef name, const eCustomDataType type)
-{
-  return FunctionSymbol(
-      name,
-      [](TypeCheckCallParams &params) {
-        return params.input_types.size() == 1 && params.input_types[0]->type == SOCK_STRING;
-      },
-      [type](InsertCallParams &params) {
-        bNode &node = params.add_node("GeometryNodeInputNamedAttribute"_ustr);
-        auto &storage = *static_cast<NodeGeometryInputNamedAttribute *>(node.storage);
-        storage.data_type = type;
-        params.update_node_sockets(node);
-        params.use_node_inputs(node);
-        params.set_output(node, 0);
-      });
-}
-
 static FunctionSymbol string_concatenation()
 {
   return FunctionSymbol(
@@ -706,9 +689,6 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(create_color_member_access(3));
 
   symbols.add(string_concatenation());
-
-  symbols.add(attribute_access("attrf", CD_PROP_FLOAT));
-  symbols.add(attribute_access("attrv", CD_PROP_FLOAT3));
 
   for (const eNodeSocketDatatype type : {SOCK_FLOAT,
                                          SOCK_INT,
