@@ -74,7 +74,7 @@ static void brush_init_data(ID *id)
   brush->curve_strength = BKE_paint_default_curve();
   brush->curve_jitter = BKE_paint_default_curve();
   brush->curve_hardness = BKE_paint_default_curve();
-  brush->curve_auto_smooth = BKE_paint_default_curve();
+  brush->curve_auto_smooth = BKE_paint_default_curve_inverted();
   brush->curve_spacing = BKE_paint_default_curve();
 }
 
