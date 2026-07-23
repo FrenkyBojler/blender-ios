@@ -9,7 +9,7 @@
 #pragma once
 
 #include "BLI_enum_flags.hh"
-#include "BLI_math_constants.h"
+#include "BLI_math_constants.hh"
 
 #include "DNA_ID.h"
 #include "DNA_anim_enums.h"
@@ -194,7 +194,7 @@ ENUM_OPERATORS(eUserpref_UI_Flag2)
 
 /** #UserDef.gpu_flag */
 enum eUserpref_GPU_Flag : char {
-  USER_GPU_FLAG_UNUSED_0 = (1 << 0), /* Unused. To be removed. */
+  USER_GPU_FLAG_WORKBENCH_RT_SHADOWS = (1 << 0),
   USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE = (1 << 1),
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),
@@ -210,8 +210,10 @@ enum eUserPref_GPUBackendType : short {
   USER_GPU_BACKEND_VULKAN = 1 << 3,
 #ifdef __APPLE__
   USER_GPU_BACKEND_DEFAULT = USER_GPU_BACKEND_METAL,
-#else
+#elif defined(WIN32) && (defined(_M_ARM64) || defined(__aarch64__))
   USER_GPU_BACKEND_DEFAULT = USER_GPU_BACKEND_OPENGL,
+#else
+  USER_GPU_BACKEND_DEFAULT = USER_GPU_BACKEND_VULKAN,
 #endif
 };
 

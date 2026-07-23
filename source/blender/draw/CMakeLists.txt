@@ -355,7 +355,6 @@ set(GLSL_SRC
   engines/workbench/shaders/infos/workbench_effect_dof_infos.hh
   engines/workbench/shaders/infos/workbench_effect_outline_infos.hh
   engines/workbench/shaders/infos/workbench_prepass_infos.hh
-  engines/workbench/shaders/infos/workbench_shadow_infos.hh
   engines/workbench/shaders/infos/workbench_transparent_resolve_infos.hh
 
   engines/eevee/shaders/eevee_attributes_curves_lib.glsl
@@ -534,6 +533,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_overlay_depth_frag.glsl
   engines/workbench/shaders/workbench_prepass.bsl.hh
   engines/workbench/shaders/workbench_shadow.bsl.hh
+  engines/workbench/shaders/workbench_shadow_raytrace.bsl.hh
   engines/workbench/shaders/workbench_shadow_visibility.bsl.hh
   engines/workbench/shaders/workbench_transparent_accum_frag.glsl
   engines/workbench/shaders/workbench_transparent_resolve_frag.glsl
@@ -817,7 +817,7 @@ set(GLSL_SOURCE_CONTENT "")
 set(GLSL_METADATA_CONTENT "")
 set(GLSL_INFOS_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
-  get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
+  cmake_path(GET GLSL_FILE FILENAME GLSL_FILE_NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
   string(APPEND GLSL_FILE_NAME_UNDERSCORES "_tmp")
   string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
