@@ -1996,6 +1996,9 @@ static wmOperatorStatus bake_exec(bContext *C, wmOperator *op)
     for (const PointerRNA &ptr : bkr.selected_objects) {
       Object *ob_iter = static_cast<Object *>(ptr.data);
       result = bake(&bkr, ob_iter, {}, bkr.reports);
+      if (result == OPERATOR_CANCELLED) {
+        break;
+      }
     }
   }
 
