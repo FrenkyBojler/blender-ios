@@ -41,6 +41,72 @@ struct NodeAndSocket {
   }
 };
 
+/** A value type does not necessarily have to correspond to a single socket. */
+enum class ValueType {
+  Float,
+  Vec3,
+  String,
+  Rgb,
+  Rgba,
+  Boolean,
+  Integer,
+};
+
+static std::optional<ValueType> socket_to_value_type(const bke::bNodeTreeType &tree_type,
+                                                     const bNodeSocket &socket)
+{
+  switch (socket.type) {
+    case SOCK_FLOAT:
+      return ValueType::Float;
+    case SOCK_VECTOR:
+      /* TODO: Use dimensions? */
+      return ValueType::Vec3;
+    case SOCK_STRING:
+      return ValueType::String;
+    case SOCK_RGBA:
+      return tree_type.type == NTREE_SHADER ? ValueType::Rgb : ValueType::Rgba;
+    case SOCK_BOOLEAN:
+      return ValueType::Boolean;
+    case SOCK_INT:
+      return ValueType::Integer;
+    default:
+      return std::nullopt;
+  }
+}
+
+static std::optional<eNodeSocketDatatype> value_to_closest_socket_type(const ValueType type)
+{
+  switch (type) {
+    case ValueType::Float:
+      return SOCK_FLOAT;
+    case ValueType::Vec3:
+      return SOCK_VECTOR;
+    case ValueType::String:
+      return SOCK_STRING;
+    case ValueType::Rgb:
+      return SOCK_RGBA;
+    case ValueType::Rgba:
+      return SOCK_RGBA;
+    case ValueType::Boolean:
+      return SOCK_BOOLEAN;
+    case ValueType::Integer:
+      return SOCK_INT;
+  }
+  return std::nullopt;
+}
+
+class Value {
+ public:
+  ValueType type;
+  Vector<NodeAndSocket, 1> sockets;
+
+  Value(ValueType type, bNode &node, bNodeSocket &socket) : type(type), sockets({{&node, &socket}})
+  {
+  }
+
+  Value(ValueType type, Vector<NodeAndSocket> sockets) : type(type), sockets(std::move(sockets)) {}
+};
+
 struct TypeCheckCallParams {
   const bke::bNodeTreeType &tree_type;
   Vector<const bke::bNodeSocketType *> input_types;
@@ -66,15 +132,20 @@ struct InsertCallParams {
   AstToNodeGroupBuilder &builder;
   const bNodeTree &tree;
 
-  Vector<NodeAndSocket> inputs;
-  NodeAndSocket output;
+  Vector<Value> inputs;
+  std::optional<Value> output;
 
   bNode &add_node(const UString idname);
   void update_node_sockets(bNode &node);
 
+  void add_input(Value value)
+  {
+    this->inputs.append(std::move(value));
+  }
+
   void add_input(bNode &node, bNodeSocket &socket)
   {
-    this->inputs.append({&node, &socket});
+    this->add_input(Value(*socket_to_value_type(*tree.typeinfo, socket), node, socket));
   }
 
   void add_input(bNode &node, const int index)
@@ -84,11 +155,16 @@ struct InsertCallParams {
     this->add_input(node, *socket);
   }
 
-  void set_output(bNode &node, bNodeSocket &socket)
+  void set_output(Value value)
   {
     /* Should only be set once. */
-    BLI_assert(!this->output.socket);
-    this->output = {&node, &socket};
+    BLI_assert(!this->output.has_value());
+    this->output = std::move(value);
+  }
+
+  void set_output(bNode &node, bNodeSocket &socket)
+  {
+    this->set_output(Value(*socket_to_value_type(*tree.typeinfo, socket), node, socket));
   }
 
   void set_output(bNode &node, const int index)
@@ -127,7 +203,7 @@ using InsertCallFn = std::function<void(InsertCallParams &params)>;
 using TypeCheckCallFn = std::function<bool(TypeCheckCallParams &params)>;
 
 struct FunctionSymbolParam {
-  eNodeSocketDatatype type;
+  ValueType type;
   bool needs_exact = false;
 };
 
@@ -168,7 +244,7 @@ class SymbolTable {
 
   const FunctionSymbol *lookup_function(const StringRef name,
                                         const bke::bNodeTreeType &tree_type,
-                                        const Span<eNodeSocketDatatype> input_types,
+                                        const Span<ValueType> input_types,
                                         std::string &r_error) const
   {
     const Span<FunctionSymbol> candidates = function_.lookup(name);
@@ -208,14 +284,14 @@ class SymbolTable {
 
   MatchingType compute_matching_type(const FunctionSymbol &function,
                                      const bke::bNodeTreeType &tree_type,
-                                     const Span<eNodeSocketDatatype> input_types) const
+                                     const Span<ValueType> input_types) const
   {
     if (function.params.size() != input_types.size()) {
       return MatchingType::None;
     }
     bool all_exact = true;
     for (const int i : IndexRange(input_types.size())) {
-      const eNodeSocketDatatype input_type = input_types[i];
+      const ValueType input_type = input_types[i];
       const FunctionSymbolParam &param = function.params[i];
       if (input_type == param.type) {
         continue;
@@ -224,7 +300,14 @@ class SymbolTable {
         return MatchingType::None;
         continue;
       }
-      if (!tree_type.validate_link(input_type, param.type)) {
+      const std::optional<eNodeSocketDatatype> from_socket_type = value_to_closest_socket_type(
+          input_type);
+      const std::optional<eNodeSocketDatatype> to_socket_type = value_to_closest_socket_type(
+          param.type);
+      if (!from_socket_type || !to_socket_type) {
+        return MatchingType::None;
+      }
+      if (!tree_type.validate_link(*from_socket_type, *to_socket_type)) {
         return MatchingType::None;
       }
       all_exact = false;
@@ -249,7 +332,7 @@ class AstToNodeGroupBuilder {
   bNodeTree &r_tree_;
   std::string &r_error_;
 
-  Map<StringRef, NodeAndSocket> inputs_;
+  Map<StringRef, Value> inputs_;
 
   friend InsertCallParams;
 
@@ -283,7 +366,13 @@ class AstToNodeGroupBuilder {
       bNodeSocket *group_input_socket = static_cast<bNodeSocket *>(group_input_node.outputs.first);
       for ([[maybe_unused]] const int i : IndexRange(bnode_storage_.input_items.items_num)) {
         const NodeExpressionInputItem &item = bnode_storage_.input_items.items[i];
-        inputs_.add(item.name, {&group_input_node, group_input_socket});
+        const std::optional<ValueType> input_type = socket_to_value_type(*r_tree_.typeinfo,
+                                                                         *group_input_socket);
+        if (!input_type) {
+          r_error_ = TIP_("Unsupported socket_type for input");
+          return;
+        }
+        inputs_.add(item.name, Value(*input_type, group_input_node, *group_input_socket));
         group_input_socket = group_input_socket->next;
       }
     }
@@ -292,11 +381,14 @@ class AstToNodeGroupBuilder {
       bNodeSocket *group_output_socket = static_cast<bNodeSocket *>(
           group_output_node.inputs.first);
       for (const int i : expr_indices_.index_range()) {
-        NodeAndSocket expr_result = this->build_expr(*root_exprs_[i]);
+        std::optional<Value> expr_result = this->build_expr(*root_exprs_[i]);
         if (!expr_result) {
           return;
         }
-        this->add_link(expr_result, {&group_output_node, group_output_socket});
+        Value output_value(*socket_to_value_type(*r_tree_.typeinfo, *group_output_socket),
+                           group_output_node,
+                           *group_output_socket);
+        this->link_values(*expr_result, output_value);
         group_output_socket = group_output_socket->next;
       }
     }
@@ -327,13 +419,14 @@ class AstToNodeGroupBuilder {
     }
   }
 
-  NodeAndSocket build_expr(const ast::Expr &expr)
+  std::optional<Value> build_expr(const ast::Expr &expr)
   {
     return std::visit([&](const auto &ast_node) { return this->build_expr(ast_node); }, expr.expr);
   }
 
-  NodeAndSocket build_expr(const ast::NumberLiteral &ast_node)
+  std::optional<Value> build_expr(const ast::NumberLiteral &ast_node)
   {
+    /* TODO: Handle floats vs. integers. */
     float value;
     fast_float::from_chars_result result = fast_float::from_chars(
         ast_node.value.begin(), ast_node.value.end(), value);
@@ -344,50 +437,50 @@ class AstToNodeGroupBuilder {
     bNode &node = this->add_node("ShaderNodeValue"_ustr);
     bNodeSocket *socket = static_cast<bNodeSocket *>(node.outputs.first);
     socket->default_value_typed<bNodeSocketValueFloat>()->value = value;
-    return {&node, socket};
+    return Value(ValueType::Float, node, *socket);
   }
 
-  NodeAndSocket build_expr(const ast::StringLiteral &ast_node)
+  std::optional<Value> build_expr(const ast::StringLiteral &ast_node)
   {
     bNode &node = this->add_node("FunctionNodeInputString"_ustr);
     auto &storage = *static_cast<NodeInputString *>(node.storage);
     const StringRef str = ast_node.value.drop_known_prefix("\"").drop_known_suffix("\"");
     storage.string = BLI_strdupn(str.data(), str.size());
-    return {&node, static_cast<bNodeSocket *>(node.outputs.first)};
+    return Value(ValueType::String, node, *static_cast<bNodeSocket *>(node.outputs.first));
   }
 
-  NodeAndSocket build_expr(const ast::Identifier &ast_node)
+  std::optional<Value> build_expr(const ast::Identifier &ast_node)
   {
-    NodeAndSocket input = inputs_.lookup_default(ast_node.identifier, {});
-    if (!input.socket) {
+    std::optional<Value> input = inputs_.lookup_try(ast_node.identifier);
+    if (!input) {
       r_error_ = fmt::format("{}: {}", TIP_("Unknown variable"), ast_node.identifier);
       return {};
     }
     return input;
   }
 
-  NodeAndSocket build_expr(const ast::BinaryOp &ast_node)
+  std::optional<Value> build_expr(const ast::BinaryOp &ast_node)
   {
     return this->build_generic_call(ast_node.op, {ast_node.a, ast_node.b});
   }
 
-  NodeAndSocket build_expr(const ast::UnaryOp &ast_node)
+  std::optional<Value> build_expr(const ast::UnaryOp &ast_node)
   {
     return this->build_generic_call(ast_node.op, {ast_node.expr});
   }
 
-  NodeAndSocket build_expr(const ast::ConditionalOp &ast_node)
+  std::optional<Value> build_expr(const ast::ConditionalOp &ast_node)
   {
     return this->build_generic_call("?:",
                                     {ast_node.condition, ast_node.true_expr, ast_node.false_expr});
   }
 
-  NodeAndSocket build_expr(const ast::MemberAccess &ast_node)
+  std::optional<Value> build_expr(const ast::MemberAccess &ast_node)
   {
     return this->build_generic_call("." + ast_node.identifier, {ast_node.expr});
   }
 
-  NodeAndSocket build_expr(const ast::Call &ast_node)
+  std::optional<Value> build_expr(const ast::Call &ast_node)
   {
     if (const ast::Identifier *identifier = std::get_if<ast::Identifier>(&ast_node.function->expr))
     {
@@ -397,18 +490,18 @@ class AstToNodeGroupBuilder {
     return {};
   }
 
-  NodeAndSocket build_generic_call(const StringRef name, const Span<const ast::Expr *> args)
+  std::optional<Value> build_generic_call(const StringRef name, const Span<const ast::Expr *> args)
   {
-    Array<NodeAndSocket> arg_sockets(args.size());
-    Vector<eNodeSocketDatatype> arg_types(args.size());
+    Vector<Value> arg_values;
+    Vector<ValueType> arg_types(args.size());
     for (const int i : args.index_range()) {
-      NodeAndSocket arg_socket = this->build_expr(*args[i]);
-      if (!arg_socket) {
+      std::optional<Value> arg_value = this->build_expr(*args[i]);
+      if (!arg_value) {
         /* There is an error in the argument. */
         return {};
       }
-      arg_types[i] = arg_socket.socket->typeinfo->type;
-      arg_sockets[i] = arg_socket;
+      arg_types[i] = arg_value->type;
+      arg_values.append(std::move(*arg_value));
     }
 
     const FunctionSymbol *function = symbol_table_.lookup_function(
@@ -420,10 +513,10 @@ class AstToNodeGroupBuilder {
     InsertCallParams insert_params{*this, r_tree_};
     function->insert(insert_params);
     BLI_assert(insert_params.inputs.size() == args.size());
-    BLI_assert(insert_params.output.socket);
+    BLI_assert(insert_params.output.has_value());
 
     for (const int i : args.index_range()) {
-      this->add_link(arg_sockets[i], insert_params.inputs[i]);
+      this->link_values(arg_values[i], insert_params.inputs[i]);
     }
     return insert_params.output;
   }
@@ -433,9 +526,15 @@ class AstToNodeGroupBuilder {
     return *bke::node_add_node(nullptr, r_tree_, idname);
   }
 
-  bNodeLink &add_link(const NodeAndSocket &from, const NodeAndSocket &to)
+  void link_values(const Value &from, const Value &to)
   {
-    return bke::node_add_link(r_tree_, *from.node, *from.socket, *to.node, *to.socket);
+    BLI_assert(from.sockets.size() == to.sockets.size());
+    for (const int i : from.sockets.index_range()) {
+      const NodeAndSocket &from_socket = from.sockets[i];
+      const NodeAndSocket &to_socket = to.sockets[i];
+      bke::node_add_link(
+          r_tree_, *from_socket.node, *from_socket.socket, *to_socket.node, *to_socket.socket);
+    }
   }
 };
 
@@ -443,7 +542,7 @@ static FunctionSymbol float_math_function(const StringRef name,
                                           const NodeMathOperation op,
                                           const int inputs_num)
 {
-  Vector<FunctionSymbolParam> param_types(inputs_num, {SOCK_FLOAT});
+  Vector<FunctionSymbolParam> param_types(inputs_num, {ValueType::Float});
   return FunctionSymbol(name, std::move(param_types), [op](InsertCallParams &params) {
     bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
     math_node.custom1 = op;
@@ -456,7 +555,7 @@ static FunctionSymbol vector_math_function(const StringRef name,
                                            const NodeVectorMathOperation op,
                                            const int inputs_num)
 {
-  Vector<FunctionSymbolParam> param_types(inputs_num, {SOCK_VECTOR});
+  Vector<FunctionSymbolParam> param_types(inputs_num, {ValueType::Vec3});
   return FunctionSymbol(name,
                         std::move(param_types),
                         [op](InsertCallParams &params) {
@@ -471,7 +570,7 @@ static FunctionSymbol vector_math_function(const StringRef name,
 
 static FunctionSymbol negate_float_function()
 {
-  return FunctionSymbol("-", {{SOCK_FLOAT}}, [](InsertCallParams &params) {
+  return FunctionSymbol("-", {{ValueType::Float}}, [](InsertCallParams &params) {
     bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
     math_node.custom1 = NODE_MATH_SUBTRACT;
     params.update_node_sockets(math_node);
@@ -483,7 +582,7 @@ static FunctionSymbol negate_float_function()
   });
 }
 
-static FunctionSymbol vector_member_access(const eNodeSocketDatatype type, const int index)
+static FunctionSymbol vector_member_access(const ValueType type, const int index)
 {
   BLI_assert(index >= 0 && index <= 2);
   return FunctionSymbol(
@@ -496,71 +595,75 @@ static FunctionSymbol vector_member_access(const eNodeSocketDatatype type, const
 
 static FunctionSymbol string_concatenation()
 {
-  return FunctionSymbol("+", {{SOCK_STRING}, {SOCK_STRING}}, [](InsertCallParams &params) {
-    bNode &node = params.add_node("FunctionNodeFormatString"_ustr);
-    auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
-    storage.items = MEM_new_array<NodeFunctionFormatStringItem>(2, "string_concatenation");
-    NodeFunctionFormatStringItem &item0 = storage.items[0];
-    NodeFunctionFormatStringItem &item1 = storage.items[1];
-    item0.identifier = storage.next_identifier++;
-    item1.identifier = storage.next_identifier++;
-    item0.name = BLI_strdup("a");
-    item1.name = BLI_strdup("b");
-    item0.socket_type = SOCK_STRING;
-    item1.socket_type = SOCK_STRING;
-    storage.items_num = 2;
-    params.update_node_sockets(node);
-    STRNCPY(static_cast<bNodeSocket *>(node.inputs.first)
-                ->default_value_typed<bNodeSocketValueString>()
-                ->value,
-            "{a}{b}");
-    params.add_input(node, 1);
-    params.add_input(node, 2);
-    params.use_node_output(node);
-  });
+  return FunctionSymbol(
+      "+", {{ValueType::String}, {ValueType::String}}, [](InsertCallParams &params) {
+        bNode &node = params.add_node("FunctionNodeFormatString"_ustr);
+        auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
+        storage.items = MEM_new_array<NodeFunctionFormatStringItem>(2, "string_concatenation");
+        NodeFunctionFormatStringItem &item0 = storage.items[0];
+        NodeFunctionFormatStringItem &item1 = storage.items[1];
+        item0.identifier = storage.next_identifier++;
+        item1.identifier = storage.next_identifier++;
+        item0.name = BLI_strdup("a");
+        item1.name = BLI_strdup("b");
+        item0.socket_type = SOCK_STRING;
+        item1.socket_type = SOCK_STRING;
+        storage.items_num = 2;
+        params.update_node_sockets(node);
+        STRNCPY(static_cast<bNodeSocket *>(node.inputs.first)
+                    ->default_value_typed<bNodeSocketValueString>()
+                    ->value,
+                "{a}{b}");
+        params.add_input(node, 1);
+        params.add_input(node, 2);
+        params.use_node_output(node);
+      });
 }
 
-static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype type)
+static FunctionSymbol ternary_conditional_operator(const ValueType type)
 {
-  return FunctionSymbol("?:", {{SOCK_BOOLEAN}, {type}, {type}}, [type](InsertCallParams &params) {
-    if (params.tree.type == NTREE_GEOMETRY) {
-      bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
-      auto &storage = *static_cast<NodeSwitch *>(node.storage);
-      storage.input_type = type;
-      params.update_node_sockets(node);
-      params.add_input(node, 0);
-      params.add_input(node, 2);
-      params.add_input(node, 1);
-      params.use_node_output(node);
-      return;
-    }
-    bNode &node = params.add_node("ShaderNodeMix"_ustr);
-    NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node.storage);
-    storage.clamp_factor = false;
-    if (ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN)) {
-      storage.data_type = type;
-    }
-    else if (type == SOCK_VECTOR) {
-      storage.data_type = SOCK_VECTOR;
-    }
-    else {
-      storage.data_type = SOCK_RGBA;
-    }
-    params.update_node_sockets(node);
-    params.add_input(node, 0);
-    params.add_input(node, 1);
-    params.add_input(node, 2);
-    params.use_node_output(node);
-  });
+  return FunctionSymbol(
+      "?:", {{ValueType::Boolean}, {type}, {type}}, [type](InsertCallParams &params) {
+        const eNodeSocketDatatype socket_type = *value_to_closest_socket_type(type);
+        if (params.tree.type == NTREE_GEOMETRY) {
+          bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
+          auto &storage = *static_cast<NodeSwitch *>(node.storage);
+          storage.input_type = socket_type;
+          params.update_node_sockets(node);
+          params.add_input(node, 0);
+          params.add_input(node, 2);
+          params.add_input(node, 1);
+          params.use_node_output(node);
+          return;
+        }
+        bNode &node = params.add_node("ShaderNodeMix"_ustr);
+        NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node.storage);
+        storage.clamp_factor = false;
+        if (ELEM(socket_type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN)) {
+          storage.data_type = socket_type;
+        }
+        else if (socket_type == SOCK_VECTOR) {
+          storage.data_type = SOCK_VECTOR;
+        }
+        else {
+          storage.data_type = SOCK_RGBA;
+        }
+        params.update_node_sockets(node);
+        params.add_input(node, 0);
+        params.add_input(node, 1);
+        params.add_input(node, 2);
+        params.use_node_output(node);
+      });
 }
 
 static FunctionSymbol create_vec3_function()
 {
-  return FunctionSymbol(
-      "vec3", {{SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}}, [](InsertCallParams &params) {
-        bNode &node = params.add_node("ShaderNodeCombineXYZ"_ustr);
-        params.use_node_sockets(node);
-      });
+  return FunctionSymbol("vec3",
+                        {{ValueType::Float}, {ValueType::Float}, {ValueType::Float}},
+                        [](InsertCallParams &params) {
+                          bNode &node = params.add_node("ShaderNodeCombineXYZ"_ustr);
+                          params.use_node_sockets(node);
+                        });
 }
 
 static UString get_combine_color_node_idname(const int tree_type)
@@ -579,26 +682,28 @@ static UString get_combine_color_node_idname(const int tree_type)
 
 static FunctionSymbol create_rgb_function()
 {
-  return FunctionSymbol(
-      "rgb", {{SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}}, [](InsertCallParams &params) {
-        const UString idname = get_combine_color_node_idname(params.tree.type);
-        bNode &node = params.add_node(idname);
-        params.add_input(node, 0);
-        params.add_input(node, 1);
-        params.add_input(node, 2);
-        params.use_node_output(node);
-      });
+  return FunctionSymbol("rgb",
+                        {{ValueType::Float}, {ValueType::Float}, {ValueType::Float}},
+                        [](InsertCallParams &params) {
+                          const UString idname = get_combine_color_node_idname(params.tree.type);
+                          bNode &node = params.add_node(idname);
+                          params.add_input(node, 0);
+                          params.add_input(node, 1);
+                          params.add_input(node, 2);
+                          params.use_node_output(node);
+                        });
 }
 
 static FunctionSymbol create_rgba_function()
 {
-  return FunctionSymbol("rgba",
-                        {{SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}},
-                        [](InsertCallParams &params) {
-                          const UString idname = get_combine_color_node_idname(params.tree.type);
-                          bNode &node = params.add_node(idname);
-                          params.use_node_sockets(node);
-                        });
+  return FunctionSymbol(
+      "rgba",
+      {{ValueType::Float}, {ValueType::Float}, {ValueType::Float}, {ValueType::Float}},
+      [](InsertCallParams &params) {
+        const UString idname = get_combine_color_node_idname(params.tree.type);
+        bNode &node = params.add_node(idname);
+        params.use_node_sockets(node);
+      });
 }
 
 static UString get_separate_color_node_idname(const int tree_type)
@@ -615,10 +720,9 @@ static UString get_separate_color_node_idname(const int tree_type)
   return {};
 }
 
-static FunctionSymbol create_color_member_access(const eNodeSocketDatatype type, const int index)
+static FunctionSymbol create_color_member_access(const ValueType type, const int index)
 {
   BLI_assert(index >= 0 && index < 4);
-  /* TODO: Disable .a access in shader nodes. */
   return FunctionSymbol(
       fmt::format(".{}", char("rgba"[index])), {{type, true}}, [index](InsertCallParams &params) {
         const UString node_idname = get_separate_color_node_idname(params.tree.type);
@@ -647,7 +751,7 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(create_rgb_function());
   symbols.add(create_rgba_function());
 
-  for (const eNodeSocketDatatype type : {SOCK_VECTOR, SOCK_RGBA}) {
+  for (const ValueType type : {ValueType::Vec3, ValueType::Rgb, ValueType::Rgba}) {
     symbols.add(vector_member_access(type, 0));
     symbols.add(vector_member_access(type, 1));
     symbols.add(vector_member_access(type, 2));
@@ -656,18 +760,17 @@ static void init_symbol_table(SymbolTable &symbols)
     symbols.add(create_color_member_access(type, 1));
     symbols.add(create_color_member_access(type, 2));
   }
-  symbols.add(create_color_member_access(SOCK_RGBA, 3));
+  symbols.add(create_color_member_access(ValueType::Rgba, 3));
 
   symbols.add(string_concatenation());
 
-  for (const eNodeSocketDatatype type : {SOCK_FLOAT,
-                                         SOCK_INT,
-                                         SOCK_BOOLEAN,
-                                         SOCK_VECTOR,
-                                         SOCK_STRING,
-                                         SOCK_ROTATION,
-                                         SOCK_MATRIX,
-                                         SOCK_RGBA})
+  for (const ValueType type : {ValueType::Float,
+                               ValueType::Vec3,
+                               ValueType::String,
+                               ValueType::Rgb,
+                               ValueType::Rgba,
+                               ValueType::Boolean,
+                               ValueType::Integer})
   {
     symbols.add(ternary_conditional_operator(type));
   }
