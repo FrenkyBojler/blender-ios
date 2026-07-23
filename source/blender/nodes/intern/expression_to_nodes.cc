@@ -373,7 +373,12 @@ class SymbolTable {
     }
 
     if (best_matching_functions.is_empty()) {
-      r_error = fmt::format("{}: '{}'", TIP_("No matching function"), name);
+      Vector<StringRef> param_types;
+      for (const ValueType input_type : input_types) {
+        param_types.append(get_value_type_name(input_type));
+      }
+      r_error = fmt::format(
+          "{}: {}({})", TIP_("No matching function"), name, fmt::join(param_types, ", "));
       return nullptr;
     }
     if (best_matching_functions.size() >= 2) {
