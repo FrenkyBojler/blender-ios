@@ -4062,12 +4062,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
       if (brush.curve_jitter == nullptr) {
         brush.curve_jitter = BKE_paint_default_curve();
       }
-      if (brush.curve_hardness == nullptr) {
-        brush.curve_hardness = BKE_paint_default_curve();
-      }
-      if (brush.curve_auto_smooth == nullptr) {
-        brush.curve_auto_smooth = BKE_paint_default_curve();
-      }
     }
   }
 

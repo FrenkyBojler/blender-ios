@@ -194,6 +194,9 @@ void blo_do_versions_530(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (brush.curve_auto_smooth == nullptr) {
         brush.curve_auto_smooth = BKE_paint_default_curve_inverted();
       }
+      if (brush.curve_spacing == nullptr) {
+        brush.curve_spacing = BKE_paint_default_curve();
+      }
     }
   }
   /**
