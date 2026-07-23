@@ -21,8 +21,6 @@ jobs:
       - name: Install dependencies
         run: |
           brew install ninja cmake
-          git lfs install
-          git lfs pull
 
       - name: Update Blender libraries
         run: |
