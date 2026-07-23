@@ -639,7 +639,8 @@ class ShaderNodesInliner {
     }
     if (socket.context && socket.context->parents_num() >= U.nodes_stack_limit) {
       this->store_socket_value_fallback(socket);
-      params_.r_error_messages.append({&*node, TIP_("Nodes stack limit reached")});
+      params_.r_error_messages.append(
+          {&*node, TIP_("Nodes stack limit reached (too many levels of nested nodes)")});
       return;
     }
     group->ensure_interface_cache();
@@ -879,7 +880,8 @@ class ShaderNodesInliner {
     if (socket.context && socket.context->parents_num() >= U.nodes_stack_limit) {
       this->store_socket_value_fallback(socket);
       params_.r_error_messages.append(
-          {&*evaluate_closure_node, TIP_("Nodes stack limit reached")});
+          {&*evaluate_closure_node,
+           TIP_("Nodes stack limit reached (too many levels of nested nodes)")});
       return;
     }
 
