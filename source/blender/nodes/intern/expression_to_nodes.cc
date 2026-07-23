@@ -551,10 +551,10 @@ static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype typ
       });
 }
 
-static FunctionSymbol create_vec_function()
+static FunctionSymbol create_vec3_function()
 {
   return FunctionSymbol(
-      "vec",
+      "vec3",
       [](TypeCheckCallParams &params) {
         if (params.input_types.size() != 3) {
           return false;
@@ -675,7 +675,7 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(vector_math_function("*", NODE_VECTOR_MATH_MULTIPLY, 2));
   symbols.add(vector_math_function("/", NODE_VECTOR_MATH_DIVIDE, 2));
 
-  symbols.add(create_vec_function());
+  symbols.add(create_vec3_function());
   symbols.add(create_rgb_function());
   symbols.add(create_rgba_function());
 
