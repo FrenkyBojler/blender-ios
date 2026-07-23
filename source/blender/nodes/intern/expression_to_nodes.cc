@@ -126,28 +126,113 @@ struct InsertCallParams {
 using InsertCallFn = std::function<void(InsertCallParams &params)>;
 using TypeCheckCallFn = std::function<bool(TypeCheckCallParams &params)>;
 
+struct FunctionSymbolParam {
+  eNodeSocketDatatype type;
+  bool needs_exact = false;
+};
+
 class FunctionSymbol {
  public:
   std::string name;
-  TypeCheckCallFn type_check;
+  Vector<FunctionSymbolParam> params;
+  std::optional<Vector<const bke::bNodeTreeType *>> allowed_tree_types;
   InsertCallFn insert;
 
-  FunctionSymbol(std::string name, TypeCheckCallFn type_check, InsertCallFn insert)
-      : name(std::move(name)), type_check(std::move(type_check)), insert(std::move(insert))
+  FunctionSymbol(std::string name,
+                 Vector<FunctionSymbolParam> params,
+                 InsertCallFn insert,
+                 std::optional<Vector<const bke::bNodeTreeType *>> allowed_tree_types = {})
+      : name(std::move(name)),
+        params(std::move(params)),
+        allowed_tree_types(allowed_tree_types),
+        insert(std::move(insert))
   {
   }
 };
 
 class SymbolTable {
  private:
-  MultiValueMap<std::string, FunctionSymbol> symbols_;
+  MultiValueMap<std::string, FunctionSymbol> function_;
 
-  friend AstToNodeGroupBuilder;
+  enum class MatchingType {
+    None = 0,
+    WithImplicitConversions = 1,
+    Exact = 2,
+  };
 
  public:
   void add(FunctionSymbol function_symbol)
   {
-    symbols_.add(function_symbol.name, std::move(function_symbol));
+    function_.add(function_symbol.name, std::move(function_symbol));
+  }
+
+  const FunctionSymbol *lookup_function(const StringRef name,
+                                        const bke::bNodeTreeType &tree_type,
+                                        const Span<eNodeSocketDatatype> input_types,
+                                        std::string &r_error) const
+  {
+    const Span<FunctionSymbol> candidates = function_.lookup(name);
+    if (candidates.is_empty()) {
+      r_error = fmt::format("{}: '{}'", TIP_("Unknown function"), name);
+      return nullptr;
+    }
+    MatchingType best_matching_type = MatchingType::None;
+    Vector<const FunctionSymbol *> best_matching_functions;
+    for (const FunctionSymbol &function : candidates) {
+      const MatchingType matching_type = this->compute_matching_type(
+          function, tree_type, input_types);
+      if (matching_type == MatchingType::None) {
+        continue;
+      }
+      if (matching_type == best_matching_type) {
+        best_matching_functions.append(&function);
+      }
+      else if (matching_type > best_matching_type) {
+        best_matching_type = matching_type;
+        best_matching_functions.clear();
+        best_matching_functions.append(&function);
+      }
+    }
+
+    if (best_matching_functions.is_empty()) {
+      r_error = fmt::format("{}: '{}'", TIP_("No matching function"), name);
+      return nullptr;
+    }
+    if (best_matching_functions.size() >= 2) {
+      r_error = fmt::format("{}: '{}'", TIP_("Ambiguous function call"), name);
+      return nullptr;
+    }
+    const FunctionSymbol *selected_function = best_matching_functions.first();
+    return selected_function;
+  }
+
+  MatchingType compute_matching_type(const FunctionSymbol &function,
+                                     const bke::bNodeTreeType &tree_type,
+                                     const Span<eNodeSocketDatatype> input_types) const
+  {
+    if (function.params.size() != input_types.size()) {
+      return MatchingType::None;
+    }
+    bool all_exact = true;
+    for (const int i : IndexRange(input_types.size())) {
+      const eNodeSocketDatatype input_type = input_types[i];
+      const FunctionSymbolParam &param = function.params[i];
+      if (input_type == param.type) {
+        continue;
+      }
+      if (param.needs_exact) {
+        return MatchingType::None;
+        continue;
+      }
+      if (!tree_type.validate_link(input_type, param.type)) {
+        return MatchingType::None;
+      }
+      all_exact = false;
+    }
+    if (all_exact) {
+      return MatchingType::Exact;
+    }
+    return MatchingType::WithImplicitConversions;
   }
 };
 
@@ -315,40 +400,25 @@ class AstToNodeGroupBuilder {
   NodeAndSocket build_generic_call(const StringRef name, const Span<const ast::Expr *> args)
   {
     Array<NodeAndSocket> arg_sockets(args.size());
-    TypeCheckCallParams type_check_params{*r_tree_.typeinfo};
-    type_check_params.input_types.resize(args.size());
+    Vector<eNodeSocketDatatype> arg_types(args.size());
     for (const int i : args.index_range()) {
       NodeAndSocket arg_socket = this->build_expr(*args[i]);
       if (!arg_socket) {
         /* There is an error in the argument. */
         return {};
       }
-      type_check_params.input_types[i] = arg_socket.socket->typeinfo;
+      arg_types[i] = arg_socket.socket->typeinfo->type;
       arg_sockets[i] = arg_socket;
     }
 
-    const Span<FunctionSymbol> candidates = symbol_table_.symbols_.lookup(name);
-    if (candidates.is_empty()) {
-      r_error_ = fmt::format("{}: \"{}\"", TIP_("Unknown function"), name);
+    const FunctionSymbol *function = symbol_table_.lookup_function(
+        name, *r_tree_.typeinfo, arg_types, r_error_);
+    if (!function) {
+      BLI_assert(!r_error_.empty());
       return {};
     }
-    Vector<const FunctionSymbol *> filtered_candidates;
-    for (const FunctionSymbol &function : candidates) {
-      if (function.type_check(type_check_params)) {
-        filtered_candidates.append(&function);
-      }
-    }
-    if (filtered_candidates.is_empty()) {
-      r_error_ = fmt::format("{}: \"{}\"", TIP_("No matching function"), name);
-      return {};
-    }
-    if (filtered_candidates.size() > 1) {
-      r_error_ = fmt::format("{}: \"{}\"", TIP_("Ambiguous function call"), name);
-      return {};
-    }
-    const FunctionSymbol &function = *filtered_candidates[0];
     InsertCallParams insert_params{*this, r_tree_};
-    function.insert(insert_params);
+    function->insert(insert_params);
     BLI_assert(insert_params.inputs.size() == args.size());
     BLI_assert(insert_params.output.socket);
 
@@ -369,94 +439,55 @@ class AstToNodeGroupBuilder {
   }
 };
 
-static bool all_inputs_1d(TypeCheckCallParams &params)
-{
-  return std::all_of(
-      params.input_types.begin(), params.input_types.end(), [](const bke::bNodeSocketType *stype) {
-        return ELEM(stype->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN);
-      });
-}
-
 static FunctionSymbol float_math_function(const StringRef name,
                                           const NodeMathOperation op,
                                           const int inputs_num)
 {
-  return FunctionSymbol(
-      name,
-      [inputs_num](TypeCheckCallParams &params) {
-        return params.input_types.size() == inputs_num && all_inputs_1d(params);
-      },
-      [op](InsertCallParams &params) {
-        bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
-        math_node.custom1 = op;
-        params.update_node_sockets(math_node);
-        params.use_node_sockets(math_node);
-      });
+  Vector<FunctionSymbolParam> param_types(inputs_num, {SOCK_FLOAT});
+  return FunctionSymbol(name, std::move(param_types), [op](InsertCallParams &params) {
+    bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
+    math_node.custom1 = op;
+    params.update_node_sockets(math_node);
+    params.use_node_sockets(math_node);
+  });
 }
 
 static FunctionSymbol vector_math_function(const StringRef name,
                                            const NodeVectorMathOperation op,
                                            const int inputs_num)
 {
-  return FunctionSymbol(
-      name,
-      [inputs_num](TypeCheckCallParams &params) {
-        if (params.input_types.size() != inputs_num) {
-          return false;
-        }
-        bool any_input_is_vector = false;
-        for (const bke::bNodeSocketType *stype : params.input_types) {
-          if (stype->type == SOCK_VECTOR) {
-            any_input_is_vector = true;
-          }
-          if (!ELEM(stype->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR)) {
-            return false;
-          }
-        }
-        if (!any_input_is_vector) {
-          return false;
-        }
-        return true;
-      },
-      [op](InsertCallParams &params) {
-        bNode &math_node = params.add_node("ShaderNodeVectorMath"_ustr);
-        math_node.custom1 = op;
-        params.update_node_sockets(math_node);
-        params.use_node_sockets(math_node);
-      }
+  Vector<FunctionSymbolParam> param_types(inputs_num, {SOCK_VECTOR});
+  return FunctionSymbol(name,
+                        std::move(param_types),
+                        [op](InsertCallParams &params) {
+                          bNode &math_node = params.add_node("ShaderNodeVectorMath"_ustr);
+                          math_node.custom1 = op;
+                          params.update_node_sockets(math_node);
+                          params.use_node_sockets(math_node);
+                        }
 
   );
 }
 
 static FunctionSymbol negate_float_function()
 {
-  return FunctionSymbol(
-      "-",
-      [](TypeCheckCallParams &params) {
-        return params.input_types.size() == 1 && all_inputs_1d(params);
-      },
-      [](InsertCallParams &params) {
-        bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
-        math_node.custom1 = NODE_MATH_SUBTRACT;
-        params.update_node_sockets(math_node);
-        static_cast<bNodeSocket *>(math_node.inputs.first)
-            ->default_value_typed<bNodeSocketValueFloat>()
-            ->value = 0.0f;
-        params.add_input(math_node, 1);
-        params.use_node_output(math_node);
-      });
+  return FunctionSymbol("-", {{SOCK_FLOAT}}, [](InsertCallParams &params) {
+    bNode &math_node = params.add_node("ShaderNodeMath"_ustr);
+    math_node.custom1 = NODE_MATH_SUBTRACT;
+    params.update_node_sockets(math_node);
+    static_cast<bNodeSocket *>(math_node.inputs.first)
+        ->default_value_typed<bNodeSocketValueFloat>()
+        ->value = 0.0f;
+    params.add_input(math_node, 1);
+    params.use_node_output(math_node);
+  });
 }
 
-static FunctionSymbol vector_member_access(const int index)
+static FunctionSymbol vector_member_access(const eNodeSocketDatatype type, const int index)
 {
   BLI_assert(index >= 0 && index <= 2);
   return FunctionSymbol(
-      fmt::format(".{}", char('x' + index)),
-      [](TypeCheckCallParams &params) {
-        return params.input_types.size() == 1 &&
-               ELEM(params.input_types[0]->type, SOCK_VECTOR, SOCK_RGBA);
-      },
-      [index](InsertCallParams &params) {
+      fmt::format(".{}", char('x' + index)), {{type, true}}, [index](InsertCallParams &params) {
         bNode &node = params.add_node("ShaderNodeSeparateXYZ"_ustr);
         params.use_node_inputs(node);
         params.set_output(node, index);
@@ -465,103 +496,68 @@ static FunctionSymbol vector_member_access(const int index)
 
 static FunctionSymbol string_concatenation()
 {
-  return FunctionSymbol(
-      "+",
-      [](TypeCheckCallParams &params) {
-        return params.input_types.size() == 2 && params.input_types[0]->type == SOCK_STRING &&
-               params.input_types[1]->type == SOCK_STRING;
-      },
-      [](InsertCallParams &params) {
-        bNode &node = params.add_node("FunctionNodeFormatString"_ustr);
-        auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
-        storage.items = MEM_new_array<NodeFunctionFormatStringItem>(2, "string_concatenation");
-        NodeFunctionFormatStringItem &item0 = storage.items[0];
-        NodeFunctionFormatStringItem &item1 = storage.items[1];
-        item0.identifier = storage.next_identifier++;
-        item1.identifier = storage.next_identifier++;
-        item0.name = BLI_strdup("a");
-        item1.name = BLI_strdup("b");
-        item0.socket_type = SOCK_STRING;
-        item1.socket_type = SOCK_STRING;
-        storage.items_num = 2;
-        params.update_node_sockets(node);
-        STRNCPY(static_cast<bNodeSocket *>(node.inputs.first)
-                    ->default_value_typed<bNodeSocketValueString>()
-                    ->value,
-                "{a}{b}");
-        params.add_input(node, 1);
-        params.add_input(node, 2);
-        params.use_node_output(node);
-      });
+  return FunctionSymbol("+", {{SOCK_STRING}, {SOCK_STRING}}, [](InsertCallParams &params) {
+    bNode &node = params.add_node("FunctionNodeFormatString"_ustr);
+    auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
+    storage.items = MEM_new_array<NodeFunctionFormatStringItem>(2, "string_concatenation");
+    NodeFunctionFormatStringItem &item0 = storage.items[0];
+    NodeFunctionFormatStringItem &item1 = storage.items[1];
+    item0.identifier = storage.next_identifier++;
+    item1.identifier = storage.next_identifier++;
+    item0.name = BLI_strdup("a");
+    item1.name = BLI_strdup("b");
+    item0.socket_type = SOCK_STRING;
+    item1.socket_type = SOCK_STRING;
+    storage.items_num = 2;
+    params.update_node_sockets(node);
+    STRNCPY(static_cast<bNodeSocket *>(node.inputs.first)
+                ->default_value_typed<bNodeSocketValueString>()
+                ->value,
+            "{a}{b}");
+    params.add_input(node, 1);
+    params.add_input(node, 2);
+    params.use_node_output(node);
+  });
 }
 
 static FunctionSymbol ternary_conditional_operator(const eNodeSocketDatatype type)
 {
-  return FunctionSymbol(
-      "?:",
-      [type](TypeCheckCallParams &params) {
-        if (params.input_types.size() != 3) {
-          return false;
-        }
-        if (params.input_types[0]->type != SOCK_BOOLEAN) {
-          return false;
-        }
-        if (params.input_types[1]->type != type) {
-          return false;
-        }
-        if (params.input_types[2]->type != type) {
-          return false;
-        }
-        if (params.tree_type.type != NTREE_GEOMETRY &&
-            !ELEM(type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_INT, SOCK_BOOLEAN))
-        {
-          return false;
-        }
-        return true;
-      },
-      [type](InsertCallParams &params) {
-        if (params.tree.type == NTREE_GEOMETRY) {
-          bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
-          auto &storage = *static_cast<NodeSwitch *>(node.storage);
-          storage.input_type = type;
-          params.update_node_sockets(node);
-          params.add_input(node, 0);
-          params.add_input(node, 2);
-          params.add_input(node, 1);
-          params.use_node_output(node);
-          return;
-        }
-        bNode &node = params.add_node("ShaderNodeMix"_ustr);
-        NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node.storage);
-        storage.clamp_factor = false;
-        if (ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN)) {
-          storage.data_type = type;
-        }
-        else if (type == SOCK_VECTOR) {
-          storage.data_type = SOCK_VECTOR;
-        }
-        else {
-          storage.data_type = SOCK_RGBA;
-        }
-        params.update_node_sockets(node);
-        params.add_input(node, 0);
-        params.add_input(node, 1);
-        params.add_input(node, 2);
-        params.use_node_output(node);
-      });
+  return FunctionSymbol("?:", {{SOCK_BOOLEAN}, {type}, {type}}, [type](InsertCallParams &params) {
+    if (params.tree.type == NTREE_GEOMETRY) {
+      bNode &node = params.add_node("GeometryNodeSwitch"_ustr);
+      auto &storage = *static_cast<NodeSwitch *>(node.storage);
+      storage.input_type = type;
+      params.update_node_sockets(node);
+      params.add_input(node, 0);
+      params.add_input(node, 2);
+      params.add_input(node, 1);
+      params.use_node_output(node);
+      return;
+    }
+    bNode &node = params.add_node("ShaderNodeMix"_ustr);
+    NodeShaderMix &storage = *static_cast<NodeShaderMix *>(node.storage);
+    storage.clamp_factor = false;
+    if (ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN)) {
+      storage.data_type = type;
+    }
+    else if (type == SOCK_VECTOR) {
+      storage.data_type = SOCK_VECTOR;
+    }
+    else {
+      storage.data_type = SOCK_RGBA;
+    }
+    params.update_node_sockets(node);
+    params.add_input(node, 0);
+    params.add_input(node, 1);
+    params.add_input(node, 2);
+    params.use_node_output(node);
+  });
 }
 
 static FunctionSymbol create_vec3_function()
 {
   return FunctionSymbol(
-      "vec3",
-      [](TypeCheckCallParams &params) {
-        if (params.input_types.size() != 3) {
-          return false;
-        }
-        return all_inputs_1d(params);
-      },
-      [](InsertCallParams &params) {
+      "vec3", {{SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}}, [](InsertCallParams &params) {
         bNode &node = params.add_node("ShaderNodeCombineXYZ"_ustr);
         params.use_node_sockets(node);
       });
@@ -584,14 +580,7 @@ static UString get_combine_color_node_idname(const int tree_type)
 static FunctionSymbol create_rgb_function()
 {
   return FunctionSymbol(
-      "rgb",
-      [](TypeCheckCallParams &params) {
-        if (params.input_types.size() != 3) {
-          return false;
-        }
-        return all_inputs_1d(params);
-      },
-      [](InsertCallParams &params) {
+      "rgb", {{SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}}, [](InsertCallParams &params) {
         const UString idname = get_combine_color_node_idname(params.tree.type);
         bNode &node = params.add_node(idname);
         params.add_input(node, 0);
@@ -603,22 +592,13 @@ static FunctionSymbol create_rgb_function()
 
 static FunctionSymbol create_rgba_function()
 {
-  return FunctionSymbol(
-      "rgba",
-      [](TypeCheckCallParams &params) {
-        if (params.input_types.size() != 4) {
-          return false;
-        }
-        if (!ELEM(params.tree_type.type, NTREE_COMPOSIT, NTREE_GEOMETRY)) {
-          return false;
-        }
-        return all_inputs_1d(params);
-      },
-      [](InsertCallParams &params) {
-        const UString idname = get_combine_color_node_idname(params.tree.type);
-        bNode &node = params.add_node(idname);
-        params.use_node_sockets(node);
-      });
+  return FunctionSymbol("rgba",
+                        {{SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}, {SOCK_FLOAT}},
+                        [](InsertCallParams &params) {
+                          const UString idname = get_combine_color_node_idname(params.tree.type);
+                          bNode &node = params.add_node(idname);
+                          params.use_node_sockets(node);
+                        });
 }
 
 static UString get_separate_color_node_idname(const int tree_type)
@@ -635,24 +615,12 @@ static UString get_separate_color_node_idname(const int tree_type)
   return {};
 }
 
-static FunctionSymbol create_color_member_access(const int index)
+static FunctionSymbol create_color_member_access(const eNodeSocketDatatype type, const int index)
 {
   BLI_assert(index >= 0 && index < 4);
+  /* TODO: Disable .a access in shader nodes. */
   return FunctionSymbol(
-      fmt::format(".{}", char("rgba"[index])),
-      [index](TypeCheckCallParams &params) {
-        if (params.input_types.size() != 1) {
-          return false;
-        }
-        if (index == 3 && params.tree_type.type == NTREE_SHADER) {
-          return false;
-        }
-        if (!ELEM(params.input_types[0]->type, SOCK_RGBA, SOCK_VECTOR)) {
-          return false;
-        }
-        return true;
-      },
-      [index](InsertCallParams &params) {
+      fmt::format(".{}", char("rgba"[index])), {{type, true}}, [index](InsertCallParams &params) {
         const UString node_idname = get_separate_color_node_idname(params.tree.type);
         bNode &node = params.add_node(node_idname);
         params.use_node_inputs(node);
@@ -679,14 +647,16 @@ static void init_symbol_table(SymbolTable &symbols)
   symbols.add(create_rgb_function());
   symbols.add(create_rgba_function());
 
-  symbols.add(vector_member_access(0));
-  symbols.add(vector_member_access(1));
-  symbols.add(vector_member_access(2));
+  for (const eNodeSocketDatatype type : {SOCK_VECTOR, SOCK_RGBA}) {
+    symbols.add(vector_member_access(type, 0));
+    symbols.add(vector_member_access(type, 1));
+    symbols.add(vector_member_access(type, 2));
 
-  symbols.add(create_color_member_access(0));
-  symbols.add(create_color_member_access(1));
-  symbols.add(create_color_member_access(2));
-  symbols.add(create_color_member_access(3));
+    symbols.add(create_color_member_access(type, 0));
+    symbols.add(create_color_member_access(type, 1));
+    symbols.add(create_color_member_access(type, 2));
+  }
+  symbols.add(create_color_member_access(SOCK_RGBA, 3));
 
   symbols.add(string_concatenation());
 
