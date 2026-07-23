@@ -481,6 +481,7 @@ class AstToNodeGroupBuilder {
         if (!expr_result) {
           return;
         }
+        // TODO: Make sure that the z component of vec2 values is zero.
         BLI_assert(!expr_result->sockets.is_empty());
         const NodeAndSocket &expr_socket = expr_result->sockets[0];
         bke::node_add_link(r_tree_,
@@ -814,6 +815,22 @@ static FunctionSymbol vec3_from_scalars()
                         });
 }
 
+static FunctionSymbol vec2_from_vec3()
+{
+  return FunctionSymbol("vec2", {{ValueType::Vec3}}, [](InsertCallParams &params) {
+    bNode &node = params.add_node("ShaderNodeVectorMath"_ustr);
+    node.custom1 = NODE_VECTOR_MATH_MULTIPLY;
+    params.add_input(node, 0, ValueType::Vec3);
+    bNodeSocket *mul_socket = static_cast<bNodeSocket *>(node.inputs.first)->next;
+    float *value = mul_socket->default_value_typed<bNodeSocketValueVector>()->value;
+    value[0] = 1.0f;
+    value[1] = 1.0f;
+    value[2] = 0.0f;
+    value[3] = 0.0f;
+    params.set_output(node, 0, ValueType::Vec2);
+  });
+}
+
 static FunctionSymbol vec3_from_vec2()
 {
   return FunctionSymbol("vec3", {{ValueType::Vec2}}, [](InsertCallParams &params) {
@@ -914,6 +931,7 @@ static void init_symbol_table(SymbolTable &symbols)
   }
 
   symbols.add(vec2_from_scalars());
+  symbols.add(vec2_from_vec3());
   symbols.add(vec3_from_scalars());
   symbols.add(vec3_from_vec2());
   symbols.add(rgb_from_scalars());
